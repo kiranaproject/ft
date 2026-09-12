@@ -35,15 +35,15 @@ type
     FDescent: Double;    { In device pixels }
     FHeight: Double;     { In device pixels }
     FFallbackFont: TFtFont;
-    procedure LoadFont;
+    procedure LoadFont();
     procedure SetGamma(AValue: Double);
-    function GetFallbackFont: TFtFont;
+    function GetFallbackFont(): TFtFont;
   public
     constructor Create(const AFamily: string; ASize: Double; ABold, AItalic: Boolean; const APath: string; AFaceIndex: Cardinal = 0; ADPI: Double = 96.0; AGamma: Double = 0.55);
-    destructor Destroy; override;
+    destructor Destroy(); override;
 
     function GetTextWidth(const AText: string): Double;
-    function CacheManagerPtr: font_cache_manager_ptr;
+    function CacheManagerPtr(): font_cache_manager_ptr;
 
     property FamilyName: string read FFamilyName;
     property Size: Double read FSize;
@@ -70,20 +70,20 @@ type
     FScreenDPI: Double;
     FFontGamma: Double;
     FFallbackFontFamily: string;
-    function DetectScreenDPI: Double;
-    function DetectSystemFontDesc: string;
-    function DetectFallbackFontFamily: string;
+    function DetectScreenDPI(): Double;
+    function DetectSystemFontDesc(): string;
+    function DetectFallbackFontFamily(): string;
     function ResolveFontFile(const AFamily: string; ABold, AItalic: Boolean; out AFaceIndex: Cardinal): string;
     function BuildCanonicalDesc(const AFamily: string; ASize: Double; ABold, AItalic: Boolean; AFaceIndex: Cardinal): string;
     procedure ParseFontDesc(ADesc: string; out AFamily: string; out ASize: Double; out ABold, AItalic: Boolean);
     procedure SetScreenDPI(AValue: Double);
     procedure SetFontGamma(AValue: Double);
   public
-    constructor Create;
-    destructor Destroy; override;
+    constructor Create();
+    destructor Destroy(); override;
 
     function GetFont(const AFontDesc: string): TFtFont;
-    function GetSystemFont: TFtFont;
+    function GetSystemFont(): TFtFont;
     function GetFallbackFont(ASize: Double): TFtFont;
     procedure SetSystemFontDesc(const AFontDesc: string);
 
@@ -95,11 +95,11 @@ type
   end;
 
 function UTF8CharToUnicode(p: PChar; out CharLen: LongInt): Cardinal;
-function FtFontManager: TFtFontManager;
-function FtGetSystemFont: TFtFont;
-function FtGetScreenDPI: Double;
+function FtFontManager(): TFtFontManager;
+function FtGetSystemFont(): TFtFont;
+function FtGetScreenDPI(): Double;
 procedure FtSetScreenDPI(ADPI: Double);
-function FtGetFontGamma: Double;
+function FtGetFontGamma(): Double;
 procedure FtSetFontGamma(AGamma: Double);
 
 implementation
@@ -191,21 +191,21 @@ begin
   FDescent := px * 0.2;
   FHeight := px;
 
-  FEngine.Construct;
+  FEngine.Construct();
   FCacheManager.Construct(@FEngine);
 
   if FFontPath <> '' then
-    LoadFont;
+    LoadFont();
 end;
 
-destructor TFtFont.Destroy;
+destructor TFtFont.Destroy();
 begin
-  FCacheManager.Destruct;
-  FEngine.Destruct;
-  inherited Destroy;
+  FCacheManager.Destruct();
+  FEngine.Destruct();
+  inherited Destroy();
 end;
 
-procedure TFtFont.LoadFont;
+procedure TFtFont.LoadFont();
 var
   pixelHeight: Double;
 begin
@@ -227,9 +227,9 @@ begin
       FEngine.gamma_(@FGamPower);
     end;
 
-    FAscent := FEngine._ascender;
-    FDescent := abs(FEngine._descender);
-    FHeight := FEngine._height;
+    FAscent := FEngine._ascender();
+    FDescent := abs(FEngine._descender());
+    FHeight := FEngine._height();
   end;
 end;
 
@@ -242,12 +242,12 @@ begin
     FGamPower.Construct(FGamma);
     FEngine.gamma_(@FGamPower);
     { Reset cache so existing glyphs are re-rasterized with the new gamma }
-    FCacheManager.Destruct;
+    FCacheManager.Destruct();
     FCacheManager.Construct(@FEngine);
   end;
 end;
 
-function TFtFont.GetFallbackFont: TFtFont;
+function TFtFont.GetFallbackFont(): TFtFont;
 begin
   if Assigned(FFallbackFont) then
     Exit(FFallbackFont);
@@ -257,7 +257,7 @@ begin
      (Pos('droid sans fallback', LowerCase(FFamilyName)) > 0) then
     Exit(nil);
 
-  FFallbackFont := FtFontManager.GetFallbackFont(FSize);
+  FFallbackFont := FtFontManager().GetFallbackFont(FSize);
   Result := FFallbackFont;
 end;
 
@@ -292,9 +292,9 @@ begin
       fb := FallbackFont;
       if Assigned(fb) and fb.Loaded and (fb <> Self) then
       begin
-        glyph := fb.CacheManagerPtr^.glyph(charId);
+        glyph := fb.CacheManagerPtr()^.glyph(charId);
         if (glyph <> nil) and (glyph^.glyph_index <> 0) then
-          curCM := fb.CacheManagerPtr;
+          curCM := fb.CacheManagerPtr();
       end;
     end;
 
@@ -310,23 +310,23 @@ begin
   Result := x;
 end;
 
-function TFtFont.CacheManagerPtr: font_cache_manager_ptr;
+function TFtFont.CacheManagerPtr(): font_cache_manager_ptr;
 begin
   Result := @FCacheManager;
 end;
 
 { TFtFontManager }
 
-constructor TFtFontManager.Create;
+constructor TFtFontManager.Create();
 var
   envVal: string;
   valDbl: Double;
   code: Integer;
 begin
-  inherited Create;
-  FCache := TFPList.Create;
-  FScreenDPI := DetectScreenDPI;
-  FDefaultFontDesc := DetectSystemFontDesc;
+  inherited Create();
+  FCache := TFPList.Create();
+  FScreenDPI := DetectScreenDPI();
+  FDefaultFontDesc := DetectSystemFontDesc();
   FSystemFont := nil;
   FFontGamma := 0.55;
 
@@ -339,17 +339,17 @@ begin
   end;
 end;
 
-destructor TFtFontManager.Destroy;
+destructor TFtFontManager.Destroy();
 var
   i: Integer;
 begin
   for i := 0 to FCache.Count - 1 do
-    TFtFont(FCache[i]).Free;
-  FCache.Free;
-  inherited Destroy;
+    TFtFont(FCache[i]).Free();
+  FCache.Free();
+  inherited Destroy();
 end;
 
-function TFtFontManager.DetectScreenDPI: Double;
+function TFtFontManager.DetectScreenDPI(): Double;
 var
   envVal: string;
   valDbl: Double;
@@ -585,7 +585,7 @@ begin
       Exit(StandardDirs[i]);
 end;
 
-function TFtFontManager.DetectFallbackFontFamily: string;
+function TFtFontManager.DetectFallbackFontFamily(): string;
 var
   outStr: string;
 begin
@@ -604,7 +604,7 @@ var
   Desc: string;
 begin
   if FFallbackFontFamily = '' then
-    FFallbackFontFamily := DetectFallbackFontFamily;
+    FFallbackFontFamily := DetectFallbackFontFamily();
   Desc := Format('%s-%.1f', [FFallbackFontFamily, ASize]);
   Result := GetFont(Desc);
 end;
@@ -621,7 +621,7 @@ var
   NewFont: TFtFont;
 begin
   if AFontDesc = '' then
-    Exit(GetSystemFont);
+    Exit(GetSystemFont());
 
   ParseFontDesc(AFontDesc, Fam, Sz, B, It);
   FontPath := ResolveFontFile(Fam, B, It, FaceIdx);
@@ -653,7 +653,7 @@ begin
     TFtFont(FCache[i]).Gamma := AValue;
 end;
 
-function TFtFontManager.GetSystemFont: TFtFont;
+function TFtFontManager.GetSystemFont(): TFtFont;
 begin
   if not Assigned(FSystemFont) then
     FSystemFont := GetFont(FDefaultFontDesc);
@@ -666,42 +666,42 @@ begin
   FSystemFont := nil; // Invalidate system font pointer to reload on next access
 end;
 
-function FtFontManager: TFtFontManager;
+function FtFontManager(): TFtFontManager;
 begin
   if not Assigned(uFontManager) then
-    uFontManager := TFtFontManager.Create;
+    uFontManager := TFtFontManager.Create();
   Result := uFontManager;
 end;
 
-function FtGetSystemFont: TFtFont;
+function FtGetSystemFont(): TFtFont;
 begin
-  Result := FtFontManager.GetSystemFont;
+  Result := FtFontManager().GetSystemFont();
 end;
 
-function FtGetScreenDPI: Double;
+function FtGetScreenDPI(): Double;
 begin
-  Result := FtFontManager.ScreenDPI;
+  Result := FtFontManager().ScreenDPI;
 end;
 
 procedure FtSetScreenDPI(ADPI: Double);
 begin
-  FtFontManager.ScreenDPI := ADPI;
+  FtFontManager().ScreenDPI := ADPI;
 end;
 
-function FtGetFontGamma: Double;
+function FtGetFontGamma(): Double;
 begin
-  Result := FtFontManager.FontGamma;
+  Result := FtFontManager().FontGamma;
 end;
 
 procedure FtSetFontGamma(AGamma: Double);
 begin
-  FtFontManager.FontGamma := AGamma;
+  FtFontManager().FontGamma := AGamma;
 end;
 
 finalization
   if Assigned(uFontManager) then
   begin
-    uFontManager.Free;
+    uFontManager.Free();
     uFontManager := nil;
   end;
 

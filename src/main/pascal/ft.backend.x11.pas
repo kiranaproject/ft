@@ -22,13 +22,13 @@ type
     FNeedsRepaint: Boolean;
   public
     constructor Create(W, H: Integer; Title: string); reintroduce;
-    destructor Destroy; override;
+    destructor Destroy(); override;
     procedure Resize(NewW, NewH: Integer);
     procedure SetTitle(const ATitle: string);
-    procedure Repaint;
-    procedure HandleEvents;
-    procedure Show;
-    procedure Invalidate; override;
+    procedure Repaint();
+    procedure HandleEvents();
+    procedure Show();
+    procedure Invalidate(); override;
     procedure WidgetDestroyed(AWidget: TFtWidget); override;
   end;
 
@@ -37,13 +37,13 @@ var
   GRunning: Boolean = False;
   GActiveWindow: TFtX11Window = nil;
 
-procedure FtBackendInit;
-procedure FtBackendMainLoop;
-procedure FtBackendQuit;
+procedure FtBackendInit();
+procedure FtBackendMainLoop();
+procedure FtBackendQuit();
 
 implementation
 
-procedure FtBackendInit;
+procedure FtBackendInit();
 begin
   XInitThreads();
   GDisplay := XOpenDisplay(nil);
@@ -52,16 +52,16 @@ begin
   GRunning := True;
 end;
 
-procedure FtBackendQuit;
+procedure FtBackendQuit();
 begin
   GRunning := False;
 end;
 
-procedure FtBackendMainLoop;
+procedure FtBackendMainLoop();
 begin
   while GRunning and Assigned(GActiveWindow) do
   begin
-    GActiveWindow.HandleEvents;
+    GActiveWindow.HandleEvents();
     if Assigned(GDisplay) and (XPending(GDisplay) = 0) then
       Sleep(10);
   end;
@@ -143,11 +143,11 @@ begin
   end;
 end;
 
-destructor TFtX11Window.Destroy;
+destructor TFtX11Window.Destroy();
 begin
   FHoverWidget := nil;
   FPressedWidget := nil;
-  FCanvas.Free;
+  FCanvas.Free();
   if Assigned(FXImage) then
   begin
     FXImage^.data := nil;
@@ -162,7 +162,7 @@ begin
   if Assigned(FGC) then
     XFreeGC(FDisplay, FGC);
   XDestroyWindow(FDisplay, FWindow);
-  inherited Destroy;
+  inherited Destroy();
 end;
 
 procedure TFtX11Window.Resize(NewW, NewH: Integer);
@@ -195,17 +195,17 @@ begin
   else
     FCanvas := TFtCanvasAgg.Create(FPixelBuffer, Width, Height);
 
-  Repaint;
+  Repaint();
 end;
 
-procedure TFtX11Window.Show;
+procedure TFtX11Window.Show();
 begin
   XMapWindow(FDisplay, FWindow);
-  Repaint;
+  Repaint();
   XFlush(FDisplay);
 end;
 
-procedure TFtX11Window.Repaint;
+procedure TFtX11Window.Repaint();
 begin
   FCanvas.Clear(0.92, 0.93, 0.94);
   Self.Draw(FCanvas);
@@ -213,7 +213,7 @@ begin
   XFlush(FDisplay);
 end;
 
-procedure TFtX11Window.Invalidate;
+procedure TFtX11Window.Invalidate();
 begin
   FNeedsRepaint := True;
 end;
@@ -227,7 +227,7 @@ begin
   inherited WidgetDestroyed(AWidget);
 end;
 
-procedure TFtX11Window.HandleEvents;
+procedure TFtX11Window.HandleEvents();
 var
   Event: TXEvent;
   Target: TFtWidget;
@@ -264,10 +264,10 @@ begin
         if Target <> FHoverWidget then
         begin
           if Assigned(FHoverWidget) then
-            FHoverWidget.MouseLeave;
+            FHoverWidget.MouseLeave();
           FHoverWidget := Target;
           if Assigned(FHoverWidget) then
-            FHoverWidget.MouseEnter;
+            FHoverWidget.MouseEnter();
         end;
         if Assigned(Target) then
           Target.MouseMove(Event.xmotion.x, Event.xmotion.y);
@@ -276,7 +276,7 @@ begin
       begin
         if Assigned(FHoverWidget) then
         begin
-          FHoverWidget.MouseLeave;
+          FHoverWidget.MouseLeave();
           FHoverWidget := nil;
         end;
       end;
@@ -298,7 +298,7 @@ begin
         begin
           FPressedWidget.MouseUp(Event.xbutton.x, Event.xbutton.y, Event.xbutton.button);
           if Target = FPressedWidget then
-            FPressedWidget.Click;
+            FPressedWidget.Click();
           FPressedWidget := nil;
         end;
       end;
@@ -318,7 +318,7 @@ begin
   else if FNeedsRepaint then
   begin
     FNeedsRepaint := False;
-    Repaint;
+    Repaint();
   end;
 end;
 

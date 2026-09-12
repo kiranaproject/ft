@@ -12,9 +12,9 @@ type
   private
     FFont: TFtFont;
   protected
-    function GetFont: TFtFont; virtual;
+    function GetFont(): TFtFont; virtual;
     procedure SetFont(AValue: TFtFont); virtual;
-    function GetFontDesc: string; virtual;
+    function GetFontDesc(): string; virtual;
     procedure SetFontDesc(const AValue: string); virtual;
   public
     X, Y, Width, Height: Integer;
@@ -22,14 +22,14 @@ type
     Parent: TFtWidget;
     Children: TFPList;
     constructor Create(AParent: TFtWidget); virtual;
-    destructor Destroy; override;
+    destructor Destroy(); override;
     procedure Draw(Canvas: TFtCanvasAgg); virtual;
     function HitTest(AX, AY: Integer): TFtWidget; virtual;
-    procedure Click; virtual;
-    procedure Invalidate; virtual;
+    procedure Click(); virtual;
+    procedure Invalidate(); virtual;
 
-    procedure MouseEnter; virtual;
-    procedure MouseLeave; virtual;
+    procedure MouseEnter(); virtual;
+    procedure MouseLeave(); virtual;
     procedure MouseDown(AX, AY: Integer; AButton: Integer); virtual;
     procedure MouseUp(AX, AY: Integer; AButton: Integer); virtual;
     procedure MouseMove(AX, AY: Integer); virtual;
@@ -44,14 +44,14 @@ implementation
 constructor TFtWidget.Create(AParent: TFtWidget);
 begin
   Parent := AParent;
-  Children := TFPList.Create;
+  Children := TFPList.Create();
   Visible := True;
   FFont := nil; { Follows parent or system font by default }
   if Assigned(Parent) then
     Parent.Children.Add(Self);
 end;
 
-destructor TFtWidget.Destroy;
+destructor TFtWidget.Destroy();
 var
   I: Integer;
 begin
@@ -59,19 +59,19 @@ begin
     Parent.WidgetDestroyed(Self);
   FFont := nil;
   for I := 0 to Children.Count - 1 do
-    TFtWidget(Children[I]).Free;
-  Children.Free;
-  inherited Destroy;
+    TFtWidget(Children[I]).Free();
+  Children.Free();
+  inherited Destroy();
 end;
 
-function TFtWidget.GetFont: TFtFont;
+function TFtWidget.GetFont(): TFtFont;
 begin
   if Assigned(FFont) then
     Result := FFont
   else if Assigned(Parent) then
-    Result := Parent.GetFont
+    Result := Parent.GetFont()
   else
-    Result := FtGetSystemFont;
+    Result := FtGetSystemFont();
 end;
 
 procedure TFtWidget.SetFont(AValue: TFtFont);
@@ -79,11 +79,11 @@ begin
   FFont := AValue;
 end;
 
-function TFtWidget.GetFontDesc: string;
+function TFtWidget.GetFontDesc(): string;
 var
   F: TFtFont;
 begin
-  F := GetFont;
+  F := GetFont();
   if Assigned(F) then
     Result := F.FontDesc
   else
@@ -126,21 +126,21 @@ begin
     Result := Self;
 end;
 
-procedure TFtWidget.Click;
+procedure TFtWidget.Click();
 begin
 end;
 
-procedure TFtWidget.Invalidate;
+procedure TFtWidget.Invalidate();
 begin
   if Assigned(Parent) then
-    Parent.Invalidate;
+    Parent.Invalidate();
 end;
 
-procedure TFtWidget.MouseEnter;
+procedure TFtWidget.MouseEnter();
 begin
 end;
 
-procedure TFtWidget.MouseLeave;
+procedure TFtWidget.MouseLeave();
 begin
 end;
 

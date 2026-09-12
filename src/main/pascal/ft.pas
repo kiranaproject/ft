@@ -13,19 +13,19 @@ var
   gLastSystemFontDesc: AnsiString;
   gLastWidgetFontDesc: AnsiString;
 
-procedure ft_init; cdecl; export;
+procedure ft_init(); cdecl; export;
 begin
-  FtBackendInit;
+  FtBackendInit();
 end;
 
-procedure ft_main_loop; cdecl; export;
+procedure ft_main_loop(); cdecl; export;
 begin
-  FtBackendMainLoop;
+  FtBackendMainLoop();
 end;
 
-procedure ft_quit; cdecl; export;
+procedure ft_quit(); cdecl; export;
 begin
-  FtBackendQuit;
+  FtBackendQuit();
 end;
 
 function ft_window_create(width, height: cint32; title: PChar): Pointer; cdecl; export;
@@ -36,7 +36,7 @@ end;
 procedure ft_widget_show(widget: Pointer); cdecl; export;
 begin
   if Assigned(widget) and (TObject(widget) is TFtX11Window) then
-    TFtX11Window(widget).Show;
+    TFtX11Window(widget).Show();
 end;
 
 procedure ft_window_set_title(window: Pointer; title: PChar); cdecl; export;
@@ -143,16 +143,16 @@ begin
   end;
 end;
 
-function ft_system_font_get: PChar; cdecl; export;
+function ft_system_font_get(): PChar; cdecl; export;
 begin
-  gLastSystemFontDesc := FtGetSystemFont.FontDesc;
+  gLastSystemFontDesc := FtGetSystemFont().FontDesc;
   Result := PChar(gLastSystemFontDesc);
 end;
 
 procedure ft_system_font_set(desc: PChar); cdecl; export;
 begin
   if Assigned(desc) then
-    FtFontManager.DefaultFontDesc := StrPas(desc);
+    FtFontManager().DefaultFontDesc := StrPas(desc);
 end;
 
 procedure ft_widget_set_font(widget: Pointer; font_desc: PChar); cdecl; export;
@@ -177,9 +177,9 @@ begin
     Result := nil;
 end;
 
-function ft_screen_dpi_get: Double; cdecl; export;
+function ft_screen_dpi_get(): Double; cdecl; export;
 begin
-  Result := FtGetScreenDPI;
+  Result := FtGetScreenDPI();
 end;
 
 procedure ft_screen_dpi_set(dpi: Double); cdecl; export;
@@ -187,9 +187,9 @@ begin
   FtSetScreenDPI(dpi);
 end;
 
-function ft_font_gamma_get: Double; cdecl; export;
+function ft_font_gamma_get(): Double; cdecl; export;
 begin
-  Result := FtGetFontGamma;
+  Result := FtGetFontGamma();
 end;
 
 procedure ft_font_gamma_set(gamma: Double); cdecl; export;

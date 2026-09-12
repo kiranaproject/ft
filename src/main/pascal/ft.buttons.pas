@@ -33,9 +33,9 @@ type
     constructor Create(AParent: TFtWidget); override;
 
     procedure Draw(Canvas: TFtCanvasAgg); override;
-    procedure Click; override;
-    procedure MouseEnter; override;
-    procedure MouseLeave; override;
+    procedure Click(); override;
+    procedure MouseEnter(); override;
+    procedure MouseLeave(); override;
     procedure MouseDown(AX, AY: Integer; AButton: Integer); override;
     procedure MouseUp(AX, AY: Integer; AButton: Integer); override;
 
@@ -87,7 +87,7 @@ begin
   if FToggled <> AValue then
   begin
     FToggled := AValue;
-    Invalidate;
+    Invalidate();
     if Assigned(FOnToggle) then
     begin
       if FToggled then
@@ -98,21 +98,21 @@ begin
   end;
 end;
 
-procedure TFtButton.MouseEnter;
+procedure TFtButton.MouseEnter();
 begin
   if FIsMouseDown then
     FState := bsPressed
   else
     FState := bsHovered;
-  Invalidate;
+  Invalidate();
   if Assigned(FOnHover) then
     FOnHover(Self, 1, FUserData);
 end;
 
-procedure TFtButton.MouseLeave;
+procedure TFtButton.MouseLeave();
 begin
   FState := bsNormal;
-  Invalidate;
+  Invalidate();
   if Assigned(FOnHover) then
     FOnHover(Self, 0, FUserData);
 end;
@@ -123,7 +123,7 @@ begin
   begin
     FIsMouseDown := True;
     FState := bsPressed;
-    Invalidate;
+    Invalidate();
     if Assigned(FOnPress) then
       FOnPress(Self, 1, FUserData);
   end;
@@ -138,13 +138,13 @@ begin
       FState := bsHovered
     else
       FState := bsNormal;
-    Invalidate;
+    Invalidate();
     if Assigned(FOnPress) then
       FOnPress(Self, 0, FUserData);
   end;
 end;
 
-procedure TFtButton.Click;
+procedure TFtButton.Click();
 begin
   if FCanToggle then
     SetToggled(not FToggled);
@@ -240,7 +240,7 @@ begin
   Canvas.DrawRect(X + 1, Y + 1, Width - 2, 1, topR, topG, topB);
   Canvas.DrawRect(X + 1, Y + 1, 1, Height - 2, topR, topG, topB);
   Canvas.DrawRect(X + 1, Y + Height - 2, Width - 2, 1, botR, botG, botB);
-  Canvas.DrawRect(X + Width - 2, Y + 1, 1, Height - 2, botR, botG, botB);
+  Canvas.DrawRect(X + Width - 2, Y + 1, 1, Height - 2, topR, topG, topB);
 
   // 4. If Toggled: draw an active indicator bar at the bottom
   if FToggled then
@@ -255,7 +255,7 @@ begin
 
   // 5. Button caption
   if Caption <> '' then
-    Canvas.DrawTextCentered(X + textOffsetX, Y + textOffsetY, Width, Height, Caption, GetFont, textR, textG, textB);
+    Canvas.DrawTextCentered(X + textOffsetX, Y + textOffsetY, Width, Height, Caption, GetFont(), textR, textG, textB);
 
   inherited Draw(Canvas);
 end;

@@ -35,7 +35,7 @@ type
     procedure DrawTextCenteredHershey(X, Y, W, H: Integer; const AText: string; ASize: Double; R, G, B: Double);
   public
     constructor Create(ABuffer: Pointer; AWidth, AHeight: Integer);
-    destructor Destroy; override;
+    destructor Destroy(); override;
     procedure Resize(ABuffer: Pointer; AWidth, AHeight: Integer);
     procedure Clear(R, G, B: Double);
     procedure DrawRect(X, Y, W, H: Integer; R, G, B: Double);
@@ -56,21 +56,21 @@ begin
   FWidth := AWidth;
   FHeight := AHeight;
 
-  FRenderingBuf.Construct;
+  FRenderingBuf.Construct();
   FRenderingBuf.attach(FBuffer, FWidth, FHeight, FWidth * 4);
 
   pixfmt_bgra32(FPixFormat, @FRenderingBuf);
   FRendererBase.Construct(@FPixFormat);
-  FRasterizer.Construct;
-  FScanline.Construct;
+  FRasterizer.Construct();
+  FScanline.Construct();
 end;
 
-destructor TFtCanvasAgg.Destroy;
+destructor TFtCanvasAgg.Destroy();
 begin
-  FScanline.Destruct;
-  FRasterizer.Destruct;
-  FRenderingBuf.Destruct;
-  inherited Destroy;
+  FScanline.Destruct();
+  FRasterizer.Destruct();
+  FRenderingBuf.Destruct();
+  inherited Destroy();
 end;
 
 procedure TFtCanvasAgg.Resize(ABuffer: Pointer; AWidth, AHeight: Integer);
@@ -97,7 +97,7 @@ var
   C: aggclr;
 begin
   C.ConstrDbl(R, G, B);
-  FRasterizer.reset;
+  FRasterizer.reset();
   FRasterizer.move_to_d(X, Y);
   FRasterizer.line_to_d(X + W, Y);
   FRasterizer.line_to_d(X + W, Y + H);
@@ -113,7 +113,7 @@ var
   ST: conv_stroke;
 begin
   if AText = '' then Exit;
-  T.Construct;
+  T.Construct();
   T.size_(ASize);
   T.flip_(True);
   ST.Construct(@T);
@@ -122,11 +122,11 @@ begin
   T.text_(PChar(AText));
 
   C.ConstrDbl(R, G, B);
-  FRasterizer.reset;
+  FRasterizer.reset();
   FRasterizer.add_path(@ST);
   render_scanlines_aa_solid(@FRasterizer, @FScanline, @FRendererBase, @C);
-  ST.Destruct;
-  T.Destruct;
+  ST.Destruct();
+  T.Destruct();
 end;
 
 procedure TFtCanvasAgg.DrawTextCenteredHershey(X, Y, W, H: Integer; const AText: string; ASize: Double; R, G, B: Double);
@@ -138,7 +138,7 @@ var
   TW, TH, TX, TY: Double;
 begin
   if AText = '' then Exit;
-  T.Construct;
+  T.Construct();
   T.size_(ASize);
   T.flip_(True);
   ST.Construct(@T);
@@ -158,11 +158,11 @@ begin
     T.start_point_(X + 10, Y + H / 2.0);
 
   C.ConstrDbl(R, G, B);
-  FRasterizer.reset;
+  FRasterizer.reset();
   FRasterizer.add_path(@ST);
   render_scanlines_aa_solid(@FRasterizer, @FScanline, @FRendererBase, @C);
-  ST.Destruct;
-  T.Destruct;
+  ST.Destruct();
+  T.Destruct();
 end;
 
 procedure TFtCanvasAgg.DrawText(X, Y: Double; const AText: string; AFont: TFtFont; R, G, B: Double);
@@ -179,7 +179,7 @@ var
   fb: TFtFont;
 begin
   if AText = '' then Exit;
-  if not Assigned(AFont) then AFont := FtGetSystemFont;
+  if not Assigned(AFont) then AFont := FtGetSystemFont();
 
   if not AFont.Loaded then
   begin
@@ -187,7 +187,7 @@ begin
     Exit;
   end;
 
-  cm := AFont.CacheManagerPtr;
+  cm := AFont.CacheManagerPtr();
   C.ConstrDbl(R, G, B);
   renSolid.Construct(@FRendererBase);
   renSolid.color_(@C);
@@ -209,9 +209,9 @@ begin
       fb := AFont.FallbackFont;
       if Assigned(fb) and fb.Loaded and (fb <> AFont) then
       begin
-        glyph := fb.CacheManagerPtr^.glyph(charId);
+        glyph := fb.CacheManagerPtr()^.glyph(charId);
         if (glyph <> nil) and (glyph^.glyph_index <> 0) then
-          curCM := fb.CacheManagerPtr;
+          curCM := fb.CacheManagerPtr();
       end;
     end;
 
@@ -236,7 +236,7 @@ var
   TW, TX, TY: Double;
 begin
   if AText = '' then Exit;
-  if not Assigned(AFont) then AFont := FtGetSystemFont;
+  if not Assigned(AFont) then AFont := FtGetSystemFont();
 
   if not AFont.Loaded then
   begin
@@ -255,9 +255,9 @@ procedure TFtCanvasAgg.DrawText(X, Y: Double; const AText: string; ASize: Double
 var
   F: TFtFont;
 begin
-  F := FtGetSystemFont;
+  F := FtGetSystemFont();
   if Assigned(F) and (Abs(F.Size - ASize) > 0.5) then
-    F := FtFontManager.GetFont(Format('%s-%.1f', [F.FamilyName, ASize]));
+    F := FtFontManager().GetFont(Format('%s-%.1f', [F.FamilyName, ASize]));
   DrawText(X, Y, AText, F, R, G, B);
 end;
 
@@ -265,9 +265,9 @@ procedure TFtCanvasAgg.DrawTextCentered(X, Y, W, H: Integer; const AText: string
 var
   F: TFtFont;
 begin
-  F := FtGetSystemFont;
+  F := FtGetSystemFont();
   if Assigned(F) and (Abs(F.Size - ASize) > 0.5) then
-    F := FtFontManager.GetFont(Format('%s-%.1f', [F.FamilyName, ASize]));
+    F := FtFontManager().GetFont(Format('%s-%.1f', [F.FamilyName, ASize]));
   DrawTextCentered(X, Y, W, H, AText, F, R, G, B);
 end;
 
