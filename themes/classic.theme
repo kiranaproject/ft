@@ -1,0 +1,42 @@
+[Theme]
+Name=classic
+Author=Floria Project
+Description=Original elevated 3D slate style with vibrant emerald accents
+Style=classic
+CornerRadius=4.0
+Shadow=true
+ShadowOffsetY=2.0
+ShadowBlur=3.5
+ShadowOpacity=0.15
+
+[Light]
+window.bg = #EBEDF0
+button.normal.plate = #D8DCE3
+button.normal.border = #B0B6C2
+button.normal.text = #262E38
+button.hover.plate = #E2E6EE
+button.hover.border = #38A082
+button.hover.text = #1A6B56
+button.pressed.plate = #C8CEDC
+button.pressed.border = #287860
+button.pressed.text = #1A2028
+button.toggled.plate = #D0D8E6
+button.toggled.border = #2EB38A
+button.toggled.indicator = #2EB38A
+button.toggled.text = #1A6B56
+
+[Dark]
+window.bg = #1F1F21
+button.normal.plate = #2B303A
+button.normal.border = #3E4654
+button.normal.text = #E6EAF2
+button.hover.plate = #353B48
+button.hover.border = #2EB38A
+button.hover.text = #2EB38A
+button.pressed.plate = #20242C
+button.pressed.border = #248C6C
+button.pressed.text = #E6EAF2
+button.toggled.plate = #1D3A32
+button.toggled.border = #2EB38A
+button.toggled.indicator = #2EB38A
+button.toggled.text = #2EB38A

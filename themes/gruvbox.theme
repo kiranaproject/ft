@@ -1,0 +1,42 @@
+[Theme]
+Name=gruvbox
+Author=morhetz / Community
+Description=Retro groove color scheme for Floria Toolkit
+Style=bevel
+CornerRadius=4.0
+Shadow=true
+ShadowOffsetY=2.0
+ShadowBlur=3.5
+ShadowOpacity=0.20
+
+[Light]
+window.bg = #FBF1C7
+button.normal.plate = #EBDBB2
+button.normal.border = #BDAE93
+button.normal.text = #3C3836
+button.hover.plate = #F2E5BC
+button.hover.border = #D79921
+button.hover.text = #282828
+button.pressed.plate = #D5C4A1
+button.pressed.border = #928374
+button.pressed.text = #3C3836
+button.toggled.plate = #D5C4A1
+button.toggled.border = #D79921
+button.toggled.indicator = #D79921
+button.toggled.text = #B57614
+
+[Dark]
+window.bg = #282828
+button.normal.plate = #3C3836
+button.normal.border = #504945
+button.normal.text = #EBDBB2
+button.hover.plate = #504945
+button.hover.border = #FABD2F
+button.hover.text = #FBF1C7
+button.pressed.plate = #1D2021
+button.pressed.border = #D79921
+button.pressed.text = #FABD2F
+button.toggled.plate = #32302F
+button.toggled.border = #FABD2F
+button.toggled.indicator = #FABD2F
+button.toggled.text = #FABD2F

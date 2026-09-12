@@ -5,7 +5,7 @@ unit Ft.Backend.X11;
 interface
 
 uses
-  ctypes, x, xlib, xutil, SysUtils, Ft.Canvas.Agg, Ft.Widget;
+  ctypes, x, xlib, xutil, SysUtils, Ft.Canvas.Agg, Ft.Widget, Ft.Theme;
 
 type
   TFtX11Window = class(TFtWidget)
@@ -20,6 +20,7 @@ type
     FHoverWidget: TFtWidget;
     FPressedWidget: TFtWidget;
     FNeedsRepaint: Boolean;
+    procedure OnThemeChanged();
   public
     constructor Create(W, H: Integer; Title: string); reintroduce;
     destructor Destroy(); override;
@@ -115,6 +116,7 @@ begin
 
   FCanvas := TFtCanvasAgg.Create(FPixelBuffer, Width, Height);
   GActiveWindow := Self;
+  FtThemeManager().OnThemeChange := @Self.OnThemeChanged;
 end;
 
 procedure TFtX11Window.SetTitle(const ATitle: string);
@@ -145,6 +147,8 @@ end;
 
 destructor TFtX11Window.Destroy();
 begin
+  if Assigned(FtThemeManager().OnThemeChange) then
+    FtThemeManager().OnThemeChange := nil;
   FHoverWidget := nil;
   FPressedWidget := nil;
   FCanvas.Free();
@@ -207,10 +211,15 @@ end;
 
 procedure TFtX11Window.Repaint();
 begin
-  FCanvas.Clear(0.92, 0.93, 0.94);
+  FtGetTheme().DrawWindowBackground(FCanvas, Width, Height);
   Self.Draw(FCanvas);
   XPutImage(FDisplay, FWindow, FGC, FXImage, 0, 0, 0, 0, Width, Height);
   XFlush(FDisplay);
+end;
+
+procedure TFtX11Window.OnThemeChanged();
+begin
+  Invalidate();
 end;
 
 procedure TFtX11Window.Invalidate();

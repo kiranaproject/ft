@@ -5,11 +5,9 @@ unit Ft.Buttons;
 interface
 
 uses
-  ctypes, SysUtils, Classes, Ft.Canvas.Agg, Ft.Widget;
+  ctypes, SysUtils, Classes, Ft.Canvas.Agg, Ft.Widget, Ft.Theme;
 
 type
-  TFtButtonState = (bsNormal, bsHovered, bsPressed);
-
   TFtClickCallback = procedure(Sender: Pointer; UserData: Pointer); cdecl;
   TFtHoverCallback = procedure(Sender: Pointer; Hovered: cint32; UserData: Pointer); cdecl;
   TFtPressCallback = procedure(Sender: Pointer; Pressed: cint32; UserData: Pointer); cdecl;
@@ -21,6 +19,8 @@ type
     FIsMouseDown: Boolean;
     FCanToggle: Boolean;
     FToggled: Boolean;
+    FCornerRadius: Double;
+    FEnableShadow: Integer;
     FOnClick: TFtClickCallback;
     FOnHover: TFtHoverCallback;
     FOnPress: TFtPressCallback;
@@ -28,6 +28,8 @@ type
     FUserData: Pointer;
     procedure SetToggled(AValue: Boolean);
     procedure SetCanToggle(AValue: Boolean);
+    procedure SetCornerRadius(AValue: Double);
+    procedure SetEnableShadow(AValue: Integer);
   public
     Caption: string;
     constructor Create(AParent: TFtWidget); override;
@@ -42,6 +44,8 @@ type
     property State: TFtButtonState read FState;
     property CanToggle: Boolean read FCanToggle write SetCanToggle;
     property Toggled: Boolean read FToggled write SetToggled;
+    property CornerRadius: Double read FCornerRadius write SetCornerRadius;
+    property EnableShadow: Integer read FEnableShadow write SetEnableShadow;
     property OnClick: TFtClickCallback read FOnClick write FOnClick;
     property OnHover: TFtHoverCallback read FOnHover write FOnHover;
     property OnPress: TFtPressCallback read FOnPress write FOnPress;
@@ -65,11 +69,31 @@ begin
   FIsMouseDown := False;
   FCanToggle := False;
   FToggled := False;
+  FCornerRadius := -1.0;
+  FEnableShadow := -1;
   FOnClick := nil;
   FOnHover := nil;
   FOnPress := nil;
   FOnToggle := nil;
   FUserData := nil;
+end;
+
+procedure TFtButton.SetCornerRadius(AValue: Double);
+begin
+  if FCornerRadius <> AValue then
+  begin
+    FCornerRadius := AValue;
+    Invalidate();
+  end;
+end;
+
+procedure TFtButton.SetEnableShadow(AValue: Integer);
+begin
+  if FEnableShadow <> AValue then
+  begin
+    FEnableShadow := AValue;
+    Invalidate();
+  end;
 end;
 
 procedure TFtButton.SetCanToggle(AValue: Boolean);
@@ -153,109 +177,10 @@ begin
 end;
 
 procedure TFtButton.Draw(Canvas: TFtCanvasAgg);
-var
-  plateR, plateG, plateB: Double;
-  borderR, borderG, borderB: Double;
-  topR, topG, topB: Double;
-  botR, botG, botB: Double;
-  textR, textG, textB: Double;
-  textOffsetX, textOffsetY: Integer;
 begin
   if not Visible then Exit;
 
-  textOffsetX := 0;
-  textOffsetY := 0;
-
-  if FToggled then
-  begin
-    // Toggled (active) display state
-    if FState = bsPressed then
-    begin
-      borderR := 0.20; borderG := 0.35; borderB := 0.55;
-      plateR  := 0.68; plateG  := 0.72; plateB  := 0.78;
-      topR    := 0.48; topG    := 0.52; topB    := 0.58;
-      botR    := 0.82; botG    := 0.85; botB    := 0.89;
-      textOffsetX := 1;
-      textOffsetY := 1;
-    end
-    else if FState = bsHovered then
-    begin
-      borderR := 0.25; borderG := 0.45; borderB := 0.75;
-      plateR  := 0.78; plateG  := 0.82; plateB  := 0.88;
-      topR    := 0.58; topG    := 0.62; topB    := 0.68;
-      botR    := 0.90; botG    := 0.92; botB    := 0.95;
-      textOffsetX := 1;
-      textOffsetY := 1;
-    end
-    else
-    begin
-      borderR := 0.30; borderG := 0.48; borderB := 0.70;
-      plateR  := 0.74; plateG  := 0.78; plateB  := 0.84;
-      topR    := 0.55; topG    := 0.59; topB    := 0.65;
-      botR    := 0.88; botG    := 0.90; botB    := 0.93;
-      textOffsetX := 1;
-      textOffsetY := 1;
-    end;
-    textR := 0.10; textG := 0.15; textB := 0.25;
-  end
-  else
-  begin
-    case FState of
-      bsPressed:
-      begin
-        borderR := 0.30; borderG := 0.34; borderB := 0.38;
-        plateR  := 0.72; plateG  := 0.74; plateB  := 0.77;
-        topR    := 0.52; topG    := 0.55; topB    := 0.58;
-        botR    := 0.88; botG    := 0.90; botB    := 0.92;
-        textR   := 0.10; textG   := 0.12; textB   := 0.15;
-        textOffsetX := 1;
-        textOffsetY := 1;
-      end;
-      bsHovered:
-      begin
-        borderR := 0.40; borderG := 0.48; borderB := 0.56;
-        plateR  := 0.90; plateG  := 0.92; plateB  := 0.94;
-        topR    := 1.00; topG    := 1.00; topB    := 1.00;
-        botR    := 0.76; botG    := 0.79; botB    := 0.82;
-        textR   := 0.08; textG   := 0.10; textB   := 0.14;
-      end;
-      else // bsNormal
-      begin
-        borderR := 0.50; borderG := 0.54; borderB := 0.58;
-        plateR  := 0.84; plateG  := 0.86; plateB  := 0.88;
-        topR    := 0.96; topG    := 0.97; topB    := 0.98;
-        botR    := 0.70; botG    := 0.73; botB    := 0.76;
-        textR   := 0.15; textG   := 0.18; textB   := 0.22;
-      end;
-    end;
-  end;
-
-  // 1. Outer border (1px)
-  Canvas.DrawRect(X, Y, Width, Height, borderR, borderG, borderB);
-
-  // 2. Button plate fill
-  Canvas.DrawRect(X + 1, Y + 1, Width - 2, Height - 2, plateR, plateG, plateB);
-
-  // 3. Inner 3D bevel (1px)
-  Canvas.DrawRect(X + 1, Y + 1, Width - 2, 1, topR, topG, topB);
-  Canvas.DrawRect(X + 1, Y + 1, 1, Height - 2, topR, topG, topB);
-  Canvas.DrawRect(X + 1, Y + Height - 2, Width - 2, 1, botR, botG, botB);
-  Canvas.DrawRect(X + Width - 2, Y + 1, 1, Height - 2, topR, topG, topB);
-
-  // 4. If Toggled: draw an active indicator bar at the bottom
-  if FToggled then
-  begin
-    if FState = bsHovered then
-      Canvas.DrawRect(X + 2, Y + Height - 4, Width - 4, 3, 0.20, 0.55, 0.95)
-    else if FState = bsPressed then
-      Canvas.DrawRect(X + 2, Y + Height - 4, Width - 4, 3, 0.15, 0.45, 0.85)
-    else
-      Canvas.DrawRect(X + 2, Y + Height - 4, Width - 4, 3, 0.18, 0.48, 0.85);
-  end;
-
-  // 5. Button caption
-  if Caption <> '' then
-    Canvas.DrawTextCentered(X + textOffsetX, Y + textOffsetY, Width, Height, Caption, GetFont(), textR, textG, textB);
+  FtGetTheme().DrawButtonEx(Canvas, X, Y, Width, Height, FState, FToggled, Caption, GetFont(), FCornerRadius, FEnableShadow);
 
   inherited Draw(Canvas);
 end;

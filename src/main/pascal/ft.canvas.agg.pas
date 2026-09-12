@@ -19,6 +19,7 @@ uses
   agg_gsv_text,
   agg_conv_stroke,
   agg_bounding_rect,
+  agg_rounded_rect,
   Ft.Font;
 
 type
@@ -39,6 +40,9 @@ type
     procedure Resize(ABuffer: Pointer; AWidth, AHeight: Integer);
     procedure Clear(R, G, B: Double);
     procedure DrawRect(X, Y, W, H: Integer; R, G, B: Double);
+    procedure DrawRoundedRect(X, Y, W, H: Double; Radius: Double; R, G, B: Double; A: Double = 1.0);
+    procedure DrawRoundedRectOutline(X, Y, W, H: Double; Radius: Double; BorderWidth: Double; R, G, B: Double; A: Double = 1.0);
+    procedure DrawShadow(X, Y, W, H: Double; Radius: Double; OffsetX, OffsetY: Double; BlurRadius: Double; ShadowR, ShadowG, ShadowB, ShadowOpacity: Double);
 
     procedure DrawText(X, Y: Double; const AText: string; AFont: TFtFont; R, G, B: Double);
     procedure DrawTextCentered(X, Y, W, H: Integer; const AText: string; AFont: TFtFont; R, G, B: Double);
@@ -104,6 +108,95 @@ begin
   FRasterizer.line_to_d(X, Y + H);
 
   render_scanlines_aa_solid(@FRasterizer, @FScanline, @FRendererBase, @C);
+end;
+
+procedure TFtCanvasAgg.DrawRoundedRect(X, Y, W, H: Double; Radius: Double; R, G, B: Double; A: Double = 1.0);
+var
+  C: aggclr;
+  RR: rounded_rect;
+begin
+  if (W <= 0) or (H <= 0) then Exit;
+  C.ConstrDbl(R, G, B, A);
+  if Radius <= 0.5 then
+  begin
+    FRasterizer.reset();
+    FRasterizer.move_to_d(X, Y);
+    FRasterizer.line_to_d(X + W, Y);
+    FRasterizer.line_to_d(X + W, Y + H);
+    FRasterizer.line_to_d(X, Y + H);
+    render_scanlines_aa_solid(@FRasterizer, @FScanline, @FRendererBase, @C);
+  end
+  else
+  begin
+    RR.Construct(X, Y, X + W, Y + H, Radius);
+    RR.normalize_radius();
+    FRasterizer.reset();
+    FRasterizer.add_path(@RR);
+    render_scanlines_aa_solid(@FRasterizer, @FScanline, @FRendererBase, @C);
+  end;
+end;
+
+procedure TFtCanvasAgg.DrawRoundedRectOutline(X, Y, W, H: Double; Radius: Double; BorderWidth: Double; R, G, B: Double; A: Double = 1.0);
+var
+  C: aggclr;
+  RR: rounded_rect;
+  Stroke: conv_stroke;
+  halfW: Double;
+begin
+  if (W <= 0) or (H <= 0) or (BorderWidth <= 0) then Exit;
+  C.ConstrDbl(R, G, B, A);
+  halfW := BorderWidth / 2.0;
+
+  if Radius <= 0.5 then
+  begin
+    DrawRect(Round(X), Round(Y), Round(W), Round(BorderWidth), R, G, B);
+    DrawRect(Round(X), Round(Y + H - BorderWidth), Round(W), Round(BorderWidth), R, G, B);
+    DrawRect(Round(X), Round(Y), Round(BorderWidth), Round(H), R, G, B);
+    DrawRect(Round(X + W - BorderWidth), Round(Y), Round(BorderWidth), Round(H), R, G, B);
+  end
+  else
+  begin
+    RR.Construct(X + halfW, Y + halfW, X + W - halfW, Y + H - halfW, Radius);
+    RR.normalize_radius();
+    Stroke.Construct(@RR);
+    Stroke.width_(BorderWidth);
+    FRasterizer.reset();
+    FRasterizer.add_path(@Stroke);
+    render_scanlines_aa_solid(@FRasterizer, @FScanline, @FRendererBase, @C);
+    Stroke.Destruct();
+  end;
+end;
+
+procedure TFtCanvasAgg.DrawShadow(X, Y, W, H: Double; Radius: Double; OffsetX, OffsetY: Double; BlurRadius: Double; ShadowR, ShadowG, ShadowB, ShadowOpacity: Double);
+var
+  steps: Integer;
+  i: Integer;
+  stepAlpha: Double;
+  expand: Double;
+  C: aggclr;
+  RR: rounded_rect;
+  curR: Double;
+begin
+  if (W <= 0) or (H <= 0) or (BlurRadius <= 0) or (ShadowOpacity <= 0) then Exit;
+  steps := Round(BlurRadius);
+  if steps < 1 then steps := 1;
+  if steps > 6 then steps := 6;
+
+  for i := steps downto 1 do
+  begin
+    expand := i * (BlurRadius / steps);
+    curR := Radius + expand;
+    stepAlpha := (ShadowOpacity / steps) * (1.0 - (i - 1) / (steps + 1));
+    if stepAlpha <= 0 then Continue;
+
+    C.ConstrDbl(ShadowR, ShadowG, ShadowB, stepAlpha);
+    RR.Construct(X + OffsetX - expand * 0.5, Y + OffsetY - expand * 0.25,
+                 X + OffsetX + W + expand * 0.5, Y + OffsetY + H + expand * 0.75, curR);
+    RR.normalize_radius();
+    FRasterizer.reset();
+    FRasterizer.add_path(@RR);
+    render_scanlines_aa_solid(@FRasterizer, @FScanline, @FRendererBase, @C);
+  end;
 end;
 
 procedure TFtCanvasAgg.DrawTextHershey(X, Y: Double; const AText: string; ASize: Double; R, G, B: Double);

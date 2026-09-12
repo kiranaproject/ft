@@ -7,11 +7,16 @@ uses
   Ft.Backend.X11,
   Ft.Font,
   Ft.Widget,
-  Ft.Buttons;
+  Ft.Buttons,
+  Ft.Switch,
+  Ft.Theme;
 
 var
   gLastSystemFontDesc: AnsiString;
   gLastWidgetFontDesc: AnsiString;
+  gLastThemeName: AnsiString;
+  gLastAvailableThemes: AnsiString;
+  gLastSwitchCaption: AnsiString;
 
 procedure ft_init(); cdecl; export;
 begin
@@ -143,6 +148,162 @@ begin
   end;
 end;
 
+procedure ft_button_set_corner_radius(button: Pointer; radius: Double); cdecl; export;
+begin
+  if Assigned(button) and (TObject(button) is TFtButton) then
+    TFtButton(button).CornerRadius := radius;
+end;
+
+function ft_button_get_corner_radius(button: Pointer): Double; cdecl; export;
+begin
+  if Assigned(button) and (TObject(button) is TFtButton) then
+    Result := TFtButton(button).CornerRadius
+  else
+    Result := -1.0;
+end;
+
+procedure ft_button_set_shadow(button: Pointer; enabled: cint32); cdecl; export;
+begin
+  if Assigned(button) and (TObject(button) is TFtButton) then
+    TFtButton(button).EnableShadow := enabled;
+end;
+
+function ft_button_get_shadow(button: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(button) and (TObject(button) is TFtButton) then
+    Result := TFtButton(button).EnableShadow
+  else
+    Result := -1;
+end;
+
+function ft_switch_create(parent: Pointer; x, y, w, h: cint32; caption: PChar): Pointer; cdecl; export;
+var
+  Sw: TFtSwitch;
+begin
+  Sw := TFtSwitch.Create(TFtWidget(parent));
+  Sw.X := x;
+  Sw.Y := y;
+  Sw.Width := w;
+  Sw.Height := h;
+  if Assigned(caption) then
+    Sw.Caption := StrPas(caption)
+  else
+    Sw.Caption := '';
+  Result := Pointer(Sw);
+end;
+
+procedure ft_switch_set_checked(switch_widget: Pointer; checked: cint32); cdecl; export;
+begin
+  if Assigned(switch_widget) and (TObject(switch_widget) is TFtSwitch) then
+    TFtSwitch(switch_widget).Checked := (checked <> 0);
+end;
+
+function ft_switch_get_checked(switch_widget: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(switch_widget) and (TObject(switch_widget) is TFtSwitch) and TFtSwitch(switch_widget).Checked then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+procedure ft_switch_toggle(switch_widget: Pointer); cdecl; export;
+begin
+  if Assigned(switch_widget) and (TObject(switch_widget) is TFtSwitch) then
+    TFtSwitch(switch_widget).Toggle();
+end;
+
+procedure ft_switch_set_toggled(switch_widget: Pointer; toggled: cint32); cdecl; export;
+begin
+  ft_switch_set_checked(switch_widget, toggled);
+end;
+
+function ft_switch_get_toggled(switch_widget: Pointer): cint32; cdecl; export;
+begin
+  Result := ft_switch_get_checked(switch_widget);
+end;
+
+function ft_switch_get_state(switch_widget: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(switch_widget) and (TObject(switch_widget) is TFtSwitch) then
+    Result := Ord(TFtSwitch(switch_widget).State)
+  else
+    Result := 0;
+end;
+
+procedure ft_switch_on_toggle(switch_widget: Pointer; callback: TFtSwitchCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(switch_widget) and (TObject(switch_widget) is TFtSwitch) then
+  begin
+    TFtSwitch(switch_widget).OnToggle := callback;
+    TFtSwitch(switch_widget).UserData := user_data;
+  end;
+end;
+
+procedure ft_switch_on_change(switch_widget: Pointer; callback: TFtSwitchCallback; user_data: Pointer); cdecl; export;
+begin
+  ft_switch_on_toggle(switch_widget, callback, user_data);
+end;
+
+procedure ft_switch_on_hover(switch_widget: Pointer; callback: TFtSwitchHoverCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(switch_widget) and (TObject(switch_widget) is TFtSwitch) then
+  begin
+    TFtSwitch(switch_widget).OnHover := callback;
+    TFtSwitch(switch_widget).UserData := user_data;
+  end;
+end;
+
+procedure ft_switch_set_corner_radius(switch_widget: Pointer; radius: Double); cdecl; export;
+begin
+  if Assigned(switch_widget) and (TObject(switch_widget) is TFtSwitch) then
+    TFtSwitch(switch_widget).CornerRadius := radius;
+end;
+
+function ft_switch_get_corner_radius(switch_widget: Pointer): Double; cdecl; export;
+begin
+  if Assigned(switch_widget) and (TObject(switch_widget) is TFtSwitch) then
+    Result := TFtSwitch(switch_widget).CornerRadius
+  else
+    Result := -1.0;
+end;
+
+procedure ft_switch_set_shadow(switch_widget: Pointer; enabled: cint32); cdecl; export;
+begin
+  if Assigned(switch_widget) and (TObject(switch_widget) is TFtSwitch) then
+    TFtSwitch(switch_widget).EnableShadow := enabled;
+end;
+
+function ft_switch_get_shadow(switch_widget: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(switch_widget) and (TObject(switch_widget) is TFtSwitch) then
+    Result := TFtSwitch(switch_widget).EnableShadow
+  else
+    Result := -1;
+end;
+
+procedure ft_switch_set_caption(switch_widget: Pointer; caption: PChar); cdecl; export;
+begin
+  if Assigned(switch_widget) and (TObject(switch_widget) is TFtSwitch) then
+  begin
+    if Assigned(caption) then
+      TFtSwitch(switch_widget).Caption := StrPas(caption)
+    else
+      TFtSwitch(switch_widget).Caption := '';
+    TFtSwitch(switch_widget).Invalidate();
+  end;
+end;
+
+function ft_switch_get_caption(switch_widget: Pointer): PChar; cdecl; export;
+begin
+  if Assigned(switch_widget) and (TObject(switch_widget) is TFtSwitch) then
+  begin
+    gLastSwitchCaption := TFtSwitch(switch_widget).Caption;
+    Result := PChar(gLastSwitchCaption);
+  end
+  else
+    Result := nil;
+end;
+
 function ft_system_font_get(): PChar; cdecl; export;
 begin
   gLastSystemFontDesc := FtGetSystemFont().FontDesc;
@@ -197,6 +358,86 @@ begin
   FtSetFontGamma(gamma);
 end;
 
+function ft_theme_set(theme_name: PChar): cint32; cdecl; export;
+begin
+  if Assigned(theme_name) and FtSetTheme(StrPas(theme_name)) then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+function ft_theme_get(): PChar; cdecl; export;
+begin
+  gLastThemeName := FtGetThemeName();
+  Result := PChar(gLastThemeName);
+end;
+
+function ft_theme_get_available(): PChar; cdecl; export;
+begin
+  gLastAvailableThemes := FtGetAvailableThemes();
+  Result := PChar(gLastAvailableThemes);
+end;
+
+function ft_theme_load_file(filepath: PChar): cint32; cdecl; export;
+begin
+  if Assigned(filepath) and FtThemeLoadFile(StrPas(filepath)) then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+function ft_theme_load_dir(dirpath: PChar): cint32; cdecl; export;
+begin
+  if Assigned(dirpath) then
+    Result := FtThemeLoadDir(StrPas(dirpath))
+  else
+    Result := 0;
+end;
+
+procedure ft_theme_set_dark_mode(enabled: cint32); cdecl; export;
+begin
+  FtSetDarkMode(enabled <> 0);
+end;
+
+function ft_theme_get_dark_mode(): cint32; cdecl; export;
+begin
+  if FtGetDarkMode() then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+function ft_theme_has_dark_mode(theme_name: PChar): cint32; cdecl; export;
+begin
+  if Assigned(theme_name) and FtThemeHasDarkMode(StrPas(theme_name)) then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+procedure ft_theme_set_corner_radius(radius: Double); cdecl; export;
+begin
+  FtSetCornerRadius(radius);
+end;
+
+function ft_theme_get_corner_radius(): Double; cdecl; export;
+begin
+  Result := FtGetCornerRadius();
+end;
+
+procedure ft_theme_set_shadow(enabled: cint32); cdecl; export;
+begin
+  FtSetEnableShadow(enabled <> 0);
+end;
+
+function ft_theme_get_shadow(): cint32; cdecl; export;
+begin
+  if FtGetEnableShadow() then
+    Result := 1
+  else
+    Result := 0;
+end;
+
 exports
   ft_init,
   ft_main_loop,
@@ -215,6 +456,26 @@ exports
   ft_button_on_hover,
   ft_button_on_press,
   ft_button_on_toggle,
+  ft_button_set_corner_radius,
+  ft_button_get_corner_radius,
+  ft_button_set_shadow,
+  ft_button_get_shadow,
+  ft_switch_create,
+  ft_switch_set_checked,
+  ft_switch_get_checked,
+  ft_switch_toggle,
+  ft_switch_set_toggled,
+  ft_switch_get_toggled,
+  ft_switch_get_state,
+  ft_switch_on_toggle,
+  ft_switch_on_change,
+  ft_switch_on_hover,
+  ft_switch_set_corner_radius,
+  ft_switch_get_corner_radius,
+  ft_switch_set_shadow,
+  ft_switch_get_shadow,
+  ft_switch_set_caption,
+  ft_switch_get_caption,
   ft_system_font_get,
   ft_system_font_set,
   ft_widget_set_font,
@@ -222,7 +483,19 @@ exports
   ft_screen_dpi_get,
   ft_screen_dpi_set,
   ft_font_gamma_get,
-  ft_font_gamma_set;
+  ft_font_gamma_set,
+  ft_theme_set,
+  ft_theme_get,
+  ft_theme_get_available,
+  ft_theme_load_file,
+  ft_theme_load_dir,
+  ft_theme_set_dark_mode,
+  ft_theme_get_dark_mode,
+  ft_theme_has_dark_mode,
+  ft_theme_set_corner_radius,
+  ft_theme_get_corner_radius,
+  ft_theme_set_shadow,
+  ft_theme_get_shadow;
 
 begin
 end.

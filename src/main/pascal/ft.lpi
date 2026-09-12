@@ -57,6 +57,16 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="Ft.Font"/>
       </Unit>
+      <Unit>
+        <Filename Value="ft.theme.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Theme"/>
+      </Unit>
+      <Unit>
+        <Filename Value="ft.switch.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Switch"/>
+      </Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

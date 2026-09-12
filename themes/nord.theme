@@ -1,0 +1,42 @@
+[Theme]
+Name=nord
+Author=Arctic Ice Studio / Community
+Description=An arctic, north-bluish color palette
+Style=modern
+CornerRadius=6.0
+Shadow=true
+ShadowOffsetY=2.5
+ShadowBlur=4.5
+ShadowOpacity=0.18
+
+[Light]
+window.bg = #ECEFF4
+button.normal.plate = #E5E9F0
+button.normal.border = #D8DEE9
+button.normal.text = #2E3440
+button.hover.plate = #ECEFF4
+button.hover.border = #88C0D0
+button.hover.text = #5E81AC
+button.pressed.plate = #D8DEE9
+button.pressed.border = #81A1C1
+button.pressed.text = #2E3440
+button.toggled.plate = #E5E9F0
+button.toggled.border = #88C0D0
+button.toggled.indicator = #88C0D0
+button.toggled.text = #5E81AC
+
+[Dark]
+window.bg = #2E3440
+button.normal.plate = #3B4252
+button.normal.border = #4C566A
+button.normal.text = #ECEFF4
+button.hover.plate = #434C5E
+button.hover.border = #88C0D0
+button.hover.text = #88C0D0
+button.pressed.plate = #2E3440
+button.pressed.border = #5E81AC
+button.pressed.text = #ECEFF4
+button.toggled.plate = #3B4252
+button.toggled.border = #88C0D0
+button.toggled.indicator = #88C0D0
+button.toggled.text = #88C0D0

@@ -1,0 +1,42 @@
+[Theme]
+Name=dracula
+Author=Zeno Rocha / Community
+Description=A dark theme for vampires and Floria Toolkit
+Style=modern
+CornerRadius=7.0
+Shadow=true
+ShadowOffsetY=2.5
+ShadowBlur=5.0
+ShadowOpacity=0.22
+
+[Light]
+window.bg = #F8F8F2
+button.normal.plate = #EAE8E1
+button.normal.border = #6272A4
+button.normal.text = #282A36
+button.hover.plate = #F8F8F2
+button.hover.border = #FF79C6
+button.hover.text = #BD93F9
+button.pressed.plate = #D8D6CC
+button.pressed.border = #BD93F9
+button.pressed.text = #282A36
+button.toggled.plate = #EAE8E1
+button.toggled.border = #BD93F9
+button.toggled.indicator = #FF79C6
+button.toggled.text = #BD93F9
+
+[Dark]
+window.bg = #282A36
+button.normal.plate = #44475A
+button.normal.border = #6272A4
+button.normal.text = #F8F8F2
+button.hover.plate = #6272A4
+button.hover.border = #FF79C6
+button.hover.text = #F8F8F2
+button.pressed.plate = #191A21
+button.pressed.border = #BD93F9
+button.pressed.text = #50FA7B
+button.toggled.plate = #44475A
+button.toggled.border = #BD93F9
+button.toggled.indicator = #FF79C6
+button.toggled.text = #50FA7B
