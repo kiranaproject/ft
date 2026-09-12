@@ -1,0 +1,7 @@
+# Free Pascal Compiler (FPC) build outputs
+*.o
+*.ppu
+
+# Common FPC/Lazarus IDE output and backup directories
+/target/
+/src/main/pascal/backup/
