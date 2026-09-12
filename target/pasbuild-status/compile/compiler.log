@@ -1,0 +1,9 @@
+# Build command:
+fpc -Mobjfpc -O1 target/bootstrap_program.pas -FEtarget -olibft.so -FUtarget/units -Fusrc/main/pascal -Fu/home/afumi/.pasbuild/repository/fpgui-framework/2.2.0-SNAPSHOT/x86_64-linux-3.2.3/units -Fu/home/afumi/.pasbuild/repository/fpgui-svg2hvif/2.2.0-SNAPSHOT/x86_64-linux-3.2.3/units -Fitarget
+
+Free Pascal Compiler version 3.2.3-912-g5c9b07b843 [2026/06/15] for x86_64
+Copyright (c) 1993-2026 by Florian Klaempfl and others
+Target OS: Linux for x86-64
+Compiling target/bootstrap_program.pas
+Linking target/libft.so
+15 lines compiled, 0.3 sec

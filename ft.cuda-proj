@@ -1,0 +1,19 @@
+{
+  "nodes": [
+    "{ProjDir}"
+  ],
+  "vars": [],
+  "mainfile": "",
+  "unfold": [
+    "{ProjDir}",
+    "{ProjDir}/examples",
+    "{ProjDir}/examples/c",
+    "{ProjDir}/examples/python",
+    "{ProjDir}/include",
+    "{ProjDir}/src",
+    "{ProjDir}/target",
+    "{ProjDir}/target/pasbuild-status",
+    "{ProjDir}/target/pasbuild-status/compile",
+    "{ProjDir}/target/units"
+  ]
+}

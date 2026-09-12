@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>ft</name>
+  <version>0.0.1</version>
+  <author>Dio Affriza</author>
+  <license>BSD-3-Clause</license>
+
+  <build>
+	<mainSource>ft.pas</mainSource>
+    <executableName>libft.so</executableName>
+    <projectType>library</projectType>
+    <outputDirectory>target</outputDirectory>
+  </build>
+
+  <test>
+    <testSource>TestRunner.pas</testSource>
+    <frameworkOptions>
+      <option>--all --format=plain</option>
+    </frameworkOptions>
+  </test>
+  
+  <dependencies>
+    <dependency>
+      <name>fpgui-framework</name>
+      <version>2.2.0-SNAPSHOT</version>
+    </dependency>
+  </dependencies>
+</project>

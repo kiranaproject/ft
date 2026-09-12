@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <Compiler Value="/home/afumi/fpcup/files/fpc/bin/x86_64-linux/fpc.sh" Date="1782671745"/>
+  <Params Value="-MObjFPC -Scghi -Cg -O1 -g -gl -l -vewnhibq -Fi/home/afumi/Documents/projects/floria-toolkit/target/bin/lib/x86_64-linux -Fu/home/afumi/Documents/projects/floria-toolkit/src/main/pascal/ -Fu/home/afumi/blaise/fpgui/framework/target/units -Fu/home/afumi/fpcup/files/lazarus/packager/units/x86_64-linux -FU/home/afumi/Documents/projects/floria-toolkit/target/bin/lib/x86_64-linux/ -FE/home/afumi/Documents/projects/floria-toolkit/target/bin/ -o/home/afumi/Documents/projects/floria-toolkit/target/bin/libft.so ft.pas"/>
+</CONFIG>
