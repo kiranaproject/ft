@@ -33,6 +33,8 @@ type
     procedure MouseDown(AX, AY: Integer; AButton: Integer); virtual;
     procedure MouseUp(AX, AY: Integer; AButton: Integer); virtual;
     procedure MouseMove(AX, AY: Integer); virtual;
+    procedure KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string); virtual;
+    function GetCursor(): Integer; virtual;
     procedure WidgetDestroyed(AWidget: TFtWidget); virtual;
 
     property Font: TFtFont read GetFont write SetFont;
@@ -154,6 +156,15 @@ end;
 
 procedure TFtWidget.MouseMove(AX, AY: Integer);
 begin
+end;
+
+procedure TFtWidget.KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string);
+begin
+end;
+
+function TFtWidget.GetCursor(): Integer;
+begin
+  Result := 0;
 end;
 
 procedure TFtWidget.WidgetDestroyed(AWidget: TFtWidget);

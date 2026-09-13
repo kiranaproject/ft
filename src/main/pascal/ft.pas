@@ -7,8 +7,9 @@ uses
   Ft.Backend.X11,
   Ft.Font,
   Ft.Widget,
-  Ft.Buttons,
-  Ft.Switch,
+  Ft.Widget.Buttons,
+  Ft.Widget.Switches,
+  Ft.Widget.Texts,
   Ft.Theme;
 
 var
@@ -17,6 +18,9 @@ var
   gLastThemeName: AnsiString;
   gLastAvailableThemes: AnsiString;
   gLastSwitchCaption: AnsiString;
+  gLastTextValue: AnsiString;
+  gLastSelectedText: AnsiString;
+  gLastClipboardText: AnsiString;
 
 procedure ft_init(); cdecl; export;
 begin
@@ -304,6 +308,138 @@ begin
     Result := nil;
 end;
 
+function ft_text_create(parent: Pointer; x, y, w, h: cint32; text: PChar): Pointer; cdecl; export;
+var
+  strText: string;
+begin
+  if Assigned(text) then
+    strText := StrPas(text)
+  else
+    strText := '';
+  Result := Pointer(TFtText.Create(TFtWidget(parent), strText));
+  TFtWidget(Result).X := x;
+  TFtWidget(Result).Y := y;
+  TFtWidget(Result).Width := w;
+  TFtWidget(Result).Height := h;
+end;
+
+procedure ft_text_set_text(text_widget: Pointer; text: PChar); cdecl; export;
+begin
+  if Assigned(text_widget) and (TObject(text_widget) is TFtText) then
+  begin
+    if Assigned(text) then
+      TFtText(text_widget).Text := StrPas(text)
+    else
+      TFtText(text_widget).Text := '';
+  end;
+end;
+
+function ft_text_get_text(text_widget: Pointer): PChar; cdecl; export;
+begin
+  if Assigned(text_widget) and (TObject(text_widget) is TFtText) then
+  begin
+    gLastTextValue := TFtText(text_widget).Text;
+    Result := PChar(gLastTextValue);
+  end
+  else
+    Result := nil;
+end;
+
+procedure ft_text_set_selectable(text_widget: Pointer; selectable: cint32); cdecl; export;
+begin
+  if Assigned(text_widget) and (TObject(text_widget) is TFtText) then
+    TFtText(text_widget).Selectable := (selectable <> 0);
+end;
+
+function ft_text_get_selectable(text_widget: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(text_widget) and (TObject(text_widget) is TFtText) and TFtText(text_widget).Selectable then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+function ft_text_get_selected_text(text_widget: Pointer): PChar; cdecl; export;
+begin
+  if Assigned(text_widget) and (TObject(text_widget) is TFtText) then
+  begin
+    gLastSelectedText := TFtText(text_widget).SelectedText;
+    Result := PChar(gLastSelectedText);
+  end
+  else
+    Result := nil;
+end;
+
+procedure ft_text_select_all(text_widget: Pointer); cdecl; export;
+begin
+  if Assigned(text_widget) and (TObject(text_widget) is TFtText) then
+    TFtText(text_widget).SelectAll();
+end;
+
+procedure ft_text_clear_selection(text_widget: Pointer); cdecl; export;
+begin
+  if Assigned(text_widget) and (TObject(text_widget) is TFtText) then
+    TFtText(text_widget).ClearSelection();
+end;
+
+procedure ft_text_copy(text_widget: Pointer); cdecl; export;
+begin
+  if Assigned(text_widget) and (TObject(text_widget) is TFtText) then
+    TFtText(text_widget).CopyToClipboard();
+end;
+
+procedure ft_text_set_alignment(text_widget: Pointer; alignment: cint32); cdecl; export;
+begin
+  if Assigned(text_widget) and (TObject(text_widget) is TFtText) then
+  begin
+    case alignment of
+      1: TFtText(text_widget).Alignment := taCenter;
+      2: TFtText(text_widget).Alignment := taRight;
+      else TFtText(text_widget).Alignment := taLeft;
+    end;
+  end;
+end;
+
+function ft_text_get_alignment(text_widget: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(text_widget) and (TObject(text_widget) is TFtText) then
+  begin
+    case TFtText(text_widget).Alignment of
+      taCenter: Result := 1;
+      taRight:  Result := 2;
+      else      Result := 0;
+    end;
+  end
+  else
+    Result := 0;
+end;
+
+procedure ft_text_set_color(text_widget: Pointer; r, g, b: Double); cdecl; export;
+begin
+  if Assigned(text_widget) and (TObject(text_widget) is TFtText) then
+    TFtText(text_widget).SetColor(r, g, b);
+end;
+
+procedure ft_text_reset_color(text_widget: Pointer); cdecl; export;
+begin
+  if Assigned(text_widget) and (TObject(text_widget) is TFtText) then
+    TFtText(text_widget).ResetColor();
+end;
+
+procedure ft_clipboard_set_text(text: PChar); cdecl; export;
+begin
+  if Assigned(text) then
+    FtSetClipboardText(StrPas(text))
+  else
+    FtSetClipboardText('');
+end;
+
+function ft_clipboard_get_text(): PChar; cdecl; export;
+begin
+  gLastClipboardText := FtGetClipboardText();
+  Result := PChar(gLastClipboardText);
+end;
+
 function ft_system_font_get(): PChar; cdecl; export;
 begin
   gLastSystemFontDesc := FtGetSystemFont().FontDesc;
@@ -495,7 +631,22 @@ exports
   ft_theme_set_corner_radius,
   ft_theme_get_corner_radius,
   ft_theme_set_shadow,
-  ft_theme_get_shadow;
+  ft_theme_get_shadow,
+  ft_text_create,
+  ft_text_set_text,
+  ft_text_get_text,
+  ft_text_set_selectable,
+  ft_text_get_selectable,
+  ft_text_get_selected_text,
+  ft_text_select_all,
+  ft_text_clear_selection,
+  ft_text_copy,
+  ft_text_set_alignment,
+  ft_text_get_alignment,
+  ft_text_set_color,
+  ft_text_reset_color,
+  ft_clipboard_set_text,
+  ft_clipboard_get_text;
 
 begin
 end.

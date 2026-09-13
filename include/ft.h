@@ -75,6 +75,38 @@ int32_t ft_switch_get_shadow(FtWidget switch_widget);
 void ft_switch_set_caption(FtWidget switch_widget, const char* caption);
 const char* ft_switch_get_caption(FtWidget switch_widget);
 
+/* Text Alignment */
+enum {
+    FT_TEXT_ALIGN_LEFT = 0,
+    FT_TEXT_ALIGN_CENTER = 1,
+    FT_TEXT_ALIGN_RIGHT = 2
+};
+
+/* Widgets: Text / Label */
+FtWidget ft_text_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, const char* text);
+void ft_text_set_text(FtWidget text_widget, const char* text);
+const char* ft_text_get_text(FtWidget text_widget);
+
+/* Selection Option */
+void ft_text_set_selectable(FtWidget text_widget, int32_t selectable);
+int32_t ft_text_get_selectable(FtWidget text_widget);
+
+/* Selection & Clipboard Operations */
+const char* ft_text_get_selected_text(FtWidget text_widget);
+void ft_text_select_all(FtWidget text_widget);
+void ft_text_clear_selection(FtWidget text_widget);
+void ft_text_copy(FtWidget text_widget);
+
+/* Text Alignment & Color */
+void ft_text_set_alignment(FtWidget text_widget, int32_t alignment);
+int32_t ft_text_get_alignment(FtWidget text_widget);
+void ft_text_set_color(FtWidget text_widget, double r, double g, double b);
+void ft_text_reset_color(FtWidget text_widget);
+
+/* System Clipboard */
+void ft_clipboard_set_text(const char* text);
+const char* ft_clipboard_get_text(void);
+
 /* Font & DPI Management */
 const char* ft_system_font_get(void);
 void ft_system_font_set(const char* font_desc);

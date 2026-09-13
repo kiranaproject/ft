@@ -1,4 +1,4 @@
-unit Ft.Buttons;
+unit Ft.Widget.Buttons;
 
 {$mode objfpc}{$H+}
 

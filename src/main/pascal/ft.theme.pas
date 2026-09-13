@@ -91,6 +91,8 @@ type
                            State: TFtButtonState; Checked: Boolean; 
                            const Caption: string; Font: TFtFont;
                            CustomRadius: Double = -1.0; CustomShadow: Integer = -1); virtual; abstract;
+    function GetAccentColor(): TFtRgbColor; virtual;
+    function GetTextColor(): TFtRgbColor; virtual;
 
     property Name: string read GetName;
     property DarkMode: Boolean read GetDarkMode write SetDarkMode;
@@ -115,6 +117,8 @@ type
                            State: TFtButtonState; Checked: Boolean; 
                            const Caption: string; Font: TFtFont;
                            CustomRadius: Double = -1.0; CustomShadow: Integer = -1); override;
+    function GetAccentColor(): TFtRgbColor; override;
+    function GetTextColor(): TFtRgbColor; override;
   end;
 
   { Backward compatibility alias }
@@ -146,6 +150,8 @@ type
                            State: TFtButtonState; Checked: Boolean; 
                            const Caption: string; Font: TFtFont;
                            CustomRadius: Double = -1.0; CustomShadow: Integer = -1); override;
+    function GetAccentColor(): TFtRgbColor; override;
+    function GetTextColor(): TFtRgbColor; override;
 
     property FilePath: string read FFilePath;
     property Author: string read FAuthor;
@@ -348,6 +354,19 @@ begin
   DrawSwitchEx(Canvas, X, Y, W, H, State, Checked, Caption, Font, -1.0, -1);
 end;
 
+function TFtTheme.GetAccentColor(): TFtRgbColor;
+begin
+  Result := MakeRgbColor(0.24, 0.60, 0.92);
+end;
+
+function TFtTheme.GetTextColor(): TFtRgbColor;
+begin
+  if DarkMode then
+    Result := MakeRgbColor(0.935, 0.942, 0.950)
+  else
+    Result := MakeRgbColor(0.12, 0.14, 0.16);
+end;
+
 { TFtThemeDefault }
 
 constructor TFtThemeDefault.Create(const AName: string);
@@ -363,6 +382,19 @@ end;
 function TFtThemeDefault.HasDarkMode(): Boolean;
 begin
   Result := True;
+end;
+
+function TFtThemeDefault.GetAccentColor(): TFtRgbColor;
+begin
+  Result := MakeRgbColor(0.24, 0.60, 0.92);
+end;
+
+function TFtThemeDefault.GetTextColor(): TFtRgbColor;
+begin
+  if DarkMode then
+    Result := MakeRgbColor(0.935, 0.942, 0.950)
+  else
+    Result := MakeRgbColor(0.12, 0.14, 0.16);
 end;
 
 procedure TFtThemeDefault.DrawWindowBackground(Canvas: TFtCanvasAgg; W, H: Integer);
@@ -817,6 +849,16 @@ begin
     Result := FDarkPalette
   else
     Result := FLightPalette;
+end;
+
+function TFtFileTheme.GetAccentColor(): TFtRgbColor;
+begin
+  Result := GetActivePalette().BtnTogIndicator;
+end;
+
+function TFtFileTheme.GetTextColor(): TFtRgbColor;
+begin
+  Result := GetActivePalette().BtnNormText;
 end;
 
 procedure TFtFileTheme.DrawWindowBackground(Canvas: TFtCanvasAgg; W, H: Integer);

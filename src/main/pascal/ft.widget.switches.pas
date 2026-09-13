@@ -1,4 +1,4 @@
-unit Ft.Switch;
+unit Ft.Widget.Switches;
 
 {$mode objfpc}{$H+}
 

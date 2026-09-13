@@ -145,6 +145,53 @@ ft.ft_switch_set_caption.restype = None
 ft.ft_switch_get_caption.argtypes = [ctypes.c_void_p]
 ft.ft_switch_get_caption.restype = ctypes.c_char_p
 
+# Text Widget Management
+ft.ft_text_create.argtypes = [ctypes.c_void_p, ctypes.c_int32, ctypes.c_int32, ctypes.c_int32, ctypes.c_int32, ctypes.c_char_p]
+ft.ft_text_create.restype = ctypes.c_void_p
+
+ft.ft_text_set_text.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+ft.ft_text_set_text.restype = None
+
+ft.ft_text_get_text.argtypes = [ctypes.c_void_p]
+ft.ft_text_get_text.restype = ctypes.c_char_p
+
+ft.ft_text_set_selectable.argtypes = [ctypes.c_void_p, ctypes.c_int32]
+ft.ft_text_set_selectable.restype = None
+
+ft.ft_text_get_selectable.argtypes = [ctypes.c_void_p]
+ft.ft_text_get_selectable.restype = ctypes.c_int32
+
+ft.ft_text_get_selected_text.argtypes = [ctypes.c_void_p]
+ft.ft_text_get_selected_text.restype = ctypes.c_char_p
+
+ft.ft_text_select_all.argtypes = [ctypes.c_void_p]
+ft.ft_text_select_all.restype = None
+
+ft.ft_text_clear_selection.argtypes = [ctypes.c_void_p]
+ft.ft_text_clear_selection.restype = None
+
+ft.ft_text_copy.argtypes = [ctypes.c_void_p]
+ft.ft_text_copy.restype = None
+
+ft.ft_text_set_alignment.argtypes = [ctypes.c_void_p, ctypes.c_int32]
+ft.ft_text_set_alignment.restype = None
+
+ft.ft_text_get_alignment.argtypes = [ctypes.c_void_p]
+ft.ft_text_get_alignment.restype = ctypes.c_int32
+
+ft.ft_text_set_color.argtypes = [ctypes.c_void_p, ctypes.c_double, ctypes.c_double, ctypes.c_double]
+ft.ft_text_set_color.restype = None
+
+ft.ft_text_reset_color.argtypes = [ctypes.c_void_p]
+ft.ft_text_reset_color.restype = None
+
+# Clipboard Management
+ft.ft_clipboard_set_text.argtypes = [ctypes.c_char_p]
+ft.ft_clipboard_set_text.restype = None
+
+ft.ft_clipboard_get_text.argtypes = []
+ft.ft_clipboard_get_text.restype = ctypes.c_char_p
+
 # Font Management
 ft.ft_system_font_get.argtypes = []
 ft.ft_system_font_get.restype = ctypes.c_char_p
@@ -274,33 +321,37 @@ print(f"[Python Host] System Font Detected: {sys_font.decode('utf-8') if sys_fon
 print(f"[Python Host] Active Theme: {cur_theme} (Dark Mode: {'ON' if is_dark else 'OFF'})")
 print(f"[Python Host] Available Themes: {avail_themes}")
 
-win = ft.ft_window_create(500, 310, b"Floria Toolkit - Rounded Corners & Drop Shadows")
+win = ft.ft_window_create(500, 395, b"Floria Toolkit - Widgets & Text Selection")
+
+# Header Label (Non-Selectable)
+lbl_head = ft.ft_text_create(win, 30, 14, 440, 22, b"Static Label: Floria Python Showcase")
+ft.ft_text_set_selectable(lbl_head, 0)
 
 # Row 1: Next theme & Dark Mode
-btn1 = ft.ft_button_create(win, 30, 45, 205, 44, b"Next Theme")
+btn1 = ft.ft_button_create(win, 30, 42, 205, 42, b"Next Theme")
 ft.ft_button_on_click(btn1, cb_cycle, None)
 ft.ft_button_on_hover(btn1, cb_hover, None)
 ft.ft_button_on_press(btn1, cb_press, None)
 
-btn2 = ft.ft_button_create(win, 265, 45, 205, 44, b"Toggle Dark Mode")
+btn2 = ft.ft_button_create(win, 265, 42, 205, 42, b"Toggle Dark Mode")
 ft.ft_button_on_click(btn2, cb_dark, None)
 ft.ft_button_on_hover(btn2, cb_hover, None)
 ft.ft_button_on_press(btn2, cb_press, None)
 
 # Row 2: Corner Radius & Drop Shadows
-btn_rad = ft.ft_button_create(win, 30, 110, 205, 44, b"Cycle Corner Radius")
+btn_rad = ft.ft_button_create(win, 30, 96, 205, 42, b"Cycle Corner Radius")
 ft.ft_button_on_click(btn_rad, cb_radius, None)
 ft.ft_button_on_hover(btn_rad, cb_hover, None)
 ft.ft_button_on_press(btn_rad, cb_press, None)
 
-btn_sh = ft.ft_button_create(win, 265, 110, 205, 44, b"Toggle Shadows")
+btn_sh = ft.ft_button_create(win, 265, 96, 205, 42, b"Toggle Shadows")
 ft.ft_button_on_click(btn_sh, cb_shadow, None)
 ft.ft_button_on_hover(btn_sh, cb_hover, None)
 ft.ft_button_on_press(btn_sh, cb_press, None)
 
-# Row 3: Custom Pill Toggle Button (22px radius override)
-btn3 = ft.ft_toggle_button_create(win, 135, 185, 230, 44, b"Custom Pill Toggle")
-ft.ft_button_set_corner_radius(btn3, 22.0)
+# Row 3: Custom Pill Toggle Button (20px radius override)
+btn3 = ft.ft_toggle_button_create(win, 135, 150, 230, 40, b"Custom Pill Toggle")
+ft.ft_button_set_corner_radius(btn3, 20.0)
 ft.ft_button_on_hover(btn3, cb_hover, None)
 ft.ft_button_on_press(btn3, cb_press, None)
 ft.ft_button_on_toggle(btn3, cb_toggle, None)
@@ -317,13 +368,37 @@ cb_sw_dark = TOGGLE_CALLBACK(handle_switch_dark)
 cb_sw_shadow = TOGGLE_CALLBACK(handle_switch_shadow)
 
 # Row 4: Switches (Interactive Toggle Switches)
-sw1 = ft.ft_switch_create(win, 30, 250, 205, 26, b"Dark Mode")
+sw1 = ft.ft_switch_create(win, 30, 202, 205, 26, b"Dark Mode")
 ft.ft_switch_set_checked(sw1, is_dark)
 ft.ft_switch_on_toggle(sw1, cb_sw_dark, None)
 
-sw2 = ft.ft_switch_create(win, 265, 250, 205, 26, b"Drop Shadows")
+sw2 = ft.ft_switch_create(win, 265, 202, 205, 26, b"Drop Shadows")
 ft.ft_switch_set_checked(sw2, ft.ft_theme_get_shadow())
 ft.ft_switch_on_toggle(sw2, cb_sw_shadow, None)
+
+# Row 5: Selectable Text Widget (User can select text and copy via drag or Ctrl+C)
+txt_sel = ft.ft_text_create(win, 30, 242, 440, 26, b"Selectable Text: Click & drag to select, or Ctrl+C to copy!")
+ft.ft_text_set_selectable(txt_sel, 1)
+
+# Row 6: Non-Selectable Label Widget
+lbl_static = ft.ft_text_create(win, 30, 276, 440, 24, b"Static Label (Non-Selectable): Protected plain text")
+ft.ft_text_set_selectable(lbl_static, 0)
+
+# Row 7: Copy Button & Clipboard Status
+lbl_clip = ft.ft_text_create(win, 235, 314, 240, 36, b"Clipboard: (empty)")
+ft.ft_text_set_selectable(lbl_clip, 1)
+
+def handle_copy_btn(widget, user_data):
+    ft.ft_text_copy(txt_sel)
+    clip = ft.ft_clipboard_get_text()
+    clip_str = clip.decode('utf-8') if clip else ""
+    print(f"[Python Host] Copied text: '{clip_str}'")
+    display_str = f"Clipboard: {clip_str}" if clip_str else "Clipboard: (empty)"
+    ft.ft_text_set_text(lbl_clip, display_str.encode('utf-8'))
+
+cb_copy = CLICK_CALLBACK(handle_copy_btn)
+btn_copy = ft.ft_button_create(win, 30, 314, 190, 36, b"Copy Selected Text")
+ft.ft_button_on_click(btn_copy, cb_copy, None)
 
 ft.ft_widget_show(win)
 ft.ft_main_loop()

@@ -48,9 +48,9 @@
         <UnitName Value="Ft.Widget"/>
       </Unit>
       <Unit>
-        <Filename Value="ft.buttons.pas"/>
+        <Filename Value="ft.widget.buttons.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="Ft.Buttons"/>
+        <UnitName Value="Ft.Widget.Buttons"/>
       </Unit>
       <Unit>
         <Filename Value="ft.font.pas"/>
@@ -63,9 +63,14 @@
         <UnitName Value="Ft.Theme"/>
       </Unit>
       <Unit>
-        <Filename Value="ft.switch.pas"/>
+        <Filename Value="ft.widget.switches.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="Ft.Switch"/>
+        <UnitName Value="Ft.Widget.Switches"/>
+      </Unit>
+      <Unit>
+        <Filename Value="ft.widget.texts.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Widget.Texts"/>
       </Unit>
     </Units>
   </ProjectOptions>

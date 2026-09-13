@@ -22,6 +22,7 @@ A lightweight, high-performance native GUI toolkit engineered with Free Pascal, 
   - **Window**: Native X11 windows with custom background rendering, resizable layout handling, and event dispatching.
   - **Push Button & Toggle Button**: Interactive states (Normal, Hovered, Pressed, Toggled) with smooth visual transitions, customizable corner radiuses, and shadows.
   - **Switch**: Modern toggle switch with circular thumb slider, customizable track radii, elevation shadows, active track accent glows, and automatic label positioning.
+  - **Text / Label**: Flexible text widget with **selectable** and **non-selectable** options. Selectable mode offers mouse drag selection, double-click word selection, Ctrl+A select-all, theme-aware accent highlight rendering with crisp contrast text, I-beam cursor, and Ctrl+C clipboard copy. Non-selectable mode acts as an immutable static label.
 
 - **Universal C FFI**:
   - Packaged as a standalone shared library (`libft.so`) exposing a standard C ABI via `include/ft.h`.
@@ -40,9 +41,10 @@ floria-toolkit/
 │       ├── ft.pas            # Shared library entry point & C exports
 │       ├── ft.backend.x11.pas# X11 window backend & event dispatch loop
 │       ├── ft.canvas.agg.pas # AGG 2D vector drawing & shadow pipeline
-│       ├── ft.widget.pas     # Base widget abstraction
-│       ├── ft.buttons.pas    # Button & Toggle Button implementations
-│       ├── ft.switch.pas     # Modern Switch widget implementation
+│       ├── ft.widget.pas         # Base widget abstraction
+│       ├── ft.widget.buttons.pas # Button & Toggle Button implementations
+│       ├── ft.widget.switches.pas# Modern Switch widget implementation
+│       ├── ft.widget.texts.pas   # Text / Label widget with selection & clipboard
 │       ├── ft.theme.pas      # Theme engine, default theme & file themes
 │       └── ft.font.pas       # Font management, DPI scaling & gamma
 ├── themes/                   # Bundled community & style theme files
@@ -98,10 +100,23 @@ Run the C example:
 ./target/bin/c_example
 ```
 
-### 3. Run the Python Example
+Build and run the Multilingual / Internationalization C example:
+```bash
+gcc -Iinclude -Ltarget/bin -Wl,-rpath,'$ORIGIN',-rpath,'$ORIGIN/..' \
+    -o target/bin/multilingual_example examples/c/multilingual.c -lft
+./target/bin/multilingual_example
+```
 
+### 3. Run the Python Examples
+
+General widgets showcase:
 ```bash
 python3 examples/python/app.py
+```
+
+Multilingual showcase:
+```bash
+python3 examples/python/multilingual.py
 ```
 
 ---
@@ -289,6 +304,29 @@ Floria Toolkit automatically discovers `.theme` files from the following paths:
 | `void ft_switch_set_shadow(sw, int32_t enabled)` | Sets per-widget drop shadow |
 | `void ft_switch_set_caption(sw, const char* caption)` | Sets adjacent label text |
 | `const char* ft_switch_get_caption(FtWidget sw)` | Gets adjacent label text |
+
+### Text / Label Widgets
+| Function | Description |
+|---|---|
+| `FtWidget ft_text_create(parent, x, y, w, h, text)` | Creates a text/label widget |
+| `void ft_text_set_text(FtWidget txt, const char* text)` | Sets the text string |
+| `const char* ft_text_get_text(FtWidget txt)` | Retrieves current text string |
+| `void ft_text_set_selectable(FtWidget txt, int32_t selectable)` | Enables or disables mouse selection (1 = selectable, 0 = static) |
+| `int32_t ft_text_get_selectable(FtWidget txt)` | Queries whether text can be selected |
+| `const char* ft_text_get_selected_text(FtWidget txt)` | Returns currently selected substring |
+| `void ft_text_select_all(FtWidget txt)` | Programmatically selects all characters |
+| `void ft_text_clear_selection(FtWidget txt)` | Clears any active selection |
+| `void ft_text_copy(FtWidget txt)` | Copies selected text directly to system clipboard |
+| `void ft_text_set_alignment(FtWidget txt, int32_t align)` | Sets alignment (`FT_TEXT_ALIGN_LEFT`, `CENTER`, `RIGHT`) |
+| `int32_t ft_text_get_alignment(FtWidget txt)` | Gets current text alignment |
+| `void ft_text_set_color(FtWidget txt, double r, g, b)` | Sets custom text color override |
+| `void ft_text_reset_color(FtWidget txt)` | Resets text color to follow theme |
+
+### Clipboard Management
+| Function | Description |
+|---|---|
+| `void ft_clipboard_set_text(const char* text)` | Stores text in system and X11 clipboard |
+| `const char* ft_clipboard_get_text(void)` | Retrieves text from system clipboard |
 
 ### Theme & Styling Management
 | Function | Description |

@@ -39,7 +39,7 @@ type
     procedure SetGamma(AValue: Double);
     function GetFallbackFont(): TFtFont;
   public
-    constructor Create(const AFamily: string; ASize: Double; ABold, AItalic: Boolean; const APath: string; AFaceIndex: Cardinal = 0; ADPI: Double = 96.0; AGamma: Double = 0.55);
+    constructor Create(const AFamily: string; ASize: Double; ABold, AItalic: Boolean; const APath: string; AFaceIndex: Cardinal = 0; ADPI: Double = 96.0; AGamma: Double = 0.75);
     destructor Destroy(); override;
 
     function GetTextWidth(const AText: string): Double;
@@ -170,7 +170,7 @@ end;
 
 { TFtFont }
 
-constructor TFtFont.Create(const AFamily: string; ASize: Double; ABold, AItalic: Boolean; const APath: string; AFaceIndex: Cardinal = 0; ADPI: Double = 96.0; AGamma: Double = 0.55);
+constructor TFtFont.Create(const AFamily: string; ASize: Double; ABold, AItalic: Boolean; const APath: string; AFaceIndex: Cardinal = 0; ADPI: Double = 96.0; AGamma: Double = 0.75);
 var
   px: Double;
 begin
@@ -328,7 +328,7 @@ begin
   FScreenDPI := DetectScreenDPI();
   FDefaultFontDesc := DetectSystemFontDesc();
   FSystemFont := nil;
-  FFontGamma := 0.55;
+  FFontGamma := 0.75;
 
   envVal := GetEnvironmentVariable('FT_FONT_GAMMA');
   if envVal <> '' then

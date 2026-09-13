@@ -83,6 +83,23 @@ void on_switch_shadow_toggle(FtWidget widget, int32_t checked, void* user_data) 
     ft_theme_set_shadow(checked);
 }
 
+static FtWidget s_txt_selectable = NULL;
+static FtWidget s_lbl_clipboard = NULL;
+
+void on_copy_click(FtWidget widget, void* user_data) {
+    (void)widget;
+    (void)user_data;
+    if (s_txt_selectable) {
+        ft_text_copy(s_txt_selectable);
+        const char* clip = ft_clipboard_get_text();
+        char buf[256];
+        snprintf(buf, sizeof(buf), "Clipboard: %s", (clip && *clip) ? clip : "(empty)");
+        if (s_lbl_clipboard)
+            ft_text_set_text(s_lbl_clipboard, buf);
+        printf("[Floria Toolkit C] Copy button pressed -> Clipboard: '%s'\n", clip ? clip : "");
+    }
+}
+
 int main(void) {
     setvbuf(stdout, NULL, _IONBF, 0);
     ft_init();
@@ -93,45 +110,64 @@ int main(void) {
            ft_theme_get(), ft_theme_get_dark_mode() ? "ON" : "OFF");
     printf("[Floria Toolkit C] Available themes: %s\n", ft_theme_get_available());
 
-    FtWidget win = ft_window_create(500, 315, "Floria Toolkit (C Demo) - Widgets & Theming");
+    FtWidget win = ft_window_create(500, 385, "Floria Toolkit (C Demo) - Widgets & Text");
+
+    // Header: Static (Non-Selectable) Text
+    FtWidget lbl_header = ft_text_create(win, 30, 14, 440, 22, "Static Label (Non-Selectable): Floria GUI Showcase");
+    ft_text_set_selectable(lbl_header, 0);
 
     // Row 1: Theme & Dark Mode
-    FtWidget btn1 = ft_button_create(win, 30, 45, 205, 44, "Next Theme");
+    FtWidget btn1 = ft_button_create(win, 30, 42, 205, 42, "Next Theme");
     ft_button_on_click(btn1, on_theme_cycle_click, (void*)"ThemeCycleBtn");
     ft_button_on_hover(btn1, on_button_hover, (void*)"ThemeCycleBtn");
     ft_button_on_press(btn1, on_button_press, (void*)"ThemeCycleBtn");
 
-    FtWidget btn2 = ft_button_create(win, 265, 45, 205, 44, "Toggle Dark Mode");
+    FtWidget btn2 = ft_button_create(win, 265, 42, 205, 42, "Toggle Dark Mode");
     ft_button_on_click(btn2, on_dark_mode_click, (void*)"DarkModeBtn");
     ft_button_on_hover(btn2, on_button_hover, (void*)"DarkModeBtn");
     ft_button_on_press(btn2, on_button_press, (void*)"DarkModeBtn");
 
     // Row 2: Corner Radius & Shadow Toggles
-    FtWidget btn_radius = ft_button_create(win, 30, 105, 205, 44, "Cycle Corner Radius");
+    FtWidget btn_radius = ft_button_create(win, 30, 96, 205, 42, "Cycle Corner Radius");
     ft_button_on_click(btn_radius, on_radius_click, (void*)"RadiusBtn");
     ft_button_on_hover(btn_radius, on_button_hover, (void*)"RadiusBtn");
     ft_button_on_press(btn_radius, on_button_press, (void*)"RadiusBtn");
 
-    FtWidget btn_shadow = ft_button_create(win, 265, 105, 205, 44, "Toggle Drop Shadows");
+    FtWidget btn_shadow = ft_button_create(win, 265, 96, 205, 42, "Toggle Drop Shadows");
     ft_button_on_click(btn_shadow, on_shadow_toggle_click, (void*)"ShadowBtn");
     ft_button_on_hover(btn_shadow, on_button_hover, (void*)"ShadowBtn");
     ft_button_on_press(btn_shadow, on_button_press, (void*)"ShadowBtn");
 
-    // Row 3: Custom Per-Widget Styled Toggle Button (Pill shaped: 22px radius)
-    FtWidget btn3 = ft_toggle_button_create(win, 135, 168, 230, 42, "Custom Pill Toggle");
-    ft_button_set_corner_radius(btn3, 21.0); // Override per-widget corner radius to pill!
+    // Row 3: Custom Per-Widget Styled Toggle Button (Pill shaped: 21px radius)
+    FtWidget btn3 = ft_toggle_button_create(win, 135, 150, 230, 40, "Custom Pill Toggle");
+    ft_button_set_corner_radius(btn3, 20.0);
     ft_button_on_hover(btn3, on_button_hover, (void*)"ToggleBtn");
     ft_button_on_press(btn3, on_button_press, (void*)"ToggleBtn");
     ft_button_on_toggle(btn3, on_button_toggle, (void*)"ToggleBtn");
 
     // Row 4: Switch Widgets
-    FtWidget sw_dark = ft_switch_create(win, 30, 235, 205, 26, "Dark Mode");
+    FtWidget sw_dark = ft_switch_create(win, 30, 204, 205, 26, "Dark Mode");
     ft_switch_set_checked(sw_dark, ft_theme_get_dark_mode());
     ft_switch_on_toggle(sw_dark, on_switch_dark_toggle, (void*)"DarkSwitch");
 
-    FtWidget sw_shadow = ft_switch_create(win, 265, 235, 205, 26, "Drop Shadows");
+    FtWidget sw_shadow = ft_switch_create(win, 265, 204, 205, 26, "Drop Shadows");
     ft_switch_set_checked(sw_shadow, ft_theme_get_shadow());
     ft_switch_on_toggle(sw_shadow, on_switch_shadow_toggle, (void*)"ShadowSwitch");
+
+    // Row 5: Selectable Text Widget (User can select text and copy via mouse drag or Ctrl+C)
+    s_txt_selectable = ft_text_create(win, 30, 246, 440, 26, "Selectable Text: Click & drag to select me, or Ctrl+C to copy!");
+    ft_text_set_selectable(s_txt_selectable, 1);
+
+    // Row 6: Non-Selectable Label Widget
+    FtWidget lbl_static2 = ft_text_create(win, 30, 280, 440, 24, "Static Label (Non-Selectable): Try clicking here - no selection!");
+    ft_text_set_selectable(lbl_static2, 0);
+
+    // Row 7: Clipboard Demonstration Controls
+    FtWidget btn_copy = ft_button_create(win, 30, 318, 190, 38, "Copy Selected Text");
+    ft_button_on_click(btn_copy, on_copy_click, NULL);
+
+    s_lbl_clipboard = ft_text_create(win, 235, 318, 240, 38, "Clipboard: (empty)");
+    ft_text_set_selectable(s_lbl_clipboard, 1);
 
     ft_widget_show(win);
     ft_main_loop();

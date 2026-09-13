@@ -17,10 +17,16 @@ type
     FPixelBuffer: Pointer;
     FCanvas: TFtCanvasAgg;
     FWMDeleteWindow: TAtom;
+    FAtomClipboard: TAtom;
+    FAtomUTF8String: TAtom;
+    FAtomTargets: TAtom;
+    FCursorIBeam: TCursor;
     FHoverWidget: TFtWidget;
     FPressedWidget: TFtWidget;
+    FFocusedWidget: TFtWidget;
     FNeedsRepaint: Boolean;
     procedure OnThemeChanged();
+    procedure UpdateCursor();
   public
     constructor Create(W, H: Integer; Title: string); reintroduce;
     destructor Destroy(); override;
@@ -31,7 +37,11 @@ type
     procedure Show();
     procedure Invalidate(); override;
     procedure WidgetDestroyed(AWidget: TFtWidget); override;
+    procedure ClaimClipboard();
   end;
+
+type
+  TFtSelectionLostHandler = procedure();
 
 var
   GDisplay: PDisplay = nil;
@@ -41,6 +51,11 @@ var
 procedure FtBackendInit();
 procedure FtBackendMainLoop();
 procedure FtBackendQuit();
+procedure FtSetClipboardText(const AText: string);
+function FtGetClipboardText(): string;
+procedure FtClaimPrimarySelection(const AText: string);
+procedure FtClearPrimarySelection();
+procedure FtSetSelectionLostHandler(AHandler: TFtSelectionLostHandler);
 
 implementation
 
@@ -103,10 +118,15 @@ begin
   SetTitle(Title);
   FHoverWidget := nil;
   FPressedWidget := nil;
+  FFocusedWidget := nil;
+  FCursorIBeam := None;
   FNeedsRepaint := False;
-  XSelectInput(FDisplay, FWindow, ExposureMask or ButtonPressMask or ButtonReleaseMask or PointerMotionMask or LeaveWindowMask or StructureNotifyMask);
+  XSelectInput(FDisplay, FWindow, ExposureMask or ButtonPressMask or ButtonReleaseMask or PointerMotionMask or LeaveWindowMask or StructureNotifyMask or KeyPressMask);
 
   FWMDeleteWindow := XInternAtom(FDisplay, 'WM_DELETE_WINDOW', False);
+  FAtomClipboard := XInternAtom(FDisplay, 'CLIPBOARD', False);
+  FAtomUTF8String := XInternAtom(FDisplay, 'UTF8_STRING', False);
+  FAtomTargets := XInternAtom(FDisplay, 'TARGETS', False);
   XSetWMProtocols(FDisplay, FWindow, @FWMDeleteWindow, 1);
 
   FGC := XCreateGC(FDisplay, FWindow, 0, nil);
@@ -151,6 +171,12 @@ begin
     FtThemeManager().OnThemeChange := nil;
   FHoverWidget := nil;
   FPressedWidget := nil;
+  FFocusedWidget := nil;
+  if FCursorIBeam <> None then
+  begin
+    XFreeCursor(FDisplay, FCursorIBeam);
+    FCursorIBeam := None;
+  end;
   FCanvas.Free();
   if Assigned(FXImage) then
   begin
@@ -227,12 +253,89 @@ begin
   FNeedsRepaint := True;
 end;
 
+var
+  gClipboardText: string = '';
+  gPrimarySelectionText: string = '';
+  gOnPrimarySelectionLost: TFtSelectionLostHandler = nil;
+
+procedure FtSetSelectionLostHandler(AHandler: TFtSelectionLostHandler);
+begin
+  gOnPrimarySelectionLost := AHandler;
+end;
+
+procedure FtClaimPrimarySelection(const AText: string);
+begin
+  gPrimarySelectionText := AText;
+  if Assigned(GActiveWindow) and Assigned(GActiveWindow.FDisplay) and (GActiveWindow.FWindow <> None) then
+  begin
+    XSetSelectionOwner(GActiveWindow.FDisplay, 1 {XA_PRIMARY}, GActiveWindow.FWindow, CurrentTime);
+    XFlush(GActiveWindow.FDisplay);
+  end;
+end;
+
+procedure FtClearPrimarySelection();
+begin
+  gPrimarySelectionText := '';
+  if Assigned(GActiveWindow) and Assigned(GActiveWindow.FDisplay) and (GActiveWindow.FWindow <> None) then
+  begin
+    if XGetSelectionOwner(GActiveWindow.FDisplay, 1 {XA_PRIMARY}) = GActiveWindow.FWindow then
+    begin
+      XSetSelectionOwner(GActiveWindow.FDisplay, 1 {XA_PRIMARY}, None, CurrentTime);
+      XFlush(GActiveWindow.FDisplay);
+    end;
+  end;
+end;
+
+procedure FtSetClipboardText(const AText: string);
+begin
+  gClipboardText := AText;
+  if Assigned(GActiveWindow) then
+    GActiveWindow.ClaimClipboard();
+end;
+
+function FtGetClipboardText(): string;
+begin
+  Result := gClipboardText;
+end;
+
+procedure TFtX11Window.UpdateCursor();
+var
+  target: TFtWidget;
+begin
+  if Assigned(FPressedWidget) then
+    target := FPressedWidget
+  else
+    target := FHoverWidget;
+
+  if Assigned(target) and (target.GetCursor() = 1) then
+  begin
+    if FCursorIBeam = None then
+      FCursorIBeam := XCreateFontCursor(FDisplay, 152); // XC_xterm
+    XDefineCursor(FDisplay, FWindow, FCursorIBeam);
+  end
+  else
+    XUndefineCursor(FDisplay, FWindow);
+end;
+
+procedure TFtX11Window.ClaimClipboard();
+begin
+  if Assigned(FDisplay) and (FWindow <> None) then
+  begin
+    if FAtomClipboard <> None then
+      XSetSelectionOwner(FDisplay, FAtomClipboard, FWindow, CurrentTime);
+    XFlush(FDisplay);
+  end;
+end;
+
 procedure TFtX11Window.WidgetDestroyed(AWidget: TFtWidget);
 begin
   if FHoverWidget = AWidget then
     FHoverWidget := nil;
   if FPressedWidget = AWidget then
     FPressedWidget := nil;
+  if FFocusedWidget = AWidget then
+    FFocusedWidget := nil;
+  UpdateCursor();
   inherited WidgetDestroyed(AWidget);
 end;
 
@@ -242,6 +345,15 @@ var
   Target: TFtWidget;
   needsResize: Boolean;
   newW, newH: Integer;
+  keysym: TKeySym;
+  strBuf: array[0..31] of AnsiChar;
+  charCount: Integer;
+  composeStatus: TXComposeStatus;
+  req: TXSelectionRequestEvent;
+  resp: TXSelectionEvent;
+  targets: array[0..2] of TAtom;
+  atomString: TAtom;
+  sendText: string;
 begin
   needsResize := False;
   newW := Width;
@@ -266,20 +378,26 @@ begin
       end;
       MotionNotify:
       begin
-        Target := HitTest(Event.xmotion.x, Event.xmotion.y);
-        if Target = Self then
-          Target := nil;
-
-        if Target <> FHoverWidget then
+        if Assigned(FPressedWidget) then
+          FPressedWidget.MouseMove(Event.xmotion.x, Event.xmotion.y)
+        else
         begin
-          if Assigned(FHoverWidget) then
-            FHoverWidget.MouseLeave();
-          FHoverWidget := Target;
-          if Assigned(FHoverWidget) then
-            FHoverWidget.MouseEnter();
+          Target := HitTest(Event.xmotion.x, Event.xmotion.y);
+          if Target = Self then
+            Target := nil;
+
+          if Target <> FHoverWidget then
+          begin
+            if Assigned(FHoverWidget) then
+              FHoverWidget.MouseLeave();
+            FHoverWidget := Target;
+            if Assigned(FHoverWidget) then
+              FHoverWidget.MouseEnter();
+            UpdateCursor();
+          end;
+          if Assigned(Target) then
+            Target.MouseMove(Event.xmotion.x, Event.xmotion.y);
         end;
-        if Assigned(Target) then
-          Target.MouseMove(Event.xmotion.x, Event.xmotion.y);
       end;
       LeaveNotify:
       begin
@@ -287,6 +405,7 @@ begin
         begin
           FHoverWidget.MouseLeave();
           FHoverWidget := nil;
+          UpdateCursor();
         end;
       end;
       ButtonPress:
@@ -294,7 +413,15 @@ begin
         Target := HitTest(Event.xbutton.x, Event.xbutton.y);
         if Target = Self then
           Target := nil;
+        if Target = nil then
+        begin
+          if Assigned(gOnPrimarySelectionLost) then
+            gOnPrimarySelectionLost();
+          FtClearPrimarySelection();
+        end;
         FPressedWidget := Target;
+        FFocusedWidget := Target;
+        UpdateCursor();
         if Assigned(Target) then
           Target.MouseDown(Event.xbutton.x, Event.xbutton.y, Event.xbutton.button);
       end;
@@ -309,6 +436,69 @@ begin
           if Target = FPressedWidget then
             FPressedWidget.Click();
           FPressedWidget := nil;
+          UpdateCursor();
+        end;
+      end;
+      2: // KeyPress
+      begin
+        keysym := 0;
+        charCount := XLookupString(@Event.xkey, strBuf, SizeOf(strBuf) - 1, @keysym, @composeStatus);
+        if charCount > 0 then
+          strBuf[charCount] := #0
+        else
+          strBuf[0] := #0;
+        if Assigned(FFocusedWidget) then
+          FFocusedWidget.KeyDown(keysym, Event.xkey.state, StrPas(strBuf));
+      end;
+      SelectionRequest:
+      begin
+        req := Event.xselectionrequest;
+        FillChar(resp, SizeOf(resp), 0);
+        resp._type := SelectionNotify;
+        resp.display := req.display;
+        resp.requestor := req.requestor;
+        resp.selection := req.selection;
+        resp.target := req.target;
+        resp._property := None;
+        resp.time := req.time;
+        atomString := 31; // XA_STRING = 31
+
+        if (req.target = FAtomTargets) and (FAtomTargets <> None) then
+        begin
+          targets[0] := FAtomTargets;
+          targets[1] := FAtomUTF8String;
+          targets[2] := atomString;
+          XChangeProperty(FDisplay, req.requestor, req._property, 4 {XA_ATOM=4}, 32, PropModeReplace, PByte(@targets), 3);
+          resp._property := req._property;
+        end
+        else if (req.target = FAtomUTF8String) or (req.target = atomString) then
+        begin
+          if req.selection = 1 then
+            sendText := gPrimarySelectionText
+          else
+            sendText := gClipboardText;
+
+          if Length(sendText) > 0 then
+            XChangeProperty(FDisplay, req.requestor, req._property, req.target, 8, PropModeReplace, PByte(PChar(sendText)), Length(sendText))
+          else
+            XChangeProperty(FDisplay, req.requestor, req._property, req.target, 8, PropModeReplace, nil, 0);
+          resp._property := req._property;
+        end;
+
+        XSendEvent(FDisplay, req.requestor, False, 0, @resp);
+      end;
+      SelectionClear:
+      begin
+        if Event.xselectionclear.selection = 1 then
+        begin
+          // If our window is currently the owner of XA_PRIMARY, this is a stale SelectionClear
+          // from a rapid ownership change within our window. Only clear if we don't own it!
+          if XGetSelectionOwner(FDisplay, 1) <> FWindow then
+          begin
+            gPrimarySelectionText := '';
+            if Assigned(gOnPrimarySelectionLost) then
+              gOnPrimarySelectionLost();
+          end;
         end;
       end;
       ClientMessage:
