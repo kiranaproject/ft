@@ -5,7 +5,7 @@ unit Ft.Backend.X11;
 interface
 
 uses
-  ctypes, x, xlib, xutil, SysUtils, Ft.Canvas.Agg, Ft.Widget, Ft.Theme;
+  ctypes, x, xlib, xutil, SysUtils, Classes, Ft.Canvas.Agg, Ft.Widget, Ft.Theme;
 
 type
   TFtX11Window = class(TFtWidget)
@@ -37,7 +37,11 @@ type
     procedure Show();
     procedure Invalidate(); override;
     procedure WidgetDestroyed(AWidget: TFtWidget); override;
+    procedure RequestFocus(AWidget: TFtWidget); override;
+    procedure SetFocusedWidget(AWidget: TFtWidget);
+    procedure FocusNext(ABackward: Boolean = False);
     procedure ClaimClipboard();
+    property FocusedWidget: TFtWidget read FFocusedWidget;
   end;
 
 type
@@ -121,7 +125,7 @@ begin
   FFocusedWidget := nil;
   FCursorIBeam := None;
   FNeedsRepaint := False;
-  XSelectInput(FDisplay, FWindow, ExposureMask or ButtonPressMask or ButtonReleaseMask or PointerMotionMask or LeaveWindowMask or StructureNotifyMask or KeyPressMask);
+  XSelectInput(FDisplay, FWindow, ExposureMask or ButtonPressMask or ButtonReleaseMask or PointerMotionMask or LeaveWindowMask or StructureNotifyMask or KeyPressMask or KeyReleaseMask);
 
   FWMDeleteWindow := XInternAtom(FDisplay, 'WM_DELETE_WINDOW', False);
   FAtomClipboard := XInternAtom(FDisplay, 'CLIPBOARD', False);
@@ -339,6 +343,78 @@ begin
   inherited WidgetDestroyed(AWidget);
 end;
 
+procedure TFtX11Window.RequestFocus(AWidget: TFtWidget);
+begin
+  SetFocusedWidget(AWidget);
+end;
+
+procedure TFtX11Window.SetFocusedWidget(AWidget: TFtWidget);
+begin
+  if AWidget = FFocusedWidget then Exit;
+  if Assigned(FFocusedWidget) then
+    FFocusedWidget.LostFocus();
+  if Assigned(AWidget) and AWidget.CanFocus() then
+  begin
+    FFocusedWidget := AWidget;
+    FFocusedWidget.GotFocus();
+  end
+  else
+    FFocusedWidget := nil;
+end;
+
+procedure TFtX11Window.FocusNext(ABackward: Boolean = False);
+
+  procedure CollectFocusable(AWidget: TFtWidget; AList: TFPList);
+  var
+    i: Integer;
+    child: TFtWidget;
+  begin
+    if not AWidget.Visible then Exit;
+    if AWidget.CanFocus() then
+      AList.Add(AWidget);
+    for i := 0 to AWidget.Children.Count - 1 do
+    begin
+      child := TFtWidget(AWidget.Children[i]);
+      CollectFocusable(child, AList);
+    end;
+  end;
+
+var
+  list: TFPList;
+  idx, nextIdx, cnt: Integer;
+begin
+  list := TFPList.Create();
+  try
+    CollectFocusable(Self, list);
+    cnt := list.Count;
+    if cnt = 0 then
+    begin
+      SetFocusedWidget(nil);
+      Exit;
+    end;
+
+    idx := list.IndexOf(FFocusedWidget);
+    if idx < 0 then
+    begin
+      if ABackward then
+        nextIdx := cnt - 1
+      else
+        nextIdx := 0;
+    end
+    else
+    begin
+      if ABackward then
+        nextIdx := (idx - 1 + cnt) mod cnt
+      else
+        nextIdx := (idx + 1) mod cnt;
+    end;
+
+    SetFocusedWidget(TFtWidget(list[nextIdx]));
+  finally
+    list.Free();
+  end;
+end;
+
 procedure TFtX11Window.HandleEvents();
 var
   Event: TXEvent;
@@ -418,9 +494,16 @@ begin
           if Assigned(gOnPrimarySelectionLost) then
             gOnPrimarySelectionLost();
           FtClearPrimarySelection();
+          SetFocusedWidget(nil);
+        end
+        else
+        begin
+          if Target.CanFocus() then
+            SetFocusedWidget(Target)
+          else
+            SetFocusedWidget(nil);
         end;
         FPressedWidget := Target;
-        FFocusedWidget := Target;
         UpdateCursor();
         if Assigned(Target) then
           Target.MouseDown(Event.xbutton.x, Event.xbutton.y, Event.xbutton.button);
@@ -447,8 +530,21 @@ begin
           strBuf[charCount] := #0
         else
           strBuf[0] := #0;
-        if Assigned(FFocusedWidget) then
+
+        // Tab ($FF09) or ISO_Left_Tab ($FE20). ShiftMask = 1
+        if (keysym = $FF09) or (keysym = $FE20) then
+        begin
+          FocusNext((keysym = $FE20) or ((Event.xkey.state and 1) <> 0));
+        end
+        else if Assigned(FFocusedWidget) then
           FFocusedWidget.KeyDown(keysym, Event.xkey.state, StrPas(strBuf));
+      end;
+      3: // KeyRelease
+      begin
+        keysym := 0;
+        XLookupString(@Event.xkey, nil, 0, @keysym, nil);
+        if Assigned(FFocusedWidget) then
+          FFocusedWidget.KeyUp(keysym, Event.xkey.state);
       end;
       SelectionRequest:
       begin

@@ -93,6 +93,7 @@ type
                            CustomRadius: Double = -1.0; CustomShadow: Integer = -1); virtual; abstract;
     function GetAccentColor(): TFtRgbColor; virtual;
     function GetTextColor(): TFtRgbColor; virtual;
+    procedure DrawFocusRing(Canvas: TFtCanvasAgg; X, Y, W, H: Double; Radius: Double); virtual;
 
     property Name: string read GetName;
     property DarkMode: Boolean read GetDarkMode write SetDarkMode;
@@ -365,6 +366,28 @@ begin
     Result := MakeRgbColor(0.935, 0.942, 0.950)
   else
     Result := MakeRgbColor(0.12, 0.14, 0.16);
+end;
+
+procedure TFtTheme.DrawFocusRing(Canvas: TFtCanvasAgg; X, Y, W, H: Double; Radius: Double);
+var
+  accent: TFtRgbColor;
+  ringOffset, ringWidth: Double;
+begin
+  if (W <= 0) or (H <= 0) then Exit;
+  accent := GetAccentColor();
+  ringOffset := 2.0;
+  ringWidth := 1.8;
+  if Radius < 0.0 then
+    Radius := CornerRadius;
+  Canvas.DrawRoundedRectOutline(
+    X - ringOffset,
+    Y - ringOffset,
+    W + (ringOffset * 2.0),
+    H + (ringOffset * 2.0),
+    Radius + ringOffset,
+    ringWidth,
+    accent.R, accent.G, accent.B, 0.90
+  );
 end;
 
 { TFtThemeDefault }

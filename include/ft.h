@@ -27,10 +27,14 @@ void ft_init(void);
 void ft_main_loop(void);
 void ft_quit(void);
 
-/* Window Management */
+/* Window Management & Widget Focus */
 FtWidget ft_window_create(int32_t width, int32_t height, const char* title);
 void ft_window_set_title(FtWidget window, const char* title);
 void ft_widget_show(FtWidget widget);
+void ft_widget_set_focus(FtWidget widget);
+int32_t ft_widget_has_focus(FtWidget widget);
+void ft_widget_set_focusable(FtWidget widget, int32_t focusable);
+int32_t ft_widget_get_focusable(FtWidget widget);
 
 /* Widgets: Buttons */
 FtWidget ft_button_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, const char* caption);

@@ -107,6 +107,7 @@ begin
 
   Width := 160;
   Height := 28;
+  FFocusable := FSelectable;
 end;
 
 destructor TFtText.Destroy();
@@ -136,8 +137,13 @@ begin
   if FSelectable <> AValue then
   begin
     FSelectable := AValue;
+    FFocusable := AValue;
     if not FSelectable then
+    begin
       ClearSelection();
+      if FFocused then
+        KillFocus();
+    end;
     Invalidate();
   end;
 end;
@@ -534,6 +540,9 @@ begin
     { Normal unselected text }
     Canvas.DrawText(TX, TY, FText, AFont, normCol.R, normCol.G, normCol.B);
   end;
+
+  if FSelectable and FFocused and not HasSelection() then
+    curTheme.DrawFocusRing(Canvas, X, Y, Width, Height, 3.0);
 
   inherited Draw(Canvas);
 end;

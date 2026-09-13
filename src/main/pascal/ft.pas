@@ -54,6 +54,34 @@ begin
     TFtX11Window(window).SetTitle(StrPas(title));
 end;
 
+procedure ft_widget_set_focus(widget: Pointer); cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    TFtWidget(widget).SetFocus();
+end;
+
+function ft_widget_has_focus(widget: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) and TFtWidget(widget).Focused then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+procedure ft_widget_set_focusable(widget: Pointer; focusable: cint32); cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    TFtWidget(widget).Focusable := (focusable <> 0);
+end;
+
+function ft_widget_get_focusable(widget: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) and TFtWidget(widget).Focusable then
+    Result := 1
+  else
+    Result := 0;
+end;
+
 function ft_button_create(parent: Pointer; x, y, w, h: cint32; caption: PChar): Pointer; cdecl; export;
 var
   Btn: TFtButton;
@@ -581,6 +609,10 @@ exports
   ft_window_create,
   ft_window_set_title,
   ft_widget_show,
+  ft_widget_set_focus,
+  ft_widget_has_focus,
+  ft_widget_set_focusable,
+  ft_widget_get_focusable,
   ft_button_create,
   ft_toggle_button_create,
   ft_button_on_click,

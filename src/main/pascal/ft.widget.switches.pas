@@ -34,6 +34,7 @@ type
     procedure MouseLeave(); override;
     procedure MouseDown(AX, AY: Integer; AButton: Integer); override;
     procedure MouseUp(AX, AY: Integer; AButton: Integer); override;
+    procedure KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string); override;
 
     procedure Toggle();
 
@@ -53,6 +54,7 @@ implementation
 constructor TFtSwitch.Create(AParent: TFtWidget);
 begin
   inherited Create(AParent);
+  FFocusable := True;
   FChecked := False;
   FState := bsNormal;
   FIsMouseDown := False;
@@ -153,12 +155,58 @@ begin
 end;
 
 procedure TFtSwitch.Draw(Canvas: TFtCanvasAgg);
+var
+  trackW, trackH: Integer;
+  rad: Double;
 begin
   if not Visible then Exit;
 
   FtGetTheme().DrawSwitchEx(Canvas, X, Y, Width, Height, FState, FChecked, Caption, GetFont(), FCornerRadius, FEnableShadow);
 
+  if FFocused then
+  begin
+    if (Caption <> '') and (Width >= Round(Height * 2.2)) then
+    begin
+      trackH := Height;
+      trackW := Round(Height * 1.85);
+      if trackW < 36 then trackW := 36;
+    end
+    else
+    begin
+      trackH := Height;
+      trackW := Width;
+    end;
+
+    rad := trackH / 2.0;
+    if (FCornerRadius >= 0.0) and (FCornerRadius < rad) then
+      rad := FCornerRadius;
+
+    FtGetTheme().DrawFocusRing(Canvas, X, Y, trackW, trackH, rad);
+  end;
+
   inherited Draw(Canvas);
+end;
+
+procedure TFtSwitch.KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string);
+begin
+  inherited KeyDown(AKeySym, AState, AChar);
+  // Space ($20), Return ($FF0D), Enter ($FF8D) -> Toggle
+  if (AKeySym = $20) or (AKeySym = $FF0D) or (AKeySym = $FF8D) then
+  begin
+    Toggle();
+  end
+  // Left Arrow ($FF51) -> Turn OFF
+  else if (AKeySym = $FF51) then
+  begin
+    if FChecked then
+      SetChecked(False);
+  end
+  // Right Arrow ($FF53) -> Turn ON
+  else if (AKeySym = $FF53) then
+  begin
+    if not FChecked then
+      SetChecked(True);
+  end;
 end;
 
 end.

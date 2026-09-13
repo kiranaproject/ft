@@ -12,6 +12,8 @@ type
   private
     FFont: TFtFont;
   protected
+    FFocusable: Boolean;
+    FFocused: Boolean;
     function GetFont(): TFtFont; virtual;
     procedure SetFont(AValue: TFtFont); virtual;
     function GetFontDesc(): string; virtual;
@@ -36,9 +38,22 @@ type
     procedure KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string); virtual;
     function GetCursor(): Integer; virtual;
     procedure WidgetDestroyed(AWidget: TFtWidget); virtual;
+    function GetRootWidget(): TFtWidget; virtual;
+    procedure RequestFocus(AWidget: TFtWidget); virtual;
+
+    function CanFocus(): Boolean; virtual;
+    procedure SetFocus(); virtual;
+    procedure KillFocus(); virtual;
+    procedure GotFocus(); virtual;
+    procedure LostFocus(); virtual;
+    procedure KeyUp(AKeySym: Cardinal; AState: Cardinal); virtual;
+
+    procedure SetFocusable(AValue: Boolean); virtual;
 
     property Font: TFtFont read GetFont write SetFont;
     property FontDesc: string read GetFontDesc write SetFontDesc;
+    property Focusable: Boolean read FFocusable write SetFocusable;
+    property Focused: Boolean read FFocused;
   end;
 
 implementation
@@ -48,6 +63,8 @@ begin
   Parent := AParent;
   Children := TFPList.Create();
   Visible := True;
+  FFocusable := False;
+  FFocused := False;
   FFont := nil; { Follows parent or system font by default }
   if Assigned(Parent) then
     Parent.Children.Add(Self);
@@ -171,6 +188,66 @@ procedure TFtWidget.WidgetDestroyed(AWidget: TFtWidget);
 begin
   if Assigned(Parent) then
     Parent.WidgetDestroyed(AWidget);
+end;
+
+function TFtWidget.GetRootWidget(): TFtWidget;
+var
+  w: TFtWidget;
+begin
+  w := Self;
+  while Assigned(w.Parent) do
+    w := w.Parent;
+  Result := w;
+end;
+
+procedure TFtWidget.RequestFocus(AWidget: TFtWidget);
+begin
+  if Assigned(Parent) then
+    Parent.RequestFocus(AWidget);
+end;
+
+function TFtWidget.CanFocus(): Boolean;
+begin
+  Result := Visible and FFocusable;
+end;
+
+procedure TFtWidget.SetFocus();
+begin
+  if CanFocus() then
+    RequestFocus(Self);
+end;
+
+procedure TFtWidget.KillFocus();
+begin
+  if FFocused then
+    RequestFocus(nil);
+end;
+
+procedure TFtWidget.GotFocus();
+begin
+  FFocused := True;
+  Invalidate();
+end;
+
+procedure TFtWidget.LostFocus();
+begin
+  FFocused := False;
+  Invalidate();
+end;
+
+procedure TFtWidget.KeyUp(AKeySym: Cardinal; AState: Cardinal);
+begin
+end;
+
+procedure TFtWidget.SetFocusable(AValue: Boolean);
+begin
+  if FFocusable <> AValue then
+  begin
+    FFocusable := AValue;
+    if not FFocusable and FFocused then
+      KillFocus();
+    Invalidate();
+  end;
 end;
 
 end.

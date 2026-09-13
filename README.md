@@ -28,6 +28,13 @@ A lightweight, high-performance native GUI toolkit engineered with Free Pascal, 
   - **Switch**: Modern toggle switch with circular thumb slider, customizable track radii, elevation shadows, active track accent glows, and automatic label positioning.
   - **Text / Label**: Flexible text widget with **selectable** and **non-selectable** options. Selectable mode offers mouse drag selection, double-click word selection, Ctrl+A select-all, theme-aware accent highlight rendering with crisp contrast text, I-beam cursor, and Ctrl+C clipboard copy. Non-selectable mode acts as an immutable static label.
 
+- **GTK-Style Keyboard Navigation & Focus Management**:
+  - Full keyboard focus navigation via **Tab** (forward) and **Shift+Tab** (backward) with cyclic wrapping.
+  - Theme-aware vector **focus ring** rendered around focused widgets matching custom corner radiuses, pill shapes, and switch tracks.
+  - Native keyboard controls: **Space** (press down and activate on release), **Return / Enter** (immediate activation), **Left / Right arrow** keys for Switches, **Ctrl+A / Escape** for Selectable Text.
+  - Static labels and non-interactive widgets are automatically skipped during focus traversal.
+  - Dynamic programmatic focus API (`ft_widget_set_focus`, `ft_widget_has_focus`, `ft_widget_set_focusable`, `ft_widget_get_focusable`).
+
 - **Universal C FFI**:
   - Packaged as a standalone shared library (`libft.so`) exposing a standard C ABI via `include/ft.h`.
   - Zero heavy external dependencies; easily integrated into any programming language.
@@ -44,6 +51,10 @@ A lightweight, high-performance native GUI toolkit engineered with Free Pascal, 
 | Nord Theme (Dark Mode) | Dracula Theme (Dark Mode) |
 | :---: | :---: |
 | ![Nord Theme](docs/screenshots/floria_theme_nord.png) | ![Dracula Theme](docs/screenshots/floria_theme_dracula.png) |
+
+### Keyboard Focus & Navigation Showcase (GTK-Style)
+![Keyboard Focus & Navigation Showcase](docs/screenshots/floria_keyboard_focus.png)
+*Full keyboard control and focus ring indicators across button types, custom pill radii, dark mode, toggle switches, and selectable text widgets.*
 
 ### Multilingual & Internationalization Showcase
 ![Multilingual Showcase](docs/screenshots/floria_multilingual.png)
@@ -300,6 +311,21 @@ Floria Toolkit automatically discovers `.theme` files from the following paths:
 | `FtWidget ft_window_create(int32_t w, int32_t h, const char* title)` | Creates and returns a top-level native window |
 | `void ft_window_set_title(FtWidget win, const char* title)` | Sets window title string |
 | `void ft_widget_show(FtWidget widget)` | Maps and displays the widget/window on screen |
+
+### Widget Focus & Keyboard Navigation
+| Function | Description |
+|---|---|
+| `void ft_widget_set_focus(FtWidget widget)` | Programmatically gives keyboard focus to widget (draws theme focus ring) |
+| `int32_t ft_widget_has_focus(FtWidget widget)` | Returns `1` if widget currently holds keyboard focus, `0` otherwise |
+| `void ft_widget_set_focusable(FtWidget widget, int32_t focusable)` | Sets whether widget can receive focus (`1` = yes, `0` = no; drops focus if currently focused) |
+| `int32_t ft_widget_get_focusable(FtWidget widget)` | Returns `1` if widget is focusable, `0` otherwise |
+
+**Keyboard Controls**:
+- **`Tab`** / **`Shift+Tab`**: Forward / backward focus traversal through all focusable widgets with wrapping.
+- **`Space`**: Presses down on keypress, activates on key release (Button, Toggle Button) or toggles state (Switch).
+- **`Return` / `Enter`**: Immediately activates button click or switch toggle.
+- **`Left Arrow` / `Right Arrow`**: Direct control on focused switches (Left = turn OFF, Right = turn ON).
+- **`Ctrl+A` / `Escape`**: Select all or clear selection on focused selectable text widgets.
 
 ### Button Widgets
 | Function | Description |

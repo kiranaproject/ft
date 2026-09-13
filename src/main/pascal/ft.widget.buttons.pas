@@ -40,6 +40,9 @@ type
     procedure MouseLeave(); override;
     procedure MouseDown(AX, AY: Integer; AButton: Integer); override;
     procedure MouseUp(AX, AY: Integer; AButton: Integer); override;
+    procedure KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string); override;
+    procedure KeyUp(AKeySym: Cardinal; AState: Cardinal); override;
+    procedure LostFocus(); override;
 
     property State: TFtButtonState read FState;
     property CanToggle: Boolean read FCanToggle write SetCanToggle;
@@ -65,6 +68,7 @@ implementation
 constructor TFtButton.Create(AParent: TFtWidget);
 begin
   inherited Create(AParent);
+  FFocusable := True;
   FState := bsNormal;
   FIsMouseDown := False;
   FCanToggle := False;
@@ -177,12 +181,64 @@ begin
 end;
 
 procedure TFtButton.Draw(Canvas: TFtCanvasAgg);
+var
+  effRadius: Double;
 begin
   if not Visible then Exit;
 
   FtGetTheme().DrawButtonEx(Canvas, X, Y, Width, Height, FState, FToggled, Caption, GetFont(), FCornerRadius, FEnableShadow);
 
+  if FFocused then
+  begin
+    if FCornerRadius >= 0.0 then
+      effRadius := FCornerRadius
+    else
+      effRadius := FtGetTheme().CornerRadius;
+    FtGetTheme().DrawFocusRing(Canvas, X, Y, Width, Height, effRadius);
+  end;
+
   inherited Draw(Canvas);
+end;
+
+procedure TFtButton.KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string);
+begin
+  inherited KeyDown(AKeySym, AState, AChar);
+  if (AKeySym = $20) then // Space
+  begin
+    if FState <> bsPressed then
+    begin
+      FState := bsPressed;
+      Invalidate();
+    end;
+  end
+  else if (AKeySym = $FF0D) or (AKeySym = $FF8D) then // Return / Enter
+  begin
+    Click();
+  end;
+end;
+
+procedure TFtButton.KeyUp(AKeySym: Cardinal; AState: Cardinal);
+begin
+  inherited KeyUp(AKeySym, AState);
+  if (AKeySym = $20) then // Space
+  begin
+    if FState = bsPressed then
+    begin
+      FState := bsNormal;
+      Invalidate();
+      Click();
+    end;
+  end;
+end;
+
+procedure TFtButton.LostFocus();
+begin
+  if FState = bsPressed then
+  begin
+    FState := bsNormal;
+    Invalidate();
+  end;
+  inherited LostFocus();
 end;
 
 { TFtToggleButton }
