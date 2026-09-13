@@ -6,7 +6,7 @@ interface
 
 uses
   ctypes, SysUtils, Classes, Math, Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Theme, Ft.Backend.X11,
-  Ft.Widget.ScrollBars, Ft.Widget.Containers;
+  Ft.Widget.ScrollBars, Ft.Widget.Containers, Ft.Widget.Menus;
 
 type
   TFtTextAreaChangeCallback = procedure(Sender: Pointer; Text: PChar; UserData: Pointer); cdecl;
@@ -25,6 +25,14 @@ type
     FIsDragging: Boolean;
     FLastClickTime: QWord;
     FClickCount: Integer;
+
+    FDefaultMenu: TFtPopupMenu;
+    FItemSelectAll: TFtMenuItem;
+    FItemCut: TFtMenuItem;
+    FItemCopy: TFtMenuItem;
+    FItemPaste: TFtMenuItem;
+    FItemDelete: TFtMenuItem;
+
     FOnChange: TFtTextAreaChangeCallback;
 
     function GetText(): string;
@@ -39,8 +47,11 @@ type
     procedure EnsureCursorVisible();
     function GetLineHeight(): Double;
     procedure NotifyChange();
+    procedure CreateDefaultMenu();
+    procedure UpdateDefaultMenu();
   protected
     procedure DrawContent(Canvas: TFtCanvasAgg); override;
+    function GetContextMenu(): TFtWidget; override;
   public
     constructor Create(AParent: TFtWidget; const AText: string = ''); reintroduce;
     destructor Destroy(); override;
@@ -59,6 +70,7 @@ type
     procedure ClearSelection();
     procedure SelectWordAt(ALineIdx, ACharIdx: Integer);
     function DeleteSelection(): Boolean;
+    procedure DeleteSelectedOrChar();
     procedure InsertText(const AInsert: string);
     procedure CopyToClipboard();
     procedure CutToClipboard();
@@ -86,6 +98,36 @@ begin
   res := StringReplace(S, #13#10, #10, [rfReplaceAll]);
   res := StringReplace(res, #13, #10, [rfReplaceAll]);
   Result := res;
+end;
+
+procedure TextAreaMenuSelectAllCallback(MenuItem: Pointer; UserData: Pointer); cdecl;
+begin
+  if Assigned(UserData) and (TObject(UserData) is TFtTextArea) then
+    TFtTextArea(UserData).SelectAll();
+end;
+
+procedure TextAreaMenuCutCallback(MenuItem: Pointer; UserData: Pointer); cdecl;
+begin
+  if Assigned(UserData) and (TObject(UserData) is TFtTextArea) then
+    TFtTextArea(UserData).CutToClipboard();
+end;
+
+procedure TextAreaMenuCopyCallback(MenuItem: Pointer; UserData: Pointer); cdecl;
+begin
+  if Assigned(UserData) and (TObject(UserData) is TFtTextArea) then
+    TFtTextArea(UserData).CopyToClipboard();
+end;
+
+procedure TextAreaMenuPasteCallback(MenuItem: Pointer; UserData: Pointer); cdecl;
+begin
+  if Assigned(UserData) and (TObject(UserData) is TFtTextArea) then
+    TFtTextArea(UserData).PasteFromClipboard();
+end;
+
+procedure TextAreaMenuDeleteCallback(MenuItem: Pointer; UserData: Pointer); cdecl;
+begin
+  if Assigned(UserData) and (TObject(UserData) is TFtTextArea) then
+    TFtTextArea(UserData).DeleteSelectedOrChar();
 end;
 
 { TFtTextArea }
@@ -117,6 +159,14 @@ begin
   FIsDragging := False;
   FLastClickTime := 0;
   FClickCount := 0;
+
+  FDefaultMenu := nil;
+  FItemSelectAll := nil;
+  FItemCut := nil;
+  FItemCopy := nil;
+  FItemPaste := nil;
+  FItemDelete := nil;
+
   FOnChange := nil;
 
   Width := 240;
@@ -127,6 +177,11 @@ end;
 
 destructor TFtTextArea.Destroy();
 begin
+  if Assigned(FDefaultMenu) then
+  begin
+    FDefaultMenu.Free();
+    FDefaultMenu := nil;
+  end;
   FLines.Free();
   FLines := nil;
   inherited Destroy();
@@ -583,10 +638,94 @@ begin
   Result := 1; { I-Beam }
 end;
 
+procedure TFtTextArea.CreateDefaultMenu();
+begin
+  if Assigned(FDefaultMenu) then Exit;
+  FDefaultMenu := TFtPopupMenu.Create(Self);
+  FItemSelectAll := FDefaultMenu.AddItem('Select All', @TextAreaMenuSelectAllCallback, Pointer(Self));
+  FItemSelectAll.Shortcut := 'Ctrl+A';
+  FDefaultMenu.AddSeparator();
+  FItemCut := FDefaultMenu.AddItem('Cut', @TextAreaMenuCutCallback, Pointer(Self));
+  FItemCut.Shortcut := 'Ctrl+X';
+  FItemCopy := FDefaultMenu.AddItem('Copy', @TextAreaMenuCopyCallback, Pointer(Self));
+  FItemCopy.Shortcut := 'Ctrl+C';
+  FItemPaste := FDefaultMenu.AddItem('Paste', @TextAreaMenuPasteCallback, Pointer(Self));
+  FItemPaste.Shortcut := 'Ctrl+V';
+  FItemDelete := FDefaultMenu.AddItem('Delete', @TextAreaMenuDeleteCallback, Pointer(Self));
+  FItemDelete.Shortcut := 'Del';
+end;
+
+procedure TFtTextArea.UpdateDefaultMenu();
+var
+  hasSel: Boolean;
+  hasChars: Boolean;
+  canDel: Boolean;
+begin
+  if not Assigned(FDefaultMenu) then Exit;
+  hasSel := HasSelection();
+  hasChars := (FLines.Count > 1) or ((FLines.Count = 1) and (FLines[0] <> ''));
+  FItemSelectAll.Enabled := hasChars;
+  if FReadOnly then
+  begin
+    FItemCut.Enabled := False;
+    FItemCopy.Enabled := hasSel;
+    FItemPaste.Enabled := False;
+    FItemDelete.Enabled := False;
+  end
+  else
+  begin
+    FItemCut.Enabled := hasSel;
+    FItemCopy.Enabled := hasSel;
+    FItemPaste.Enabled := (FtGetClipboardText() <> '');
+    canDel := hasSel or (FCursorLine < FLines.Count - 1) or (FCursorCol < LineCharCount(FCursorLine));
+    FItemDelete.Enabled := canDel;
+  end;
+end;
+
+function TFtTextArea.GetContextMenu(): TFtWidget;
+begin
+  if Assigned(FContextMenu) then
+    Exit(FContextMenu);
+  if not Assigned(FDefaultMenu) then
+    CreateDefaultMenu();
+  UpdateDefaultMenu();
+  Result := FDefaultMenu;
+end;
+
+procedure TFtTextArea.DeleteSelectedOrChar();
+var
+  lineLen: Integer;
+begin
+  if FReadOnly then Exit;
+  if not DeleteSelection() then
+  begin
+    lineLen := LineCharCount(FCursorLine);
+    if FCursorCol < lineLen then
+    begin
+      FSelAnchorLine := FCursorLine;
+      FSelAnchorCol := FCursorCol;
+      FSelCursorLine := FCursorLine;
+      FSelCursorCol := FCursorCol + 1;
+      DeleteSelection();
+    end
+    else if FCursorLine < FLines.Count - 1 then
+    begin
+      FSelAnchorLine := FCursorLine;
+      FSelAnchorCol := lineLen;
+      FSelCursorLine := FCursorLine + 1;
+      FSelCursorCol := 0;
+      DeleteSelection();
+    end;
+  end;
+end;
+
 procedure TFtTextArea.MouseDown(AX, AY: Integer; AButton: Integer);
 var
   nowTime: QWord;
   lineH: Double;
+  clickLine, clickCol: Integer;
+  sLine1, sCol1, sLine2, sCol2: Integer;
+  insideSel: Boolean;
 begin
   lineH := GetLineHeight();
 
@@ -612,6 +751,55 @@ begin
   if AButton = 7 then
   begin
     SetScrollX(FScrollX + 30.0);
+    Exit;
+  end;
+
+  if AButton = 3 then
+  begin
+    SetFocus();
+    HitTestPosition(AX, AY, clickLine, clickCol);
+    insideSel := False;
+    if HasSelection() then
+    begin
+      if (FSelAnchorLine < FSelCursorLine) or ((FSelAnchorLine = FSelCursorLine) and (FSelAnchorCol <= FSelCursorCol)) then
+      begin
+        sLine1 := FSelAnchorLine;
+        sCol1 := FSelAnchorCol;
+        sLine2 := FSelCursorLine;
+        sCol2 := FSelCursorCol;
+      end
+      else
+      begin
+        sLine1 := FSelCursorLine;
+        sCol1 := FSelCursorCol;
+        sLine2 := FSelAnchorLine;
+        sCol2 := FSelAnchorCol;
+      end;
+
+      if (clickLine > sLine1) and (clickLine < sLine2) then
+        insideSel := True
+      else if (sLine1 = sLine2) and (clickLine = sLine1) and (clickCol >= sCol1) and (clickCol <= sCol2) then
+        insideSel := True
+      else if (sLine1 <> sLine2) then
+      begin
+        if (clickLine = sLine1) and (clickCol >= sCol1) then
+          insideSel := True
+        else if (clickLine = sLine2) and (clickCol <= sCol2) then
+          insideSel := True;
+      end;
+    end;
+
+    if not insideSel then
+    begin
+      FCursorLine := clickLine;
+      FCursorCol := clickCol;
+      FSelAnchorLine := FCursorLine;
+      FSelAnchorCol := FCursorCol;
+      FSelCursorLine := FCursorLine;
+      FSelCursorCol := FCursorCol;
+      EnsureCursorVisible();
+      Invalidate();
+    end;
     Exit;
   end;
 

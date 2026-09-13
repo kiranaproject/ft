@@ -108,6 +108,20 @@ type
                             ThumbX, ThumbY, ThumbW, ThumbH: Double;
                             Hovered, Dragging: Boolean;
                             CustomRadius: Double = -1.0); virtual;
+    function GetMenuBackground(): TFtRgbColor; virtual;
+    function GetMenuBorder(): TFtRgbColor; virtual;
+    function GetMenuHoverBackground(): TFtRgbColor; virtual;
+    function GetMenuHoverTextColor(): TFtRgbColor; virtual;
+    function GetMenuSeparatorColor(): TFtRgbColor; virtual;
+    procedure DrawMenuBar(Canvas: TFtCanvasAgg; X, Y, W, H: Integer); virtual;
+    procedure DrawMenuBarItem(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
+                              const Caption: string; Font: TFtFont; 
+                              Hovered, Active: Boolean); virtual;
+    procedure DrawPopupMenuPlate(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; CustomRadius: Double = -1.0); virtual;
+    procedure DrawPopupMenuItem(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
+                                const Caption, Shortcut: string; Font: TFtFont; 
+                                Hovered, Enabled, Checked, HasSubMenu: Boolean); virtual;
+    procedure DrawMenuSeparator(Canvas: TFtCanvasAgg; X, Y, W: Integer); virtual;
 
     property Name: string read GetName;
     property DarkMode: Boolean read GetDarkMode write SetDarkMode;
@@ -171,6 +185,8 @@ type
     function GetInputBorder(): TFtRgbColor; override;
     function GetScrollBarTrackColor(): TFtRgbColor; override;
     function GetScrollBarThumbColor(): TFtRgbColor; override;
+    function GetMenuBackground(): TFtRgbColor; override;
+    function GetMenuBorder(): TFtRgbColor; override;
 
     property FilePath: string read FFilePath;
     property Author: string read FAuthor;
@@ -523,6 +539,176 @@ begin
     alpha := 0.55;
 
   Canvas.DrawRoundedRect(ThumbX, ThumbY, ThumbW, ThumbH, thumbRad, thumbCol.R, thumbCol.G, thumbCol.B, alpha);
+end;
+
+function TFtTheme.GetMenuBackground(): TFtRgbColor;
+begin
+  if DarkMode then
+    Result := MakeRgbColor(0.16, 0.18, 0.22)
+  else
+    Result := MakeRgbColor(0.98, 0.98, 0.99);
+end;
+
+function TFtTheme.GetMenuBorder(): TFtRgbColor;
+begin
+  if DarkMode then
+    Result := MakeRgbColor(0.28, 0.32, 0.38)
+  else
+    Result := MakeRgbColor(0.82, 0.85, 0.90);
+end;
+
+function TFtTheme.GetMenuHoverBackground(): TFtRgbColor;
+begin
+  Result := GetAccentColor();
+end;
+
+function TFtTheme.GetMenuHoverTextColor(): TFtRgbColor;
+begin
+  Result := MakeRgbColor(1.0, 1.0, 1.0);
+end;
+
+function TFtTheme.GetMenuSeparatorColor(): TFtRgbColor;
+begin
+  if DarkMode then
+    Result := MakeRgbColor(0.25, 0.28, 0.34)
+  else
+    Result := MakeRgbColor(0.88, 0.90, 0.93);
+end;
+
+procedure TFtTheme.DrawMenuBar(Canvas: TFtCanvasAgg; X, Y, W, H: Integer);
+var
+  bgCol, borderCol: TFtRgbColor;
+begin
+  if (W <= 0) or (H <= 0) then Exit;
+  if DarkMode then
+  begin
+    bgCol := MakeRgbColor(0.14, 0.15, 0.18);
+    borderCol := MakeRgbColor(0.22, 0.24, 0.28);
+  end
+  else
+  begin
+    bgCol := MakeRgbColor(0.95, 0.96, 0.97);
+    borderCol := MakeRgbColor(0.86, 0.88, 0.91);
+  end;
+
+  Canvas.DrawRect(X, Y, W, H, bgCol.R, bgCol.G, bgCol.B);
+  Canvas.DrawRect(X, Y + H - 1, W, 1, borderCol.R, borderCol.G, borderCol.B);
+end;
+
+procedure TFtTheme.DrawMenuBarItem(Canvas: TFtCanvasAgg; X, Y, W, H: Integer;
+  const Caption: string; Font: TFtFont; Hovered, Active: Boolean);
+var
+  pillCol, txtCol: TFtRgbColor;
+begin
+  if (W <= 0) or (H <= 0) then Exit;
+
+  if Active then
+  begin
+    pillCol := GetAccentColor();
+    txtCol := MakeRgbColor(1.0, 1.0, 1.0);
+    Canvas.DrawRect(X, Y, W, H, pillCol.R, pillCol.G, pillCol.B);
+  end
+  else if Hovered then
+  begin
+    if DarkMode then
+      pillCol := MakeRgbColor(0.25, 0.28, 0.35)
+    else
+      pillCol := MakeRgbColor(0.88, 0.90, 0.94);
+    txtCol := GetTextColor();
+    Canvas.DrawRect(X, Y, W, H, pillCol.R, pillCol.G, pillCol.B);
+  end
+  else
+    txtCol := GetTextColor();
+
+  if Assigned(Font) then
+    Canvas.DrawTextCentered(X, Y, W, H, Caption, Font, txtCol.R, txtCol.G, txtCol.B);
+end;
+
+procedure TFtTheme.DrawPopupMenuPlate(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; CustomRadius: Double = -1.0);
+var
+  bgCol, borderCol: TFtRgbColor;
+begin
+  if (W <= 0) or (H <= 0) then Exit;
+  bgCol := GetMenuBackground();
+  borderCol := GetMenuBorder();
+
+  { Flat rectangular plate filling the native popup window }
+  { Rounded corners and drop shadows are handled natively by the X11 compositor }
+  Canvas.DrawRoundedRect(X, Y, W, H, 0.0, bgCol.R, bgCol.G, bgCol.B, 1.0);
+  Canvas.DrawRoundedRectOutline(X, Y, W, H, 0.0, 1.0, borderCol.R, borderCol.G, borderCol.B, 1.0);
+end;
+
+procedure TFtTheme.DrawPopupMenuItem(Canvas: TFtCanvasAgg; X, Y, W, H: Integer;
+  const Caption, Shortcut: string; Font: TFtFont;
+  Hovered, Enabled, Checked, HasSubMenu: Boolean);
+var
+  pillCol, txtCol, iconCol, checkCol: TFtRgbColor;
+  tx, ty, sw: Double;
+begin
+  if (W <= 0) or (H <= 0) then Exit;
+
+  if Hovered and Enabled then
+  begin
+    pillCol := GetMenuHoverBackground();
+    Canvas.DrawRect(X, Y, W, H, pillCol.R, pillCol.G, pillCol.B);
+    txtCol := GetMenuHoverTextColor();
+    iconCol := GetMenuHoverTextColor();
+    checkCol := GetMenuHoverTextColor();
+  end
+  else
+  begin
+    if Enabled then
+    begin
+      txtCol := GetTextColor();
+      iconCol := GetTextColor();
+      checkCol := GetAccentColor();
+    end
+    else
+    begin
+      if DarkMode then
+        txtCol := MakeRgbColor(0.42, 0.46, 0.52)
+      else
+        txtCol := MakeRgbColor(0.62, 0.65, 0.70);
+      iconCol := txtCol;
+      checkCol := txtCol;
+    end;
+  end;
+
+  if Checked then
+    Canvas.DrawCheckMark(X + 13.0, Y + H / 2.0, checkCol.R, checkCol.G, checkCol.B, 1.0);
+
+  if Assigned(Font) then
+    ty := Y + (H / 2.0) + (Font.Ascent - Font.Descent) / 2.0
+  else
+    ty := Y + H / 2.0 + 4.0;
+
+  if Assigned(Font) and (Caption <> '') then
+  begin
+    tx := X + 26.0;
+    Canvas.DrawText(tx, ty, Caption, Font, txtCol.R, txtCol.G, txtCol.B);
+  end;
+
+  if Assigned(Font) and (Shortcut <> '') then
+  begin
+    sw := Font.GetTextWidth(Shortcut);
+    if HasSubMenu then
+      tx := X + W - 26.0 - sw
+    else
+      tx := X + W - 14.0 - sw;
+    Canvas.DrawText(tx, ty, Shortcut, Font, iconCol.R, iconCol.G, iconCol.B);
+  end;
+
+  if HasSubMenu then
+    Canvas.DrawSubMenuArrow(X + W - 11.0, Y + H / 2.0, iconCol.R, iconCol.G, iconCol.B, 1.0);
+end;
+
+procedure TFtTheme.DrawMenuSeparator(Canvas: TFtCanvasAgg; X, Y, W: Integer);
+var
+  sepCol: TFtRgbColor;
+begin
+  if W <= 0 then Exit;
+  sepCol := GetMenuSeparatorColor();
+  Canvas.DrawRect(X + 2, Y + 3, W - 4, 1, sepCol.R, sepCol.G, sepCol.B);
 end;
 
 { TFtThemeDefault }
@@ -1046,6 +1232,26 @@ end;
 function TFtFileTheme.GetScrollBarThumbColor(): TFtRgbColor;
 begin
   Result := GetActivePalette().BtnNormBorder;
+end;
+
+function TFtFileTheme.GetMenuBackground(): TFtRgbColor;
+var
+  pal: TFtThemePalette;
+begin
+  pal := GetActivePalette();
+  Result := pal.WindowBg;
+  if DarkMode then
+    AdjustRgb(Result, 1.08)
+  else
+    AdjustRgb(Result, 1.02);
+end;
+
+function TFtFileTheme.GetMenuBorder(): TFtRgbColor;
+var
+  pal: TFtThemePalette;
+begin
+  pal := GetActivePalette();
+  Result := pal.BtnNormBorder;
 end;
 
 procedure TFtFileTheme.DrawWindowBackground(Canvas: TFtCanvasAgg; W, H: Integer);

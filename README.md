@@ -31,6 +31,7 @@ A lightweight, high-performance native GUI toolkit engineered with Free Pascal, 
   - **TextArea (Multi-Line Input Area)**: Equivalent to `GtkTextView` in GTK and `QTextEdit` / `QPlainTextEdit` in Qt. Multi-line text editing supporting arbitrary dimensions, newline insertion (`Enter`), line navigation (`Up`/`Down` arrows), multi-line selection, auto-scrolling, and integrated scrollbars with dynamic policy options (Hide, Only Horizontal, Only Vertical, or Auto Both).
   - **ScrollBar**: Standalone vector scrollbar widget (`TFtScrollBar` / `Ft.Widget.ScrollBars`) supporting both Horizontal and Vertical orientations, proportional thumb sizing based on page size and content range, track clicking / page jumping, continuous mouse dragging, and seamless theme palette adaptation.
   - **Container (Scrollable Box / Viewport)**: Equivalent to `GtkScrolledWindow` in GTK, `QAbstractScrollArea` / `QScrollArea` in Qt, and `TScrollBox` in Lazarus LCL. A reusable container frame widget (`TFtContainer` / `Ft.Widget.Containers`) that hosts any child widgets (entries, buttons, switches, list items, text areas) using relative coordinates. Features theme-styled input plate backgrounds, integrated vertical and horizontal scrollbars (`TFtScrollBar`), automatic content size calculation, mouse wheel scrolling with child event bubbling, and subpixel AGG scissor clipping with a stacked clipping hierarchy. Both `TFtEntry` and `TFtTextArea` inherit from `TFtContainer`, unifying their border plate, clipping, and scrollbar behavior.
+  - **Window Main Menu (`TFtMainMenu`) & Pop-up Context Menu (`TFtPopupMenu`)**: Modern vector menu system (`Ft.Widget.Menus`) modeled after standard GTK, Qt, and WinAPI desktop behavior. Menus are independent top-level borderless windows (`_NET_WM_WINDOW_TYPE_POPUP_MENU` / `_NET_WM_WINDOW_TYPE_DROPDOWN_MENU`) that can extend outside the parent window frame onto the desktop unconstrained. Corner rounding and elevation drop shadows are delegated directly to the native X11 compositor (Picom, Marco, Mutter, KWin). Supports top-level Window Main Menu bars (`File`, `Edit`, `View`, `Help`) with hover highlights, click-to-open dropdowns, sweep tracking across open menus, standalone widget/window right-click context menus, cascading submenus nested to arbitrary depth, checkable toggle items, shortcut hints, and keyboard activation/navigation.
 
 - **GTK-Style Keyboard Navigation & Focus Management**:
   - Full keyboard focus navigation via **Tab** (forward) and **Shift+Tab** (backward) with cyclic wrapping.
@@ -46,6 +47,14 @@ A lightweight, high-performance native GUI toolkit engineered with Free Pascal, 
 ---
 
 ## Screenshots
+
+### Window Main Menu & Pop-up Context Menu Showcase (TFtMainMenu & TFtPopupMenu)
+![Window Main Menu & Pop-up Menu Showcase](docs/screenshots/floria_menus.png)
+*Comprehensive 15-step verification matrix: Top-level Window Main Menu bar with hover highlights and sweep tracking, cascading submenus nested to arbitrary depths, crisp vector checkmarks (`✓`) and cascade arrows (`▶`), hot-swappable themes in menus (Light, Dark, Nord), widget-level right-click context menus (`TFtContainer`), window-level right-click context menus, and full keyboard navigation (`Alt`, arrows, Enter, Escape).*
+
+### Native Floating Menus Extending Outside Window Bounds
+![Menus Floating & Extending Outside Window Frame](docs/screenshots/floria_menus_outside.png)
+*Native floating popup windows: Menus are created as top-level borderless windows (`_NET_WM_WINDOW_TYPE_POPUP_MENU`) that extend seamlessly past parent window frames onto the desktop. Submenus cascade freely and right-click context menus float unconstrained. Rounded corners and elevation drop shadows are delegated to the native X11 compositor (Picom, Marco, Mutter, KWin).*
 
 ### Reusable Container & Scrolled Viewport Showcase (TFtContainer)
 ![Reusable Container Showcase](docs/screenshots/floria_containers.png)
@@ -101,6 +110,7 @@ floria-toolkit/
 │       ├── ft.widget.textareas.pas# Multi-line text area (GtkTextView / QTextEdit)
 │       ├── ft.widget.scrollbars.pas# Draggable ScrollBar widget (horizontal & vertical)
 │       ├── ft.widget.containers.pas# Reusable Container box (ScrolledWindow / ListView)
+│       ├── ft.widget.menus.pas   # Main Menu bar & Pop-up Context Menu (AGG vector)
 │       ├── ft.theme.pas      # Theme engine, default theme & file themes
 │       └── ft.font.pas       # Font management, DPI scaling & gamma
 ├── themes/                   # Bundled community & style theme files
@@ -111,7 +121,12 @@ floria-toolkit/
 │   └── nord.theme            # Arctic frosty slate & polar cyan palette
 ├── examples/
 │   ├── c/
-│   │   └── main.c            # Comprehensive C demonstration app
+│   │   ├── main.c            # Comprehensive C demonstration app
+│   │   ├── containers.c      # Reusable container and scrolled viewport demo
+│   │   ├── inputs.c          # Single-line entry & multi-line textarea demo
+│   │   ├── scrollbars.c      # Standalone scrollbar and policy demo
+│   │   ├── multilingual.c    # International UTF-8 text demo
+│   │   └── menus.c           # Window Main Menu & Pop-up Context Menu demo
 │   └── python/
 │       └── app.py            # Python ctypes wrapper & interactive showcase
 └── project.xml               # PasBuild package configuration
@@ -144,23 +159,27 @@ fpc -Mobjfpc -Scghi -Cg -O1 -g -gl -vewnhibq \
   -otarget/bin/libft.so src/main/pascal/ft.pas
 ```
 
-### 2. Build the C Example
+### 2. Build the C Examples
 
+You can build all C examples at once with the build script:
+```bash
+./build_examples.sh
+```
+
+Or build them individually (make sure to include `-Wl,-rpath,'$ORIGIN'` so the binary can locate `libft.so` regardless of the current working directory):
 ```bash
 gcc -Iinclude -Ltarget/bin -Wl,-rpath,'$ORIGIN',-rpath,'$ORIGIN/..' \
     -o target/bin/c_example examples/c/main.c -lft
 ```
 
-Run the C example:
+Run any of the compiled C examples:
 ```bash
 ./target/bin/c_example
-```
-
-Build and run the Multilingual / Internationalization C example:
-```bash
-gcc -Iinclude -Ltarget/bin -Wl,-rpath,'$ORIGIN',-rpath,'$ORIGIN/..' \
-    -o target/bin/multilingual_example examples/c/multilingual.c -lft
-./target/bin/multilingual_example
+./target/bin/example_menus
+./target/bin/example_containers
+./target/bin/example_inputs
+./target/bin/example_scrollbars
+./target/bin/example_multilingual
 ```
 
 ### 3. Run the Python Examples
@@ -330,7 +349,16 @@ Floria Toolkit automatically discovers `.theme` files from the following paths:
 |---|---|
 | `FtWidget ft_window_create(int32_t w, int32_t h, const char* title)` | Creates and returns a top-level native window |
 | `void ft_window_set_title(FtWidget win, const char* title)` | Sets window title string |
+| `void ft_window_set_borderless(FtWidget win, int32_t borderless)` | Enables or disables window manager decorations / titlebar |
+| `int32_t ft_window_get_borderless(FtWidget win)` | Returns 1 if window is borderless, 0 otherwise |
+| `void ft_window_set_skip_taskbar(FtWidget win, int32_t skip)` | Hides window from taskbar and pager (`_NET_WM_STATE_SKIP_TASKBAR`) |
+| `int32_t ft_window_get_skip_taskbar(FtWidget win)` | Returns 1 if skipped from taskbar, 0 otherwise |
+| `void ft_window_set_window_type(FtWidget win, int32_t type)` | Sets EWMH window type (`NORMAL`, `DIALOG`, `POPUP_MENU`, `DROPDOWN_MENU`, `TOOLTIP`, `UTILITY`) |
+| `int32_t ft_window_get_window_type(FtWidget win)` | Returns current window type |
+| `void ft_window_set_position(FtWidget win, int32_t x, int32_t y)` | Explicitly positions window on screen |
+| `void ft_window_get_position(FtWidget win, int32_t* x, int32_t* y)` | Queries window's root screen coordinates |
 | `void ft_widget_show(FtWidget widget)` | Maps and displays the widget/window on screen |
+| `void ft_widget_hide(FtWidget widget)` | Unmaps and hides the widget/window |
 
 ### Widget Focus & Keyboard Navigation
 | Function | Description |
@@ -446,6 +474,102 @@ Floria Toolkit automatically discovers `.theme` files from the following paths:
 | `double ft_scrollbar_get_step(sb)` | Retrieves small step size |
 | `void ft_scrollbar_on_scroll(sb, callback, user_data)` | Registers live scroll notification callback |
 | `void ft_scrollbar_set_corner_radius(sb, double radius)` | Sets per-widget corner radius override |
+
+### Container Widgets (Scrollable Box / Viewport Frame)
+*Equivalent to `GtkScrolledWindow` in GTK, `QScrollArea` in Qt, and `TScrollBox` in Lazarus LCL.*
+
+| Function | Description |
+|---|---|
+| `FtWidget ft_container_create(parent, x, y, w, h)` | Creates a reusable container box / viewport frame |
+| `void ft_container_set_scrollbar_mode(container, mode)` | Sets scrollbar policy (`0`=None, `1`=Horiz, `2`=Vert, `3`=Auto Both) |
+| `int32_t ft_container_get_scrollbar_mode(container)` | Returns current scrollbar policy |
+| `void ft_container_set_content_size(container, w, h)` | Explicitly sets virtual content dimensions |
+| `void ft_container_get_content_size(container, &w, &h)` | Retrieves virtual content dimensions |
+| `void ft_container_set_scroll_pos(container, sx, sy)` | Scrolls container to specific coordinates |
+| `double ft_container_get_scroll_x(container)` | Returns current horizontal scroll offset |
+| `double ft_container_get_scroll_y(container)` | Returns current vertical scroll offset |
+| `void ft_container_set_corner_radius(container, radius)` | Sets per-container corner radius |
+| `double ft_container_get_corner_radius(container)` | Returns container corner radius |
+| `void ft_container_set_padding(container, pad_x, pad_y)` | Sets inner padding around child widgets |
+| `void ft_container_set_draw_frame(container, draw_frame)` | Enables/disables border frame plate rendering (`1`=on, `0`=off) |
+| `int32_t ft_container_get_draw_frame(container)` | Queries whether border frame plate is drawn |
+| `void ft_container_set_draw_focus_ring(container, draw_ring)`| Enables/disables focus ring around container |
+| `int32_t ft_container_get_draw_focus_ring(container)` | Queries whether focus ring is enabled |
+| `void ft_container_set_auto_content_size(container, auto_sz)`| Automatically expands content area to fit all children (`1`=on, `0`=off) |
+| `int32_t ft_container_get_auto_content_size(container)` | Queries auto content sizing state |
+| `FtWidget ft_container_get_vscrollbar(container)` | Returns vertical `FtWidget` scrollbar instance |
+| `FtWidget ft_container_get_hscrollbar(container)` | Returns horizontal `FtWidget` scrollbar instance |
+| `void ft_container_on_scroll(container, callback, user_data)`| Registers scroll callback |
+| `void ft_container_get_client_rect(container, &x, &y, &w, &h)`| Computes inner client viewport area excluding scrollbars |
+| `void ft_container_update_scrollbars(container)` | Recalculates scrollbar ranges, visibility, and layout |
+
+### Window Main Menu (TFtMainMenu)
+*Top-level horizontal menu bar with hover tracking, sweep activation, and keyboard navigation.*
+
+| Function | Description |
+|---|---|
+| `FtWidget ft_main_menu_create(FtWidget window)` | Creates a main menu bar and attaches it to the window |
+| `FtWidget ft_main_menu_add_menu(main_menu, caption)` | Adds a top-level menu column (e.g. `"File"`) and returns its popup menu |
+| `FtMenuItem ft_main_menu_add_item(main_menu, caption, popup)`| Adds an existing popup menu as a top-level menu |
+| `int32_t ft_main_menu_item_count(main_menu)` | Returns number of top-level menus |
+| `FtMenuItem ft_main_menu_get_item(main_menu, index)` | Retrieves top-level menu item at index |
+| `void ft_main_menu_close(main_menu)` | Closes any open dropdown menu |
+
+### Pop-up & Context Menus (TFtPopupMenu)
+*Floating vector popup menu with shadows, rounded plates, checkmarks, and cascading submenus.*
+
+| Function | Description |
+|---|---|
+| `FtWidget ft_popup_menu_create(FtWidget parent)` | Creates a standalone popup menu |
+| `FtMenuItem ft_popup_menu_add_item(popup, caption, cb, data)` | Appends an interactive menu item with callback |
+| `FtMenuItem ft_popup_menu_add_check_item(popup, caption, checked, cb, data)` | Appends a toggleable checkmark item |
+| `FtMenuItem ft_popup_menu_add_separator(popup)` | Appends a horizontal theme separator line |
+| `FtMenuItem ft_popup_menu_add_submenu(popup, caption, submenu)` | Appends a cascading child submenu (`▶`) |
+| `int32_t ft_popup_menu_item_count(popup)` | Returns item count in menu |
+| `FtMenuItem ft_popup_menu_get_item(popup, index)` | Retrieves menu item at index |
+| `void ft_popup_menu_show(popup, int32_t x, int32_t y)` | Opens popup menu at window coordinates `(x, y)` |
+| `void ft_popup_menu_close(popup)` | Closes popup menu and any active submenus |
+| `void ft_popup_menu_clear(popup)` | Removes all items from the popup menu |
+| `void ft_popup_menu_set_corner_radius(popup, radius)` | Sets corner radius override for menu plate |
+
+### Menu Items (TFtMenuItem)
+*Individual menu entry supporting captions, keyboard shortcuts, checkmarks, submenus, and tags.*
+
+| Function | Description |
+|---|---|
+| `void ft_menu_item_set_caption(item, caption)` | Sets item text (use `"-"` for separator) |
+| `const char* ft_menu_item_get_caption(item)` | Gets item text |
+| `void ft_menu_item_set_shortcut(item, shortcut)` | Sets right-aligned shortcut hint (e.g. `"Ctrl+S"`) |
+| `const char* ft_menu_item_get_shortcut(item)` | Gets shortcut hint |
+| `void ft_menu_item_set_enabled(item, enabled)` | Enables (`1`) or disables (`0`) menu item |
+| `int32_t ft_menu_item_get_enabled(item)` | Returns 1 if enabled, 0 if disabled |
+| `void ft_menu_item_set_checked(item, checked)` | Sets checked state (`1` = checked, `0` = unchecked) |
+| `int32_t ft_menu_item_get_checked(item)` | Returns checked state |
+| `void ft_menu_item_set_checkable(item, checkable)` | Enables or disables checkable mode |
+| `int32_t ft_menu_item_get_checkable(item)` | Returns 1 if item can toggle check state |
+| `void ft_menu_item_set_submenu(item, submenu)` | Attaches a cascading child `TFtPopupMenu` |
+| `FtWidget ft_menu_item_get_submenu(item)` | Returns attached child submenu or `NULL` |
+| `void ft_menu_item_on_click(item, callback, user_data)` | Registers item click handler |
+| `void ft_menu_item_set_tag(item, int64_t tag)` | Attaches user integer/pointer tag |
+| `int64_t ft_menu_item_get_tag(item)` | Retrieves user tag |
+
+### Context Menu & Window Attachment
+| Function | Description |
+|---|---|
+| `void ft_widget_set_context_menu(widget, popup_menu)` | Attaches right-click context menu to any widget |
+| `FtWidget ft_widget_get_context_menu(widget)` | Returns attached context menu of widget |
+| `void ft_window_set_context_menu(window, popup_menu)` | Attaches default right-click context menu to window |
+| `FtWidget ft_window_get_context_menu(window)` | Returns attached context menu of window |
+| `void ft_window_set_main_menu(window, main_menu)` | Sets active top-level main menu on window |
+| `FtWidget ft_window_get_main_menu(window)` | Returns main menu of window |
+
+> [!NOTE]
+> `TFtEntry`, `TFtTextArea`, and selectable `TFtText` provide built-in dynamic right-click context menus:
+> - Items: **Select All**, separator, **Cut**, **Copy**, **Paste**, **Delete**.
+> - **Selectable Text** and **Read-Only Entry / TextArea**: automatically disables and greys out **Cut**, **Delete**, and **Paste**.
+> - **Copy** is enabled whenever a selection is present; **Select All** is enabled when text exists; **Paste** is enabled when text is on the clipboard.
+> - Non-selectable text labels automatically bubble right-click events up to their parent container or window context menu.
+> - Explicitly attaching a context menu with `ft_widget_set_context_menu()` takes precedence over the default menu.
 
 ### Clipboard Management
 | Function | Description |

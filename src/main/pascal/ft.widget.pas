@@ -14,10 +14,13 @@ type
   protected
     FFocusable: Boolean;
     FFocused: Boolean;
+    FContextMenu: TFtWidget;
     function GetFont(): TFtFont; virtual;
     procedure SetFont(AValue: TFtFont); virtual;
     function GetFontDesc(): string; virtual;
     procedure SetFontDesc(const AValue: string); virtual;
+    function GetContextMenu(): TFtWidget; virtual;
+    procedure SetContextMenu(AValue: TFtWidget); virtual;
   public
     X, Y, Width, Height: Integer;
     Visible: Boolean;
@@ -54,6 +57,7 @@ type
     property FontDesc: string read GetFontDesc write SetFontDesc;
     property Focusable: Boolean read FFocusable write SetFocusable;
     property Focused: Boolean read FFocused;
+    property ContextMenu: TFtWidget read GetContextMenu write SetContextMenu;
   end;
 
 implementation
@@ -65,6 +69,7 @@ begin
   Visible := True;
   FFocusable := False;
   FFocused := False;
+  FContextMenu := nil;
   FFont := nil; { Follows parent or system font by default }
   if Assigned(Parent) then
     Parent.Children.Add(Self);
@@ -76,6 +81,7 @@ var
 begin
   if Assigned(Parent) then
     Parent.WidgetDestroyed(Self);
+  FContextMenu := nil;
   FFont := nil;
   for I := 0 to Children.Count - 1 do
     TFtWidget(Children[I]).Free();
@@ -115,6 +121,16 @@ begin
     FFont := nil
   else
     FFont := FtFontManager.GetFont(AValue);
+end;
+
+function TFtWidget.GetContextMenu(): TFtWidget;
+begin
+  Result := FContextMenu;
+end;
+
+procedure TFtWidget.SetContextMenu(AValue: TFtWidget);
+begin
+  FContextMenu := AValue;
 end;
 
 procedure TFtWidget.Draw(Canvas: TFtCanvasAgg);
@@ -188,6 +204,8 @@ end;
 
 procedure TFtWidget.WidgetDestroyed(AWidget: TFtWidget);
 begin
+  if FContextMenu = AWidget then
+    FContextMenu := nil;
   if Assigned(Parent) then
     Parent.WidgetDestroyed(AWidget);
 end;

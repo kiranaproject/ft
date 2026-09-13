@@ -6,7 +6,7 @@ interface
 
 uses
   ctypes, SysUtils, Classes, Math, Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Theme, Ft.Backend.X11,
-  Ft.Widget.ScrollBars, Ft.Widget.Containers;
+  Ft.Widget.ScrollBars, Ft.Widget.Containers, Ft.Widget.Menus;
 
 type
   TFtEntryChangeCallback = procedure(Sender: Pointer; Text: PChar; UserData: Pointer); cdecl;
@@ -24,6 +24,14 @@ type
     FIsDragging: Boolean;
     FLastClickTime: QWord;
     FClickCount: Integer;
+
+    FDefaultMenu: TFtPopupMenu;
+    FItemSelectAll: TFtMenuItem;
+    FItemCut: TFtMenuItem;
+    FItemCopy: TFtMenuItem;
+    FItemPaste: TFtMenuItem;
+    FItemDelete: TFtMenuItem;
+
     FOnChange: TFtEntryChangeCallback;
     FOnSubmit: TFtEntrySubmitCallback;
 
@@ -34,8 +42,11 @@ type
     function SubStrChars(ACharStart, ACharLen: Integer): string;
     function HitTestChar(AX: Integer): Integer;
     procedure EnsureCursorVisible();
+    procedure CreateDefaultMenu();
+    procedure UpdateDefaultMenu();
   protected
     procedure DrawContent(Canvas: TFtCanvasAgg); override;
+    function GetContextMenu(): TFtWidget; override;
   public
     constructor Create(AParent: TFtWidget; const AText: string = ''); reintroduce;
     destructor Destroy(); override;
@@ -53,6 +64,7 @@ type
     procedure ClearSelection();
     procedure SelectWordAt(ACharIdx: Integer);
     function DeleteSelection(): Boolean;
+    procedure DeleteSelectedOrChar();
     procedure InsertText(const AInsert: string);
     procedure CopyToClipboard();
     procedure CutToClipboard();
@@ -73,6 +85,36 @@ implementation
 function GetMilliSeconds(): QWord;
 begin
   Result := GetTickCount64();
+end;
+
+procedure EntryMenuSelectAllCallback(MenuItem: Pointer; UserData: Pointer); cdecl;
+begin
+  if Assigned(UserData) and (TObject(UserData) is TFtEntry) then
+    TFtEntry(UserData).SelectAll();
+end;
+
+procedure EntryMenuCutCallback(MenuItem: Pointer; UserData: Pointer); cdecl;
+begin
+  if Assigned(UserData) and (TObject(UserData) is TFtEntry) then
+    TFtEntry(UserData).CutToClipboard();
+end;
+
+procedure EntryMenuCopyCallback(MenuItem: Pointer; UserData: Pointer); cdecl;
+begin
+  if Assigned(UserData) and (TObject(UserData) is TFtEntry) then
+    TFtEntry(UserData).CopyToClipboard();
+end;
+
+procedure EntryMenuPasteCallback(MenuItem: Pointer; UserData: Pointer); cdecl;
+begin
+  if Assigned(UserData) and (TObject(UserData) is TFtEntry) then
+    TFtEntry(UserData).PasteFromClipboard();
+end;
+
+procedure EntryMenuDeleteCallback(MenuItem: Pointer; UserData: Pointer); cdecl;
+begin
+  if Assigned(UserData) and (TObject(UserData) is TFtEntry) then
+    TFtEntry(UserData).DeleteSelectedOrChar();
 end;
 
 { TFtEntry }
@@ -98,6 +140,14 @@ begin
   FIsDragging := False;
   FLastClickTime := 0;
   FClickCount := 0;
+
+  FDefaultMenu := nil;
+  FItemSelectAll := nil;
+  FItemCut := nil;
+  FItemCopy := nil;
+  FItemPaste := nil;
+  FItemDelete := nil;
+
   FOnChange := nil;
   FOnSubmit := nil;
 
@@ -107,6 +157,11 @@ end;
 
 destructor TFtEntry.Destroy();
 begin
+  if Assigned(FDefaultMenu) then
+  begin
+    FDefaultMenu.Free();
+    FDefaultMenu := nil;
+  end;
   inherited Destroy();
 end;
 
@@ -381,11 +436,96 @@ begin
     InsertText(clip);
 end;
 
+procedure TFtEntry.CreateDefaultMenu();
+begin
+  if Assigned(FDefaultMenu) then Exit;
+  FDefaultMenu := TFtPopupMenu.Create(Self);
+  FItemSelectAll := FDefaultMenu.AddItem('Select All', @EntryMenuSelectAllCallback, Pointer(Self));
+  FItemSelectAll.Shortcut := 'Ctrl+A';
+  FDefaultMenu.AddSeparator();
+  FItemCut := FDefaultMenu.AddItem('Cut', @EntryMenuCutCallback, Pointer(Self));
+  FItemCut.Shortcut := 'Ctrl+X';
+  FItemCopy := FDefaultMenu.AddItem('Copy', @EntryMenuCopyCallback, Pointer(Self));
+  FItemCopy.Shortcut := 'Ctrl+C';
+  FItemPaste := FDefaultMenu.AddItem('Paste', @EntryMenuPasteCallback, Pointer(Self));
+  FItemPaste.Shortcut := 'Ctrl+V';
+  FItemDelete := FDefaultMenu.AddItem('Delete', @EntryMenuDeleteCallback, Pointer(Self));
+  FItemDelete.Shortcut := 'Del';
+end;
+
+procedure TFtEntry.UpdateDefaultMenu();
+var
+  hasSel: Boolean;
+begin
+  if not Assigned(FDefaultMenu) then Exit;
+  hasSel := HasSelection();
+  FItemSelectAll.Enabled := (CharCount() > 0);
+  if FReadOnly then
+  begin
+    FItemCut.Enabled := False;
+    FItemCopy.Enabled := hasSel;
+    FItemPaste.Enabled := False;
+    FItemDelete.Enabled := False;
+  end
+  else
+  begin
+    FItemCut.Enabled := hasSel;
+    FItemCopy.Enabled := hasSel;
+    FItemPaste.Enabled := (FtGetClipboardText() <> '');
+    FItemDelete.Enabled := hasSel or (FCursorPos < CharCount());
+  end;
+end;
+
+function TFtEntry.GetContextMenu(): TFtWidget;
+begin
+  if Assigned(FContextMenu) then
+    Exit(FContextMenu);
+  if not Assigned(FDefaultMenu) then
+    CreateDefaultMenu();
+  UpdateDefaultMenu();
+  Result := FDefaultMenu;
+end;
+
+procedure TFtEntry.DeleteSelectedOrChar();
+var
+  cnt: Integer;
+begin
+  if FReadOnly then Exit;
+  cnt := CharCount();
+  if not DeleteSelection() then
+  begin
+    if FCursorPos < cnt then
+    begin
+      FSelAnchor := FCursorPos;
+      FSelCursor := FCursorPos + 1;
+      DeleteSelection();
+    end;
+  end;
+end;
+
 procedure TFtEntry.MouseDown(AX, AY: Integer; AButton: Integer);
 var
   nowTime: QWord;
+  clickChar, sMin, sMax: Integer;
 begin
   inherited MouseDown(AX, AY, AButton);
+  if AButton = 3 then
+  begin
+    SetFocus();
+    clickChar := HitTestChar(AX);
+    sMin := Math.Min(FSelAnchor, FSelCursor);
+    sMax := Math.Max(FSelAnchor, FSelCursor);
+    if not (HasSelection() and (clickChar >= sMin) and (clickChar <= sMax)) then
+    begin
+      FCursorPos := clickChar;
+      FSelAnchor := FCursorPos;
+      FSelCursor := FCursorPos;
+      EnsureCursorVisible();
+      Invalidate();
+    end;
+    Exit;
+  end;
+
   if AButton <> 1 then Exit;
   SetFocus();
 

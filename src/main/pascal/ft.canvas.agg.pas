@@ -20,6 +20,8 @@ uses
   agg_conv_stroke,
   agg_bounding_rect,
   agg_rounded_rect,
+  agg_path_storage,
+  agg_math_stroke,
   Ft.Font;
 
 type
@@ -57,6 +59,9 @@ type
 
     procedure DrawText(X, Y: Double; const AText: string; AFont: TFtFont; R, G, B: Double);
     procedure DrawTextCentered(X, Y, W, H: Integer; const AText: string; AFont: TFtFont; R, G, B: Double);
+
+    procedure DrawCheckMark(CX, CY: Double; R, G, B: Double; A: Double = 1.0);
+    procedure DrawSubMenuArrow(CX, CY: Double; R, G, B: Double; A: Double = 1.0);
 
     { Legacy overloads }
     procedure DrawText(X, Y: Double; const AText: string; ASize: Double; R, G, B: Double);
@@ -288,6 +293,40 @@ begin
     FRasterizer.add_path(@RR);
     render_scanlines_aa_solid(@FRasterizer, @FScanline, @FRendererBase, @C);
   end;
+end;
+
+procedure TFtCanvasAgg.DrawCheckMark(CX, CY: Double; R, G, B: Double; A: Double = 1.0);
+var
+  Path: path_storage;
+  Stroke: conv_stroke;
+  C: aggclr;
+begin
+  Path.Construct();
+  Path.move_to(CX - 4.5, CY + 0.0);
+  Path.line_to(CX - 1.5, CY + 3.2);
+  Path.line_to(CX + 4.5, CY - 3.8);
+  Stroke.Construct(@Path);
+  Stroke.width_(1.8);
+  Stroke.line_cap_(round_cap);
+  Stroke.line_join_(round_join);
+  C.ConstrDbl(R, G, B, A);
+  FRasterizer.reset();
+  FRasterizer.add_path(@Stroke);
+  render_scanlines_aa_solid(@FRasterizer, @FScanline, @FRendererBase, @C);
+  Stroke.Destruct();
+  Path.Destruct();
+end;
+
+procedure TFtCanvasAgg.DrawSubMenuArrow(CX, CY: Double; R, G, B: Double; A: Double = 1.0);
+var
+  C: aggclr;
+begin
+  C.ConstrDbl(R, G, B, A);
+  FRasterizer.reset();
+  FRasterizer.move_to_d(CX - 2.5, CY - 4.0);
+  FRasterizer.line_to_d(CX + 2.5, CY);
+  FRasterizer.line_to_d(CX - 2.5, CY + 4.0);
+  render_scanlines_aa_solid(@FRasterizer, @FScanline, @FRendererBase, @C);
 end;
 
 procedure TFtCanvasAgg.DrawTextHershey(X, Y: Double; const AText: string; ASize: Double; R, G, B: Double);

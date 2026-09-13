@@ -8,6 +8,28 @@ uses
   ctypes, x, xlib, xutil, SysUtils, Classes, Ft.Canvas.Agg, Ft.Widget, Ft.Theme;
 
 type
+  TFtWindowType = (
+    ftwtNormal = 0,
+    ftwtDialog = 1,
+    ftwtPopupMenu = 2,
+    ftwtDropdownMenu = 3,
+    ftwtTooltip = 4,
+    ftwtUtility = 5
+  );
+
+  TMWMHints = record
+    flags: culong;
+    functions: culong;
+    decorations: culong;
+    input_mode: clong;
+    status: culong;
+  end;
+  PMWMHints = ^TMWMHints;
+
+const
+  MWM_HINTS_DECORATIONS = 1 shl 1;
+
+type
   TFtX11Window = class(TFtWidget)
   private
     FDisplay: PDisplay;
@@ -24,7 +46,12 @@ type
     FHoverWidget: TFtWidget;
     FPressedWidget: TFtWidget;
     FFocusedWidget: TFtWidget;
+    FMainMenu: TFtWidget;
+    FActivePopup: TFtWidget;
     FNeedsRepaint: Boolean;
+    FBorderless: Boolean;
+    FSkipTaskbar: Boolean;
+    FWindowType: TFtWindowType;
     procedure OnThemeChanged();
     procedure UpdateCursor();
   public
@@ -32,16 +59,34 @@ type
     destructor Destroy(); override;
     procedure Resize(NewW, NewH: Integer);
     procedure SetTitle(const ATitle: string);
+    procedure SetBorderless(ABorderless: Boolean);
+    procedure SetSkipTaskbar(ASkip: Boolean);
+    procedure SetWindowType(AType: TFtWindowType);
+    procedure SetPosition(NewX, NewY: Integer);
+    procedure GetPosition(out OutX, OutY: Integer);
+    function ClientToScreen(AX, AY: Integer): TPoint;
+    function ScreenToClient(AX, AY: Integer): TPoint;
     procedure Repaint();
     procedure HandleEvents();
+    procedure HandleEvent(var Event: TXEvent);
     procedure Show();
+    procedure Hide();
     procedure Invalidate(); override;
     procedure WidgetDestroyed(AWidget: TFtWidget); override;
     procedure RequestFocus(AWidget: TFtWidget); override;
     procedure SetFocusedWidget(AWidget: TFtWidget);
     procedure FocusNext(ABackward: Boolean = False);
     procedure ClaimClipboard();
+    procedure SetActivePopup(APopup: TFtWidget);
+    procedure ClearActivePopup();
+    property Window: TWindow read FWindow;
+    property Display: PDisplay read FDisplay;
+    property Borderless: Boolean read FBorderless write SetBorderless;
+    property SkipTaskbar: Boolean read FSkipTaskbar write SetSkipTaskbar;
+    property WindowType: TFtWindowType read FWindowType write SetWindowType;
     property FocusedWidget: TFtWidget read FFocusedWidget;
+    property MainMenu: TFtWidget read FMainMenu write FMainMenu;
+    property ActivePopup: TFtWidget read FActivePopup write SetActivePopup;
   end;
 
 type
@@ -51,10 +96,17 @@ var
   GDisplay: PDisplay = nil;
   GRunning: Boolean = False;
   GActiveWindow: TFtX11Window = nil;
+  GWindows: TFPList = nil;
+  GGrabbedPopup: TFtWidget = nil;
 
 procedure FtBackendInit();
 procedure FtBackendMainLoop();
+procedure FtBackendProcessEvents();
 procedure FtBackendQuit();
+procedure FtGrabMenuInput(AWindow: TFtX11Window);
+procedure FtUngrabMenuInput(AWindow: TFtX11Window);
+function FindWindowByHandle(AWindow: TWindow): TFtX11Window;
+function HasMainWindows(): Boolean;
 procedure FtSetClipboardText(const AText: string);
 function FtGetClipboardText(): string;
 procedure FtClaimPrimarySelection(const AText: string);
@@ -62,6 +114,9 @@ procedure FtClearPrimarySelection();
 procedure FtSetSelectionLostHandler(AHandler: TFtSelectionLostHandler);
 
 implementation
+
+uses
+  Ft.Widget.Menus;
 
 procedure FtBackendInit();
 begin
@@ -77,11 +132,101 @@ begin
   GRunning := False;
 end;
 
+function FindWindowByHandle(AWindow: TWindow): TFtX11Window;
+var
+  i: Integer;
+  w: TFtX11Window;
+begin
+  Result := nil;
+  if not Assigned(GWindows) then Exit;
+  for i := 0 to GWindows.Count - 1 do
+  begin
+    w := TFtX11Window(GWindows[i]);
+    if w.FWindow = AWindow then
+      Exit(w);
+  end;
+end;
+
+function HasMainWindows(): Boolean;
+var
+  i: Integer;
+  w: TFtX11Window;
+begin
+  Result := False;
+  if not Assigned(GWindows) then Exit;
+  for i := 0 to GWindows.Count - 1 do
+  begin
+    w := TFtX11Window(GWindows[i]);
+    if w.FWindowType in [ftwtNormal, ftwtDialog] then
+      Exit(True);
+  end;
+end;
+
+procedure FtGrabMenuInput(AWindow: TFtX11Window);
+begin
+  if Assigned(AWindow) and (AWindow.FWindow <> None) and Assigned(AWindow.FDisplay) then
+  begin
+    XGrabPointer(AWindow.FDisplay, AWindow.FWindow, True,
+      ButtonPressMask or ButtonReleaseMask or PointerMotionMask,
+      GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
+    XGrabKeyboard(AWindow.FDisplay, AWindow.FWindow, True,
+      GrabModeAsync, GrabModeAsync, CurrentTime);
+  end;
+end;
+
+procedure FtUngrabMenuInput(AWindow: TFtX11Window);
+begin
+  if Assigned(AWindow) and Assigned(AWindow.FDisplay) then
+  begin
+    XUngrabPointer(AWindow.FDisplay, CurrentTime);
+    XUngrabKeyboard(AWindow.FDisplay, CurrentTime);
+  end;
+end;
+
+procedure FtBackendProcessEvents();
+var
+  Event: TXEvent;
+  win: TFtX11Window;
+  i: Integer;
+begin
+  while Assigned(GDisplay) and (XPending(GDisplay) > 0) do
+  begin
+    XNextEvent(GDisplay, @Event);
+    win := FindWindowByHandle(Event.xany.window);
+    if Assigned(win) then
+      win.HandleEvent(Event)
+    else
+    begin
+      if (Event._type = SelectionRequest) or (Event._type = SelectionClear) then
+      begin
+        if Assigned(GActiveWindow) then
+          GActiveWindow.HandleEvent(Event);
+      end;
+    end;
+  end;
+
+  if Assigned(GWindows) then
+  begin
+    for i := GWindows.Count - 1 downto 0 do
+    begin
+      if i < GWindows.Count then
+      begin
+        win := TFtX11Window(GWindows[i]);
+        if win.FNeedsRepaint then
+        begin
+          win.FNeedsRepaint := False;
+          win.Repaint();
+        end;
+      end;
+    end;
+  end;
+end;
+
 procedure FtBackendMainLoop();
 begin
-  while GRunning and Assigned(GActiveWindow) do
+  while GRunning and HasMainWindows() do
   begin
-    GActiveWindow.HandleEvents();
+    FtBackendProcessEvents();
     if Assigned(GDisplay) and (XPending(GDisplay) = 0) then
       Sleep(10);
   end;
@@ -104,6 +249,9 @@ begin
   Width := W;
   Height := H;
   FDisplay := GDisplay;
+  FBorderless := False;
+  FSkipTaskbar := False;
+  FWindowType := ftwtNormal;
 
   ScreenNum := DefaultScreen(FDisplay);
   Visual := DefaultVisual(FDisplay, ScreenNum);
@@ -123,6 +271,8 @@ begin
   FHoverWidget := nil;
   FPressedWidget := nil;
   FFocusedWidget := nil;
+  FMainMenu := nil;
+  FActivePopup := nil;
   FCursorIBeam := None;
   FNeedsRepaint := False;
   XSelectInput(FDisplay, FWindow, ExposureMask or ButtonPressMask or ButtonReleaseMask or PointerMotionMask or LeaveWindowMask or StructureNotifyMask or KeyPressMask or KeyReleaseMask);
@@ -139,6 +289,9 @@ begin
   FXImage := XCreateImage(FDisplay, Visual, 24, ZPixmap, 0, PChar(FPixelBuffer), Width, Height, 32, 0);
 
   FCanvas := TFtCanvasAgg.Create(FPixelBuffer, Width, Height);
+  if not Assigned(GWindows) then
+    GWindows := TFPList.Create();
+  GWindows.Add(Self);
   GActiveWindow := Self;
   FtThemeManager().OnThemeChange := @Self.OnThemeChanged;
 end;
@@ -169,10 +322,166 @@ begin
   end;
 end;
 
+procedure TFtX11Window.SetBorderless(ABorderless: Boolean);
+var
+  hints: TMWMHints;
+  prop: TAtom;
+  winAttr: TXSetWindowAttributes;
+begin
+  FBorderless := ABorderless;
+  if FWindow = None then Exit;
+
+  FillChar(hints, SizeOf(hints), 0);
+  hints.flags := MWM_HINTS_DECORATIONS;
+  if ABorderless then
+    hints.decorations := 0
+  else
+    hints.decorations := 1;
+
+  prop := XInternAtom(FDisplay, '_MOTIF_WM_HINTS', False);
+  XChangeProperty(FDisplay, FWindow, prop, prop, 32, PropModeReplace, PByte(@hints), 5);
+
+  if FWindowType in [ftwtPopupMenu, ftwtDropdownMenu, ftwtTooltip] then
+  begin
+    FillChar(winAttr, SizeOf(winAttr), 0);
+    winAttr.override_redirect := 1;
+    XChangeWindowAttributes(FDisplay, FWindow, CWOverrideRedirect, @winAttr);
+  end;
+end;
+
+procedure TFtX11Window.SetSkipTaskbar(ASkip: Boolean);
+var
+  netWmState, atomSkipTaskbar, atomSkipPager: TAtom;
+  atoms: array[0..1] of TAtom;
+begin
+  FSkipTaskbar := ASkip;
+  if FWindow = None then Exit;
+
+  netWmState := XInternAtom(FDisplay, '_NET_WM_STATE', False);
+  atomSkipTaskbar := XInternAtom(FDisplay, '_NET_WM_STATE_SKIP_TASKBAR', False);
+  atomSkipPager := XInternAtom(FDisplay, '_NET_WM_STATE_SKIP_PAGER', False);
+
+  if ASkip then
+  begin
+    atoms[0] := atomSkipTaskbar;
+    atoms[1] := atomSkipPager;
+    XChangeProperty(FDisplay, FWindow, netWmState, 4 {XA_ATOM}, 32, PropModeReplace, PByte(@atoms), 2);
+  end
+  else
+    XDeleteProperty(FDisplay, FWindow, netWmState);
+end;
+
+procedure TFtX11Window.SetWindowType(AType: TFtWindowType);
+var
+  netWmWindowType, typeAtom: TAtom;
+  typeName: string;
+  winAttr: TXSetWindowAttributes;
+begin
+  FWindowType := AType;
+  if FWindow = None then Exit;
+
+  case AType of
+    ftwtNormal: typeName := '_NET_WM_WINDOW_TYPE_NORMAL';
+    ftwtDialog: typeName := '_NET_WM_WINDOW_TYPE_DIALOG';
+    ftwtPopupMenu: typeName := '_NET_WM_WINDOW_TYPE_POPUP_MENU';
+    ftwtDropdownMenu: typeName := '_NET_WM_WINDOW_TYPE_DROPDOWN_MENU';
+    ftwtTooltip: typeName := '_NET_WM_WINDOW_TYPE_TOOLTIP';
+    ftwtUtility: typeName := '_NET_WM_WINDOW_TYPE_UTILITY';
+  else
+    typeName := '_NET_WM_WINDOW_TYPE_NORMAL';
+  end;
+
+  netWmWindowType := XInternAtom(FDisplay, '_NET_WM_WINDOW_TYPE', False);
+  typeAtom := XInternAtom(FDisplay, PChar(typeName), False);
+  XChangeProperty(FDisplay, FWindow, netWmWindowType, 4 {XA_ATOM}, 32, PropModeReplace, PByte(@typeAtom), 1);
+
+  if AType in [ftwtPopupMenu, ftwtDropdownMenu, ftwtTooltip] then
+  begin
+    FillChar(winAttr, SizeOf(winAttr), 0);
+    winAttr.override_redirect := 1;
+    XChangeWindowAttributes(FDisplay, FWindow, CWOverrideRedirect, @winAttr);
+    SetSkipTaskbar(True);
+    SetBorderless(True);
+  end;
+end;
+
+procedure TFtX11Window.SetPosition(NewX, NewY: Integer);
+begin
+  X := NewX;
+  Y := NewY;
+  if FWindow <> None then
+    XMoveWindow(FDisplay, FWindow, NewX, NewY);
+end;
+
+procedure TFtX11Window.GetPosition(out OutX, OutY: Integer);
+var
+  rootRet, childRet: TWindow;
+  rx, ry: cint;
+  w, h, bw, d: cuint;
+begin
+  OutX := X;
+  OutY := Y;
+  if FWindow <> None then
+  begin
+    rootRet := None;
+    childRet := None;
+    XGetGeometry(FDisplay, FWindow, @rootRet, @rx, @ry, @w, @h, @bw, @d);
+    XTranslateCoordinates(FDisplay, FWindow, rootRet, 0, 0, @rx, @ry, @childRet);
+    OutX := rx;
+    OutY := ry;
+  end;
+end;
+
+function TFtX11Window.ClientToScreen(AX, AY: Integer): TPoint;
+var
+  rootX, rootY: cint;
+  child: TWindow;
+  rootWin: TWindow;
+begin
+  Result.X := AX;
+  Result.Y := AY;
+  if FWindow <> None then
+  begin
+    rootWin := RootWindow(FDisplay, DefaultScreen(FDisplay));
+    XTranslateCoordinates(FDisplay, FWindow, rootWin, AX, AY, @rootX, @rootY, @child);
+    Result.X := rootX;
+    Result.Y := rootY;
+  end;
+end;
+
+function TFtX11Window.ScreenToClient(AX, AY: Integer): TPoint;
+var
+  clX, clY: cint;
+  child: TWindow;
+  rootWin: TWindow;
+begin
+  Result.X := AX;
+  Result.Y := AY;
+  if FWindow <> None then
+  begin
+    rootWin := RootWindow(FDisplay, DefaultScreen(FDisplay));
+    XTranslateCoordinates(FDisplay, rootWin, FWindow, AX, AY, @clX, @clY, @child);
+    Result.X := clX;
+    Result.Y := clY;
+  end;
+end;
+
 destructor TFtX11Window.Destroy();
 begin
   if Assigned(FtThemeManager().OnThemeChange) then
     FtThemeManager().OnThemeChange := nil;
+  if Assigned(GWindows) then
+    GWindows.Remove(Self);
+  if GActiveWindow = Self then
+  begin
+    if Assigned(GWindows) and (GWindows.Count > 0) then
+      GActiveWindow := TFtX11Window(GWindows[0])
+    else
+      GActiveWindow := nil;
+  end;
+  if GGrabbedPopup = Self then
+    GGrabbedPopup := nil;
+
   FHoverWidget := nil;
   FPressedWidget := nil;
   FFocusedWidget := nil;
@@ -195,7 +504,9 @@ begin
   end;
   if Assigned(FGC) then
     XFreeGC(FDisplay, FGC);
-  XDestroyWindow(FDisplay, FWindow);
+  if FWindow <> None then
+    XDestroyWindow(FDisplay, FWindow);
+  FWindow := None;
   inherited Destroy();
 end;
 
@@ -208,6 +519,11 @@ begin
 
   Width := NewW;
   Height := NewH;
+  if Assigned(FMainMenu) then
+    FMainMenu.Width := Width;
+
+  if (FWindow <> None) and Assigned(FDisplay) then
+    XResizeWindow(FDisplay, FWindow, Width, Height);
 
   if Assigned(FXImage) then
   begin
@@ -234,18 +550,46 @@ end;
 
 procedure TFtX11Window.Show();
 begin
-  XMapWindow(FDisplay, FWindow);
-  Repaint();
-  XFlush(FDisplay);
+  Visible := True;
+  if FWindow <> None then
+  begin
+    XMapRaised(FDisplay, FWindow);
+    FNeedsRepaint := True;
+    XFlush(FDisplay);
+  end;
+end;
+
+procedure TFtX11Window.Hide();
+begin
+  Visible := False;
+  if FWindow <> None then
+  begin
+    XUnmapWindow(FDisplay, FWindow);
+    XFlush(FDisplay);
+  end;
 end;
 
 procedure TFtX11Window.Repaint();
 begin
+  if (Width <= 0) or (Height <= 0) or (FWindow = None) or not Assigned(FCanvas) then Exit;
   FCanvas.ResetAllClipping();
-  FtGetTheme().DrawWindowBackground(FCanvas, Width, Height);
+  if not (FWindowType in [ftwtPopupMenu, ftwtDropdownMenu]) then
+    FtGetTheme().DrawWindowBackground(FCanvas, Width, Height);
   Self.Draw(FCanvas);
   XPutImage(FDisplay, FWindow, FGC, FXImage, 0, 0, 0, 0, Width, Height);
   XFlush(FDisplay);
+end;
+
+procedure TFtX11Window.SetActivePopup(APopup: TFtWidget);
+begin
+  FActivePopup := APopup;
+end;
+
+procedure TFtX11Window.ClearActivePopup();
+begin
+  FActivePopup := nil;
+  if Assigned(FMainMenu) then
+    TFtMainMenu(FMainMenu).CloseMenu();
 end;
 
 procedure TFtX11Window.OnThemeChanged();
@@ -298,8 +642,196 @@ begin
     GActiveWindow.ClaimClipboard();
 end;
 
-function FtGetClipboardText(): string;
+function GetSelectionRequestorWindow(): TFtX11Window;
+var
+  i: Integer;
+  w: TFtX11Window;
 begin
+  if Assigned(GActiveWindow) and (GActiveWindow.FWindowType = ftwtNormal) and (GActiveWindow.FWindow <> None) then
+    Exit(GActiveWindow);
+  if Assigned(GWindows) then
+  begin
+    for i := 0 to GWindows.Count - 1 do
+    begin
+      w := TFtX11Window(GWindows[i]);
+      if Assigned(w) and (w.FWindowType = ftwtNormal) and (w.FWindow <> None) then
+        Exit(w);
+    end;
+    for i := 0 to GWindows.Count - 1 do
+    begin
+      w := TFtX11Window(GWindows[i]);
+      if Assigned(w) and (w.FWindow <> None) then
+        Exit(w);
+    end;
+  end;
+  Result := GActiveWindow;
+end;
+
+function FtFetchSelectionFromX11(ASelectionAtom: TAtom): string;
+var
+  win, wItem: TFtX11Window;
+  disp: PDisplay;
+  reqWin: TWindow;
+  owner: TWindow;
+  atomUTF8, atomString, selProp: TAtom;
+  targetAtom: TAtom;
+  attempt: Integer;
+  startTime: QWord;
+  gotNotify: Boolean;
+  ev, evReq: TXEvent;
+  actualType: TAtom;
+  actualFormat: cint;
+  nItems, bytesAfter: culong;
+  propData: PByte;
+  ret: cint;
+  retStr: string;
+  i: Integer;
+begin
+  Result := '';
+  win := GetSelectionRequestorWindow();
+  if not Assigned(win) or not Assigned(win.FDisplay) or (win.FWindow = None) then
+    Exit;
+
+  disp := win.FDisplay;
+  reqWin := win.FWindow;
+
+  owner := XGetSelectionOwner(disp, ASelectionAtom);
+  if owner = None then
+    Exit;
+
+  // If one of our windows owns the selection, return the cached text immediately
+  if owner = reqWin then
+  begin
+    if ASelectionAtom = 1 then
+      Exit(gPrimarySelectionText)
+    else
+      Exit(gClipboardText);
+  end;
+
+  if Assigned(GWindows) then
+  begin
+    for i := 0 to GWindows.Count - 1 do
+    begin
+      wItem := TFtX11Window(GWindows[i]);
+      if Assigned(wItem) and (wItem.FWindow = owner) then
+      begin
+        if ASelectionAtom = 1 then
+          Exit(gPrimarySelectionText)
+        else
+          Exit(gClipboardText);
+      end;
+    end;
+  end;
+
+  atomUTF8 := win.FAtomUTF8String;
+  if atomUTF8 = None then
+    atomUTF8 := XInternAtom(disp, 'UTF8_STRING', False);
+  atomString := 31; // XA_STRING = 31
+  selProp := XInternAtom(disp, 'FT_SELECTION', False);
+
+  // Try UTF8_STRING first (attempt 1), then XA_STRING fallback (attempt 2)
+  for attempt := 1 to 2 do
+  begin
+    if attempt = 1 then
+      targetAtom := atomUTF8
+    else
+      targetAtom := atomString;
+
+    XDeleteProperty(disp, reqWin, selProp);
+    XConvertSelection(disp, ASelectionAtom, targetAtom, selProp, reqWin, CurrentTime);
+    XFlush(disp);
+
+    startTime := GetTickCount64();
+    gotNotify := False;
+    FillChar(ev, SizeOf(ev), 0);
+
+    while (GetTickCount64() - startTime < 300) do
+    begin
+      if XCheckTypedWindowEvent(disp, reqWin, SelectionNotify, @ev) then
+      begin
+        gotNotify := True;
+        Break;
+      end;
+      if XCheckTypedEvent(disp, SelectionNotify, @ev) then
+      begin
+        gotNotify := True;
+        Break;
+      end;
+      if XCheckTypedEvent(disp, SelectionRequest, @evReq) then
+      begin
+        win.HandleEvent(evReq);
+      end;
+      Sleep(2);
+    end;
+
+    if gotNotify and (ev.xselection._property <> None) then
+    begin
+      actualType := None;
+      actualFormat := 0;
+      nItems := 0;
+      bytesAfter := 0;
+      propData := nil;
+      ret := XGetWindowProperty(disp, reqWin, ev.xselection._property, 0, 1024 * 1024, True, AnyPropertyType,
+                                @actualType, @actualFormat, @nItems, @bytesAfter, @propData);
+      if (ret = 0) and Assigned(propData) and (nItems > 0) then
+      begin
+        SetLength(retStr, nItems);
+        Move(propData^, retStr[1], nItems);
+        XFree(propData);
+        Result := retStr;
+        Exit;
+      end;
+      if Assigned(propData) then
+        XFree(propData);
+    end;
+  end;
+end;
+
+function FtGetClipboardText(): string;
+var
+  win: TFtX11Window;
+  disp: PDisplay;
+  clipAtom: TAtom;
+  owner: TWindow;
+  fetched: string;
+begin
+  win := GetSelectionRequestorWindow();
+  if Assigned(win) and Assigned(win.FDisplay) and (win.FWindow <> None) then
+  begin
+    disp := win.FDisplay;
+    clipAtom := win.FAtomClipboard;
+    if clipAtom = None then
+      clipAtom := XInternAtom(disp, 'CLIPBOARD', False);
+
+    owner := XGetSelectionOwner(disp, clipAtom);
+    if owner <> None then
+    begin
+      if owner = win.FWindow then
+        Exit(gClipboardText);
+
+      fetched := FtFetchSelectionFromX11(clipAtom);
+      if fetched <> '' then
+      begin
+        gClipboardText := fetched;
+        Exit(fetched);
+      end;
+    end
+    else
+    begin
+      // Fallback: check primary selection (XA_PRIMARY = 1)
+      owner := XGetSelectionOwner(disp, 1);
+      if (owner <> None) and (owner <> win.FWindow) then
+      begin
+        fetched := FtFetchSelectionFromX11(1);
+        if fetched <> '' then
+        begin
+          gClipboardText := fetched;
+          Exit(fetched);
+        end;
+      end;
+    end;
+  end;
+
   Result := gClipboardText;
 end;
 
@@ -340,6 +872,10 @@ begin
     FPressedWidget := nil;
   if FFocusedWidget = AWidget then
     FFocusedWidget := nil;
+  if FMainMenu = AWidget then
+    FMainMenu := nil;
+  if FActivePopup = AWidget then
+    FActivePopup := nil;
   UpdateCursor();
   inherited WidgetDestroyed(AWidget);
 end;
@@ -431,11 +967,15 @@ begin
 end;
 
 procedure TFtX11Window.HandleEvents();
+begin
+  FtBackendProcessEvents();
+end;
+
+procedure TFtX11Window.HandleEvent(var Event: TXEvent);
 var
-  Event: TXEvent;
   Target: TFtWidget;
   focusTarget: TFtWidget;
-  needsResize: Boolean;
+  ctxWidget: TFtWidget;
   newW, newH: Integer;
   keysym: TKeySym;
   strBuf: array[0..31] of AnsiChar;
@@ -446,61 +986,153 @@ var
   targets: array[0..2] of TAtom;
   atomString: TAtom;
   sendText: string;
+  navPop: TFtPopupMenu;
+  clickedIdx: Integer;
+  wasSameItem: Boolean;
 begin
-  needsResize := False;
-  newW := Width;
-  newH := Height;
+  case Event._type of
+    Expose:
+    begin
+      FNeedsRepaint := True;
+    end;
 
-  while (XPending(FDisplay) > 0) do
-  begin
-    XNextEvent(FDisplay, @Event);
-    case Event._type of
-      Expose:
-      begin
-        FNeedsRepaint := True;
-      end;
-      ConfigureNotify:
-      begin
-        if (Event.xconfigure.width <> newW) or (Event.xconfigure.height <> newH) then
-        begin
-          newW := Event.xconfigure.width;
-          newH := Event.xconfigure.height;
-          needsResize := True;
-        end;
-      end;
-      MotionNotify:
-      begin
-        if Assigned(FPressedWidget) then
-          FPressedWidget.MouseMove(Event.xmotion.x, Event.xmotion.y)
-        else
-        begin
-          Target := HitTest(Event.xmotion.x, Event.xmotion.y);
-          if Target = Self then
-            Target := nil;
+    ConfigureNotify:
+    begin
+      newW := Event.xconfigure.width;
+      newH := Event.xconfigure.height;
+      if (newW <> Width) or (newH <> Height) then
+        Resize(newW, newH);
+      X := Event.xconfigure.x;
+      Y := Event.xconfigure.y;
+    end;
 
-          if Target <> FHoverWidget then
-          begin
-            if Assigned(FHoverWidget) then
-              FHoverWidget.MouseLeave();
-            FHoverWidget := Target;
-            if Assigned(FHoverWidget) then
-              FHoverWidget.MouseEnter();
-            UpdateCursor();
-          end;
-          if Assigned(Target) then
-            Target.MouseMove(Event.xmotion.x, Event.xmotion.y);
-        end;
-      end;
-      LeaveNotify:
+    MotionNotify:
+    begin
+      if FWindowType in [ftwtPopupMenu, ftwtDropdownMenu] then
       begin
-        if Assigned(FHoverWidget) then
+        if (Children.Count > 0) and (TFtWidget(Children[0]) is TFtPopupMenu) then
+          TFtPopupMenu(Children[0]).MouseMove(Event.xmotion.x, Event.xmotion.y);
+      end
+      else if Assigned(GGrabbedPopup) and Assigned(FMainMenu) and
+              (TFtMainMenu(FMainMenu).ActiveIndex >= 0) and
+              (FMainMenu.HitTest(Event.xmotion.x, Event.xmotion.y) <> nil) then
+      begin
+        FMainMenu.MouseMove(Event.xmotion.x, Event.xmotion.y);
+      end
+      else if Assigned(FPressedWidget) then
+      begin
+        FPressedWidget.MouseMove(Event.xmotion.x, Event.xmotion.y);
+      end
+      else
+      begin
+        Target := HitTest(Event.xmotion.x, Event.xmotion.y);
+        if Target = Self then
+          Target := nil;
+
+        if Target <> FHoverWidget then
         begin
-          FHoverWidget.MouseLeave();
-          FHoverWidget := nil;
+          if Assigned(FHoverWidget) then
+            FHoverWidget.MouseLeave();
+          FHoverWidget := Target;
+          if Assigned(FHoverWidget) then
+            FHoverWidget.MouseEnter();
           UpdateCursor();
         end;
+        if Assigned(Target) then
+          Target.MouseMove(Event.xmotion.x, Event.xmotion.y);
       end;
-      ButtonPress:
+    end;
+
+    LeaveNotify:
+    begin
+      if Assigned(FHoverWidget) then
+      begin
+        FHoverWidget.MouseLeave();
+        FHoverWidget := nil;
+        UpdateCursor();
+      end;
+    end;
+
+    ButtonPress:
+    begin
+      if FWindowType in [ftwtPopupMenu, ftwtDropdownMenu] then
+      begin
+        if (Event.xbutton.x < 0) or (Event.xbutton.x >= Width) or
+           (Event.xbutton.y < 0) or (Event.xbutton.y >= Height) then
+        begin
+          if Assigned(GGrabbedPopup) then
+            TFtPopupMenu(GGrabbedPopup).DismissAll();
+        end
+        else
+        begin
+          if (Children.Count > 0) and (TFtWidget(Children[0]) is TFtPopupMenu) then
+          begin
+            FPressedWidget := TFtPopupMenu(Children[0]);
+            TFtPopupMenu(Children[0]).MouseDown(Event.xbutton.x, Event.xbutton.y, Event.xbutton.button);
+          end;
+        end;
+      end
+      else if Assigned(GGrabbedPopup) then
+      begin
+        if Assigned(FMainMenu) and (FMainMenu.HitTest(Event.xbutton.x, Event.xbutton.y) <> nil) then
+        begin
+          clickedIdx := TFtMainMenu(FMainMenu).ItemAt(Event.xbutton.x, Event.xbutton.y);
+          wasSameItem := (TFtMainMenu(FMainMenu).ActiveIndex >= 0) and (clickedIdx = TFtMainMenu(FMainMenu).ActiveIndex);
+
+          TFtPopupMenu(GGrabbedPopup).DismissAll();
+
+          if (Event.xbutton.button = 1) and (clickedIdx >= 0) and not wasSameItem then
+          begin
+            FPressedWidget := FMainMenu;
+            FMainMenu.MouseDown(Event.xbutton.x, Event.xbutton.y, Event.xbutton.button);
+          end;
+        end
+        else
+        begin
+          TFtPopupMenu(GGrabbedPopup).DismissAll();
+          if Event.xbutton.button = 3 then
+          begin
+            Target := HitTest(Event.xbutton.x, Event.xbutton.y);
+            if Target = Self then
+              Target := nil;
+            focusTarget := FindFocusableWidget(Target);
+            if Assigned(focusTarget) then
+              SetFocusedWidget(focusTarget);
+            if Assigned(Target) then
+              Target.MouseDown(Event.xbutton.x, Event.xbutton.y, Event.xbutton.button);
+
+            ctxWidget := Target;
+            while Assigned(ctxWidget) and (ctxWidget.ContextMenu = nil) do
+              ctxWidget := ctxWidget.Parent;
+
+            if Assigned(ctxWidget) and Assigned(ctxWidget.ContextMenu) then
+              TFtPopupMenu(ctxWidget.ContextMenu).Popup(Event.xbutton.x_root, Event.xbutton.y_root)
+            else if Assigned(FContextMenu) then
+              TFtPopupMenu(FContextMenu).Popup(Event.xbutton.x_root, Event.xbutton.y_root);
+          end;
+        end;
+      end
+      else if Event.xbutton.button = 3 then
+      begin
+        Target := HitTest(Event.xbutton.x, Event.xbutton.y);
+        if Target = Self then
+          Target := nil;
+        focusTarget := FindFocusableWidget(Target);
+        if Assigned(focusTarget) then
+          SetFocusedWidget(focusTarget);
+        if Assigned(Target) then
+          Target.MouseDown(Event.xbutton.x, Event.xbutton.y, Event.xbutton.button);
+
+        ctxWidget := Target;
+        while Assigned(ctxWidget) and (ctxWidget.ContextMenu = nil) do
+          ctxWidget := ctxWidget.Parent;
+
+        if Assigned(ctxWidget) and Assigned(ctxWidget.ContextMenu) then
+          TFtPopupMenu(ctxWidget.ContextMenu).Popup(Event.xbutton.x_root, Event.xbutton.y_root)
+        else if Assigned(FContextMenu) then
+          TFtPopupMenu(FContextMenu).Popup(Event.xbutton.x_root, Event.xbutton.y_root);
+      end
+      else
       begin
         Target := HitTest(Event.xbutton.x, Event.xbutton.y);
         if Target = Self then
@@ -524,7 +1156,21 @@ begin
         if Assigned(Target) then
           Target.MouseDown(Event.xbutton.x, Event.xbutton.y, Event.xbutton.button);
       end;
-      ButtonRelease:
+    end;
+
+    ButtonRelease:
+    begin
+      if FWindowType in [ftwtPopupMenu, ftwtDropdownMenu] then
+      begin
+        if (Children.Count > 0) and (TFtWidget(Children[0]) is TFtPopupMenu) then
+        begin
+          TFtPopupMenu(Children[0]).MouseUp(Event.xbutton.x, Event.xbutton.y, Event.xbutton.button);
+          TFtPopupMenu(Children[0]).Click();
+        end;
+        FPressedWidget := nil;
+        UpdateCursor();
+      end
+      else
       begin
         Target := HitTest(Event.xbutton.x, Event.xbutton.y);
         if Target = Self then
@@ -538,98 +1184,149 @@ begin
           UpdateCursor();
         end;
       end;
-      2: // KeyPress
-      begin
-        keysym := 0;
-        charCount := XLookupString(@Event.xkey, strBuf, SizeOf(strBuf) - 1, @keysym, @composeStatus);
-        if charCount > 0 then
-          strBuf[charCount] := #0
-        else
-          strBuf[0] := #0;
+    end;
 
-        // Tab ($FF09) or ISO_Left_Tab ($FE20). ShiftMask = 1
-        if (keysym = $FF09) or (keysym = $FE20) then
-        begin
-          FocusNext((keysym = $FE20) or ((Event.xkey.state and 1) <> 0));
-        end
-        else if Assigned(FFocusedWidget) then
-          FFocusedWidget.KeyDown(keysym, Event.xkey.state, StrPas(strBuf));
-      end;
-      3: // KeyRelease
-      begin
-        keysym := 0;
-        XLookupString(@Event.xkey, nil, 0, @keysym, nil);
-        if Assigned(FFocusedWidget) then
-          FFocusedWidget.KeyUp(keysym, Event.xkey.state);
-      end;
-      SelectionRequest:
-      begin
-        req := Event.xselectionrequest;
-        FillChar(resp, SizeOf(resp), 0);
-        resp._type := SelectionNotify;
-        resp.display := req.display;
-        resp.requestor := req.requestor;
-        resp.selection := req.selection;
-        resp.target := req.target;
-        resp._property := None;
-        resp.time := req.time;
-        atomString := 31; // XA_STRING = 31
+    2: // KeyPress
+    begin
+      keysym := 0;
+      charCount := XLookupString(@Event.xkey, strBuf, SizeOf(strBuf) - 1, @keysym, @composeStatus);
+      if charCount > 0 then
+        strBuf[charCount] := #0
+      else
+        strBuf[0] := #0;
 
-        if (req.target = FAtomTargets) and (FAtomTargets <> None) then
-        begin
-          targets[0] := FAtomTargets;
-          targets[1] := FAtomUTF8String;
-          targets[2] := atomString;
-          XChangeProperty(FDisplay, req.requestor, req._property, 4 {XA_ATOM=4}, 32, PropModeReplace, PByte(@targets), 3);
-          resp._property := req._property;
-        end
-        else if (req.target = FAtomUTF8String) or (req.target = atomString) then
-        begin
-          if req.selection = 1 then
-            sendText := gPrimarySelectionText
-          else
-            sendText := gClipboardText;
-
-          if Length(sendText) > 0 then
-            XChangeProperty(FDisplay, req.requestor, req._property, req.target, 8, PropModeReplace, PByte(PChar(sendText)), Length(sendText))
-          else
-            XChangeProperty(FDisplay, req.requestor, req._property, req.target, 8, PropModeReplace, nil, 0);
-          resp._property := req._property;
-        end;
-
-        XSendEvent(FDisplay, req.requestor, False, 0, @resp);
-      end;
-      SelectionClear:
+      if Assigned(GGrabbedPopup) and TFtPopupMenu(GGrabbedPopup).IsOpen then
       begin
-        if Event.xselectionclear.selection = 1 then
-        begin
-          // If our window is currently the owner of XA_PRIMARY, this is a stale SelectionClear
-          // from a rapid ownership change within our window. Only clear if we don't own it!
-          if XGetSelectionOwner(FDisplay, 1) <> FWindow then
+        navPop := TFtPopupMenu(GGrabbedPopup);
+        while Assigned(navPop.ActiveSubMenu) and navPop.ActiveSubMenu.IsOpen do
+          navPop := navPop.ActiveSubMenu;
+
+        case keysym of
+          $FF1B: // Escape
+            TFtPopupMenu(GGrabbedPopup).DismissAll();
+          $FF54: // Down arrow
+            navPop.SelectNext();
+          $FF52: // Up arrow
+            navPop.SelectPrev();
+          $FF53: // Right arrow
           begin
-            gPrimarySelectionText := '';
-            if Assigned(gOnPrimarySelectionLost) then
-              gOnPrimarySelectionLost();
+            if (navPop.HoverIndex >= 0) and (navPop.HoverIndex < navPop.Items.Count) and
+               TFtMenuItem(navPop.Items[navPop.HoverIndex]).HasSubMenu() then
+              navPop.ActivateSelected();
+          end;
+          $FF51: // Left arrow
+          begin
+            if Assigned(navPop.ParentPopupMenu) then
+            begin
+              navPop.Close();
+              if Assigned(navPop.ParentPopupMenu) then
+                navPop.ParentPopupMenu.Invalidate();
+            end;
+          end;
+          $FF0D, $FF8D: // Return / Enter / KP_Enter
+          begin
+            navPop.ActivateSelected();
           end;
         end;
-      end;
-      ClientMessage:
+      end
+      else if (keysym = $FF09) or (keysym = $FE20) then
       begin
-        if (Event.xclient.format = 32) and
-           (TAtom(Event.xclient.data.l[0]) = FWMDeleteWindow) then
+        FocusNext((keysym = $FE20) or ((Event.xkey.state and 1) <> 0));
+      end
+      else if Assigned(FFocusedWidget) then
+        FFocusedWidget.KeyDown(keysym, Event.xkey.state, StrPas(strBuf));
+    end;
+
+    3: // KeyRelease
+    begin
+      keysym := 0;
+      XLookupString(@Event.xkey, nil, 0, @keysym, nil);
+      if Assigned(FFocusedWidget) then
+        FFocusedWidget.KeyUp(keysym, Event.xkey.state);
+    end;
+
+    SelectionRequest:
+    begin
+      req := Event.xselectionrequest;
+      FillChar(resp, SizeOf(resp), 0);
+      resp._type := SelectionNotify;
+      resp.display := req.display;
+      resp.requestor := req.requestor;
+      resp.selection := req.selection;
+      resp.target := req.target;
+      resp._property := None;
+      resp.time := req.time;
+      atomString := 31; // XA_STRING = 31
+
+      if (req.target = FAtomTargets) and (FAtomTargets <> None) then
+      begin
+        targets[0] := FAtomTargets;
+        targets[1] := FAtomUTF8String;
+        targets[2] := atomString;
+        XChangeProperty(FDisplay, req.requestor, req._property, 4 {XA_ATOM=4}, 32, PropModeReplace, PByte(@targets), 3);
+        resp._property := req._property;
+      end
+      else if (req.target = FAtomUTF8String) or (req.target = atomString) then
+      begin
+        if req.selection = 1 then
+          sendText := gPrimarySelectionText
+        else
+          sendText := gClipboardText;
+
+        if Length(sendText) > 0 then
+          XChangeProperty(FDisplay, req.requestor, req._property, req.target, 8, PropModeReplace, PByte(PChar(sendText)), Length(sendText))
+        else
+          XChangeProperty(FDisplay, req.requestor, req._property, req.target, 8, PropModeReplace, nil, 0);
+        resp._property := req._property;
+      end;
+
+      XSendEvent(FDisplay, req.requestor, False, 0, @resp);
+    end;
+
+    SelectionClear:
+    begin
+      if Event.xselectionclear.selection = 1 then
+      begin
+        if XGetSelectionOwner(FDisplay, 1) <> FWindow then
+        begin
+          gPrimarySelectionText := '';
+          if Assigned(gOnPrimarySelectionLost) then
+            gOnPrimarySelectionLost();
+        end;
+      end
+      else if (FAtomClipboard <> None) and (Event.xselectionclear.selection = FAtomClipboard) then
+      begin
+        if XGetSelectionOwner(FDisplay, FAtomClipboard) <> FWindow then
+        begin
+          gClipboardText := '';
+        end;
+      end;
+    end;
+
+    ClientMessage:
+    begin
+      if (Event.xclient.format = 32) and
+         (TAtom(Event.xclient.data.l[0]) = FWMDeleteWindow) then
+      begin
+        if FWindowType in [ftwtNormal, ftwtDialog] then
+        begin
+          Self.Free();
+          if not HasMainWindows() then
+            GRunning := False;
+        end
+        else
+          Hide();
+      end;
+    end;
+
+    DestroyNotify:
+    begin
+      if FWindowType in [ftwtNormal, ftwtDialog] then
+      begin
+        if not HasMainWindows() then
           GRunning := False;
       end;
-      DestroyNotify:
-        GRunning := False;
     end;
-  end;
-
-  if needsResize and ((newW <> Width) or (newH <> Height)) then
-    Resize(newW, newH)
-  else if FNeedsRepaint then
-  begin
-    FNeedsRepaint := False;
-    Repaint();
   end;
 end;
 

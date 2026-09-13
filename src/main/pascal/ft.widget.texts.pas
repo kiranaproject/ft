@@ -6,7 +6,7 @@ interface
 
 uses
   SysUtils, Classes, Math,
-  Ft.Canvas.Agg, Ft.Widget, Ft.Font, Ft.Theme, Ft.Backend.X11;
+  Ft.Canvas.Agg, Ft.Widget, Ft.Font, Ft.Theme, Ft.Backend.X11, Ft.Widget.Menus;
 
 type
   TFtTextAlignment = (taLeft, taCenter, taRight);
@@ -26,6 +26,13 @@ type
     FLastClickTime: QWord;
     FClickCount: Integer;
 
+    FDefaultMenu: TFtPopupMenu;
+    FItemSelectAll: TFtMenuItem;
+    FItemCut: TFtMenuItem;
+    FItemCopy: TFtMenuItem;
+    FItemPaste: TFtMenuItem;
+    FItemDelete: TFtMenuItem;
+
     FOnChange: TFtTextChangeNotify;
     FUserData: Pointer;
 
@@ -35,6 +42,10 @@ type
     function GetSelectedText(): string;
     function HitTestChar(AX: Integer): Integer;
     procedure SelectWordAt(ACharIdx: Integer);
+    procedure CreateDefaultMenu();
+    procedure UpdateDefaultMenu();
+  protected
+    function GetContextMenu(): TFtWidget; override;
   public
     constructor Create(AParent: TFtWidget; const AText: string = ''); reintroduce;
     destructor Destroy(); override;
@@ -85,6 +96,18 @@ begin
   end;
 end;
 
+procedure TextMenuSelectAllCallback(MenuItem: Pointer; UserData: Pointer); cdecl;
+begin
+  if Assigned(UserData) and (TObject(UserData) is TFtText) then
+    TFtText(UserData).SelectAll();
+end;
+
+procedure TextMenuCopyCallback(MenuItem: Pointer; UserData: Pointer); cdecl;
+begin
+  if Assigned(UserData) and (TObject(UserData) is TFtText) then
+    TFtText(UserData).CopyToClipboard();
+end;
+
 { TFtText }
 
 constructor TFtText.Create(AParent: TFtWidget; const AText: string = '');
@@ -102,6 +125,13 @@ begin
   FLastClickTime := 0;
   FClickCount := 0;
 
+  FDefaultMenu := nil;
+  FItemSelectAll := nil;
+  FItemCut := nil;
+  FItemCopy := nil;
+  FItemPaste := nil;
+  FItemDelete := nil;
+
   FOnChange := nil;
   FUserData := nil;
 
@@ -112,6 +142,11 @@ end;
 
 destructor TFtText.Destroy();
 begin
+  if Assigned(FDefaultMenu) then
+  begin
+    FDefaultMenu.Free();
+    FDefaultMenu := nil;
+  end;
   if gActiveSelectedTextWidget = Self then
   begin
     gActiveSelectedTextWidget := nil;
@@ -351,9 +386,49 @@ begin
     FtSetClipboardText(sel);
 end;
 
+procedure TFtText.CreateDefaultMenu();
+begin
+  if Assigned(FDefaultMenu) then Exit;
+  FDefaultMenu := TFtPopupMenu.Create(Self);
+  FItemSelectAll := FDefaultMenu.AddItem('Select All', @TextMenuSelectAllCallback, Pointer(Self));
+  FItemSelectAll.Shortcut := 'Ctrl+A';
+  FDefaultMenu.AddSeparator();
+  FItemCut := FDefaultMenu.AddItem('Cut', nil, nil);
+  FItemCut.Shortcut := 'Ctrl+X';
+  FItemCopy := FDefaultMenu.AddItem('Copy', @TextMenuCopyCallback, Pointer(Self));
+  FItemCopy.Shortcut := 'Ctrl+C';
+  FItemPaste := FDefaultMenu.AddItem('Paste', nil, nil);
+  FItemPaste.Shortcut := 'Ctrl+V';
+  FItemDelete := FDefaultMenu.AddItem('Delete', nil, nil);
+  FItemDelete.Shortcut := 'Del';
+end;
+
+procedure TFtText.UpdateDefaultMenu();
+begin
+  if not Assigned(FDefaultMenu) then Exit;
+  FItemSelectAll.Enabled := (CharCount() > 0);
+  FItemCut.Enabled := False;
+  FItemCopy.Enabled := HasSelection();
+  FItemPaste.Enabled := False;
+  FItemDelete.Enabled := False;
+end;
+
+function TFtText.GetContextMenu(): TFtWidget;
+begin
+  if Assigned(FContextMenu) then
+    Exit(FContextMenu);
+  if not FSelectable then
+    Exit(nil);
+  if not Assigned(FDefaultMenu) then
+    CreateDefaultMenu();
+  UpdateDefaultMenu();
+  Result := FDefaultMenu;
+end;
+
 procedure TFtText.MouseDown(AX, AY: Integer; AButton: Integer);
 var
   nowTime: QWord;
+  clickChar, sMin, sMax: Integer;
 begin
   inherited MouseDown(AX, AY, AButton);
   if not FSelectable then
@@ -365,6 +440,23 @@ begin
     end;
     Exit;
   end;
+
+  if AButton = 3 then
+  begin
+    if HasSelection() then
+    begin
+      clickChar := HitTestChar(AX);
+      sMin := Math.Min(FSelAnchor, FSelCursor);
+      sMax := Math.Max(FSelAnchor, FSelCursor);
+      if (clickChar < sMin) or (clickChar > sMax) then
+      begin
+        ClearSelection();
+        FtClearPrimarySelection();
+      end;
+    end;
+    Exit;
+  end;
+
   if AButton <> 1 then Exit;
 
   if (gActiveSelectedTextWidget <> nil) and (gActiveSelectedTextWidget <> Self) then

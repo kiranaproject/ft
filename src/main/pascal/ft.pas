@@ -3,7 +3,7 @@ library ft;
 {$mode objfpc}{$H+}
 
 uses
-  ctypes, SysUtils,
+  ctypes, SysUtils, Types,
   Ft.Backend.X11,
   Ft.Font,
   Ft.Widget,
@@ -14,6 +14,7 @@ uses
   Ft.Widget.TextAreas,
   Ft.Widget.ScrollBars,
   Ft.Widget.Containers,
+  Ft.Widget.Menus,
   Ft.Theme;
 
 var
@@ -29,6 +30,8 @@ var
   gLastEntryPlaceholder: AnsiString;
   gLastTextAreaText: AnsiString;
   gLastTextAreaPlaceholder: AnsiString;
+  gLastMenuCaption: AnsiString;
+  gLastMenuShortcut: AnsiString;
 
 procedure ft_init(); cdecl; export;
 begin
@@ -52,14 +55,101 @@ end;
 
 procedure ft_widget_show(widget: Pointer); cdecl; export;
 begin
-  if Assigned(widget) and (TObject(widget) is TFtX11Window) then
-    TFtX11Window(widget).Show();
+  if Assigned(widget) then
+  begin
+    if TObject(widget) is TFtX11Window then
+      TFtX11Window(widget).Show()
+    else if TObject(widget) is TFtWidget then
+    begin
+      TFtWidget(widget).Visible := True;
+      TFtWidget(widget).Invalidate();
+    end;
+  end;
+end;
+
+procedure ft_widget_hide(widget: Pointer); cdecl; export;
+begin
+  if Assigned(widget) then
+  begin
+    if TObject(widget) is TFtX11Window then
+      TFtX11Window(widget).Hide()
+    else if TObject(widget) is TFtWidget then
+    begin
+      TFtWidget(widget).Visible := False;
+      TFtWidget(widget).Invalidate();
+    end;
+  end;
 end;
 
 procedure ft_window_set_title(window: Pointer; title: PChar); cdecl; export;
 begin
   if Assigned(window) and (TObject(window) is TFtX11Window) then
     TFtX11Window(window).SetTitle(StrPas(title));
+end;
+
+procedure ft_window_set_borderless(window: Pointer; borderless: cint32); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtX11Window) then
+    TFtX11Window(window).SetBorderless(borderless <> 0);
+end;
+
+function ft_window_get_borderless(window: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtX11Window) and TFtX11Window(window).Borderless then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+procedure ft_window_set_skip_taskbar(window: Pointer; skip_taskbar: cint32); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtX11Window) then
+    TFtX11Window(window).SetSkipTaskbar(skip_taskbar <> 0);
+end;
+
+function ft_window_get_skip_taskbar(window: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtX11Window) and TFtX11Window(window).SkipTaskbar then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+procedure ft_window_set_window_type(window: Pointer; window_type: cint32); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtX11Window) then
+  begin
+    if (window_type >= Ord(Low(TFtWindowType))) and (window_type <= Ord(High(TFtWindowType))) then
+      TFtX11Window(window).SetWindowType(TFtWindowType(window_type));
+  end;
+end;
+
+function ft_window_get_window_type(window: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtX11Window) then
+    Result := Ord(TFtX11Window(window).WindowType)
+  else
+    Result := Ord(ftwtNormal);
+end;
+
+procedure ft_window_set_position(window: Pointer; x, y: cint32); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtX11Window) then
+    TFtX11Window(window).SetPosition(x, y);
+end;
+
+procedure ft_window_get_position(window: Pointer; out_x, out_y: pcint32); cdecl; export;
+var
+  wx, wy: Integer;
+begin
+  wx := 0;
+  wy := 0;
+  if Assigned(window) and (TObject(window) is TFtX11Window) then
+    TFtX11Window(window).GetPosition(wx, wy);
+  if Assigned(out_x) then
+    out_x^ := wx;
+  if Assigned(out_y) then
+    out_y^ := wy;
 end;
 
 procedure ft_widget_set_focus(widget: Pointer); cdecl; export;
@@ -1177,13 +1267,341 @@ begin
     Result := 0;
 end;
 
+{ Main Menu C API }
+
+function ft_main_menu_create(window: Pointer): Pointer; cdecl; export;
+var
+  menu: TFtMainMenu;
+begin
+  menu := TFtMainMenu.Create(TFtWidget(window));
+  if Assigned(window) and (TObject(window) is TFtX11Window) then
+    TFtX11Window(window).MainMenu := menu;
+  Result := Pointer(menu);
+end;
+
+function ft_main_menu_add_menu(main_menu: Pointer; caption: PChar): Pointer; cdecl; export;
+begin
+  if Assigned(main_menu) and (TObject(main_menu) is TFtMainMenu) then
+    Result := Pointer(TFtMainMenu(main_menu).AddMenu(StrPas(caption)))
+  else
+    Result := nil;
+end;
+
+function ft_main_menu_add_item(main_menu: Pointer; caption: PChar; popup_menu: Pointer): Pointer; cdecl; export;
+begin
+  if Assigned(main_menu) and (TObject(main_menu) is TFtMainMenu) then
+    Result := Pointer(TFtMainMenu(main_menu).AddItem(StrPas(caption), TFtPopupMenu(popup_menu)))
+  else
+    Result := nil;
+end;
+
+function ft_main_menu_item_count(main_menu: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(main_menu) and (TObject(main_menu) is TFtMainMenu) then
+    Result := TFtMainMenu(main_menu).ItemCount()
+  else
+    Result := 0;
+end;
+
+function ft_main_menu_get_item(main_menu: Pointer; index: cint32): Pointer; cdecl; export;
+begin
+  if Assigned(main_menu) and (TObject(main_menu) is TFtMainMenu) then
+    Result := Pointer(TFtMainMenu(main_menu).GetItem(index))
+  else
+    Result := nil;
+end;
+
+procedure ft_main_menu_close(main_menu: Pointer); cdecl; export;
+begin
+  if Assigned(main_menu) and (TObject(main_menu) is TFtMainMenu) then
+    TFtMainMenu(main_menu).CloseMenu();
+end;
+
+{ Pop-up / Context Menu C API }
+
+function ft_popup_menu_create(parent: Pointer): Pointer; cdecl; export;
+var
+  pop: TFtPopupMenu;
+begin
+  pop := TFtPopupMenu.Create(TFtWidget(parent));
+  Result := Pointer(pop);
+end;
+
+function ft_popup_menu_add_item(popup_menu: Pointer; caption: PChar; callback: TFtMenuCallback; user_data: Pointer): Pointer; cdecl; export;
+begin
+  if Assigned(popup_menu) and (TObject(popup_menu) is TFtPopupMenu) then
+    Result := Pointer(TFtPopupMenu(popup_menu).AddItem(StrPas(caption), callback, user_data))
+  else
+    Result := nil;
+end;
+
+function ft_popup_menu_add_check_item(popup_menu: Pointer; caption: PChar; checked: cint32; callback: TFtMenuCallback; user_data: Pointer): Pointer; cdecl; export;
+begin
+  if Assigned(popup_menu) and (TObject(popup_menu) is TFtPopupMenu) then
+    Result := Pointer(TFtPopupMenu(popup_menu).AddCheckItem(StrPas(caption), checked <> 0, callback, user_data))
+  else
+    Result := nil;
+end;
+
+function ft_popup_menu_add_separator(popup_menu: Pointer): Pointer; cdecl; export;
+begin
+  if Assigned(popup_menu) and (TObject(popup_menu) is TFtPopupMenu) then
+    Result := Pointer(TFtPopupMenu(popup_menu).AddSeparator())
+  else
+    Result := nil;
+end;
+
+function ft_popup_menu_add_submenu(popup_menu: Pointer; caption: PChar; submenu: Pointer): Pointer; cdecl; export;
+begin
+  if Assigned(popup_menu) and (TObject(popup_menu) is TFtPopupMenu) then
+    Result := Pointer(TFtPopupMenu(popup_menu).AddSubMenu(StrPas(caption), TFtPopupMenu(submenu)))
+  else
+    Result := nil;
+end;
+
+function ft_popup_menu_item_count(popup_menu: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(popup_menu) and (TObject(popup_menu) is TFtPopupMenu) then
+    Result := TFtPopupMenu(popup_menu).ItemCount()
+  else
+    Result := 0;
+end;
+
+function ft_popup_menu_get_item(popup_menu: Pointer; index: cint32): Pointer; cdecl; export;
+begin
+  if Assigned(popup_menu) and (TObject(popup_menu) is TFtPopupMenu) then
+    Result := Pointer(TFtPopupMenu(popup_menu).GetItem(index))
+  else
+    Result := nil;
+end;
+
+procedure ft_popup_menu_show(popup_menu: Pointer; x, y: cint32); cdecl; export;
+var
+  menu: TFtPopupMenu;
+  rootWin: TFtWidget;
+  pt: TPoint;
+begin
+  if Assigned(popup_menu) and (TObject(popup_menu) is TFtPopupMenu) then
+  begin
+    menu := TFtPopupMenu(popup_menu);
+    if Assigned(menu.OwnerWidget) then
+    begin
+      rootWin := menu.OwnerWidget.GetRootWidget();
+      if Assigned(rootWin) and (rootWin is TFtX11Window) then
+      begin
+        pt := TFtX11Window(rootWin).ClientToScreen(x, y);
+        x := pt.X;
+        y := pt.Y;
+      end;
+    end;
+    menu.Popup(x, y);
+  end;
+end;
+
+procedure ft_popup_menu_close(popup_menu: Pointer); cdecl; export;
+begin
+  if Assigned(popup_menu) and (TObject(popup_menu) is TFtPopupMenu) then
+    TFtPopupMenu(popup_menu).Close();
+end;
+
+procedure ft_popup_menu_clear(popup_menu: Pointer); cdecl; export;
+begin
+  if Assigned(popup_menu) and (TObject(popup_menu) is TFtPopupMenu) then
+    TFtPopupMenu(popup_menu).Clear();
+end;
+
+procedure ft_popup_menu_set_corner_radius(popup_menu: Pointer; radius: Double); cdecl; export;
+begin
+  if Assigned(popup_menu) and (TObject(popup_menu) is TFtPopupMenu) then
+  begin
+    TFtPopupMenu(popup_menu).CornerRadius := radius;
+    TFtPopupMenu(popup_menu).Invalidate();
+  end;
+end;
+
+{ Menu Items C API }
+
+procedure ft_menu_item_set_caption(item: Pointer; caption: PChar); cdecl; export;
+begin
+  if Assigned(item) and (TObject(item) is TFtMenuItem) then
+    TFtMenuItem(item).Caption := StrPas(caption);
+end;
+
+function ft_menu_item_get_caption(item: Pointer): PChar; cdecl; export;
+begin
+  if Assigned(item) and (TObject(item) is TFtMenuItem) then
+  begin
+    gLastMenuCaption := TFtMenuItem(item).Caption;
+    Result := PChar(gLastMenuCaption);
+  end
+  else
+    Result := nil;
+end;
+
+procedure ft_menu_item_set_shortcut(item: Pointer; shortcut: PChar); cdecl; export;
+begin
+  if Assigned(item) and (TObject(item) is TFtMenuItem) then
+    TFtMenuItem(item).Shortcut := StrPas(shortcut);
+end;
+
+function ft_menu_item_get_shortcut(item: Pointer): PChar; cdecl; export;
+begin
+  if Assigned(item) and (TObject(item) is TFtMenuItem) then
+  begin
+    gLastMenuShortcut := TFtMenuItem(item).Shortcut;
+    Result := PChar(gLastMenuShortcut);
+  end
+  else
+    Result := nil;
+end;
+
+procedure ft_menu_item_set_enabled(item: Pointer; enabled: cint32); cdecl; export;
+begin
+  if Assigned(item) and (TObject(item) is TFtMenuItem) then
+    TFtMenuItem(item).Enabled := (enabled <> 0);
+end;
+
+function ft_menu_item_get_enabled(item: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(item) and (TObject(item) is TFtMenuItem) and TFtMenuItem(item).Enabled then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+procedure ft_menu_item_set_checked(item: Pointer; checked: cint32); cdecl; export;
+begin
+  if Assigned(item) and (TObject(item) is TFtMenuItem) then
+    TFtMenuItem(item).Checked := (checked <> 0);
+end;
+
+function ft_menu_item_get_checked(item: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(item) and (TObject(item) is TFtMenuItem) and TFtMenuItem(item).Checked then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+procedure ft_menu_item_set_checkable(item: Pointer; checkable: cint32); cdecl; export;
+begin
+  if Assigned(item) and (TObject(item) is TFtMenuItem) then
+    TFtMenuItem(item).Checkable := (checkable <> 0);
+end;
+
+function ft_menu_item_get_checkable(item: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(item) and (TObject(item) is TFtMenuItem) and TFtMenuItem(item).Checkable then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+procedure ft_menu_item_set_submenu(item: Pointer; submenu: Pointer); cdecl; export;
+begin
+  if Assigned(item) and (TObject(item) is TFtMenuItem) then
+    TFtMenuItem(item).SubMenu := TFtPopupMenu(submenu);
+end;
+
+function ft_menu_item_get_submenu(item: Pointer): Pointer; cdecl; export;
+begin
+  if Assigned(item) and (TObject(item) is TFtMenuItem) then
+    Result := Pointer(TFtMenuItem(item).SubMenu)
+  else
+    Result := nil;
+end;
+
+procedure ft_menu_item_on_click(item: Pointer; callback: TFtMenuCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(item) and (TObject(item) is TFtMenuItem) then
+  begin
+    TFtMenuItem(item).OnClick := callback;
+    TFtMenuItem(item).UserData := user_data;
+  end;
+end;
+
+procedure ft_menu_item_set_tag(item: Pointer; tag: cint64); cdecl; export;
+begin
+  if Assigned(item) and (TObject(item) is TFtMenuItem) then
+    TFtMenuItem(item).Tag := tag;
+end;
+
+function ft_menu_item_get_tag(item: Pointer): cint64; cdecl; export;
+begin
+  if Assigned(item) and (TObject(item) is TFtMenuItem) then
+    Result := TFtMenuItem(item).Tag
+  else
+    Result := 0;
+end;
+
+{ Context Menu and Window Attachment C API }
+
+procedure ft_widget_set_context_menu(widget: Pointer; popup_menu: Pointer); cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+  begin
+    TFtWidget(widget).ContextMenu := TFtWidget(popup_menu);
+    if Assigned(popup_menu) and (TObject(popup_menu) is TFtPopupMenu) then
+      TFtPopupMenu(popup_menu).OwnerWidget := TFtWidget(widget);
+  end;
+end;
+
+function ft_widget_get_context_menu(widget: Pointer): Pointer; cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    Result := Pointer(TFtWidget(widget).ContextMenu)
+  else
+    Result := nil;
+end;
+
+procedure ft_window_set_context_menu(window: Pointer; popup_menu: Pointer); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtWidget) then
+  begin
+    TFtWidget(window).ContextMenu := TFtWidget(popup_menu);
+    if Assigned(popup_menu) and (TObject(popup_menu) is TFtPopupMenu) then
+      TFtPopupMenu(popup_menu).OwnerWidget := TFtWidget(window);
+  end;
+end;
+
+function ft_window_get_context_menu(window: Pointer): Pointer; cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtWidget) then
+    Result := Pointer(TFtWidget(window).ContextMenu)
+  else
+    Result := nil;
+end;
+
+procedure ft_window_set_main_menu(window: Pointer; main_menu: Pointer); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtX11Window) then
+    TFtX11Window(window).MainMenu := TFtWidget(main_menu);
+end;
+
+function ft_window_get_main_menu(window: Pointer): Pointer; cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtX11Window) then
+    Result := Pointer(TFtX11Window(window).MainMenu)
+  else
+    Result := nil;
+end;
+
 exports
   ft_init,
   ft_main_loop,
   ft_quit,
   ft_window_create,
   ft_window_set_title,
+  ft_window_set_borderless,
+  ft_window_get_borderless,
+  ft_window_set_skip_taskbar,
+  ft_window_get_skip_taskbar,
+  ft_window_set_window_type,
+  ft_window_get_window_type,
+  ft_window_set_position,
+  ft_window_get_position,
   ft_widget_show,
+  ft_widget_hide,
   ft_widget_set_focus,
   ft_widget_has_focus,
   ft_widget_set_focusable,
@@ -1311,7 +1729,45 @@ exports
   ft_container_get_hscrollbar,
   ft_container_on_scroll,
   ft_container_get_client_rect,
-  ft_container_update_scrollbars;
+  ft_container_update_scrollbars,
+  ft_main_menu_create,
+  ft_main_menu_add_menu,
+  ft_main_menu_add_item,
+  ft_main_menu_item_count,
+  ft_main_menu_get_item,
+  ft_main_menu_close,
+  ft_popup_menu_create,
+  ft_popup_menu_add_item,
+  ft_popup_menu_add_check_item,
+  ft_popup_menu_add_separator,
+  ft_popup_menu_add_submenu,
+  ft_popup_menu_item_count,
+  ft_popup_menu_get_item,
+  ft_popup_menu_show,
+  ft_popup_menu_close,
+  ft_popup_menu_clear,
+  ft_popup_menu_set_corner_radius,
+  ft_menu_item_set_caption,
+  ft_menu_item_get_caption,
+  ft_menu_item_set_shortcut,
+  ft_menu_item_get_shortcut,
+  ft_menu_item_set_enabled,
+  ft_menu_item_get_enabled,
+  ft_menu_item_set_checked,
+  ft_menu_item_get_checked,
+  ft_menu_item_set_checkable,
+  ft_menu_item_get_checkable,
+  ft_menu_item_set_submenu,
+  ft_menu_item_get_submenu,
+  ft_menu_item_on_click,
+  ft_menu_item_set_tag,
+  ft_menu_item_get_tag,
+  ft_widget_set_context_menu,
+  ft_widget_get_context_menu,
+  ft_window_set_context_menu,
+  ft_window_get_context_menu,
+  ft_window_set_main_menu,
+  ft_window_get_main_menu;
 
 begin
 end.

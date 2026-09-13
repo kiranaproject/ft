@@ -27,10 +27,30 @@ void ft_init(void);
 void ft_main_loop(void);
 void ft_quit(void);
 
+/* Window Types */
+typedef enum {
+    FT_WINDOW_TYPE_NORMAL = 0,
+    FT_WINDOW_TYPE_DIALOG = 1,
+    FT_WINDOW_TYPE_POPUP_MENU = 2,
+    FT_WINDOW_TYPE_DROPDOWN_MENU = 3,
+    FT_WINDOW_TYPE_TOOLTIP = 4,
+    FT_WINDOW_TYPE_UTILITY = 5
+} FtWindowType;
+
 /* Window Management & Widget Focus */
 FtWidget ft_window_create(int32_t width, int32_t height, const char* title);
 void ft_window_set_title(FtWidget window, const char* title);
+void ft_window_set_borderless(FtWidget window, int32_t borderless);
+int32_t ft_window_get_borderless(FtWidget window);
+void ft_window_set_skip_taskbar(FtWidget window, int32_t skip_taskbar);
+int32_t ft_window_get_skip_taskbar(FtWidget window);
+void ft_window_set_window_type(FtWidget window, int32_t window_type);
+int32_t ft_window_get_window_type(FtWidget window);
+void ft_window_set_position(FtWidget window, int32_t x, int32_t y);
+void ft_window_get_position(FtWidget window, int32_t* x, int32_t* y);
+
 void ft_widget_show(FtWidget widget);
+void ft_widget_hide(FtWidget widget);
 void ft_widget_set_focus(FtWidget widget);
 int32_t ft_widget_has_focus(FtWidget widget);
 void ft_widget_set_focusable(FtWidget widget, int32_t focusable);
@@ -196,6 +216,56 @@ FtWidget ft_container_get_hscrollbar(FtWidget container);
 void ft_container_on_scroll(FtWidget container, FtScrollCallback callback, void* user_data);
 void ft_container_get_client_rect(FtWidget container, double* x, double* y, double* w, double* h);
 void ft_container_update_scrollbars(FtWidget container);
+
+/* Menus: Types and Callbacks */
+typedef void* FtMenuItem;
+typedef void (*FtMenuCallback)(FtMenuItem item, void* user_data);
+
+/* Menus: Window Main Menu */
+FtWidget ft_main_menu_create(FtWidget window);
+FtWidget ft_main_menu_add_menu(FtWidget main_menu, const char* caption);
+FtMenuItem ft_main_menu_add_item(FtWidget main_menu, const char* caption, FtWidget popup_menu);
+int32_t ft_main_menu_item_count(FtWidget main_menu);
+FtMenuItem ft_main_menu_get_item(FtWidget main_menu, int32_t index);
+void ft_main_menu_close(FtWidget main_menu);
+
+/* Menus: Pop-up / Context Menu */
+FtWidget ft_popup_menu_create(FtWidget parent);
+FtMenuItem ft_popup_menu_add_item(FtWidget popup_menu, const char* caption, FtMenuCallback callback, void* user_data);
+FtMenuItem ft_popup_menu_add_check_item(FtWidget popup_menu, const char* caption, int32_t checked, FtMenuCallback callback, void* user_data);
+FtMenuItem ft_popup_menu_add_separator(FtWidget popup_menu);
+FtMenuItem ft_popup_menu_add_submenu(FtWidget popup_menu, const char* caption, FtWidget submenu);
+int32_t ft_popup_menu_item_count(FtWidget popup_menu);
+FtMenuItem ft_popup_menu_get_item(FtWidget popup_menu, int32_t index);
+void ft_popup_menu_show(FtWidget popup_menu, int32_t x, int32_t y);
+void ft_popup_menu_close(FtWidget popup_menu);
+void ft_popup_menu_clear(FtWidget popup_menu);
+void ft_popup_menu_set_corner_radius(FtWidget popup_menu, double radius);
+
+/* Menus: Items */
+void ft_menu_item_set_caption(FtMenuItem item, const char* caption);
+const char* ft_menu_item_get_caption(FtMenuItem item);
+void ft_menu_item_set_shortcut(FtMenuItem item, const char* shortcut);
+const char* ft_menu_item_get_shortcut(FtMenuItem item);
+void ft_menu_item_set_enabled(FtMenuItem item, int32_t enabled);
+int32_t ft_menu_item_get_enabled(FtMenuItem item);
+void ft_menu_item_set_checked(FtMenuItem item, int32_t checked);
+int32_t ft_menu_item_get_checked(FtMenuItem item);
+void ft_menu_item_set_checkable(FtMenuItem item, int32_t checkable);
+int32_t ft_menu_item_get_checkable(FtMenuItem item);
+void ft_menu_item_set_submenu(FtMenuItem item, FtWidget submenu);
+FtWidget ft_menu_item_get_submenu(FtMenuItem item);
+void ft_menu_item_on_click(FtMenuItem item, FtMenuCallback callback, void* user_data);
+void ft_menu_item_set_tag(FtMenuItem item, int64_t tag);
+int64_t ft_menu_item_get_tag(FtMenuItem item);
+
+/* Menus: Context Menu & Window Attachment */
+void ft_widget_set_context_menu(FtWidget widget, FtWidget popup_menu);
+FtWidget ft_widget_get_context_menu(FtWidget widget);
+void ft_window_set_context_menu(FtWidget window, FtWidget popup_menu);
+FtWidget ft_window_get_context_menu(FtWidget window);
+void ft_window_set_main_menu(FtWidget window, FtWidget main_menu);
+FtWidget ft_window_get_main_menu(FtWidget window);
 
 /* Font & DPI Management */
 const char* ft_system_font_get(void);

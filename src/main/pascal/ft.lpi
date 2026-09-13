@@ -92,6 +92,11 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="Ft.Widget.Containers"/>
       </Unit>
+      <Unit>
+        <Filename Value="ft.widget.menus.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Widget.Menus"/>
+      </Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
