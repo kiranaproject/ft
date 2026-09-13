@@ -2,6 +2,10 @@
 
 A lightweight, high-performance native GUI toolkit engineered with Free Pascal, Anti-Grain Geometry (`AGG`) subpixel vector rendering, modern widget styling, and a clean C ABI for multi-language interoperability (C, C++, Python, Rust, Zig, Go).
 
+> **Why "Floria"?**  
+> The name **Floria** was chosen to pay tribute to Free Pascal (FPC) creator **Florian Klämpfl (Kaempfl)** — or perhaps I just ran out of ideas!  
+> The short version is **`Ft`**, read and pronounced as **"Feat"**.
+
 ---
 
 ## Highlights
@@ -27,6 +31,27 @@ A lightweight, high-performance native GUI toolkit engineered with Free Pascal, 
 - **Universal C FFI**:
   - Packaged as a standalone shared library (`libft.so`) exposing a standard C ABI via `include/ft.h`.
   - Zero heavy external dependencies; easily integrated into any programming language.
+
+---
+
+## Screenshots
+
+### Modern Vector Widgets & Theming
+| Default Theme (Light Mode) | Default Theme (Dark Mode) |
+| :---: | :---: |
+| ![Default Light Mode](docs/screenshots/floria_widgets_light.png) | ![Default Dark Mode](docs/screenshots/floria_widgets_dark.png) |
+
+| Nord Theme (Dark Mode) | Dracula Theme (Dark Mode) |
+| :---: | :---: |
+| ![Nord Theme](docs/screenshots/floria_theme_nord.png) | ![Dracula Theme](docs/screenshots/floria_theme_dracula.png) |
+
+### Multilingual & Internationalization Showcase
+![Multilingual Showcase](docs/screenshots/floria_multilingual.png)
+*Full UTF-8 Unicode rendering across 14 languages and writing systems (Latin, Cyrillic, Greek, CJK, Thai, Devanagari, Arabic, Hebrew) with interactive text selection and system clipboard integration.*
+
+### Python CFFI Integration
+![Python Showcase](docs/screenshots/floria_python_showcase.png)
+*Python ctypes host running the identical native AGG vector widgets and theming engine.*
 
 ---
 
