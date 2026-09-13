@@ -3,7 +3,7 @@
 A lightweight, high-performance native GUI toolkit engineered with Free Pascal, Anti-Grain Geometry (`AGG`) subpixel vector rendering, modern widget styling, and a clean C ABI for multi-language interoperability (C, C++, Python, Rust, Zig, Go).
 
 > **Why "Floria"?**  
-> The name **Floria** was chosen to pay tribute to Free Pascal (FPC) creator **Florian Klämpfl (Kaempfl)** — or perhaps I just ran out of ideas!  
+> The name **Floria** was chosen to pay tribute to Free Pascal (FPC) creator **Florian Klämpfl** — or perhaps I just ran out of ideas!  
 > The short version is **`Ft`**, read and pronounced as **"Feat"**.
 
 ---
