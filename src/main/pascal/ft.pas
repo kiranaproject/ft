@@ -10,6 +10,10 @@ uses
   Ft.Widget.Buttons,
   Ft.Widget.Switches,
   Ft.Widget.Texts,
+  Ft.Widget.Entries,
+  Ft.Widget.TextAreas,
+  Ft.Widget.ScrollBars,
+  Ft.Widget.Containers,
   Ft.Theme;
 
 var
@@ -21,6 +25,10 @@ var
   gLastTextValue: AnsiString;
   gLastSelectedText: AnsiString;
   gLastClipboardText: AnsiString;
+  gLastEntryText: AnsiString;
+  gLastEntryPlaceholder: AnsiString;
+  gLastTextAreaText: AnsiString;
+  gLastTextAreaPlaceholder: AnsiString;
 
 procedure ft_init(); cdecl; export;
 begin
@@ -82,16 +90,31 @@ begin
     Result := 0;
 end;
 
+procedure AdjustChildCoordinates(AParent: Pointer; var AX, AY: cint32);
+var
+  cont: TFtContainer;
+begin
+  if Assigned(AParent) and (TObject(AParent) is TFtContainer) then
+  begin
+    cont := TFtContainer(AParent);
+    AX := Round(cont.X + cont.PaddingX - cont.ScrollX) + AX;
+    AY := Round(cont.Y + cont.PaddingY - cont.ScrollY) + AY;
+  end;
+end;
+
 function ft_button_create(parent: Pointer; x, y, w, h: cint32; caption: PChar): Pointer; cdecl; export;
 var
   Btn: TFtButton;
 begin
+  AdjustChildCoordinates(parent, x, y);
   Btn := TFtButton.Create(TFtWidget(parent));
   Btn.X := x;
   Btn.Y := y;
   Btn.Width := w;
   Btn.Height := h;
   Btn.Caption := StrPas(caption);
+  if Assigned(parent) and (TObject(parent) is TFtContainer) then
+    TFtContainer(parent).UpdateScrollBars();
   Result := Pointer(Btn);
 end;
 
@@ -108,12 +131,15 @@ function ft_toggle_button_create(parent: Pointer; x, y, w, h: cint32; caption: P
 var
   Btn: TFtToggleButton;
 begin
+  AdjustChildCoordinates(parent, x, y);
   Btn := TFtToggleButton.Create(TFtWidget(parent));
   Btn.X := x;
   Btn.Y := y;
   Btn.Width := w;
   Btn.Height := h;
   Btn.Caption := StrPas(caption);
+  if Assigned(parent) and (TObject(parent) is TFtContainer) then
+    TFtContainer(parent).UpdateScrollBars();
   Result := Pointer(Btn);
 end;
 
@@ -212,6 +238,7 @@ function ft_switch_create(parent: Pointer; x, y, w, h: cint32; caption: PChar): 
 var
   Sw: TFtSwitch;
 begin
+  AdjustChildCoordinates(parent, x, y);
   Sw := TFtSwitch.Create(TFtWidget(parent));
   Sw.X := x;
   Sw.Y := y;
@@ -221,6 +248,8 @@ begin
     Sw.Caption := StrPas(caption)
   else
     Sw.Caption := '';
+  if Assigned(parent) and (TObject(parent) is TFtContainer) then
+    TFtContainer(parent).UpdateScrollBars();
   Result := Pointer(Sw);
 end;
 
@@ -344,11 +373,14 @@ begin
     strText := StrPas(text)
   else
     strText := '';
+  AdjustChildCoordinates(parent, x, y);
   Result := Pointer(TFtText.Create(TFtWidget(parent), strText));
   TFtWidget(Result).X := x;
   TFtWidget(Result).Y := y;
   TFtWidget(Result).Width := w;
   TFtWidget(Result).Height := h;
+  if Assigned(parent) and (TObject(parent) is TFtContainer) then
+    TFtContainer(parent).UpdateScrollBars();
 end;
 
 procedure ft_text_set_text(text_widget: Pointer; text: PChar); cdecl; export;
@@ -466,6 +498,549 @@ function ft_clipboard_get_text(): PChar; cdecl; export;
 begin
   gLastClipboardText := FtGetClipboardText();
   Result := PChar(gLastClipboardText);
+end;
+
+{ Entry Widgets (Single-line) }
+
+function ft_entry_create(parent: Pointer; x, y, w, h: cint32; text: PChar): Pointer; cdecl; export;
+var
+  strText: string;
+  entry: TFtEntry;
+begin
+  if Assigned(text) then
+    strText := StrPas(text)
+  else
+    strText := '';
+  AdjustChildCoordinates(parent, x, y);
+  entry := TFtEntry.Create(TFtWidget(parent), strText);
+  entry.X := x;
+  entry.Y := y;
+  entry.Width := w;
+  entry.Height := h;
+  if Assigned(parent) and (TObject(parent) is TFtContainer) then
+    TFtContainer(parent).UpdateScrollBars();
+  Result := Pointer(entry);
+end;
+
+procedure ft_entry_set_text(entry_widget: Pointer; text: PChar); cdecl; export;
+begin
+  if Assigned(entry_widget) and (TObject(entry_widget) is TFtEntry) then
+  begin
+    if Assigned(text) then
+      TFtEntry(entry_widget).Text := StrPas(text)
+    else
+      TFtEntry(entry_widget).Text := '';
+  end;
+end;
+
+function ft_entry_get_text(entry_widget: Pointer): PChar; cdecl; export;
+begin
+  if Assigned(entry_widget) and (TObject(entry_widget) is TFtEntry) then
+  begin
+    gLastEntryText := TFtEntry(entry_widget).Text;
+    Result := PChar(gLastEntryText);
+  end
+  else
+    Result := nil;
+end;
+
+procedure ft_entry_set_placeholder(entry_widget: Pointer; placeholder: PChar); cdecl; export;
+begin
+  if Assigned(entry_widget) and (TObject(entry_widget) is TFtEntry) then
+  begin
+    if Assigned(placeholder) then
+      TFtEntry(entry_widget).Placeholder := StrPas(placeholder)
+    else
+      TFtEntry(entry_widget).Placeholder := '';
+  end;
+end;
+
+function ft_entry_get_placeholder(entry_widget: Pointer): PChar; cdecl; export;
+begin
+  if Assigned(entry_widget) and (TObject(entry_widget) is TFtEntry) then
+  begin
+    gLastEntryPlaceholder := TFtEntry(entry_widget).Placeholder;
+    Result := PChar(gLastEntryPlaceholder);
+  end
+  else
+    Result := nil;
+end;
+
+procedure ft_entry_set_readonly(entry_widget: Pointer; readonly_mode: cint32); cdecl; export;
+begin
+  if Assigned(entry_widget) and (TObject(entry_widget) is TFtEntry) then
+    TFtEntry(entry_widget).ReadOnly := (readonly_mode <> 0);
+end;
+
+function ft_entry_get_readonly(entry_widget: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(entry_widget) and (TObject(entry_widget) is TFtEntry) and TFtEntry(entry_widget).ReadOnly then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+procedure ft_entry_on_change(entry_widget: Pointer; callback: TFtEntryChangeCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(entry_widget) and (TObject(entry_widget) is TFtEntry) then
+  begin
+    TFtEntry(entry_widget).OnChange := callback;
+    TFtEntry(entry_widget).UserData := user_data;
+  end;
+end;
+
+procedure ft_entry_on_submit(entry_widget: Pointer; callback: TFtEntrySubmitCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(entry_widget) and (TObject(entry_widget) is TFtEntry) then
+  begin
+    TFtEntry(entry_widget).OnSubmit := callback;
+    TFtEntry(entry_widget).UserData := user_data;
+  end;
+end;
+
+procedure ft_entry_set_corner_radius(entry_widget: Pointer; radius: Double); cdecl; export;
+begin
+  if Assigned(entry_widget) and (TObject(entry_widget) is TFtEntry) then
+    TFtEntry(entry_widget).CornerRadius := radius;
+end;
+
+{ TextArea Widgets (Multi-line) }
+
+function ft_textarea_create(parent: Pointer; x, y, w, h: cint32; text: PChar): Pointer; cdecl; export;
+var
+  strText: string;
+  ta: TFtTextArea;
+begin
+  if Assigned(text) then
+    strText := StrPas(text)
+  else
+    strText := '';
+  AdjustChildCoordinates(parent, x, y);
+  ta := TFtTextArea.Create(TFtWidget(parent), strText);
+  ta.X := x;
+  ta.Y := y;
+  ta.Width := w;
+  ta.Height := h;
+  if Assigned(parent) and (TObject(parent) is TFtContainer) then
+    TFtContainer(parent).UpdateScrollBars();
+  Result := Pointer(ta);
+end;
+
+procedure ft_textarea_set_text(textarea_widget: Pointer; text: PChar); cdecl; export;
+begin
+  if Assigned(textarea_widget) and (TObject(textarea_widget) is TFtTextArea) then
+  begin
+    if Assigned(text) then
+      TFtTextArea(textarea_widget).Text := StrPas(text)
+    else
+      TFtTextArea(textarea_widget).Text := '';
+  end;
+end;
+
+function ft_textarea_get_text(textarea_widget: Pointer): PChar; cdecl; export;
+begin
+  if Assigned(textarea_widget) and (TObject(textarea_widget) is TFtTextArea) then
+  begin
+    gLastTextAreaText := TFtTextArea(textarea_widget).Text;
+    Result := PChar(gLastTextAreaText);
+  end
+  else
+    Result := nil;
+end;
+
+procedure ft_textarea_set_placeholder(textarea_widget: Pointer; placeholder: PChar); cdecl; export;
+begin
+  if Assigned(textarea_widget) and (TObject(textarea_widget) is TFtTextArea) then
+  begin
+    if Assigned(placeholder) then
+      TFtTextArea(textarea_widget).Placeholder := StrPas(placeholder)
+    else
+      TFtTextArea(textarea_widget).Placeholder := '';
+  end;
+end;
+
+function ft_textarea_get_placeholder(textarea_widget: Pointer): PChar; cdecl; export;
+begin
+  if Assigned(textarea_widget) and (TObject(textarea_widget) is TFtTextArea) then
+  begin
+    gLastTextAreaPlaceholder := TFtTextArea(textarea_widget).Placeholder;
+    Result := PChar(gLastTextAreaPlaceholder);
+  end
+  else
+    Result := nil;
+end;
+
+procedure ft_textarea_set_readonly(textarea_widget: Pointer; readonly_mode: cint32); cdecl; export;
+begin
+  if Assigned(textarea_widget) and (TObject(textarea_widget) is TFtTextArea) then
+    TFtTextArea(textarea_widget).ReadOnly := (readonly_mode <> 0);
+end;
+
+function ft_textarea_get_readonly(textarea_widget: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(textarea_widget) and (TObject(textarea_widget) is TFtTextArea) and TFtTextArea(textarea_widget).ReadOnly then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+procedure ft_textarea_on_change(textarea_widget: Pointer; callback: TFtTextAreaChangeCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(textarea_widget) and (TObject(textarea_widget) is TFtTextArea) then
+  begin
+    TFtTextArea(textarea_widget).OnChange := callback;
+    TFtTextArea(textarea_widget).UserData := user_data;
+  end;
+end;
+
+procedure ft_textarea_set_corner_radius(textarea_widget: Pointer; radius: Double); cdecl; export;
+begin
+  if Assigned(textarea_widget) and (TObject(textarea_widget) is TFtTextArea) then
+    TFtTextArea(textarea_widget).CornerRadius := radius;
+end;
+
+procedure ft_textarea_set_scrollbar_mode(textarea_widget: Pointer; mode: cint32); cdecl; export;
+begin
+  if Assigned(textarea_widget) and (TObject(textarea_widget) is TFtTextArea) then
+  begin
+    case mode of
+      0: TFtTextArea(textarea_widget).ScrollBarMode := ftSbModeNone;
+      1: TFtTextArea(textarea_widget).ScrollBarMode := ftSbModeHorizontalOnly;
+      2: TFtTextArea(textarea_widget).ScrollBarMode := ftSbModeVerticalOnly;
+      3: TFtTextArea(textarea_widget).ScrollBarMode := ftSbModeAutoBoth;
+    else
+      TFtTextArea(textarea_widget).ScrollBarMode := ftSbModeAutoBoth;
+    end;
+  end;
+end;
+
+function ft_textarea_get_scrollbar_mode(textarea_widget: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(textarea_widget) and (TObject(textarea_widget) is TFtTextArea) then
+    Result := Ord(TFtTextArea(textarea_widget).ScrollBarMode)
+  else
+    Result := 0;
+end;
+
+function ft_textarea_get_vscrollbar(textarea_widget: Pointer): Pointer; cdecl; export;
+begin
+  if Assigned(textarea_widget) and (TObject(textarea_widget) is TFtTextArea) then
+    Result := Pointer(TFtTextArea(textarea_widget).VScrollBar)
+  else
+    Result := nil;
+end;
+
+function ft_textarea_get_hscrollbar(textarea_widget: Pointer): Pointer; cdecl; export;
+begin
+  if Assigned(textarea_widget) and (TObject(textarea_widget) is TFtTextArea) then
+    Result := Pointer(TFtTextArea(textarea_widget).HScrollBar)
+  else
+    Result := nil;
+end;
+
+{ ScrollBar Widgets }
+
+function ft_scrollbar_create(parent: Pointer; x, y, w, h: cint32; orientation: cint32): Pointer; cdecl; export;
+var
+  orient: TFtScrollBarOrientation;
+  sb: TFtScrollBar;
+begin
+  if orientation = 0 then
+    orient := ftSbHorizontal
+  else
+    orient := ftSbVertical;
+  AdjustChildCoordinates(parent, x, y);
+  sb := TFtScrollBar.Create(TFtWidget(parent), orient);
+  sb.X := x;
+  sb.Y := y;
+  sb.Width := w;
+  sb.Height := h;
+  if Assigned(parent) and (TObject(parent) is TFtContainer) then
+    TFtContainer(parent).UpdateScrollBars();
+  Result := Pointer(sb);
+end;
+
+procedure ft_scrollbar_set_orientation(scrollbar_widget: Pointer; orientation: cint32); cdecl; export;
+begin
+  if Assigned(scrollbar_widget) and (TObject(scrollbar_widget) is TFtScrollBar) then
+  begin
+    if orientation = 0 then
+      TFtScrollBar(scrollbar_widget).Orientation := ftSbHorizontal
+    else
+      TFtScrollBar(scrollbar_widget).Orientation := ftSbVertical;
+  end;
+end;
+
+function ft_scrollbar_get_orientation(scrollbar_widget: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(scrollbar_widget) and (TObject(scrollbar_widget) is TFtScrollBar) and (TFtScrollBar(scrollbar_widget).Orientation = ftSbVertical) then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+procedure ft_scrollbar_set_range(scrollbar_widget: Pointer; min, max, page_size: Double); cdecl; export;
+begin
+  if Assigned(scrollbar_widget) and (TObject(scrollbar_widget) is TFtScrollBar) then
+    TFtScrollBar(scrollbar_widget).SetRange(min, max, page_size);
+end;
+
+procedure ft_scrollbar_set_value(scrollbar_widget: Pointer; value: Double); cdecl; export;
+begin
+  if Assigned(scrollbar_widget) and (TObject(scrollbar_widget) is TFtScrollBar) then
+    TFtScrollBar(scrollbar_widget).Value := value;
+end;
+
+function ft_scrollbar_get_value(scrollbar_widget: Pointer): Double; cdecl; export;
+begin
+  if Assigned(scrollbar_widget) and (TObject(scrollbar_widget) is TFtScrollBar) then
+    Result := TFtScrollBar(scrollbar_widget).Value
+  else
+    Result := 0.0;
+end;
+
+function ft_scrollbar_get_min(scrollbar_widget: Pointer): Double; cdecl; export;
+begin
+  if Assigned(scrollbar_widget) and (TObject(scrollbar_widget) is TFtScrollBar) then
+    Result := TFtScrollBar(scrollbar_widget).Min
+  else
+    Result := 0.0;
+end;
+
+function ft_scrollbar_get_max(scrollbar_widget: Pointer): Double; cdecl; export;
+begin
+  if Assigned(scrollbar_widget) and (TObject(scrollbar_widget) is TFtScrollBar) then
+    Result := TFtScrollBar(scrollbar_widget).Max
+  else
+    Result := 0.0;
+end;
+
+function ft_scrollbar_get_page_size(scrollbar_widget: Pointer): Double; cdecl; export;
+begin
+  if Assigned(scrollbar_widget) and (TObject(scrollbar_widget) is TFtScrollBar) then
+    Result := TFtScrollBar(scrollbar_widget).PageSize
+  else
+    Result := 0.0;
+end;
+
+procedure ft_scrollbar_set_step(scrollbar_widget: Pointer; step: Double); cdecl; export;
+begin
+  if Assigned(scrollbar_widget) and (TObject(scrollbar_widget) is TFtScrollBar) then
+    TFtScrollBar(scrollbar_widget).Step := step;
+end;
+
+function ft_scrollbar_get_step(scrollbar_widget: Pointer): Double; cdecl; export;
+begin
+  if Assigned(scrollbar_widget) and (TObject(scrollbar_widget) is TFtScrollBar) then
+    Result := TFtScrollBar(scrollbar_widget).Step
+  else
+    Result := 0.0;
+end;
+
+procedure ft_scrollbar_on_scroll(scrollbar_widget: Pointer; callback: TFtScrollCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(scrollbar_widget) and (TObject(scrollbar_widget) is TFtScrollBar) then
+  begin
+    TFtScrollBar(scrollbar_widget).OnScroll := callback;
+    TFtScrollBar(scrollbar_widget).UserData := user_data;
+  end;
+end;
+
+procedure ft_scrollbar_set_corner_radius(scrollbar_widget: Pointer; radius: Double); cdecl; export;
+begin
+  if Assigned(scrollbar_widget) and (TObject(scrollbar_widget) is TFtScrollBar) then
+    TFtScrollBar(scrollbar_widget).CornerRadius := radius;
+end;
+
+{ Container Widgets (Scrollable Frame Box) }
+
+function ft_container_create(parent: Pointer; x, y, w, h: cint32): Pointer; cdecl; export;
+var
+  cont: TFtContainer;
+begin
+  AdjustChildCoordinates(parent, x, y);
+  cont := TFtContainer.Create(TFtWidget(parent));
+  cont.X := x;
+  cont.Y := y;
+  cont.Width := w;
+  cont.Height := h;
+  if Assigned(parent) and (TObject(parent) is TFtContainer) then
+    TFtContainer(parent).UpdateScrollBars();
+  Result := Pointer(cont);
+end;
+
+procedure ft_container_set_scrollbar_mode(container: Pointer; mode: cint32); cdecl; export;
+begin
+  if Assigned(container) and (TObject(container) is TFtContainer) then
+  begin
+    case mode of
+      0: TFtContainer(container).ScrollBarMode := ftSbModeNone;
+      1: TFtContainer(container).ScrollBarMode := ftSbModeHorizontalOnly;
+      2: TFtContainer(container).ScrollBarMode := ftSbModeVerticalOnly;
+      3: TFtContainer(container).ScrollBarMode := ftSbModeAutoBoth;
+    else
+      TFtContainer(container).ScrollBarMode := ftSbModeAutoBoth;
+    end;
+  end;
+end;
+
+function ft_container_get_scrollbar_mode(container: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(container) and (TObject(container) is TFtContainer) then
+    Result := Ord(TFtContainer(container).ScrollBarMode)
+  else
+    Result := 0;
+end;
+
+procedure ft_container_set_content_size(container: Pointer; width, height: Double); cdecl; export;
+begin
+  if Assigned(container) and (TObject(container) is TFtContainer) then
+    TFtContainer(container).SetContentSize(width, height);
+end;
+
+procedure ft_container_get_content_size(container: Pointer; width, height: PDouble); cdecl; export;
+begin
+  if Assigned(container) and (TObject(container) is TFtContainer) then
+  begin
+    if Assigned(width) then width^ := TFtContainer(container).ContentWidth;
+    if Assigned(height) then height^ := TFtContainer(container).ContentHeight;
+  end;
+end;
+
+procedure ft_container_set_scroll_pos(container: Pointer; scroll_x, scroll_y: Double); cdecl; export;
+begin
+  if Assigned(container) and (TObject(container) is TFtContainer) then
+  begin
+    TFtContainer(container).ScrollX := scroll_x;
+    TFtContainer(container).ScrollY := scroll_y;
+  end;
+end;
+
+function ft_container_get_scroll_x(container: Pointer): Double; cdecl; export;
+begin
+  if Assigned(container) and (TObject(container) is TFtContainer) then
+    Result := TFtContainer(container).ScrollX
+  else
+    Result := 0.0;
+end;
+
+function ft_container_get_scroll_y(container: Pointer): Double; cdecl; export;
+begin
+  if Assigned(container) and (TObject(container) is TFtContainer) then
+    Result := TFtContainer(container).ScrollY
+  else
+    Result := 0.0;
+end;
+
+procedure ft_container_set_corner_radius(container: Pointer; radius: Double); cdecl; export;
+begin
+  if Assigned(container) and (TObject(container) is TFtContainer) then
+    TFtContainer(container).CornerRadius := radius;
+end;
+
+function ft_container_get_corner_radius(container: Pointer): Double; cdecl; export;
+begin
+  if Assigned(container) and (TObject(container) is TFtContainer) then
+    Result := TFtContainer(container).CornerRadius
+  else
+    Result := -1.0;
+end;
+
+procedure ft_container_set_padding(container: Pointer; pad_x, pad_y: Double); cdecl; export;
+begin
+  if Assigned(container) and (TObject(container) is TFtContainer) then
+    TFtContainer(container).SetPadding(pad_x, pad_y);
+end;
+
+procedure ft_container_set_draw_frame(container: Pointer; draw_frame: cint32); cdecl; export;
+begin
+  if Assigned(container) and (TObject(container) is TFtContainer) then
+    TFtContainer(container).DrawFrame := (draw_frame <> 0);
+end;
+
+function ft_container_get_draw_frame(container: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(container) and (TObject(container) is TFtContainer) and TFtContainer(container).DrawFrame then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+procedure ft_container_set_draw_focus_ring(container: Pointer; draw_focus_ring: cint32); cdecl; export;
+begin
+  if Assigned(container) and (TObject(container) is TFtContainer) then
+    TFtContainer(container).DrawFocusRing := (draw_focus_ring <> 0);
+end;
+
+function ft_container_get_draw_focus_ring(container: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(container) and (TObject(container) is TFtContainer) and TFtContainer(container).DrawFocusRing then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+procedure ft_container_set_auto_content_size(container: Pointer; auto_size: cint32); cdecl; export;
+begin
+  if Assigned(container) and (TObject(container) is TFtContainer) then
+  begin
+    TFtContainer(container).AutoContentSize := (auto_size <> 0);
+    TFtContainer(container).UpdateScrollBars();
+    TFtContainer(container).Invalidate();
+  end;
+end;
+
+function ft_container_get_auto_content_size(container: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(container) and (TObject(container) is TFtContainer) and TFtContainer(container).AutoContentSize then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+function ft_container_get_vscrollbar(container: Pointer): Pointer; cdecl; export;
+begin
+  if Assigned(container) and (TObject(container) is TFtContainer) then
+    Result := Pointer(TFtContainer(container).VScrollBar)
+  else
+    Result := nil;
+end;
+
+function ft_container_get_hscrollbar(container: Pointer): Pointer; cdecl; export;
+begin
+  if Assigned(container) and (TObject(container) is TFtContainer) then
+    Result := Pointer(TFtContainer(container).HScrollBar)
+  else
+    Result := nil;
+end;
+
+procedure ft_container_on_scroll(container: Pointer; callback: TFtScrollCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(container) and (TObject(container) is TFtContainer) then
+  begin
+    TFtContainer(container).OnScroll := callback;
+    TFtContainer(container).UserData := user_data;
+  end;
+end;
+
+procedure ft_container_get_client_rect(container: Pointer; x, y, w, h: PDouble); cdecl; export;
+var
+  cx, cy, cw, ch: Double;
+begin
+  if Assigned(container) and (TObject(container) is TFtContainer) then
+  begin
+    TFtContainer(container).GetClientRect(cx, cy, cw, ch);
+    if Assigned(x) then x^ := cx;
+    if Assigned(y) then y^ := cy;
+    if Assigned(w) then w^ := cw;
+    if Assigned(h) then h^ := ch;
+  end;
+end;
+
+procedure ft_container_update_scrollbars(container: Pointer); cdecl; export;
+begin
+  if Assigned(container) and (TObject(container) is TFtContainer) then
+    TFtContainer(container).UpdateScrollBars();
 end;
 
 function ft_system_font_get(): PChar; cdecl; export;
@@ -678,7 +1253,65 @@ exports
   ft_text_set_color,
   ft_text_reset_color,
   ft_clipboard_set_text,
-  ft_clipboard_get_text;
+  ft_clipboard_get_text,
+  ft_entry_create,
+  ft_entry_set_text,
+  ft_entry_get_text,
+  ft_entry_set_placeholder,
+  ft_entry_get_placeholder,
+  ft_entry_set_readonly,
+  ft_entry_get_readonly,
+  ft_entry_on_change,
+  ft_entry_on_submit,
+  ft_entry_set_corner_radius,
+  ft_textarea_create,
+  ft_textarea_set_text,
+  ft_textarea_get_text,
+  ft_textarea_set_placeholder,
+  ft_textarea_get_placeholder,
+  ft_textarea_set_readonly,
+  ft_textarea_get_readonly,
+  ft_textarea_on_change,
+  ft_textarea_set_corner_radius,
+  ft_textarea_set_scrollbar_mode,
+  ft_textarea_get_scrollbar_mode,
+  ft_textarea_get_vscrollbar,
+  ft_textarea_get_hscrollbar,
+  ft_scrollbar_create,
+  ft_scrollbar_set_orientation,
+  ft_scrollbar_get_orientation,
+  ft_scrollbar_set_range,
+  ft_scrollbar_set_value,
+  ft_scrollbar_get_value,
+  ft_scrollbar_get_min,
+  ft_scrollbar_get_max,
+  ft_scrollbar_get_page_size,
+  ft_scrollbar_set_step,
+  ft_scrollbar_get_step,
+  ft_scrollbar_on_scroll,
+  ft_scrollbar_set_corner_radius,
+  ft_container_create,
+  ft_container_set_scrollbar_mode,
+  ft_container_get_scrollbar_mode,
+  ft_container_set_content_size,
+  ft_container_get_content_size,
+  ft_container_set_scroll_pos,
+  ft_container_get_scroll_x,
+  ft_container_get_scroll_y,
+  ft_container_set_corner_radius,
+  ft_container_get_corner_radius,
+  ft_container_set_padding,
+  ft_container_set_draw_frame,
+  ft_container_get_draw_frame,
+  ft_container_set_draw_focus_ring,
+  ft_container_get_draw_focus_ring,
+  ft_container_set_auto_content_size,
+  ft_container_get_auto_content_size,
+  ft_container_get_vscrollbar,
+  ft_container_get_hscrollbar,
+  ft_container_on_scroll,
+  ft_container_get_client_rect,
+  ft_container_update_scrollbars;
 
 begin
 end.

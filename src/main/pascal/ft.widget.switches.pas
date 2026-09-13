@@ -128,6 +128,7 @@ end;
 
 procedure TFtSwitch.MouseDown(AX, AY: Integer; AButton: Integer);
 begin
+  inherited MouseDown(AX, AY, AButton);
   if AButton = 1 then
   begin
     FIsMouseDown := True;

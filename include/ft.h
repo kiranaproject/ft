@@ -111,6 +111,92 @@ void ft_text_reset_color(FtWidget text_widget);
 void ft_clipboard_set_text(const char* text);
 const char* ft_clipboard_get_text(void);
 
+/* Callbacks for Text Input */
+typedef void (*FtEntryChangeCallback)(FtWidget widget, const char* text, void* user_data);
+typedef void (*FtEntrySubmitCallback)(FtWidget widget, const char* text, void* user_data);
+typedef void (*FtTextAreaChangeCallback)(FtWidget widget, const char* text, void* user_data);
+
+/* Widgets: Entry (Single-Line Inline Input Box / LineEdit) */
+FtWidget ft_entry_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, const char* text);
+void ft_entry_set_text(FtWidget entry, const char* text);
+const char* ft_entry_get_text(FtWidget entry);
+void ft_entry_set_placeholder(FtWidget entry, const char* placeholder);
+const char* ft_entry_get_placeholder(FtWidget entry);
+void ft_entry_set_readonly(FtWidget entry, int32_t readonly_mode);
+int32_t ft_entry_get_readonly(FtWidget entry);
+void ft_entry_on_change(FtWidget entry, FtEntryChangeCallback callback, void* user_data);
+void ft_entry_on_submit(FtWidget entry, FtEntrySubmitCallback callback, void* user_data);
+void ft_entry_set_corner_radius(FtWidget entry, double radius);
+
+/* Widgets: TextArea (Multi-Line Text Area / TextView) */
+FtWidget ft_textarea_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, const char* text);
+void ft_textarea_set_text(FtWidget textarea, const char* text);
+const char* ft_textarea_get_text(FtWidget textarea);
+void ft_textarea_set_placeholder(FtWidget textarea, const char* placeholder);
+const char* ft_textarea_get_placeholder(FtWidget textarea);
+void ft_textarea_set_readonly(FtWidget textarea, int32_t readonly_mode);
+int32_t ft_textarea_get_readonly(FtWidget textarea);
+void ft_textarea_on_change(FtWidget textarea, FtTextAreaChangeCallback callback, void* user_data);
+void ft_textarea_set_corner_radius(FtWidget textarea, double radius);
+void ft_textarea_set_scrollbar_mode(FtWidget textarea, int32_t mode);
+int32_t ft_textarea_get_scrollbar_mode(FtWidget textarea);
+FtWidget ft_textarea_get_vscrollbar(FtWidget textarea);
+FtWidget ft_textarea_get_hscrollbar(FtWidget textarea);
+
+/* ScrollBar Enums & Callbacks */
+typedef enum {
+    FT_SCROLLBAR_HORIZONTAL = 0,
+    FT_SCROLLBAR_VERTICAL = 1
+} FtScrollBarOrientation;
+
+typedef enum {
+    FT_SCROLLBAR_MODE_NONE = 0,
+    FT_SCROLLBAR_MODE_HORIZONTAL_ONLY = 1,
+    FT_SCROLLBAR_MODE_VERTICAL_ONLY = 2,
+    FT_SCROLLBAR_MODE_AUTO_BOTH = 3
+} FtScrollBarMode;
+
+typedef void (*FtScrollCallback)(FtWidget widget, double value, void* user_data);
+
+/* Widgets: ScrollBar */
+FtWidget ft_scrollbar_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, int32_t orientation);
+void ft_scrollbar_set_orientation(FtWidget scrollbar, int32_t orientation);
+int32_t ft_scrollbar_get_orientation(FtWidget scrollbar);
+void ft_scrollbar_set_range(FtWidget scrollbar, double min, double max, double page_size);
+void ft_scrollbar_set_value(FtWidget scrollbar, double value);
+double ft_scrollbar_get_value(FtWidget scrollbar);
+double ft_scrollbar_get_min(FtWidget scrollbar);
+double ft_scrollbar_get_max(FtWidget scrollbar);
+double ft_scrollbar_get_page_size(FtWidget scrollbar);
+void ft_scrollbar_set_step(FtWidget scrollbar, double step);
+double ft_scrollbar_get_step(FtWidget scrollbar);
+void ft_scrollbar_on_scroll(FtWidget scrollbar, FtScrollCallback callback, void* user_data);
+void ft_scrollbar_set_corner_radius(FtWidget scrollbar, double radius);
+
+/* Widgets: Container (Scrollable Box / Viewport / Frame) */
+FtWidget ft_container_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h);
+void ft_container_set_scrollbar_mode(FtWidget container, int32_t mode);
+int32_t ft_container_get_scrollbar_mode(FtWidget container);
+void ft_container_set_content_size(FtWidget container, double width, double height);
+void ft_container_get_content_size(FtWidget container, double* width, double* height);
+void ft_container_set_scroll_pos(FtWidget container, double scroll_x, double scroll_y);
+double ft_container_get_scroll_x(FtWidget container);
+double ft_container_get_scroll_y(FtWidget container);
+void ft_container_set_corner_radius(FtWidget container, double radius);
+double ft_container_get_corner_radius(FtWidget container);
+void ft_container_set_padding(FtWidget container, double pad_x, double pad_y);
+void ft_container_set_draw_frame(FtWidget container, int32_t draw_frame);
+int32_t ft_container_get_draw_frame(FtWidget container);
+void ft_container_set_draw_focus_ring(FtWidget container, int32_t draw_focus_ring);
+int32_t ft_container_get_draw_focus_ring(FtWidget container);
+void ft_container_set_auto_content_size(FtWidget container, int32_t auto_size);
+int32_t ft_container_get_auto_content_size(FtWidget container);
+FtWidget ft_container_get_vscrollbar(FtWidget container);
+FtWidget ft_container_get_hscrollbar(FtWidget container);
+void ft_container_on_scroll(FtWidget container, FtScrollCallback callback, void* user_data);
+void ft_container_get_client_rect(FtWidget container, double* x, double* y, double* w, double* h);
+void ft_container_update_scrollbars(FtWidget container);
+
 /* Font & DPI Management */
 const char* ft_system_font_get(void);
 void ft_system_font_set(const char* font_desc);

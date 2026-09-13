@@ -11,6 +11,9 @@ type
   { Button interactive states }
   TFtButtonState = (bsNormal, bsHovered, bsPressed);
 
+  { ScrollBar orientation }
+  TFtScrollBarOrientation = (ftSbHorizontal, ftSbVertical);
+
   { RGB Color representation (0.0 .. 1.0) }
   TFtRgbColor = record
     R, G, B: Double;
@@ -93,7 +96,18 @@ type
                            CustomRadius: Double = -1.0; CustomShadow: Integer = -1); virtual; abstract;
     function GetAccentColor(): TFtRgbColor; virtual;
     function GetTextColor(): TFtRgbColor; virtual;
+    function GetInputBackground(): TFtRgbColor; virtual;
+    function GetInputBorder(): TFtRgbColor; virtual;
+    function GetInputPlaceholderColor(): TFtRgbColor; virtual;
     procedure DrawFocusRing(Canvas: TFtCanvasAgg; X, Y, W, H: Double; Radius: Double); virtual;
+    procedure DrawInputPlate(Canvas: TFtCanvasAgg; X, Y, W, H: Double; Focused: Boolean; CustomRadius: Double = -1.0); virtual;
+    function GetScrollBarTrackColor(): TFtRgbColor; virtual;
+    function GetScrollBarThumbColor(): TFtRgbColor; virtual;
+    procedure DrawScrollBar(Canvas: TFtCanvasAgg; X, Y, W, H: Double; 
+                            Orientation: TFtScrollBarOrientation; 
+                            ThumbX, ThumbY, ThumbW, ThumbH: Double;
+                            Hovered, Dragging: Boolean;
+                            CustomRadius: Double = -1.0); virtual;
 
     property Name: string read GetName;
     property DarkMode: Boolean read GetDarkMode write SetDarkMode;
@@ -153,6 +167,10 @@ type
                            CustomRadius: Double = -1.0; CustomShadow: Integer = -1); override;
     function GetAccentColor(): TFtRgbColor; override;
     function GetTextColor(): TFtRgbColor; override;
+    function GetInputBackground(): TFtRgbColor; override;
+    function GetInputBorder(): TFtRgbColor; override;
+    function GetScrollBarTrackColor(): TFtRgbColor; override;
+    function GetScrollBarThumbColor(): TFtRgbColor; override;
 
     property FilePath: string read FFilePath;
     property Author: string read FAuthor;
@@ -388,6 +406,123 @@ begin
     ringWidth,
     accent.R, accent.G, accent.B, 0.90
   );
+end;
+
+function TFtTheme.GetInputBackground(): TFtRgbColor;
+begin
+  if DarkMode then
+    Result := MakeRgbColor(0.12, 0.14, 0.18)
+  else
+    Result := MakeRgbColor(1.0, 1.0, 1.0);
+end;
+
+function TFtTheme.GetInputBorder(): TFtRgbColor;
+begin
+  if DarkMode then
+    Result := MakeRgbColor(0.24, 0.28, 0.35)
+  else
+    Result := MakeRgbColor(0.80, 0.83, 0.88);
+end;
+
+function TFtTheme.GetInputPlaceholderColor(): TFtRgbColor;
+begin
+  if DarkMode then
+    Result := MakeRgbColor(0.55, 0.60, 0.68)
+  else
+    Result := MakeRgbColor(0.60, 0.64, 0.70);
+end;
+
+procedure TFtTheme.DrawInputPlate(Canvas: TFtCanvasAgg; X, Y, W, H: Double; Focused: Boolean; CustomRadius: Double = -1.0);
+var
+  effRadius: Double;
+  bgCol, borderCol: TFtRgbColor;
+begin
+  if (W <= 0) or (H <= 0) then Exit;
+  if CustomRadius >= 0.0 then
+    effRadius := CustomRadius
+  else
+    effRadius := CornerRadius;
+
+  bgCol := GetInputBackground();
+  if Focused then
+    borderCol := GetAccentColor()
+  else
+    borderCol := GetInputBorder();
+
+  { Draw background plate }
+  Canvas.DrawRoundedRect(X, Y, W, H, effRadius, bgCol.R, bgCol.G, bgCol.B, 1.0);
+
+  { Draw border outline }
+  Canvas.DrawRoundedRectOutline(X, Y, W, H, effRadius, 1.0, borderCol.R, borderCol.G, borderCol.B, 1.0);
+
+  { If focused, draw theme focus ring }
+  if Focused then
+    DrawFocusRing(Canvas, X, Y, W, H, effRadius);
+end;
+
+function TFtTheme.GetScrollBarTrackColor(): TFtRgbColor;
+begin
+  if DarkMode then
+    Result := MakeRgbColor(0.18, 0.20, 0.25)
+  else
+    Result := MakeRgbColor(0.92, 0.93, 0.95);
+end;
+
+function TFtTheme.GetScrollBarThumbColor(): TFtRgbColor;
+begin
+  if DarkMode then
+    Result := MakeRgbColor(0.42, 0.46, 0.54)
+  else
+    Result := MakeRgbColor(0.68, 0.72, 0.78);
+end;
+
+procedure TFtTheme.DrawScrollBar(Canvas: TFtCanvasAgg; X, Y, W, H: Double;
+  Orientation: TFtScrollBarOrientation;
+  ThumbX, ThumbY, ThumbW, ThumbH: Double;
+  Hovered, Dragging: Boolean;
+  CustomRadius: Double = -1.0);
+var
+  trackRad, thumbRad, alpha: Double;
+  trackCol, thumbCol: TFtRgbColor;
+begin
+  if (W <= 0) or (H <= 0) then Exit;
+
+  if CustomRadius >= 0.0 then
+  begin
+    trackRad := CustomRadius;
+    thumbRad := CustomRadius;
+  end
+  else
+  begin
+    if Orientation = ftSbVertical then
+      trackRad := W / 2.0
+    else
+      trackRad := H / 2.0;
+    thumbRad := trackRad;
+  end;
+
+  trackCol := GetScrollBarTrackColor();
+  thumbCol := GetScrollBarThumbColor();
+
+  { Subtle track background when hovered or dragging }
+  if Hovered or Dragging then
+    Canvas.DrawRoundedRect(X, Y, W, H, trackRad, trackCol.R, trackCol.G, trackCol.B, 0.35);
+
+  { Thumb styling }
+  if Dragging then
+  begin
+    thumbCol := GetAccentColor();
+    alpha := 0.90;
+  end
+  else if Hovered then
+  begin
+    AdjustRgb(thumbCol, 1.15);
+    alpha := 0.80;
+  end
+  else
+    alpha := 0.55;
+
+  Canvas.DrawRoundedRect(ThumbX, ThumbY, ThumbW, ThumbH, thumbRad, thumbCol.R, thumbCol.G, thumbCol.B, alpha);
 end;
 
 { TFtThemeDefault }
@@ -882,6 +1017,35 @@ end;
 function TFtFileTheme.GetTextColor(): TFtRgbColor;
 begin
   Result := GetActivePalette().BtnNormText;
+end;
+
+function TFtFileTheme.GetInputBackground(): TFtRgbColor;
+var
+  pal: TFtThemePalette;
+begin
+  pal := GetActivePalette();
+  if DarkMode then
+  begin
+    Result := pal.WindowBg;
+    AdjustRgb(Result, 0.82);
+  end
+  else
+    Result := MakeRgbColor(1.0, 1.0, 1.0);
+end;
+
+function TFtFileTheme.GetInputBorder(): TFtRgbColor;
+begin
+  Result := GetActivePalette().BtnNormBorder;
+ end;
+
+function TFtFileTheme.GetScrollBarTrackColor(): TFtRgbColor;
+begin
+  Result := GetActivePalette().WindowBg;
+end;
+
+function TFtFileTheme.GetScrollBarThumbColor(): TFtRgbColor;
+begin
+  Result := GetActivePalette().BtnNormBorder;
 end;
 
 procedure TFtFileTheme.DrawWindowBackground(Canvas: TFtCanvasAgg; W, H: Integer);

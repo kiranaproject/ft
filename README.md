@@ -27,6 +27,10 @@ A lightweight, high-performance native GUI toolkit engineered with Free Pascal, 
   - **Push Button & Toggle Button**: Interactive states (Normal, Hovered, Pressed, Toggled) with smooth visual transitions, customizable corner radiuses, and shadows.
   - **Switch**: Modern toggle switch with circular thumb slider, customizable track radii, elevation shadows, active track accent glows, and automatic label positioning.
   - **Text / Label**: Flexible text widget with **selectable** and **non-selectable** options. Selectable mode offers mouse drag selection, double-click word selection, Ctrl+A select-all, theme-aware accent highlight rendering with crisp contrast text, I-beam cursor, and Ctrl+C clipboard copy. Non-selectable mode acts as an immutable static label.
+  - **Entry (Single-Line Input)**: Equivalent to `GtkEntry` in GTK and `QLineEdit` in Qt. Single-line inline text input box with placeholder support, blinking insertion caret, horizontal auto-scrolling, drag/word selection, Enter submit callback, and full clipboard cut/copy/paste.
+  - **TextArea (Multi-Line Input Area)**: Equivalent to `GtkTextView` in GTK and `QTextEdit` / `QPlainTextEdit` in Qt. Multi-line text editing supporting arbitrary dimensions, newline insertion (`Enter`), line navigation (`Up`/`Down` arrows), multi-line selection, auto-scrolling, and integrated scrollbars with dynamic policy options (Hide, Only Horizontal, Only Vertical, or Auto Both).
+  - **ScrollBar**: Standalone vector scrollbar widget (`TFtScrollBar` / `Ft.Widget.ScrollBars`) supporting both Horizontal and Vertical orientations, proportional thumb sizing based on page size and content range, track clicking / page jumping, continuous mouse dragging, and seamless theme palette adaptation.
+  - **Container (Scrollable Box / Viewport)**: Equivalent to `GtkScrolledWindow` in GTK, `QAbstractScrollArea` / `QScrollArea` in Qt, and `TScrollBox` in Lazarus LCL. A reusable container frame widget (`TFtContainer` / `Ft.Widget.Containers`) that hosts any child widgets (entries, buttons, switches, list items, text areas) using relative coordinates. Features theme-styled input plate backgrounds, integrated vertical and horizontal scrollbars (`TFtScrollBar`), automatic content size calculation, mouse wheel scrolling with child event bubbling, and subpixel AGG scissor clipping with a stacked clipping hierarchy. Both `TFtEntry` and `TFtTextArea` inherit from `TFtContainer`, unifying their border plate, clipping, and scrollbar behavior.
 
 - **GTK-Style Keyboard Navigation & Focus Management**:
   - Full keyboard focus navigation via **Tab** (forward) and **Shift+Tab** (backward) with cyclic wrapping.
@@ -42,6 +46,18 @@ A lightweight, high-performance native GUI toolkit engineered with Free Pascal, 
 ---
 
 ## Screenshots
+
+### Reusable Container & Scrolled Viewport Showcase (TFtContainer)
+![Reusable Container Showcase](docs/screenshots/floria_containers.png)
+*Reusable `TFtContainer` hosting heterogeneous child widgets (text entries, switches, text areas, action buttons, and Lazarus IDE-style component list items) with relative coordinates, automatic scrollbars, smooth mouse wheel navigation, and subpixel AGG scissor clipping.*
+
+### Native ScrollBar & Scrollable TextArea Showcase
+![Native ScrollBar Showcase](docs/screenshots/floria_scrollbars.png)
+*Standalone ScrollBars (horizontal & vertical) with live drag and track paging callbacks, alongside TextArea exhibiting dynamic scrollbar policy switching (Hide, Horizontal Only, Vertical Only, and Auto Both) and theme adaptation.*
+
+### Native Text Input Showcase (Entry & TextArea)
+![Native Text Input Showcase](docs/screenshots/floria_text_inputs.png)
+*Single-line Entry (GtkEntry / QLineEdit) with placeholder and Enter submit, alongside multi-line TextArea (GtkTextView / QTextEdit) with vertical scrolling across light, dark, and custom themes.*
 
 ### Modern Vector Widgets & Theming
 | Default Theme (Light Mode) | Default Theme (Dark Mode) |
@@ -81,6 +97,10 @@ floria-toolkit/
 │       ├── ft.widget.buttons.pas # Button & Toggle Button implementations
 │       ├── ft.widget.switches.pas# Modern Switch widget implementation
 │       ├── ft.widget.texts.pas   # Text / Label widget with selection & clipboard
+│       ├── ft.widget.entries.pas # Single-line text input (GtkEntry / QLineEdit)
+│       ├── ft.widget.textareas.pas# Multi-line text area (GtkTextView / QTextEdit)
+│       ├── ft.widget.scrollbars.pas# Draggable ScrollBar widget (horizontal & vertical)
+│       ├── ft.widget.containers.pas# Reusable Container box (ScrolledWindow / ListView)
 │       ├── ft.theme.pas      # Theme engine, default theme & file themes
 │       └── ft.font.pas       # Font management, DPI scaling & gamma
 ├── themes/                   # Bundled community & style theme files
@@ -372,6 +392,60 @@ Floria Toolkit automatically discovers `.theme` files from the following paths:
 | `int32_t ft_text_get_alignment(FtWidget txt)` | Gets current text alignment |
 | `void ft_text_set_color(FtWidget txt, double r, g, b)` | Sets custom text color override |
 | `void ft_text_reset_color(FtWidget txt)` | Resets text color to follow theme |
+
+### Entry Widgets (Single-Line Inline Input Box / LineEdit)
+*Equivalent to `GtkEntry` in GTK and `QLineEdit` in Qt.*
+
+| Function | Description |
+|---|---|
+| `FtWidget ft_entry_create(parent, x, y, w, h, text)` | Creates a single-line text input box |
+| `void ft_entry_set_text(FtWidget entry, const char* text)` | Sets entry text string |
+| `const char* ft_entry_get_text(FtWidget entry)` | Retrieves current entry text |
+| `void ft_entry_set_placeholder(FtWidget entry, const char* placeholder)` | Sets grayed-out placeholder hint |
+| `const char* ft_entry_get_placeholder(FtWidget entry)` | Retrieves placeholder string |
+| `void ft_entry_set_readonly(FtWidget entry, int32_t readonly_mode)` | Enables or disables read-only mode |
+| `int32_t ft_entry_get_readonly(FtWidget entry)` | Returns 1 if read-only, 0 otherwise |
+| `void ft_entry_on_change(entry, callback, user_data)` | Registers text modification callback |
+| `void ft_entry_on_submit(entry, callback, user_data)` | Registers callback invoked on Enter/Return key |
+| `void ft_entry_set_corner_radius(FtWidget entry, double radius)` | Sets per-widget corner radius |
+
+### TextArea Widgets (Multi-Line Text Area / TextView)
+*Equivalent to `GtkTextView` in GTK and `QTextEdit` / `QPlainTextEdit` in Qt.*
+
+| Function | Description |
+|---|---|
+| `FtWidget ft_textarea_create(parent, x, y, w, h, text)` | Creates a multi-line text area widget of any size |
+| `void ft_textarea_set_text(FtWidget ta, const char* text)` | Sets multi-line text string (supports `\n`) |
+| `const char* ft_textarea_get_text(FtWidget ta)` | Retrieves complete multi-line text string |
+| `void ft_textarea_set_placeholder(FtWidget ta, const char* placeholder)` | Sets placeholder hint shown when empty |
+| `const char* ft_textarea_get_placeholder(FtWidget ta)` | Retrieves placeholder string |
+| `void ft_textarea_set_readonly(FtWidget ta, int32_t readonly_mode)` | Enables or disables read-only mode |
+| `int32_t ft_textarea_get_readonly(FtWidget ta)` | Returns 1 if read-only, 0 otherwise |
+| `void ft_textarea_on_change(ta, callback, user_data)` | Registers text modification callback |
+| `void ft_textarea_set_corner_radius(FtWidget ta, double radius)` | Sets per-widget corner radius |
+| `void ft_textarea_set_scrollbar_mode(FtWidget ta, int32_t mode)` | Sets scrollbar policy (`0`=None, `1`=Horiz, `2`=Vert, `3`=Auto Both) |
+| `int32_t ft_textarea_get_scrollbar_mode(FtWidget ta)` | Returns current scrollbar policy |
+| `FtWidget ft_textarea_get_vscrollbar(FtWidget ta)` | Returns the internal vertical `FtWidget` scrollbar |
+| `FtWidget ft_textarea_get_hscrollbar(FtWidget ta)` | Returns the internal horizontal `FtWidget` scrollbar |
+
+### ScrollBar Widgets (Horizontal & Vertical)
+*Draggable vector scrollbar supporting proportional thumb sizing and theme styling.*
+
+| Function | Description |
+|---|---|
+| `FtWidget ft_scrollbar_create(parent, x, y, w, h, orientation)` | Creates a scrollbar (`0`=Horizontal, `1`=Vertical) |
+| `void ft_scrollbar_set_orientation(sb, int32_t orientation)` | Sets orientation (`0`=Horizontal, `1`=Vertical) |
+| `int32_t ft_scrollbar_get_orientation(sb)` | Returns current orientation |
+| `void ft_scrollbar_set_range(sb, double min, max, page_size)` | Configures range limits and proportional thumb page size |
+| `void ft_scrollbar_set_value(sb, double value)` | Sets current position (clamped between min and max) |
+| `double ft_scrollbar_get_value(sb)` | Retrieves current position value |
+| `double ft_scrollbar_get_min(sb)` | Retrieves minimum range limit |
+| `double ft_scrollbar_get_max(sb)` | Retrieves maximum range limit |
+| `double ft_scrollbar_get_page_size(sb)` | Retrieves viewport page size |
+| `void ft_scrollbar_set_step(sb, double step)` | Sets small wheel step size |
+| `double ft_scrollbar_get_step(sb)` | Retrieves small step size |
+| `void ft_scrollbar_on_scroll(sb, callback, user_data)` | Registers live scroll notification callback |
+| `void ft_scrollbar_set_corner_radius(sb, double radius)` | Sets per-widget corner radius override |
 
 ### Clipboard Management
 | Function | Description |

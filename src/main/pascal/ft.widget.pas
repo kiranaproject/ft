@@ -165,6 +165,8 @@ end;
 
 procedure TFtWidget.MouseDown(AX, AY: Integer; AButton: Integer);
 begin
+  if (AButton in [4, 5, 6, 7]) and Assigned(Parent) then
+    Parent.MouseDown(AX, AY, AButton);
 end;
 
 procedure TFtWidget.MouseUp(AX, AY: Integer; AButton: Integer);

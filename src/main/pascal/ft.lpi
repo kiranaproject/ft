@@ -72,6 +72,26 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="Ft.Widget.Texts"/>
       </Unit>
+      <Unit>
+        <Filename Value="ft.widget.entries.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Widget.Entries"/>
+      </Unit>
+      <Unit>
+        <Filename Value="ft.widget.textareas.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Widget.TextAreas"/>
+      </Unit>
+      <Unit>
+        <Filename Value="ft.widget.scrollbars.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Widget.ScrollBars"/>
+      </Unit>
+      <Unit>
+        <Filename Value="ft.widget.containers.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Widget.Containers"/>
+      </Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

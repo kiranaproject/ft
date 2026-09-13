@@ -23,6 +23,10 @@ uses
   Ft.Font;
 
 type
+  TFtClipRect = record
+    X1, Y1, X2, Y2: Integer;
+  end;
+
   TFtCanvasAgg = class
   private
     FBuffer: Pointer;
@@ -32,6 +36,8 @@ type
     FRendererBase: renderer_base;
     FRasterizer: rasterizer_scanline_aa;
     FScanline: scanline_u8;
+    FClipStack: array[0..63] of TFtClipRect;
+    FClipStackCount: Integer;
     procedure DrawTextHershey(X, Y: Double; const AText: string; ASize: Double; R, G, B: Double);
     procedure DrawTextCenteredHershey(X, Y, W, H: Integer; const AText: string; ASize: Double; R, G, B: Double);
   public
@@ -43,6 +49,11 @@ type
     procedure DrawRoundedRect(X, Y, W, H: Double; Radius: Double; R, G, B: Double; A: Double = 1.0);
     procedure DrawRoundedRectOutline(X, Y, W, H: Double; Radius: Double; BorderWidth: Double; R, G, B: Double; A: Double = 1.0);
     procedure DrawShadow(X, Y, W, H: Double; Radius: Double; OffsetX, OffsetY: Double; BlurRadius: Double; ShadowR, ShadowG, ShadowB, ShadowOpacity: Double);
+    procedure PushClipRect(X, Y, W, H: Integer);
+    procedure PopClipRect();
+    procedure SetClipRect(X, Y, W, H: Integer);
+    procedure ResetClipRect();
+    procedure ResetAllClipping();
 
     procedure DrawText(X, Y: Double; const AText: string; AFont: TFtFont; R, G, B: Double);
     procedure DrawTextCentered(X, Y, W, H: Integer; const AText: string; AFont: TFtFont; R, G, B: Double);
@@ -67,6 +78,7 @@ begin
   FRendererBase.Construct(@FPixFormat);
   FRasterizer.Construct();
   FScanline.Construct();
+  FClipStackCount := 0;
 end;
 
 destructor TFtCanvasAgg.Destroy();
@@ -86,6 +98,85 @@ begin
   FRenderingBuf.attach(FBuffer, FWidth, FHeight, FWidth * 4);
   pixfmt_bgra32(FPixFormat, @FRenderingBuf);
   FRendererBase.Construct(@FPixFormat);
+  FClipStackCount := 0;
+end;
+
+procedure TFtCanvasAgg.PushClipRect(X, Y, W, H: Integer);
+var
+  newR: TFtClipRect;
+  topR: TFtClipRect;
+begin
+  if (W <= 0) or (H <= 0) then
+  begin
+    newR.X1 := 0;
+    newR.Y1 := 0;
+    newR.X2 := -1;
+    newR.Y2 := -1;
+  end
+  else
+  begin
+    newR.X1 := X;
+    newR.Y1 := Y;
+    newR.X2 := X + W - 1;
+    newR.Y2 := Y + H - 1;
+  end;
+
+  if FClipStackCount > 0 then
+  begin
+    topR := FClipStack[FClipStackCount - 1];
+    if newR.X1 < topR.X1 then newR.X1 := topR.X1;
+    if newR.Y1 < topR.Y1 then newR.Y1 := topR.Y1;
+    if newR.X2 > topR.X2 then newR.X2 := topR.X2;
+    if newR.Y2 > topR.Y2 then newR.Y2 := topR.Y2;
+  end;
+
+  if FClipStackCount <= High(FClipStack) then
+  begin
+    FClipStack[FClipStackCount] := newR;
+    Inc(FClipStackCount);
+  end;
+
+  if (newR.X2 < newR.X1) or (newR.Y2 < newR.Y1) then
+    FRendererBase.clip_box_(0, 0, 0, 0)
+  else
+    FRendererBase.clip_box_(newR.X1, newR.Y1, newR.X2, newR.Y2);
+end;
+
+procedure TFtCanvasAgg.PopClipRect();
+var
+  topR: TFtClipRect;
+begin
+  if FClipStackCount > 0 then
+    Dec(FClipStackCount);
+
+  if FClipStackCount > 0 then
+  begin
+    topR := FClipStack[FClipStackCount - 1];
+    if (topR.X2 < topR.X1) or (topR.Y2 < topR.Y1) then
+      FRendererBase.clip_box_(0, 0, 0, 0)
+    else
+      FRendererBase.clip_box_(topR.X1, topR.Y1, topR.X2, topR.Y2);
+  end
+  else
+  begin
+    FRendererBase.reset_clipping(True);
+  end;
+end;
+
+procedure TFtCanvasAgg.SetClipRect(X, Y, W, H: Integer);
+begin
+  PushClipRect(X, Y, W, H);
+end;
+
+procedure TFtCanvasAgg.ResetClipRect();
+begin
+  PopClipRect();
+end;
+
+procedure TFtCanvasAgg.ResetAllClipping();
+begin
+  FClipStackCount := 0;
+  FRendererBase.reset_clipping(True);
 end;
 
 procedure TFtCanvasAgg.Clear(R, G, B: Double);

@@ -241,6 +241,7 @@ end;
 
 procedure TFtX11Window.Repaint();
 begin
+  FCanvas.ResetAllClipping();
   FtGetTheme().DrawWindowBackground(FCanvas, Width, Height);
   Self.Draw(FCanvas);
   XPutImage(FDisplay, FWindow, FGC, FXImage, 0, 0, 0, 0, Width, Height);
@@ -415,10 +416,25 @@ begin
   end;
 end;
 
+function FindFocusableWidget(AWidget: TFtWidget): TFtWidget;
+var
+  w: TFtWidget;
+begin
+  w := AWidget;
+  while Assigned(w) do
+  begin
+    if w.CanFocus() then
+      Exit(w);
+    w := w.Parent;
+  end;
+  Result := nil;
+end;
+
 procedure TFtX11Window.HandleEvents();
 var
   Event: TXEvent;
   Target: TFtWidget;
+  focusTarget: TFtWidget;
   needsResize: Boolean;
   newW, newH: Integer;
   keysym: TKeySym;
@@ -489,21 +505,21 @@ begin
         Target := HitTest(Event.xbutton.x, Event.xbutton.y);
         if Target = Self then
           Target := nil;
-        if Target = nil then
+        if not (Event.xbutton.button in [4, 5, 6, 7]) then
         begin
-          if Assigned(gOnPrimarySelectionLost) then
-            gOnPrimarySelectionLost();
-          FtClearPrimarySelection();
-          SetFocusedWidget(nil);
-        end
-        else
-        begin
-          if Target.CanFocus() then
-            SetFocusedWidget(Target)
-          else
+          focusTarget := FindFocusableWidget(Target);
+          if not Assigned(focusTarget) then
+          begin
+            if Assigned(gOnPrimarySelectionLost) then
+              gOnPrimarySelectionLost();
+            FtClearPrimarySelection();
             SetFocusedWidget(nil);
+          end
+          else
+            SetFocusedWidget(focusTarget);
+
+          FPressedWidget := Target;
         end;
-        FPressedWidget := Target;
         UpdateCursor();
         if Assigned(Target) then
           Target.MouseDown(Event.xbutton.x, Event.xbutton.y, Event.xbutton.button);
