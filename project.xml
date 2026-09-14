@@ -3,7 +3,7 @@
   <name>ft</name>
   <version>0.0.1</version>
   <author>Dio Affriza</author>
-  <license>BSD-3-Clause</license>
+  <license>MPL-2.0</license>
 
   <build>
 	<mainSource>ft.pas</mainSource>

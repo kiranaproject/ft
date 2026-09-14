@@ -153,6 +153,7 @@ mkdir -p target/bin/lib/x86_64-linux
 fpc -Mobjfpc -Scghi -Cg -O1 -g -gl -vewnhibq \
   -Fi./target/bin/lib/x86_64-linux \
   -Fu./src/main/pascal/ \
+  -Fu./3rdparty/fcl-css/src/ \
   -Fu$HOME/.pasbuild/repository/fpgui-framework/2.2.0-SNAPSHOT/x86_64-linux-3.2.3/units \
   -FU./target/bin/lib/x86_64-linux/ \
   -FE./target/bin/ \
@@ -606,5 +607,5 @@ Floria Toolkit automatically discovers `.theme` files from the following paths:
 
 ## License
 
-Floria Toolkit is licensed under the [BSD-3-Clause License](LICENSE).
+Floria Toolkit is licensed under the [Mozilla Public License 2.0 (MPL-2.0)](LICENSE).
 Copyright (c) Floria Project / Dio Affriza.
