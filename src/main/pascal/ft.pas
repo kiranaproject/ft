@@ -15,7 +15,9 @@ uses
   Ft.Widget.ScrollBars,
   Ft.Widget.Containers,
   Ft.Widget.Menus,
-  Ft.Theme;
+  Ft.Theme,
+  Ft.Css,
+  Ft.Animation;
 
 var
   gLastSystemFontDesc: AnsiString;
@@ -32,6 +34,9 @@ var
   gLastTextAreaPlaceholder: AnsiString;
   gLastMenuCaption: AnsiString;
   gLastMenuShortcut: AnsiString;
+  gLastStyleClass: AnsiString;
+  gLastStyleId: AnsiString;
+  gLastInlineStyle: AnsiString;
 
 procedure ft_init(); cdecl; export;
 begin
@@ -1586,6 +1591,83 @@ begin
     Result := nil;
 end;
 
+{ CSS Styling C API }
+
+procedure ft_widget_set_style_class(widget: Pointer; style_class: PChar); cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    TFtWidget(widget).StyleClass := StrPas(style_class);
+end;
+
+function ft_widget_get_style_class(widget: Pointer): PChar; cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+  begin
+    gLastStyleClass := TFtWidget(widget).StyleClass;
+    Result := PChar(gLastStyleClass);
+  end
+  else
+    Result := '';
+end;
+
+procedure ft_widget_set_style_id(widget: Pointer; style_id: PChar); cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    TFtWidget(widget).StyleId := StrPas(style_id);
+end;
+
+function ft_widget_get_style_id(widget: Pointer): PChar; cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+  begin
+    gLastStyleId := TFtWidget(widget).StyleId;
+    Result := PChar(gLastStyleId);
+  end
+  else
+    Result := '';
+end;
+
+procedure ft_widget_set_style(widget: Pointer; inline_css: PChar); cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    TFtWidget(widget).InlineStyle := StrPas(inline_css);
+end;
+
+function ft_widget_get_style(widget: Pointer): PChar; cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+  begin
+    gLastInlineStyle := TFtWidget(widget).InlineStyle;
+    Result := PChar(gLastInlineStyle);
+  end
+  else
+    Result := '';
+end;
+
+function ft_style_load_css_file(filepath: PChar): cint32; cdecl; export;
+begin
+  if Assigned(filepath) and FtLoadStyleSheet(StrPas(filepath)) then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+function ft_style_load_css_string(css_string: PChar): cint32; cdecl; export;
+begin
+  if Assigned(css_string) and FtLoadStyleSheetString(StrPas(css_string)) then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+function ft_animation_is_running(): cint32; cdecl; export;
+begin
+  if FtGetAnimator().HasActiveAnimations() then
+    Result := 1
+  else
+    Result := 0;
+end;
+
 exports
   ft_init,
   ft_main_loop,
@@ -1767,7 +1849,16 @@ exports
   ft_window_set_context_menu,
   ft_window_get_context_menu,
   ft_window_set_main_menu,
-  ft_window_get_main_menu;
+  ft_window_get_main_menu,
+  ft_widget_set_style_class,
+  ft_widget_get_style_class,
+  ft_widget_set_style_id,
+  ft_widget_get_style_id,
+  ft_widget_set_style,
+  ft_widget_get_style,
+  ft_style_load_css_file,
+  ft_style_load_css_string,
+  ft_animation_is_running;
 
 begin
 end.

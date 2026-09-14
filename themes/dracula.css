@@ -1,0 +1,92 @@
+/* Floria Toolkit - Dracula Theme */
+
+window {
+    background-color: #282a36;
+    color: #f8f8f2;
+}
+
+button {
+    background-color: #44475a;
+    border-color: #6272a4;
+    border-width: 1px;
+    border-radius: 7px;
+    color: #f8f8f2;
+    box-shadow: 1;
+    transition: all 180ms ease;
+}
+
+button:hover {
+    background-color: #6272a4;
+    border-color: #ff79c6;
+    color: #f8f8f2;
+}
+
+button:active {
+    background-color: #191a21;
+    border-color: #bd93f9;
+    color: #50fa7b;
+}
+
+entry, textarea {
+    background-color: #21222c;
+    color: #f8f8f2;
+    border-color: #6272a4;
+    border-width: 1px;
+    border-radius: 6px;
+    transition: border-color 150ms ease;
+}
+
+entry:focus, textarea:focus {
+    border-color: #bd93f9;
+}
+
+switch {
+    background-color: #44475a;
+    border-color: #6272a4;
+    border-radius: 12px;
+    transition: all 200ms ease;
+}
+
+switch:checked {
+    background-color: #bd93f9;
+    border-color: #ff79c6;
+}
+
+label {
+    color: #f8f8f2;
+}
+
+scrollbar {
+    background-color: #282a36;
+    color: #6272a4;
+    border-radius: 3px;
+    transition: all 150ms ease;
+}
+
+scrollbar:hover {
+    color: #bd93f9;
+}
+
+scrollbar:active {
+    color: #ff79c6;
+}
+
+menu {
+    background-color: #21222c;
+    border-color: #6272a4;
+    color: #f8f8f2;
+    border-radius: 6px;
+}
+
+menu:hover {
+    background-color: #bd93f9;
+    color: #282a36;
+}
+
+container {
+    background-color: #21222c;
+    border-color: #6272a4;
+    border-width: 1px;
+    border-radius: 6px;
+}
+

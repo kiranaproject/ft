@@ -1,0 +1,169 @@
+/* Floria Toolkit - Modern Default (Breeze/Fusion) Theme */
+
+window {
+    background-color: #f0f2f5;
+    color: #1e293b;
+}
+
+window.dark {
+    background-color: #18181b;
+    color: #f1f5f9;
+}
+
+button {
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
+    border-width: 1px;
+    border-radius: 6px;
+    box-shadow: 1;
+    transition: all 150ms ease;
+}
+
+button:hover {
+    background-color: #cbd5e1;
+    border-color: #94a3b8;
+    color: #0f172a;
+}
+
+button:active {
+    background-color: #94a3b8;
+    border-color: #64748b;
+    color: #020617;
+}
+
+button.dark {
+    background-color: #27272a;
+    color: #f4f4f5;
+    border-color: #3f3f46;
+}
+
+button.dark:hover {
+    background-color: #3f3f46;
+    border-color: #52525b;
+    color: #ffffff;
+}
+
+button.dark:active {
+    background-color: #18181b;
+    border-color: #27272a;
+    color: #e4e4e7;
+}
+
+entry, textarea {
+    background-color: #ffffff;
+    color: #0f172a;
+    border-color: #cbd5e1;
+    border-width: 1px;
+    border-radius: 5px;
+    box-shadow: 0;
+    transition: border-color 150ms ease;
+}
+
+entry:focus, textarea:focus {
+    border-color: #3b82f6;
+}
+
+entry.dark, textarea.dark {
+    background-color: #27272a;
+    color: #f4f4f5;
+    border-color: #3f3f46;
+}
+
+entry.dark:focus, textarea.dark:focus {
+    border-color: #60a5fa;
+}
+
+switch {
+    background-color: #cbd5e1;
+    border-color: #94a3b8;
+    border-radius: 12px;
+    transition: all 200ms ease;
+}
+
+switch:checked {
+    background-color: #3b82f6;
+    border-color: #2563eb;
+}
+
+switch.dark {
+    background-color: #3f3f46;
+    border-color: #52525b;
+}
+
+switch.dark:checked {
+    background-color: #3b82f6;
+    border-color: #60a5fa;
+}
+
+label {
+    color: #1e293b;
+}
+
+label.dark {
+    color: #f1f5f9;
+}
+
+scrollbar {
+    background-color: #f0f2f5;
+    color: #cbd5e1;
+    border-radius: 3px;
+    transition: all 150ms ease;
+}
+
+scrollbar:hover {
+    color: #94a3b8;
+}
+
+scrollbar:active {
+    color: #64748b;
+}
+
+scrollbar.dark {
+    background-color: #18181b;
+    color: #3f3f46;
+}
+
+scrollbar.dark:hover {
+    color: #52525b;
+}
+
+scrollbar.dark:active {
+    color: #71717a;
+}
+
+menu {
+    background-color: #ffffff;
+    border-color: #cbd5e1;
+    color: #1e293b;
+    border-radius: 6px;
+}
+
+menu:hover {
+    background-color: #3b82f6;
+    color: #ffffff;
+}
+
+menu.dark {
+    background-color: #27272a;
+    border-color: #3f3f46;
+    color: #f4f4f5;
+}
+
+menu.dark:hover {
+    background-color: #3b82f6;
+    color: #ffffff;
+}
+
+container {
+    background-color: #ffffff;
+    border-color: #cbd5e1;
+    border-width: 1px;
+    border-radius: 6px;
+}
+
+container.dark {
+    background-color: #27272a;
+    border-color: #3f3f46;
+}
+

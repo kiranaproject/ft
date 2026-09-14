@@ -6,7 +6,7 @@ interface
 
 uses
   ctypes, SysUtils, Classes, Math, Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Theme, Ft.Backend.X11,
-  Ft.Widget.ScrollBars, Ft.Widget.Containers, Ft.Widget.Menus;
+  Ft.Widget.ScrollBars, Ft.Widget.Containers, Ft.Widget.Menus, Ft.Css;
 
 type
   TFtTextAreaChangeCallback = procedure(Sender: Pointer; Text: PChar; UserData: Pointer); cdecl;
@@ -63,6 +63,9 @@ type
     procedure MouseUp(AX, AY: Integer; AButton: Integer); override;
     procedure KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string); override;
     procedure LostFocus(); override;
+
+    function GetElementType(): string; override;
+    function GetStatePseudoClass(): string; override;
 
     function HasSelection(): Boolean;
     function GetSelectedText(): string;
@@ -1159,6 +1162,23 @@ begin
   inherited LostFocus();
 end;
 
+function TFtTextArea.GetElementType(): string;
+begin
+  Result := 'textarea';
+end;
+
+function TFtTextArea.GetStatePseudoClass(): string;
+begin
+  if not FEnabled then
+    Result := ':disabled'
+  else if FReadOnly then
+    Result := ':read-only'
+  else if FFocused then
+    Result := ':focus'
+  else
+    Result := '';
+end;
+
 procedure TFtTextArea.DrawContent(Canvas: TFtCanvasAgg);
 var
   AFont: TFtFont;
@@ -1170,14 +1190,25 @@ var
   lineSelStart, lineSelEnd: Integer;
   strBefore, strSel, strAfter: string;
   wBefore, wSel: Double;
+  st: TFtWidgetStyle;
 begin
   curTheme := FtGetTheme();
+  st := GetResolvedStyle();
   AFont := GetFont();
   if not Assigned(AFont) then AFont := FtGetSystemFont();
 
   lineH := GetLineHeight();
-  textCol := curTheme.GetTextColor();
-  accentCol := curTheme.GetAccentColor();
+
+  if st.HasTextColor then
+    textCol := MakeRgbColor(st.TextColor.R, st.TextColor.G, st.TextColor.B)
+  else
+    textCol := curTheme.GetTextColor();
+
+  if st.HasBorderColor and FFocused then
+    accentCol := MakeRgbColor(st.BorderColor.R, st.BorderColor.G, st.BorderColor.B)
+  else
+    accentCol := curTheme.GetAccentColor();
+
   placeCol := curTheme.GetInputPlaceholderColor();
 
   cnt := FLines.Count;

@@ -1,0 +1,168 @@
+/* Floria Toolkit - Classic Slate Theme */
+
+window {
+    background-color: #ebedf0;
+    color: #262e38;
+}
+
+button {
+    background-color: #d8dce3;
+    border-color: #b0b6c2;
+    border-width: 1px;
+    border-radius: 4px;
+    color: #262e38;
+    box-shadow: 1;
+    transition: all 180ms ease;
+}
+
+button:hover {
+    background-color: #e2e6ee;
+    border-color: #38a082;
+    color: #1a6b56;
+}
+
+button:active {
+    background-color: #c8cedc;
+    border-color: #287860;
+    color: #1a2028;
+}
+
+entry, textarea {
+    background-color: #ffffff;
+    color: #262e38;
+    border-color: #b0b6c2;
+    border-width: 1px;
+    border-radius: 4px;
+}
+
+entry:focus, textarea:focus {
+    border-color: #38a082;
+}
+
+switch {
+    background-color: #d0d8e6;
+    border-color: #b0b6c2;
+    border-radius: 12px;
+    transition: all 200ms ease;
+}
+
+switch:checked {
+    background-color: #2eb38a;
+    border-color: #248c6c;
+}
+
+label {
+    color: #262e38;
+}
+
+scrollbar {
+    background-color: #ebedf0;
+    color: #b0b6c2;
+    border-radius: 3px;
+    transition: all 180ms ease;
+}
+
+scrollbar:hover {
+    color: #38a082;
+}
+
+scrollbar:active {
+    color: #287860;
+}
+
+menu {
+    background-color: #ffffff;
+    border-color: #b0b6c2;
+    color: #262e38;
+    border-radius: 4px;
+}
+
+menu:hover {
+    background-color: #38a082;
+    color: #ffffff;
+}
+
+container {
+    background-color: #ffffff;
+    border-color: #b0b6c2;
+    border-width: 1px;
+    border-radius: 4px;
+}
+
+/* Classic Dark Mode */
+window.dark {
+    background-color: #1f1f21;
+    color: #e6eaf2;
+}
+
+button.dark {
+    background-color: #2b303a;
+    border-color: #3e4654;
+    color: #e6eaf2;
+}
+
+button.dark:hover {
+    background-color: #353b48;
+    border-color: #2eb38a;
+    color: #2eb38a;
+}
+
+button.dark:active {
+    background-color: #20242c;
+    border-color: #248c6c;
+    color: #e6eaf2;
+}
+
+entry.dark, textarea.dark {
+    background-color: #16181d;
+    color: #e6eaf2;
+    border-color: #3e4654;
+}
+
+entry.dark:focus, textarea.dark:focus {
+    border-color: #38a082;
+}
+
+switch.dark {
+    background-color: #2b303a;
+    border-color: #3e4654;
+}
+
+switch.dark:checked {
+    background-color: #2eb38a;
+    border-color: #248c6c;
+}
+
+label.dark {
+    color: #e6eaf2;
+}
+
+scrollbar.dark {
+    background-color: #1f1f21;
+    color: #3e4654;
+}
+
+scrollbar.dark:hover {
+    color: #38a082;
+}
+
+scrollbar.dark:active {
+    color: #248c6c;
+}
+
+menu.dark {
+    background-color: #1a1c20;
+    border-color: #3e4654;
+    color: #e6eaf2;
+}
+
+menu.dark:hover {
+    background-color: #2eb38a;
+    color: #ffffff;
+}
+
+container.dark {
+    background-color: #16181d;
+    border-color: #3e4654;
+}
+

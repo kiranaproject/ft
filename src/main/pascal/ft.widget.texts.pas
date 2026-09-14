@@ -6,7 +6,7 @@ interface
 
 uses
   SysUtils, Classes, Math,
-  Ft.Canvas.Agg, Ft.Widget, Ft.Font, Ft.Theme, Ft.Backend.X11, Ft.Widget.Menus;
+  Ft.Canvas.Agg, Ft.Widget, Ft.Font, Ft.Theme, Ft.Backend.X11, Ft.Widget.Menus, Ft.Css;
 
 type
   TFtTextAlignment = (taLeft, taCenter, taRight);
@@ -54,6 +54,7 @@ type
     function CharByteOffset(ACharIdx: Integer): Integer;
     function SubStrChars(ACharStart, ACharLen: Integer): string;
     function HasSelection(): Boolean;
+    function GetElementType(): string; override;
 
     procedure Draw(Canvas: TFtCanvasAgg); override;
     procedure MouseDown(AX, AY: Integer; AButton: Integer); override;
@@ -563,18 +564,39 @@ begin
     Result := 0; { Default pointer }
 end;
 
+function TFtText.GetElementType(): string;
+begin
+  Result := 'label';
+end;
+
 procedure TFtText.Draw(Canvas: TFtCanvasAgg);
 var
   AFont: TFtFont;
-  TW, TX, TY: Double;
+  TW, TX, TY, rad, bw: Double;
   curTheme: TFtTheme;
   normCol, accentCol: TFtRgbColor;
   selMin, selMax: Integer;
   wBefore, wSel: Double;
   boxX, boxY, boxW, boxH: Double;
   strBefore, strSel, strAfter: string;
+  st: TFtWidgetStyle;
 begin
   if not Visible or (FText = '') then Exit;
+
+  st := GetResolvedStyle();
+  curTheme := FtGetTheme();
+
+  // Background and border if styled via CSS
+  if st.HasBgColor or st.HasBorderColor then
+  begin
+    if st.HasBorderRadius then rad := st.BorderRadius else rad := 0.0;
+    if st.HasBgColor then
+      Canvas.DrawRoundedRect(X, Y, Width, Height, rad, st.BgColor.R, st.BgColor.G, st.BgColor.B, st.BgColor.A);
+    bw := 1.0;
+    if st.HasBorderWidth then bw := st.BorderWidth;
+    if (bw > 0.0) and st.HasBorderColor then
+      Canvas.DrawRoundedRectOutline(X, Y, Width, Height, rad, bw, st.BorderColor.R, st.BorderColor.G, st.BorderColor.B, st.BorderColor.A);
+  end;
 
   AFont := GetFont();
   if not Assigned(AFont) then AFont := FtGetSystemFont();
@@ -588,9 +610,10 @@ begin
 
   TY := Y + (Height / 2.0) + (AFont.Ascent - AFont.Descent) / 2.0;
 
-  curTheme := FtGetTheme();
   if FCustomColor then
     normCol := FTextColor
+  else if st.HasTextColor then
+    normCol := MakeRgbColor(st.TextColor.R, st.TextColor.G, st.TextColor.B)
   else
     normCol := curTheme.GetTextColor();
 

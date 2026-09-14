@@ -1,0 +1,92 @@
+/* Floria Toolkit - Gruvbox Theme */
+
+window {
+    background-color: #282828;
+    color: #ebdbb2;
+}
+
+button {
+    background-color: #3c3836;
+    border-color: #504945;
+    border-width: 1px;
+    border-radius: 4px;
+    color: #ebdbb2;
+    box-shadow: 1;
+    transition: all 180ms ease;
+}
+
+button:hover {
+    background-color: #504945;
+    border-color: #fabd2f;
+    color: #fbf1c7;
+}
+
+button:active {
+    background-color: #1d2021;
+    border-color: #d79921;
+    color: #fabd2f;
+}
+
+entry, textarea {
+    background-color: #3c3836;
+    color: #ebdbb2;
+    border-color: #504945;
+    border-width: 1px;
+    border-radius: 4px;
+    transition: border-color 150ms ease;
+}
+
+entry:focus, textarea:focus {
+    border-color: #fabd2f;
+}
+
+switch {
+    background-color: #3c3836;
+    border-color: #504945;
+    border-radius: 12px;
+    transition: all 200ms ease;
+}
+
+switch:checked {
+    background-color: #d79921;
+    border-color: #fabd2f;
+}
+
+label {
+    color: #ebdbb2;
+}
+
+scrollbar {
+    background-color: #282828;
+    color: #504945;
+    border-radius: 3px;
+    transition: all 150ms ease;
+}
+
+scrollbar:hover {
+    color: #fabd2f;
+}
+
+scrollbar:active {
+    color: #d79921;
+}
+
+menu {
+    background-color: #32302f;
+    border-color: #504945;
+    color: #ebdbb2;
+    border-radius: 6px;
+}
+
+menu:hover {
+    background-color: #fabd2f;
+    color: #282828;
+}
+
+container {
+    background-color: #32302f;
+    border-color: #504945;
+    border-width: 1px;
+    border-radius: 4px;
+}
+

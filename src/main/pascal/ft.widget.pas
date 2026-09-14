@@ -5,7 +5,7 @@ unit Ft.Widget;
 interface
 
 uses
-  SysUtils, Classes, Ft.Canvas.Agg, Ft.Font;
+  SysUtils, Classes, Ft.Canvas.Agg, Ft.Font, Ft.Css, Ft.Animation;
 
 type
   TFtWidget = class
@@ -14,13 +14,24 @@ type
   protected
     FFocusable: Boolean;
     FFocused: Boolean;
+    FEnabled: Boolean;
     FContextMenu: TFtWidget;
+    FStyleClass: string;
+    FStyleId: string;
+    FInlineStyle: string;
+    FResolvedStyle: TFtWidgetStyle;
+    FHasResolvedStyle: Boolean;
+    FStyleInitialized: Boolean;
     function GetFont(): TFtFont; virtual;
     procedure SetFont(AValue: TFtFont); virtual;
     function GetFontDesc(): string; virtual;
     procedure SetFontDesc(const AValue: string); virtual;
     function GetContextMenu(): TFtWidget; virtual;
     procedure SetContextMenu(AValue: TFtWidget); virtual;
+    procedure SetEnabled(AValue: Boolean); virtual;
+    procedure SetStyleClass(const AValue: string); virtual;
+    procedure SetStyleId(const AValue: string); virtual;
+    procedure SetInlineStyle(const AValue: string); virtual;
   public
     X, Y, Width, Height: Integer;
     Visible: Boolean;
@@ -53,14 +64,26 @@ type
 
     procedure SetFocusable(AValue: Boolean); virtual;
 
+    function GetElementType(): string; virtual;
+    function GetStatePseudoClass(): string; virtual;
+    function GetResolvedStyle(): TFtWidgetStyle; virtual;
+    procedure InvalidateStyle(); virtual;
+
     property Font: TFtFont read GetFont write SetFont;
     property FontDesc: string read GetFontDesc write SetFontDesc;
     property Focusable: Boolean read FFocusable write SetFocusable;
     property Focused: Boolean read FFocused;
+    property Enabled: Boolean read FEnabled write SetEnabled;
     property ContextMenu: TFtWidget read GetContextMenu write SetContextMenu;
+    property StyleClass: string read FStyleClass write SetStyleClass;
+    property StyleId: string read FStyleId write SetStyleId;
+    property InlineStyle: string read FInlineStyle write SetInlineStyle;
   end;
 
 implementation
+
+uses
+  Ft.Theme;
 
 constructor TFtWidget.Create(AParent: TFtWidget);
 begin
@@ -69,8 +92,15 @@ begin
   Visible := True;
   FFocusable := False;
   FFocused := False;
+  FEnabled := True;
   FContextMenu := nil;
   FFont := nil; { Follows parent or system font by default }
+  FStyleClass := '';
+  FStyleId := '';
+  FInlineStyle := '';
+  FHasResolvedStyle := False;
+  FStyleInitialized := False;
+  FResolvedStyle.Init();
   if Assigned(Parent) then
     Parent.Children.Add(Self);
 end;
@@ -79,6 +109,7 @@ destructor TFtWidget.Destroy();
 var
   I: Integer;
 begin
+  FtGetAnimator().StopTransitions(Self);
   if Assigned(Parent) then
     Parent.WidgetDestroyed(Self);
   FContextMenu := nil;
@@ -246,12 +277,14 @@ end;
 procedure TFtWidget.GotFocus();
 begin
   FFocused := True;
+  InvalidateStyle();
   Invalidate();
 end;
 
 procedure TFtWidget.LostFocus();
 begin
   FFocused := False;
+  InvalidateStyle();
   Invalidate();
 end;
 
@@ -269,5 +302,134 @@ begin
     Invalidate();
   end;
 end;
+
+procedure TFtWidget.SetEnabled(AValue: Boolean);
+begin
+  if FEnabled <> AValue then
+  begin
+    FEnabled := AValue;
+    InvalidateStyle();
+    Invalidate();
+  end;
+end;
+
+procedure TFtWidget.SetStyleClass(const AValue: string);
+begin
+  if FStyleClass <> AValue then
+  begin
+    FStyleClass := AValue;
+    InvalidateStyle();
+    Invalidate();
+  end;
+end;
+
+procedure TFtWidget.SetStyleId(const AValue: string);
+begin
+  if FStyleId <> AValue then
+  begin
+    FStyleId := AValue;
+    InvalidateStyle();
+    Invalidate();
+  end;
+end;
+
+procedure TFtWidget.SetInlineStyle(const AValue: string);
+begin
+  if FInlineStyle <> AValue then
+  begin
+    FInlineStyle := AValue;
+    InvalidateStyle();
+    Invalidate();
+  end;
+end;
+
+procedure TFtWidget.InvalidateStyle();
+var
+  I: Integer;
+begin
+  FHasResolvedStyle := False;
+  for I := 0 to Children.Count - 1 do
+    TFtWidget(Children[I]).InvalidateStyle();
+end;
+
+function TFtWidget.GetElementType(): string;
+begin
+  Result := 'widget';
+end;
+
+function TFtWidget.GetStatePseudoClass(): string;
+begin
+  if not FEnabled then
+    Result := ':disabled'
+  else if FFocused then
+    Result := ':focus'
+  else
+    Result := '';
+end;
+
+function TFtWidget.GetResolvedStyle(): TFtWidgetStyle;
+var
+  newStyle, animStyle: TFtWidgetStyle;
+  transProp, transTiming: string;
+  transDur: Integer;
+  effectiveClasses: string;
+begin
+  if not FHasResolvedStyle then
+  begin
+    effectiveClasses := FStyleClass;
+    if FtGetDarkMode() then
+    begin
+      if effectiveClasses <> '' then
+        effectiveClasses := effectiveClasses + ' dark'
+      else
+        effectiveClasses := 'dark';
+    end;
+    newStyle := FtGetStyleSheet().ResolveStyle(GetElementType(), FStyleId, effectiveClasses, GetStatePseudoClass(), FInlineStyle);
+
+    if FStyleInitialized then
+    begin
+      transProp := '';
+      transDur := 0;
+      transTiming := 'ease';
+
+      if newStyle.HasTransition and (newStyle.TransitionDurationMs > 0) then
+      begin
+        transProp := newStyle.TransitionProp;
+        transDur := newStyle.TransitionDurationMs;
+        transTiming := newStyle.TransitionTiming;
+      end
+      else if FResolvedStyle.HasTransition and (FResolvedStyle.TransitionDurationMs > 0) then
+      begin
+        transProp := FResolvedStyle.TransitionProp;
+        transDur := FResolvedStyle.TransitionDurationMs;
+        transTiming := FResolvedStyle.TransitionTiming;
+      end;
+
+      if (transDur > 0) and not FtStylesEqual(FResolvedStyle, newStyle) then
+      begin
+        FtGetAnimator().StartTransition(Self, FResolvedStyle, newStyle, transProp, transDur, transTiming);
+      end;
+    end
+    else
+      FStyleInitialized := True;
+
+    FResolvedStyle := newStyle;
+    FHasResolvedStyle := True;
+  end;
+
+  if FtGetAnimator().GetAnimatedStyle(Self, animStyle) then
+    Result := animStyle
+  else
+    Result := FResolvedStyle;
+end;
+
+procedure InvalidateWidgetAnim(AWidget: Pointer);
+begin
+  if Assigned(AWidget) and (TObject(AWidget) is TFtWidget) then
+    TFtWidget(AWidget).Invalidate();
+end;
+
+initialization
+  FtSetInvalidateWidgetProc(@InvalidateWidgetAnim);
 
 end.

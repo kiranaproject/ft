@@ -1,0 +1,92 @@
+/* Floria Toolkit - Nord Theme */
+
+window {
+    background-color: #2e3440;
+    color: #eceff4;
+}
+
+button {
+    background-color: #3b4252;
+    border-color: #4c566a;
+    border-width: 1px;
+    border-radius: 6px;
+    color: #eceff4;
+    box-shadow: 1;
+    transition: all 180ms ease;
+}
+
+button:hover {
+    background-color: #434c5e;
+    border-color: #88c0d0;
+    color: #88c0d0;
+}
+
+button:active {
+    background-color: #2e3440;
+    border-color: #5e81ac;
+    color: #eceff4;
+}
+
+entry, textarea {
+    background-color: #3b4252;
+    color: #eceff4;
+    border-color: #4c566a;
+    border-width: 1px;
+    border-radius: 5px;
+    transition: border-color 150ms ease;
+}
+
+entry:focus, textarea:focus {
+    border-color: #88c0d0;
+}
+
+switch {
+    background-color: #3b4252;
+    border-color: #4c566a;
+    border-radius: 12px;
+    transition: all 200ms ease;
+}
+
+switch:checked {
+    background-color: #88c0d0;
+    border-color: #81a1c1;
+}
+
+label {
+    color: #eceff4;
+}
+
+scrollbar {
+    background-color: #2e3440;
+    color: #4c566a;
+    border-radius: 3px;
+    transition: all 150ms ease;
+}
+
+scrollbar:hover {
+    color: #88c0d0;
+}
+
+scrollbar:active {
+    color: #81a1c1;
+}
+
+menu {
+    background-color: #3b4252;
+    border-color: #4c566a;
+    color: #eceff4;
+    border-radius: 6px;
+}
+
+menu:hover {
+    background-color: #88c0d0;
+    color: #2e3440;
+}
+
+container {
+    background-color: #3b4252;
+    border-color: #4c566a;
+    border-width: 1px;
+    border-radius: 6px;
+}
+

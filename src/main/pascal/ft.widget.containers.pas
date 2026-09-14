@@ -5,7 +5,7 @@ unit Ft.Widget.Containers;
 interface
 
 uses
-  ctypes, SysUtils, Classes, Math, Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Theme, Ft.Widget.ScrollBars;
+  ctypes, SysUtils, Classes, Math, Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Theme, Ft.Widget.ScrollBars, Ft.Css;
 
 type
   TFtContainer = class(TFtWidget)
@@ -49,6 +49,7 @@ type
   public
     constructor Create(AParent: TFtWidget); override;
     destructor Destroy(); override;
+    function GetElementType(): string; override;
 
     procedure Draw(Canvas: TFtCanvasAgg); override;
     function HitTest(AX, AY: Integer): TFtWidget; override;
@@ -119,6 +120,11 @@ begin
   FVScrollBar := nil;
   FHScrollBar := nil;
   inherited Destroy();
+end;
+
+function TFtContainer.GetElementType(): string;
+begin
+  Result := 'container';
 end;
 
 procedure TFtContainer.SetScrollBarMode(AValue: TFtScrollBarMode);
@@ -439,8 +445,46 @@ begin
 end;
 
 procedure TFtContainer.DrawBackground(Canvas: TFtCanvasAgg);
+var
+  st: TFtWidgetStyle;
+  rad, bw: Double;
+  bg: TFtRgbColor;
 begin
-  FtGetTheme().DrawInputPlate(Canvas, X, Y, Width, Height, FFocused and FDrawFocusRing, FCornerRadius);
+  st := GetResolvedStyle();
+  if st.HasBgColor or st.HasBorderColor or st.HasBorderRadius then
+  begin
+    if FCornerRadius >= 0.0 then
+      rad := FCornerRadius
+    else if st.HasBorderRadius then
+      rad := st.BorderRadius
+    else
+      rad := FtGetTheme().CornerRadius;
+
+    // Drop shadow
+    if (st.HasShadow and st.EnableShadow) or (not st.HasShadow and FtGetTheme().EnableShadow) then
+      Canvas.DrawShadow(X, Y, Width, Height, rad, 0.0, 2.0, 4.0, 0.0, 0.0, 0.0, 0.12);
+
+    // Background
+    if st.HasBgColor then
+      Canvas.DrawRoundedRect(X, Y, Width, Height, rad, st.BgColor.R, st.BgColor.G, st.BgColor.B, st.BgColor.A)
+    else
+    begin
+      bg := FtGetTheme().GetInputBackground();
+      Canvas.DrawRoundedRect(X, Y, Width, Height, rad, bg.R, bg.G, bg.B, 1.0);
+    end;
+
+    // Border
+    bw := 1.0;
+    if st.HasBorderWidth then bw := st.BorderWidth;
+    if (bw > 0.0) and st.HasBorderColor then
+      Canvas.DrawRoundedRectOutline(X, Y, Width, Height, rad, bw, st.BorderColor.R, st.BorderColor.G, st.BorderColor.B, st.BorderColor.A);
+
+    // Focus ring
+    if FFocused and FDrawFocusRing then
+      FtGetTheme().DrawFocusRing(Canvas, X, Y, Width, Height, rad);
+  end
+  else
+    FtGetTheme().DrawInputPlate(Canvas, X, Y, Width, Height, FFocused and FDrawFocusRing, FCornerRadius);
 end;
 
 procedure TFtContainer.DrawContent(Canvas: TFtCanvasAgg);

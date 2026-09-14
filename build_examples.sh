@@ -30,6 +30,10 @@ eval gcc $CFLAGS examples/c/outside_menu_demo.c $LDFLAGS -o target/bin/example_o
 eval gcc $CFLAGS examples/c/outside_menu_demo.c $LDFLAGS -o target/bin/outside_menu_demo
 eval gcc $CFLAGS examples/c/widget_context_menus_demo.c $LDFLAGS -o target/bin/widget_context_menus_demo
 eval gcc $CFLAGS examples/c/widget_context_menus_demo.c $LDFLAGS -o target/bin/example_widget_context_menus
+eval gcc $CFLAGS examples/c/css_button_demo.c $LDFLAGS -o target/bin/example_css_button
+eval gcc $CFLAGS examples/c/css_button_demo.c $LDFLAGS -o target/bin/css_button_demo
+eval gcc $CFLAGS examples/c/css_animation_demo.c $LDFLAGS -o target/bin/example_css_animation
+eval gcc $CFLAGS examples/c/css_animation_demo.c $LDFLAGS -o target/bin/css_animation_demo
 
 echo "[INFO] Successfully built all C examples in target/bin/:"
-ls -lh target/bin/example_* target/bin/c_example target/bin/input_example target/bin/scrollbar_example target/bin/multilingual_example target/bin/menu_example target/bin/outside_menu_demo target/bin/widget_context_menus_demo
+ls -lh target/bin/example_* target/bin/c_example target/bin/input_example target/bin/scrollbar_example target/bin/multilingual_example target/bin/menu_example target/bin/outside_menu_demo target/bin/widget_context_menus_demo target/bin/css_button_demo target/bin/css_animation_demo

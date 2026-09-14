@@ -5,7 +5,7 @@ unit Ft.Widget.Switches;
 interface
 
 uses
-  ctypes, SysUtils, Classes, Ft.Canvas.Agg, Ft.Widget, Ft.Theme;
+  ctypes, SysUtils, Classes, Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Theme, Ft.Css;
 
 type
   TFtSwitchCallback = procedure(Sender: Pointer; Checked: cint32; UserData: Pointer); cdecl;
@@ -37,6 +37,9 @@ type
     procedure KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string); override;
 
     procedure Toggle();
+
+    function GetElementType(): string; override;
+    function GetStatePseudoClass(): string; override;
 
     property Checked: Boolean read FChecked write SetChecked;
     property State: TFtButtonState read FState;
@@ -91,6 +94,7 @@ begin
   if FChecked <> AValue then
   begin
     FChecked := AValue;
+    InvalidateStyle();
     Invalidate();
     if Assigned(FOnToggle) then
     begin
@@ -100,6 +104,27 @@ begin
         FOnToggle(Self, 0, FUserData);
     end;
   end;
+end;
+
+function TFtSwitch.GetElementType(): string;
+begin
+  Result := 'switch';
+end;
+
+function TFtSwitch.GetStatePseudoClass(): string;
+begin
+  if not FEnabled then
+    Result := ':disabled'
+  else if FChecked then
+    Result := ':checked'
+  else if FState = bsPressed then
+    Result := ':active'
+  else if FState = bsHovered then
+    Result := ':hover'
+  else if FFocused then
+    Result := ':focus'
+  else
+    Result := '';
 end;
 
 procedure TFtSwitch.Toggle();
@@ -113,6 +138,7 @@ begin
     FState := bsPressed
   else
     FState := bsHovered;
+  InvalidateStyle();
   Invalidate();
   if Assigned(FOnHover) then
     FOnHover(Self, 1, FUserData);
@@ -121,6 +147,7 @@ end;
 procedure TFtSwitch.MouseLeave();
 begin
   FState := bsNormal;
+  InvalidateStyle();
   Invalidate();
   if Assigned(FOnHover) then
     FOnHover(Self, 0, FUserData);
@@ -133,6 +160,7 @@ begin
   begin
     FIsMouseDown := True;
     FState := bsPressed;
+    InvalidateStyle();
     Invalidate();
   end;
 end;
@@ -146,6 +174,7 @@ begin
       FState := bsHovered
     else
       FState := bsNormal;
+    InvalidateStyle();
     Invalidate();
   end;
 end;
@@ -158,32 +187,102 @@ end;
 procedure TFtSwitch.Draw(Canvas: TFtCanvasAgg);
 var
   trackW, trackH: Integer;
-  rad: Double;
+  rad, thumbD, thumbX, thumbY, labelX, labelY: Double;
+  bw: Double;
+  actualFont: TFtFont;
+  st: TFtWidgetStyle;
+  txtR, txtG, txtB: Double;
 begin
   if not Visible then Exit;
 
-  FtGetTheme().DrawSwitchEx(Canvas, X, Y, Width, Height, FState, FChecked, Caption, GetFont(), FCornerRadius, FEnableShadow);
+  st := GetResolvedStyle();
 
-  if FFocused then
+  if (Caption <> '') and (Width >= Round(Height * 2.2)) then
   begin
-    if (Caption <> '') and (Width >= Round(Height * 2.2)) then
+    trackH := Height;
+    trackW := Round(Height * 1.85);
+    if trackW < 36 then trackW := 36;
+    labelX := X + trackW + 8;
+  end
+  else
+  begin
+    trackH := Height;
+    trackW := Width;
+    labelX := X + Width + 8;
+  end;
+
+  if st.HasBorderRadius then
+    rad := st.BorderRadius
+  else if FCornerRadius >= 0.0 then
+    rad := FCornerRadius
+  else
+    rad := trackH / 2.0;
+
+  thumbD := trackH - 4.0;
+  thumbY := Y + 2.0;
+
+  if FChecked then
+    thumbX := X + trackW - thumbD - 2.0
+  else
+    thumbX := X + 2.0;
+
+  // 1. Drop shadow if enabled
+  if (st.HasShadow and st.EnableShadow) or
+     (not st.HasShadow and (FEnableShadow = 1)) or
+     (not st.HasShadow and (FEnableShadow = -1) and FtGetTheme().EnableShadow) then
+  begin
+    Canvas.DrawShadow(X, Y, trackW, trackH, rad, 0.0, 2.0, 4.0, 0.0, 0.0, 0.0, 0.15);
+  end;
+
+  // 2. Track background
+  if st.HasBgColor then
+    Canvas.DrawRoundedRect(X, Y, trackW, trackH, rad, st.BgColor.R, st.BgColor.G, st.BgColor.B, st.BgColor.A)
+  else
+  begin
+    if FChecked then
+      Canvas.DrawRoundedRect(X, Y, trackW, trackH, rad, 0.23, 0.51, 0.96, 1.0)
+    else
+      Canvas.DrawRoundedRect(X, Y, trackW, trackH, rad, 0.85, 0.87, 0.90, 1.0);
+  end;
+
+  // 3. Border outline
+  bw := 1.0;
+  if st.HasBorderWidth then bw := st.BorderWidth;
+  if bw > 0.0 then
+  begin
+    if st.HasBorderColor then
+      Canvas.DrawRoundedRectOutline(X, Y, trackW, trackH, rad, bw, st.BorderColor.R, st.BorderColor.G, st.BorderColor.B, st.BorderColor.A)
+    else
+      Canvas.DrawRoundedRectOutline(X, Y, trackW, trackH, rad, bw, 0.75, 0.77, 0.80, 1.0);
+  end;
+
+  // 4. Thumb knob (white circle with subtle shadow)
+  Canvas.DrawShadow(thumbX, thumbY, thumbD, thumbD, thumbD / 2.0, 0.0, 1.0, 2.0, 0.0, 0.0, 0.0, 0.20);
+  Canvas.DrawRoundedRect(thumbX, thumbY, thumbD, thumbD, thumbD / 2.0, 1.0, 1.0, 1.0, 1.0);
+  Canvas.DrawRoundedRectOutline(thumbX, thumbY, thumbD, thumbD, thumbD / 2.0, 0.5, 0.85, 0.87, 0.90, 1.0);
+
+  // 5. Caption label
+  if Caption <> '' then
+  begin
+    actualFont := GetFont();
+    if not Assigned(actualFont) then actualFont := FtGetSystemFont();
+    if st.HasTextColor then
     begin
-      trackH := Height;
-      trackW := Round(Height * 1.85);
-      if trackW < 36 then trackW := 36;
+      txtR := st.TextColor.R; txtG := st.TextColor.G; txtB := st.TextColor.B;
     end
     else
     begin
-      trackH := Height;
-      trackW := Width;
+      txtR := FtGetTheme().GetTextColor().R;
+      txtG := FtGetTheme().GetTextColor().G;
+      txtB := FtGetTheme().GetTextColor().B;
     end;
-
-    rad := trackH / 2.0;
-    if (FCornerRadius >= 0.0) and (FCornerRadius < rad) then
-      rad := FCornerRadius;
-
-    FtGetTheme().DrawFocusRing(Canvas, X, Y, trackW, trackH, rad);
+    labelY := Y + (Height - actualFont.Height) / 2.0 + actualFont.Ascent;
+    Canvas.DrawText(labelX, labelY, Caption, actualFont, txtR, txtG, txtB);
   end;
+
+  // 6. Focus ring
+  if FFocused then
+    FtGetTheme().DrawFocusRing(Canvas, X, Y, trackW, trackH, rad);
 
   inherited Draw(Canvas);
 end;

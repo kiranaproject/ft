@@ -5,7 +5,7 @@ unit Ft.Backend.X11;
 interface
 
 uses
-  ctypes, x, xlib, xutil, SysUtils, Classes, Ft.Canvas.Agg, Ft.Widget, Ft.Theme;
+  ctypes, x, xlib, xutil, SysUtils, Classes, Ft.Canvas.Agg, Ft.Widget, Ft.Theme, Ft.Css, Ft.Animation;
 
 type
   TFtWindowType = (
@@ -53,6 +53,7 @@ type
     FSkipTaskbar: Boolean;
     FWindowType: TFtWindowType;
     procedure OnThemeChanged();
+    procedure OnStyleSheetChanged();
     procedure UpdateCursor();
   public
     constructor Create(W, H: Integer; Title: string); reintroduce;
@@ -66,6 +67,7 @@ type
     procedure GetPosition(out OutX, OutY: Integer);
     function ClientToScreen(AX, AY: Integer): TPoint;
     function ScreenToClient(AX, AY: Integer): TPoint;
+    function GetElementType(): string; override;
     procedure Repaint();
     procedure HandleEvents();
     procedure HandleEvent(var Event: TXEvent);
@@ -223,17 +225,81 @@ begin
 end;
 
 procedure FtBackendMainLoop();
+var
+  frameStartMs, nowMs: QWord;
+  elapsedMs: Integer;
+  animator: TFtAnimator;
 begin
+  animator := FtGetAnimator();
   while GRunning and HasMainWindows() do
   begin
+    frameStartMs := GetTickCount64();
+
+    if animator.HasActiveAnimations() then
+      animator.Tick(frameStartMs);
+
     FtBackendProcessEvents();
-    if Assigned(GDisplay) and (XPending(GDisplay) = 0) then
-      Sleep(10);
+
+    if animator.HasActiveAnimations() then
+    begin
+      nowMs := GetTickCount64();
+      elapsedMs := Integer(nowMs - frameStartMs);
+      if elapsedMs < 16 then
+        Sleep(16 - elapsedMs)
+      else
+        Sleep(1);
+    end
+    else
+    begin
+      if Assigned(GDisplay) and (XPending(GDisplay) = 0) then
+        Sleep(10);
+    end;
   end;
   if Assigned(GDisplay) then
   begin
     XCloseDisplay(GDisplay);
     GDisplay := nil;
+  end;
+end;
+
+type
+  TFtX11Broadcaster = class
+    procedure HandleThemeChanged();
+    procedure HandleStyleSheetChanged();
+  end;
+
+var
+  GBroadcaster: TFtX11Broadcaster = nil;
+
+procedure TFtX11Broadcaster.HandleThemeChanged();
+var
+  i: Integer;
+  win: TFtX11Window;
+begin
+  if Assigned(GWindows) then
+  begin
+    for i := 0 to GWindows.Count - 1 do
+    begin
+      win := TFtX11Window(GWindows[i]);
+      win.InvalidateStyle();
+      win.Invalidate();
+    end;
+  end;
+end;
+
+procedure TFtX11Broadcaster.HandleStyleSheetChanged();
+var
+  i: Integer;
+  win: TFtX11Window;
+begin
+  if Assigned(GWindows) then
+  begin
+    for i := 0 to GWindows.Count - 1 do
+    begin
+      win := TFtX11Window(GWindows[i]);
+      win.InvalidateStyle();
+      win.Invalidate();
+    end;
   end;
 end;
 
@@ -293,7 +359,13 @@ begin
     GWindows := TFPList.Create();
   GWindows.Add(Self);
   GActiveWindow := Self;
-  FtThemeManager().OnThemeChange := @Self.OnThemeChanged;
+
+  if not Assigned(GBroadcaster) then
+  begin
+    GBroadcaster := TFtX11Broadcaster.Create();
+    FtThemeManager().OnThemeChange := @GBroadcaster.HandleThemeChanged;
+    FtGetStyleSheet().OnChange := @GBroadcaster.HandleStyleSheetChanged;
+  end;
 end;
 
 procedure TFtX11Window.SetTitle(const ATitle: string);
@@ -468,8 +540,6 @@ end;
 
 destructor TFtX11Window.Destroy();
 begin
-  if Assigned(FtThemeManager().OnThemeChange) then
-    FtThemeManager().OnThemeChange := nil;
   if Assigned(GWindows) then
     GWindows.Remove(Self);
   if GActiveWindow = Self then
@@ -569,12 +639,25 @@ begin
   end;
 end;
 
+function TFtX11Window.GetElementType(): string;
+begin
+  Result := 'window';
+end;
+
 procedure TFtX11Window.Repaint();
+var
+  st: TFtWidgetStyle;
 begin
   if (Width <= 0) or (Height <= 0) or (FWindow = None) or not Assigned(FCanvas) then Exit;
   FCanvas.ResetAllClipping();
   if not (FWindowType in [ftwtPopupMenu, ftwtDropdownMenu]) then
-    FtGetTheme().DrawWindowBackground(FCanvas, Width, Height);
+  begin
+    st := GetResolvedStyle();
+    if st.HasBgColor then
+      FCanvas.DrawRect(0, 0, Width, Height, st.BgColor.R, st.BgColor.G, st.BgColor.B)
+    else
+      FtGetTheme().DrawWindowBackground(FCanvas, Width, Height);
+  end;
   Self.Draw(FCanvas);
   XPutImage(FDisplay, FWindow, FGC, FXImage, 0, 0, 0, 0, Width, Height);
   XFlush(FDisplay);
@@ -594,6 +677,13 @@ end;
 
 procedure TFtX11Window.OnThemeChanged();
 begin
+  InvalidateStyle();
+  Invalidate();
+end;
+
+procedure TFtX11Window.OnStyleSheetChanged();
+begin
+  InvalidateStyle();
   Invalidate();
 end;
 
@@ -1329,5 +1419,17 @@ begin
     end;
   end;
 end;
+
+finalization
+  if Assigned(GBroadcaster) then
+  begin
+    if Assigned(FtThemeManager()) then
+      FtThemeManager().OnThemeChange := nil;
+    if Assigned(FtGetStyleSheet()) then
+      FtGetStyleSheet().OnChange := nil;
+    FreeAndNil(GBroadcaster);
+  end;
+  if Assigned(GWindows) then
+    FreeAndNil(GWindows);
 
 end.

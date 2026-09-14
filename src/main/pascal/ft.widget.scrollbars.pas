@@ -5,7 +5,7 @@ unit Ft.Widget.ScrollBars;
 interface
 
 uses
-  ctypes, SysUtils, Classes, Math, Ft.Canvas.Agg, Ft.Widget, Ft.Theme;
+  ctypes, SysUtils, Classes, Math, Ft.Canvas.Agg, Ft.Widget, Ft.Theme, Ft.Css;
 
 type
   { ScrollBar visibility modes for scrollable containers }
@@ -57,6 +57,9 @@ type
     procedure MouseDown(AX, AY: Integer; AButton: Integer); override;
     procedure MouseMove(AX, AY: Integer); override;
     procedure MouseUp(AX, AY: Integer; AButton: Integer); override;
+
+    function GetElementType(): string; override;
+    function GetStatePseudoClass(): string; override;
 
     procedure SetRange(AMin, AMax, APageSize: Double);
 
@@ -266,6 +269,23 @@ begin
     FOnScroll(Self, FValue, FUserData);
 end;
 
+function TFtScrollBar.GetElementType(): string;
+begin
+  Result := 'scrollbar';
+end;
+
+function TFtScrollBar.GetStatePseudoClass(): string;
+begin
+  if not FEnabled then
+    Result := ':disabled'
+  else if FDragging then
+    Result := ':active'
+  else if FHovered then
+    Result := ':hover'
+  else
+    Result := '';
+end;
+
 function TFtScrollBar.GetCursor(): Integer;
 begin
   Result := 0; { Arrow pointer }
@@ -275,6 +295,7 @@ procedure TFtScrollBar.MouseEnter();
 begin
   inherited MouseEnter();
   FHovered := True;
+  InvalidateStyle();
   Invalidate();
 end;
 
@@ -282,6 +303,7 @@ procedure TFtScrollBar.MouseLeave();
 begin
   inherited MouseLeave();
   FHovered := False;
+  InvalidateStyle();
   Invalidate();
 end;
 
@@ -314,6 +336,7 @@ begin
       else
         FDragStartMouse := AX;
       FDragStartValue := FValue;
+      InvalidateStyle();
       Invalidate();
     end
     else
@@ -373,6 +396,7 @@ begin
   if AButton = 1 then
   begin
     FDragging := False;
+    InvalidateStyle();
     Invalidate();
   end;
 end;
@@ -381,13 +405,51 @@ procedure TFtScrollBar.Draw(Canvas: TFtCanvasAgg);
 var
   curTheme: TFtTheme;
   tx, ty, tw, th: Double;
+  st: TFtWidgetStyle;
+  rad: Double;
+  trackR, trackG, trackB, trackA: Double;
+  thumbR, thumbG, thumbB, thumbA: Double;
 begin
   if not Visible then Exit;
 
-  curTheme := FtGetTheme();
+  st := GetResolvedStyle();
   GetThumbRect(tx, ty, tw, th);
 
-  curTheme.DrawScrollBar(Canvas, X, Y, Width, Height, FOrientation, tx, ty, tw, th, FHovered, FDragging, FCornerRadius);
+  if st.HasBgColor or st.HasTextColor or st.HasBorderRadius then
+  begin
+    if st.HasBorderRadius then
+      rad := st.BorderRadius
+    else if FCornerRadius >= 0.0 then
+      rad := FCornerRadius
+    else
+      rad := 3.0;
+
+    if st.HasBgColor then
+    begin
+      trackR := st.BgColor.R; trackG := st.BgColor.G; trackB := st.BgColor.B; trackA := st.BgColor.A;
+    end
+    else
+    begin
+      trackR := 0.92; trackG := 0.93; trackB := 0.95; trackA := 1.0;
+    end;
+
+    if st.HasTextColor then
+    begin
+      thumbR := st.TextColor.R; thumbG := st.TextColor.G; thumbB := st.TextColor.B; thumbA := st.TextColor.A;
+    end
+    else
+    begin
+      thumbR := 0.72; thumbG := 0.75; thumbB := 0.78; thumbA := 1.0;
+    end;
+
+    Canvas.DrawRoundedRect(X, Y, Width, Height, rad, trackR, trackG, trackB, trackA);
+    Canvas.DrawRoundedRect(tx, ty, tw, th, rad, thumbR, thumbG, thumbB, thumbA);
+  end
+  else
+  begin
+    curTheme := FtGetTheme();
+    curTheme.DrawScrollBar(Canvas, X, Y, Width, Height, FOrientation, tx, ty, tw, th, FHovered, FDragging, FCornerRadius);
+  end;
 
   inherited Draw(Canvas);
 end;

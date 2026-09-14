@@ -5,7 +5,7 @@ unit Ft.Theme;
 interface
 
 uses
-  SysUtils, Classes, IniFiles, Ft.Canvas.Agg, Ft.Font;
+  SysUtils, Classes, Ft.Canvas.Agg, Ft.Font;
 
 type
   { Button interactive states }
@@ -19,43 +19,13 @@ type
     R, G, B: Double;
   end;
 
-  { Complete color palette for a theme mode (Light or Dark) }
-  TFtThemePalette = record
-    WindowBg: TFtRgbColor;
-
-    BtnNormPlate: TFtRgbColor;
-    BtnNormBorder: TFtRgbColor;
-    BtnNormText: TFtRgbColor;
-    BtnNormBevelTop: TFtRgbColor;
-    BtnNormBevelBot: TFtRgbColor;
-
-    BtnHovPlate: TFtRgbColor;
-    BtnHovBorder: TFtRgbColor;
-    BtnHovText: TFtRgbColor;
-    BtnHovBevelTop: TFtRgbColor;
-    BtnHovBevelBot: TFtRgbColor;
-
-    BtnPressPlate: TFtRgbColor;
-    BtnPressBorder: TFtRgbColor;
-    BtnPressText: TFtRgbColor;
-    BtnPressBevelTop: TFtRgbColor;
-    BtnPressBevelBot: TFtRgbColor;
-
-    BtnTogPlate: TFtRgbColor;
-    BtnTogBorder: TFtRgbColor;
-    BtnTogText: TFtRgbColor;
-    BtnTogIndicator: TFtRgbColor;
-    BtnTogBevelTop: TFtRgbColor;
-    BtnTogBevelBot: TFtRgbColor;
-  end;
-
   { Forward declarations }
   TFtTheme = class;
   TFtThemeManager = class;
 
   TFtThemeChangeNotify = procedure() of object;
 
-  { Base theme class }
+  { Modern Vector Theme representation and fallback renderer }
   TFtTheme = class
   private
     FName: string;
@@ -66,10 +36,11 @@ type
     FShadowBlur: Double;
     FShadowOpacity: Double;
   public
-    constructor Create(const AName: string); virtual;
+    constructor Create(const AName: string = 'default'); virtual;
     destructor Destroy(); override;
 
     function GetName(): string; virtual;
+    procedure SetName(const AValue: string); virtual;
     function GetDarkMode(): Boolean; virtual;
     procedure SetDarkMode(AValue: Boolean); virtual;
 
@@ -79,21 +50,21 @@ type
     procedure SetEnableShadow(AValue: Boolean); virtual;
 
     function HasDarkMode(): Boolean; virtual;
-    procedure DrawWindowBackground(Canvas: TFtCanvasAgg; W, H: Integer); virtual; abstract;
+    procedure DrawWindowBackground(Canvas: TFtCanvasAgg; W, H: Integer); virtual;
     procedure DrawButton(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
                          State: TFtButtonState; Toggled: Boolean; 
                          const Caption: string; Font: TFtFont); virtual;
     procedure DrawButtonEx(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
                            State: TFtButtonState; Toggled: Boolean; 
                            const Caption: string; Font: TFtFont;
-                           CustomRadius: Double = -1.0; CustomShadow: Integer = -1); virtual; abstract;
+                           CustomRadius: Double = -1.0; CustomShadow: Integer = -1); virtual;
     procedure DrawSwitch(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
                          State: TFtButtonState; Checked: Boolean; 
                          const Caption: string; Font: TFtFont); virtual;
     procedure DrawSwitchEx(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
                            State: TFtButtonState; Checked: Boolean; 
                            const Caption: string; Font: TFtFont;
-                           CustomRadius: Double = -1.0; CustomShadow: Integer = -1); virtual; abstract;
+                           CustomRadius: Double = -1.0; CustomShadow: Integer = -1); virtual;
     function GetAccentColor(): TFtRgbColor; virtual;
     function GetTextColor(): TFtRgbColor; virtual;
     function GetInputBackground(): TFtRgbColor; virtual;
@@ -123,7 +94,7 @@ type
                                 Hovered, Enabled, Checked, HasSubMenu: Boolean); virtual;
     procedure DrawMenuSeparator(Canvas: TFtCanvasAgg; X, Y, W: Integer); virtual;
 
-    property Name: string read GetName;
+    property Name: string read GetName write SetName;
     property DarkMode: Boolean read GetDarkMode write SetDarkMode;
     property CornerRadius: Double read GetCornerRadius write SetCornerRadius;
     property EnableShadow: Boolean read GetEnableShadow write SetEnableShadow;
@@ -132,110 +103,41 @@ type
     property ShadowOpacity: Double read FShadowOpacity write FShadowOpacity;
   end;
 
-  { Default Theme: modern Breeze / Fusion flat vector look with rounded corners, vibrant blue accents, and soft drop shadows }
-  TFtThemeDefault = class(TFtTheme)
-  public
-    constructor Create(const AName: string = 'default'); override;
-    function HasDarkMode(): Boolean; override;
-    procedure DrawWindowBackground(Canvas: TFtCanvasAgg; W, H: Integer); override;
-    procedure DrawButtonEx(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
-                           State: TFtButtonState; Toggled: Boolean; 
-                           const Caption: string; Font: TFtFont;
-                           CustomRadius: Double = -1.0; CustomShadow: Integer = -1); override;
-    procedure DrawSwitchEx(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
-                           State: TFtButtonState; Checked: Boolean; 
-                           const Caption: string; Font: TFtFont;
-                           CustomRadius: Double = -1.0; CustomShadow: Integer = -1); override;
-    function GetAccentColor(): TFtRgbColor; override;
-    function GetTextColor(): TFtRgbColor; override;
-  end;
+  { Default theme class alias }
+  TFtThemeDefault = TFtTheme;
 
-  { Backward compatibility alias }
-  TFtThemeQt6 = TFtThemeDefault;
-
-  { Dynamic File-Based Theme: loaded at runtime from global or user *.theme files }
-  TFtFileTheme = class(TFtTheme)
-  private
-    FFilePath: string;
-    FAuthor: string;
-    FDescription: string;
-    FStyleType: string;
-    FHasDarkSection: Boolean;
-    FLightPalette: TFtThemePalette;
-    FDarkPalette: TFtThemePalette;
-    procedure LoadFromFile(const APath: string);
-    function GetActivePalette(): TFtThemePalette;
-  public
-    constructor CreateFromFile(const APath: string);
-    destructor Destroy(); override;
-
-    function HasDarkMode(): Boolean; override;
-    procedure DrawWindowBackground(Canvas: TFtCanvasAgg; W, H: Integer); override;
-    procedure DrawButtonEx(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
-                           State: TFtButtonState; Toggled: Boolean; 
-                           const Caption: string; Font: TFtFont;
-                           CustomRadius: Double = -1.0; CustomShadow: Integer = -1); override;
-    procedure DrawSwitchEx(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
-                           State: TFtButtonState; Checked: Boolean; 
-                           const Caption: string; Font: TFtFont;
-                           CustomRadius: Double = -1.0; CustomShadow: Integer = -1); override;
-    function GetAccentColor(): TFtRgbColor; override;
-    function GetTextColor(): TFtRgbColor; override;
-    function GetInputBackground(): TFtRgbColor; override;
-    function GetInputBorder(): TFtRgbColor; override;
-    function GetScrollBarTrackColor(): TFtRgbColor; override;
-    function GetScrollBarThumbColor(): TFtRgbColor; override;
-    function GetMenuBackground(): TFtRgbColor; override;
-    function GetMenuBorder(): TFtRgbColor; override;
-
-    property FilePath: string read FFilePath;
-    property Author: string read FAuthor;
-    property Description: string read FDescription;
-    property StyleType: string read FStyleType;
-  end;
-
-  { Theme Manager: handles registry, current active theme, file discovery, and desktop ricing auto-detection }
+  { CSS Theme Manager: scans themes/*.css and applies stylesheets dynamically }
   TFtThemeManager = class
   private
-    FThemes: TFPList;
     FCurrentTheme: TFtTheme;
     FDarkMode: Boolean;
+    FThemes: TStringList;
     FOnThemeChange: TFtThemeChangeNotify;
-    function DetectThemeName(): string;
-    function DetectDarkMode(): Boolean;
+    procedure ScanThemeDirectories();
+    function FindThemePath(const AName: string): string;
+    procedure SetDarkMode(AValue: Boolean);
   public
     constructor Create();
     destructor Destroy(); override;
 
-    procedure RegisterTheme(ATheme: TFtTheme);
-    function FindTheme(const AName: string): TFtTheme;
     function SetTheme(const AName: string): Boolean;
-    function GetCurrentTheme(): TFtTheme;
     function GetThemeName(): string;
     function GetAvailableThemes(): string;
-
-    function GetDarkMode(): Boolean;
-    procedure SetDarkMode(AValue: Boolean);
     function HasDarkMode(const AName: string): Boolean;
+    function LoadThemeFile(const AFilePath: string): Boolean;
+    function LoadThemeDir(const ADirPath: string): Integer;
 
     function GetCornerRadius(): Double;
     procedure SetCornerRadius(AValue: Double);
     function GetEnableShadow(): Boolean;
     procedure SetEnableShadow(AValue: Boolean);
 
-    function LoadThemeFile(const AFilePath: string): Boolean;
-    function LoadThemeDir(const ADirPath: string): Integer;
-    procedure ScanThemeDirectories();
-
-    property CurrentTheme: TFtTheme read GetCurrentTheme;
-    property DarkMode: Boolean read GetDarkMode write SetDarkMode;
+    property CurrentTheme: TFtTheme read FCurrentTheme;
+    property DarkMode: Boolean read FDarkMode write SetDarkMode;
     property CornerRadius: Double read GetCornerRadius write SetCornerRadius;
     property EnableShadow: Boolean read GetEnableShadow write SetEnableShadow;
     property OnThemeChange: TFtThemeChangeNotify read FOnThemeChange write FOnThemeChange;
   end;
-
-function ParseHexColor(const S: string; out R, G, B: Double): Boolean;
-function MakeRgbColor(R, G, B: Double): TFtRgbColor;
 
 function FtThemeManager(): TFtThemeManager;
 function FtGetTheme(): TFtTheme;
@@ -251,71 +153,163 @@ function FtGetCornerRadius(): Double;
 procedure FtSetCornerRadius(AValue: Double);
 function FtGetEnableShadow(): Boolean;
 procedure FtSetEnableShadow(AValue: Boolean);
+function MakeRgbColor(R, G, B: Double): TFtRgbColor;
 
 implementation
+
+uses
+  Ft.Css;
+
+const
+  DEFAULT_THEME_CSS =
+    'window {' + LineEnding +
+    '    background-color: #f0f2f5;' + LineEnding +
+    '    color: #1e293b;' + LineEnding +
+    '}' + LineEnding +
+    'window.dark {' + LineEnding +
+    '    background-color: #18181b;' + LineEnding +
+    '    color: #f1f5f9;' + LineEnding +
+    '}' + LineEnding +
+    'button {' + LineEnding +
+    '    background-color: #e2e8f0;' + LineEnding +
+    '    color: #0f172a;' + LineEnding +
+    '    border-color: #cbd5e1;' + LineEnding +
+    '    border-width: 1px;' + LineEnding +
+    '    border-radius: 6px;' + LineEnding +
+    '    box-shadow: 1;' + LineEnding +
+    '    transition: all 150ms ease;' + LineEnding +
+    '}' + LineEnding +
+    'button:hover {' + LineEnding +
+    '    background-color: #cbd5e1;' + LineEnding +
+    '    border-color: #94a3b8;' + LineEnding +
+    '    color: #0f172a;' + LineEnding +
+    '}' + LineEnding +
+    'button:active {' + LineEnding +
+    '    background-color: #94a3b8;' + LineEnding +
+    '    border-color: #64748b;' + LineEnding +
+    '    color: #020617;' + LineEnding +
+    '}' + LineEnding +
+    'button.dark {' + LineEnding +
+    '    background-color: #27272a;' + LineEnding +
+    '    color: #f4f4f5;' + LineEnding +
+    '    border-color: #3f3f46;' + LineEnding +
+    '}' + LineEnding +
+    'button.dark:hover {' + LineEnding +
+    '    background-color: #3f3f46;' + LineEnding +
+    '    border-color: #52525b;' + LineEnding +
+    '    color: #ffffff;' + LineEnding +
+    '}' + LineEnding +
+    'button.dark:active {' + LineEnding +
+    '    background-color: #18181b;' + LineEnding +
+    '    border-color: #27272a;' + LineEnding +
+    '    color: #e4e4e7;' + LineEnding +
+    '}' + LineEnding +
+    'entry, textarea {' + LineEnding +
+    '    background-color: #ffffff;' + LineEnding +
+    '    color: #0f172a;' + LineEnding +
+    '    border-color: #cbd5e1;' + LineEnding +
+    '    border-width: 1px;' + LineEnding +
+    '    border-radius: 5px;' + LineEnding +
+    '    box-shadow: 0;' + LineEnding +
+    '    transition: border-color 150ms ease;' + LineEnding +
+    '}' + LineEnding +
+    'entry:focus, textarea:focus {' + LineEnding +
+    '    border-color: #3b82f6;' + LineEnding +
+    '}' + LineEnding +
+    'entry.dark, textarea.dark {' + LineEnding +
+    '    background-color: #27272a;' + LineEnding +
+    '    color: #f4f4f5;' + LineEnding +
+    '    border-color: #3f3f46;' + LineEnding +
+    '}' + LineEnding +
+    'entry.dark:focus, textarea.dark:focus {' + LineEnding +
+    '    border-color: #60a5fa;' + LineEnding +
+    '}' + LineEnding +
+    'switch {' + LineEnding +
+    '    background-color: #cbd5e1;' + LineEnding +
+    '    border-color: #94a3b8;' + LineEnding +
+    '    border-radius: 12px;' + LineEnding +
+    '    transition: all 200ms ease;' + LineEnding +
+    '}' + LineEnding +
+    'switch:checked {' + LineEnding +
+    '    background-color: #3b82f6;' + LineEnding +
+    '    border-color: #2563eb;' + LineEnding +
+    '}' + LineEnding +
+    'switch.dark {' + LineEnding +
+    '    background-color: #3f3f46;' + LineEnding +
+    '    border-color: #52525b;' + LineEnding +
+    '}' + LineEnding +
+    'switch.dark:checked {' + LineEnding +
+    '    background-color: #3b82f6;' + LineEnding +
+    '    border-color: #60a5fa;' + LineEnding +
+    '}' + LineEnding +
+    'label {' + LineEnding +
+    '    color: #1e293b;' + LineEnding +
+    '}' + LineEnding +
+    'label.dark {' + LineEnding +
+    '    color: #f1f5f9;' + LineEnding +
+    '}' + LineEnding +
+    'scrollbar {' + LineEnding +
+    '    background-color: #f0f2f5;' + LineEnding +
+    '    color: #cbd5e1;' + LineEnding +
+    '    border-radius: 3px;' + LineEnding +
+    '    transition: all 150ms ease;' + LineEnding +
+    '}' + LineEnding +
+    'scrollbar:hover {' + LineEnding +
+    '    color: #94a3b8;' + LineEnding +
+    '}' + LineEnding +
+    'scrollbar:active {' + LineEnding +
+    '    color: #64748b;' + LineEnding +
+    '}' + LineEnding +
+    'scrollbar.dark {' + LineEnding +
+    '    background-color: #18181b;' + LineEnding +
+    '    color: #3f3f46;' + LineEnding +
+    '}' + LineEnding +
+    'scrollbar.dark:hover {' + LineEnding +
+    '    color: #52525b;' + LineEnding +
+    '}' + LineEnding +
+    'menu {' + LineEnding +
+    '    background-color: #ffffff;' + LineEnding +
+    '    border-color: #cbd5e1;' + LineEnding +
+    '    color: #1e293b;' + LineEnding +
+    '    border-radius: 6px;' + LineEnding +
+    '}' + LineEnding +
+    'menu:hover {' + LineEnding +
+    '    background-color: #3b82f6;' + LineEnding +
+    '    color: #ffffff;' + LineEnding +
+    '}' + LineEnding +
+    'menu.dark {' + LineEnding +
+    '    background-color: #27272a;' + LineEnding +
+    '    border-color: #3f3f46;' + LineEnding +
+    '    color: #f4f4f5;' + LineEnding +
+    '}' + LineEnding +
+    'menu.dark:hover {' + LineEnding +
+    '    background-color: #3b82f6;' + LineEnding +
+    '    color: #ffffff;' + LineEnding +
+    '}' + LineEnding +
+    'container {' + LineEnding +
+    '    background-color: #ffffff;' + LineEnding +
+    '    border-color: #cbd5e1;' + LineEnding +
+    '    border-width: 1px;' + LineEnding +
+    '    border-radius: 6px;' + LineEnding +
+    '}' + LineEnding +
+    'container.dark {' + LineEnding +
+    '    background-color: #27272a;' + LineEnding +
+    '    border-color: #3f3f46;' + LineEnding +
+    '}';
 
 var
   uThemeManager: TFtThemeManager = nil;
 
-function MakeRgbColor(R, G, B: Double): TFtRgbColor;
+function MakeRgb(R, G, B: Double): TFtRgbColor;
 begin
   Result.R := R;
   Result.G := G;
   Result.B := B;
 end;
 
-function ParseHexColor(const S: string; out R, G, B: Double): Boolean;
-var
-  clean: string;
-  val: LongWord;
+function MakeRgbColor(R, G, B: Double): TFtRgbColor;
 begin
-  Result := False;
-  clean := Trim(S);
-  if clean = '' then Exit;
-
-  if clean[1] = '#' then
-    Delete(clean, 1, 1)
-  else if (Length(clean) >= 2) and (clean[1] = '0') and (UpCase(clean[2]) = 'X') then
-    Delete(clean, 1, 2);
-
-  if Length(clean) = 3 then
-    clean := clean[1] + clean[1] + clean[2] + clean[2] + clean[3] + clean[3];
-
-  if Length(clean) = 6 then
-  begin
-    if TryStrToInt('$' + clean, LongInt(val)) then
-    begin
-      R := ((val shr 16) and $FF) / 255.0;
-      G := ((val shr 8) and $FF) / 255.0;
-      B := (val and $FF) / 255.0;
-      Result := True;
-    end;
-  end;
-end;
-
-procedure AdjustRgb(var C: TFtRgbColor; Factor: Double);
-begin
-  C.R := C.R * Factor;
-  if C.R > 1.0 then C.R := 1.0;
-  if C.R < 0.0 then C.R := 0.0;
-  C.G := C.G * Factor;
-  if C.G > 1.0 then C.G := 1.0;
-  if C.G < 0.0 then C.G := 0.0;
-  C.B := C.B * Factor;
-  if C.B > 1.0 then C.B := 1.0;
-  if C.B < 0.0 then C.B := 0.0;
-end;
-
-function ReadColorFromIni(Ini: TIniFile; const Section, Key: string; const DefaultColor: TFtRgbColor): TFtRgbColor;
-var
-  strVal: string;
-  r, g, b: Double;
-begin
-  strVal := Ini.ReadString(Section, Key, '');
-  if (strVal <> '') and ParseHexColor(strVal, r, g, b) then
-    Result := MakeRgbColor(r, g, b)
-  else
-    Result := DefaultColor;
+  Result := MakeRgb(R, G, B);
 end;
 
 { TFtTheme }
@@ -325,11 +319,11 @@ begin
   inherited Create();
   FName := AName;
   FDarkMode := False;
-  FCornerRadius := 4.0;
+  FCornerRadius := 6.0;
   FEnableShadow := True;
   FShadowOffsetY := 2.0;
-  FShadowBlur := 3.5;
-  FShadowOpacity := 0.15;
+  FShadowBlur := 4.0;
+  FShadowOpacity := 0.18;
 end;
 
 destructor TFtTheme.Destroy();
@@ -340,6 +334,11 @@ end;
 function TFtTheme.GetName(): string;
 begin
   Result := FName;
+end;
+
+procedure TFtTheme.SetName(const AValue: string);
+begin
+  FName := AValue;
 end;
 
 function TFtTheme.GetDarkMode(): Boolean;
@@ -374,535 +373,154 @@ end;
 
 function TFtTheme.HasDarkMode(): Boolean;
 begin
-  Result := False;
+  Result := True;
+end;
+
+procedure TFtTheme.DrawWindowBackground(Canvas: TFtCanvasAgg; W, H: Integer);
+var
+  st: TFtWidgetStyle;
+  cls: string;
+begin
+  if FDarkMode then cls := 'dark' else cls := '';
+  st := FtGetStyleSheet().ResolveStyle('window', '', cls, '', '');
+  if st.HasBgColor then
+    Canvas.DrawRect(0, 0, W, H, st.BgColor.R, st.BgColor.G, st.BgColor.B)
+  else if FDarkMode then
+    Canvas.DrawRect(0, 0, W, H, 0.09, 0.09, 0.11)
+  else
+    Canvas.DrawRect(0, 0, W, H, 0.94, 0.95, 0.96);
 end;
 
 procedure TFtTheme.DrawButton(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
-  State: TFtButtonState; Toggled: Boolean; const Caption: string; Font: TFtFont);
+                              State: TFtButtonState; Toggled: Boolean; 
+                              const Caption: string; Font: TFtFont);
 begin
   DrawButtonEx(Canvas, X, Y, W, H, State, Toggled, Caption, Font, -1.0, -1);
 end;
 
+procedure TFtTheme.DrawButtonEx(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
+                                State: TFtButtonState; Toggled: Boolean; 
+                                const Caption: string; Font: TFtFont;
+                                CustomRadius: Double; CustomShadow: Integer);
+var
+  actualFont: TFtFont;
+  rad, textR, textG, textB, plateR, plateG, plateB, borderR, borderG, borderB: Double;
+  shOffY, shBlur, shOpac: Double;
+  hasShadow: Boolean;
+begin
+  if CustomRadius >= 0.0 then
+    rad := CustomRadius
+  else
+    rad := FCornerRadius;
+
+  if CustomShadow >= 0 then
+    hasShadow := (CustomShadow = 1)
+  else
+    hasShadow := FEnableShadow;
+
+  shOffY := FShadowOffsetY;
+  shBlur := FShadowBlur;
+  shOpac := FShadowOpacity;
+
+  if FDarkMode then
+  begin
+    case State of
+      bsNormal:
+      begin
+        plateR := 0.22; plateG := 0.24; plateB := 0.26;
+        borderR := 0.32; borderG := 0.35; borderB := 0.38;
+        textR := 0.95; textG := 0.96; textB := 0.97;
+      end;
+      bsHovered:
+      begin
+        plateR := 0.28; plateG := 0.31; plateB := 0.34;
+        borderR := 0.45; borderG := 0.50; borderB := 0.55;
+        textR := 1.00; textG := 1.00; textB := 1.00;
+        shOffY := shOffY + 1.0;
+        shBlur := shBlur + 2.0;
+      end;
+      bsPressed:
+      begin
+        plateR := 0.16; plateG := 0.18; plateB := 0.20;
+        borderR := 0.24; borderG := 0.26; borderB := 0.28;
+        textR := 0.85; textG := 0.86; textB := 0.88;
+        shOffY := 1.0;
+        shBlur := 2.0;
+      end;
+    end;
+  end
+  else
+  begin
+    case State of
+      bsNormal:
+      begin
+        plateR := 0.96; plateG := 0.97; plateB := 0.98;
+        borderR := 0.80; borderG := 0.82; borderB := 0.85;
+        textR := 0.15; textG := 0.18; textB := 0.22;
+      end;
+      bsHovered:
+      begin
+        plateR := 1.00; plateG := 1.00; plateB := 1.00;
+        borderR := 0.65; borderG := 0.70; borderB := 0.78;
+        textR := 0.05; textG := 0.08; textB := 0.12;
+        shOffY := shOffY + 1.0;
+        shBlur := shBlur + 2.0;
+      end;
+      bsPressed:
+      begin
+        plateR := 0.90; plateG := 0.91; plateB := 0.93;
+        borderR := 0.70; borderG := 0.72; borderB := 0.75;
+        textR := 0.15; textG := 0.18; textB := 0.22;
+        shOffY := 1.0;
+        shBlur := 2.0;
+      end;
+    end;
+  end;
+
+  if Toggled then
+  begin
+    plateR := 0.23; plateG := 0.51; plateB := 0.96;
+    borderR := 0.18; borderG := 0.42; borderB := 0.85;
+    textR := 1.0; textG := 1.0; textB := 1.0;
+  end;
+
+  // 1. Drop shadow
+  if hasShadow and (State <> bsPressed) then
+    Canvas.DrawShadow(X, Y, W, H, rad, 0.0, shOffY, shBlur, 0.0, 0.0, 0.0, shOpac);
+
+  // 2. Button plate
+  Canvas.DrawRoundedRect(X, Y, W, H, rad, plateR, plateG, plateB);
+
+  // 3. Border outline
+  Canvas.DrawRoundedRectOutline(X, Y, W, H, rad, 1.0, borderR, borderG, borderB);
+
+  // 4. Centered text
+  if Caption <> '' then
+  begin
+    if not Assigned(Font) then
+      actualFont := FtGetSystemFont()
+    else
+      actualFont := Font;
+    Canvas.DrawTextCentered(X, Y, W, H, Caption, actualFont, textR, textG, textB);
+  end;
+end;
+
 procedure TFtTheme.DrawSwitch(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
-  State: TFtButtonState; Checked: Boolean; const Caption: string; Font: TFtFont);
+                              State: TFtButtonState; Checked: Boolean; 
+                              const Caption: string; Font: TFtFont);
 begin
   DrawSwitchEx(Canvas, X, Y, W, H, State, Checked, Caption, Font, -1.0, -1);
 end;
 
-function TFtTheme.GetAccentColor(): TFtRgbColor;
-begin
-  Result := MakeRgbColor(0.24, 0.60, 0.92);
-end;
-
-function TFtTheme.GetTextColor(): TFtRgbColor;
-begin
-  if DarkMode then
-    Result := MakeRgbColor(0.935, 0.942, 0.950)
-  else
-    Result := MakeRgbColor(0.12, 0.14, 0.16);
-end;
-
-procedure TFtTheme.DrawFocusRing(Canvas: TFtCanvasAgg; X, Y, W, H: Double; Radius: Double);
-var
-  accent: TFtRgbColor;
-  ringOffset, ringWidth: Double;
-begin
-  if (W <= 0) or (H <= 0) then Exit;
-  accent := GetAccentColor();
-  ringOffset := 2.0;
-  ringWidth := 1.8;
-  if Radius < 0.0 then
-    Radius := CornerRadius;
-  Canvas.DrawRoundedRectOutline(
-    X - ringOffset,
-    Y - ringOffset,
-    W + (ringOffset * 2.0),
-    H + (ringOffset * 2.0),
-    Radius + ringOffset,
-    ringWidth,
-    accent.R, accent.G, accent.B, 0.90
-  );
-end;
-
-function TFtTheme.GetInputBackground(): TFtRgbColor;
-begin
-  if DarkMode then
-    Result := MakeRgbColor(0.12, 0.14, 0.18)
-  else
-    Result := MakeRgbColor(1.0, 1.0, 1.0);
-end;
-
-function TFtTheme.GetInputBorder(): TFtRgbColor;
-begin
-  if DarkMode then
-    Result := MakeRgbColor(0.24, 0.28, 0.35)
-  else
-    Result := MakeRgbColor(0.80, 0.83, 0.88);
-end;
-
-function TFtTheme.GetInputPlaceholderColor(): TFtRgbColor;
-begin
-  if DarkMode then
-    Result := MakeRgbColor(0.55, 0.60, 0.68)
-  else
-    Result := MakeRgbColor(0.60, 0.64, 0.70);
-end;
-
-procedure TFtTheme.DrawInputPlate(Canvas: TFtCanvasAgg; X, Y, W, H: Double; Focused: Boolean; CustomRadius: Double = -1.0);
-var
-  effRadius: Double;
-  bgCol, borderCol: TFtRgbColor;
-begin
-  if (W <= 0) or (H <= 0) then Exit;
-  if CustomRadius >= 0.0 then
-    effRadius := CustomRadius
-  else
-    effRadius := CornerRadius;
-
-  bgCol := GetInputBackground();
-  if Focused then
-    borderCol := GetAccentColor()
-  else
-    borderCol := GetInputBorder();
-
-  { Draw background plate }
-  Canvas.DrawRoundedRect(X, Y, W, H, effRadius, bgCol.R, bgCol.G, bgCol.B, 1.0);
-
-  { Draw border outline }
-  Canvas.DrawRoundedRectOutline(X, Y, W, H, effRadius, 1.0, borderCol.R, borderCol.G, borderCol.B, 1.0);
-
-  { If focused, draw theme focus ring }
-  if Focused then
-    DrawFocusRing(Canvas, X, Y, W, H, effRadius);
-end;
-
-function TFtTheme.GetScrollBarTrackColor(): TFtRgbColor;
-begin
-  if DarkMode then
-    Result := MakeRgbColor(0.18, 0.20, 0.25)
-  else
-    Result := MakeRgbColor(0.92, 0.93, 0.95);
-end;
-
-function TFtTheme.GetScrollBarThumbColor(): TFtRgbColor;
-begin
-  if DarkMode then
-    Result := MakeRgbColor(0.42, 0.46, 0.54)
-  else
-    Result := MakeRgbColor(0.68, 0.72, 0.78);
-end;
-
-procedure TFtTheme.DrawScrollBar(Canvas: TFtCanvasAgg; X, Y, W, H: Double;
-  Orientation: TFtScrollBarOrientation;
-  ThumbX, ThumbY, ThumbW, ThumbH: Double;
-  Hovered, Dragging: Boolean;
-  CustomRadius: Double = -1.0);
-var
-  trackRad, thumbRad, alpha: Double;
-  trackCol, thumbCol: TFtRgbColor;
-begin
-  if (W <= 0) or (H <= 0) then Exit;
-
-  if CustomRadius >= 0.0 then
-  begin
-    trackRad := CustomRadius;
-    thumbRad := CustomRadius;
-  end
-  else
-  begin
-    if Orientation = ftSbVertical then
-      trackRad := W / 2.0
-    else
-      trackRad := H / 2.0;
-    thumbRad := trackRad;
-  end;
-
-  trackCol := GetScrollBarTrackColor();
-  thumbCol := GetScrollBarThumbColor();
-
-  { Subtle track background when hovered or dragging }
-  if Hovered or Dragging then
-    Canvas.DrawRoundedRect(X, Y, W, H, trackRad, trackCol.R, trackCol.G, trackCol.B, 0.35);
-
-  { Thumb styling }
-  if Dragging then
-  begin
-    thumbCol := GetAccentColor();
-    alpha := 0.90;
-  end
-  else if Hovered then
-  begin
-    AdjustRgb(thumbCol, 1.15);
-    alpha := 0.80;
-  end
-  else
-    alpha := 0.55;
-
-  Canvas.DrawRoundedRect(ThumbX, ThumbY, ThumbW, ThumbH, thumbRad, thumbCol.R, thumbCol.G, thumbCol.B, alpha);
-end;
-
-function TFtTheme.GetMenuBackground(): TFtRgbColor;
-begin
-  if DarkMode then
-    Result := MakeRgbColor(0.16, 0.18, 0.22)
-  else
-    Result := MakeRgbColor(0.98, 0.98, 0.99);
-end;
-
-function TFtTheme.GetMenuBorder(): TFtRgbColor;
-begin
-  if DarkMode then
-    Result := MakeRgbColor(0.28, 0.32, 0.38)
-  else
-    Result := MakeRgbColor(0.82, 0.85, 0.90);
-end;
-
-function TFtTheme.GetMenuHoverBackground(): TFtRgbColor;
-begin
-  Result := GetAccentColor();
-end;
-
-function TFtTheme.GetMenuHoverTextColor(): TFtRgbColor;
-begin
-  Result := MakeRgbColor(1.0, 1.0, 1.0);
-end;
-
-function TFtTheme.GetMenuSeparatorColor(): TFtRgbColor;
-begin
-  if DarkMode then
-    Result := MakeRgbColor(0.25, 0.28, 0.34)
-  else
-    Result := MakeRgbColor(0.88, 0.90, 0.93);
-end;
-
-procedure TFtTheme.DrawMenuBar(Canvas: TFtCanvasAgg; X, Y, W, H: Integer);
-var
-  bgCol, borderCol: TFtRgbColor;
-begin
-  if (W <= 0) or (H <= 0) then Exit;
-  if DarkMode then
-  begin
-    bgCol := MakeRgbColor(0.14, 0.15, 0.18);
-    borderCol := MakeRgbColor(0.22, 0.24, 0.28);
-  end
-  else
-  begin
-    bgCol := MakeRgbColor(0.95, 0.96, 0.97);
-    borderCol := MakeRgbColor(0.86, 0.88, 0.91);
-  end;
-
-  Canvas.DrawRect(X, Y, W, H, bgCol.R, bgCol.G, bgCol.B);
-  Canvas.DrawRect(X, Y + H - 1, W, 1, borderCol.R, borderCol.G, borderCol.B);
-end;
-
-procedure TFtTheme.DrawMenuBarItem(Canvas: TFtCanvasAgg; X, Y, W, H: Integer;
-  const Caption: string; Font: TFtFont; Hovered, Active: Boolean);
-var
-  pillCol, txtCol: TFtRgbColor;
-begin
-  if (W <= 0) or (H <= 0) then Exit;
-
-  if Active then
-  begin
-    pillCol := GetAccentColor();
-    txtCol := MakeRgbColor(1.0, 1.0, 1.0);
-    Canvas.DrawRect(X, Y, W, H, pillCol.R, pillCol.G, pillCol.B);
-  end
-  else if Hovered then
-  begin
-    if DarkMode then
-      pillCol := MakeRgbColor(0.25, 0.28, 0.35)
-    else
-      pillCol := MakeRgbColor(0.88, 0.90, 0.94);
-    txtCol := GetTextColor();
-    Canvas.DrawRect(X, Y, W, H, pillCol.R, pillCol.G, pillCol.B);
-  end
-  else
-    txtCol := GetTextColor();
-
-  if Assigned(Font) then
-    Canvas.DrawTextCentered(X, Y, W, H, Caption, Font, txtCol.R, txtCol.G, txtCol.B);
-end;
-
-procedure TFtTheme.DrawPopupMenuPlate(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; CustomRadius: Double = -1.0);
-var
-  bgCol, borderCol: TFtRgbColor;
-begin
-  if (W <= 0) or (H <= 0) then Exit;
-  bgCol := GetMenuBackground();
-  borderCol := GetMenuBorder();
-
-  { Flat rectangular plate filling the native popup window }
-  { Rounded corners and drop shadows are handled natively by the X11 compositor }
-  Canvas.DrawRoundedRect(X, Y, W, H, 0.0, bgCol.R, bgCol.G, bgCol.B, 1.0);
-  Canvas.DrawRoundedRectOutline(X, Y, W, H, 0.0, 1.0, borderCol.R, borderCol.G, borderCol.B, 1.0);
-end;
-
-procedure TFtTheme.DrawPopupMenuItem(Canvas: TFtCanvasAgg; X, Y, W, H: Integer;
-  const Caption, Shortcut: string; Font: TFtFont;
-  Hovered, Enabled, Checked, HasSubMenu: Boolean);
-var
-  pillCol, txtCol, iconCol, checkCol: TFtRgbColor;
-  tx, ty, sw: Double;
-begin
-  if (W <= 0) or (H <= 0) then Exit;
-
-  if Hovered and Enabled then
-  begin
-    pillCol := GetMenuHoverBackground();
-    Canvas.DrawRect(X, Y, W, H, pillCol.R, pillCol.G, pillCol.B);
-    txtCol := GetMenuHoverTextColor();
-    iconCol := GetMenuHoverTextColor();
-    checkCol := GetMenuHoverTextColor();
-  end
-  else
-  begin
-    if Enabled then
-    begin
-      txtCol := GetTextColor();
-      iconCol := GetTextColor();
-      checkCol := GetAccentColor();
-    end
-    else
-    begin
-      if DarkMode then
-        txtCol := MakeRgbColor(0.42, 0.46, 0.52)
-      else
-        txtCol := MakeRgbColor(0.62, 0.65, 0.70);
-      iconCol := txtCol;
-      checkCol := txtCol;
-    end;
-  end;
-
-  if Checked then
-    Canvas.DrawCheckMark(X + 13.0, Y + H / 2.0, checkCol.R, checkCol.G, checkCol.B, 1.0);
-
-  if Assigned(Font) then
-    ty := Y + (H / 2.0) + (Font.Ascent - Font.Descent) / 2.0
-  else
-    ty := Y + H / 2.0 + 4.0;
-
-  if Assigned(Font) and (Caption <> '') then
-  begin
-    tx := X + 26.0;
-    Canvas.DrawText(tx, ty, Caption, Font, txtCol.R, txtCol.G, txtCol.B);
-  end;
-
-  if Assigned(Font) and (Shortcut <> '') then
-  begin
-    sw := Font.GetTextWidth(Shortcut);
-    if HasSubMenu then
-      tx := X + W - 26.0 - sw
-    else
-      tx := X + W - 14.0 - sw;
-    Canvas.DrawText(tx, ty, Shortcut, Font, iconCol.R, iconCol.G, iconCol.B);
-  end;
-
-  if HasSubMenu then
-    Canvas.DrawSubMenuArrow(X + W - 11.0, Y + H / 2.0, iconCol.R, iconCol.G, iconCol.B, 1.0);
-end;
-
-procedure TFtTheme.DrawMenuSeparator(Canvas: TFtCanvasAgg; X, Y, W: Integer);
-var
-  sepCol: TFtRgbColor;
-begin
-  if W <= 0 then Exit;
-  sepCol := GetMenuSeparatorColor();
-  Canvas.DrawRect(X + 2, Y + 3, W - 4, 1, sepCol.R, sepCol.G, sepCol.B);
-end;
-
-{ TFtThemeDefault }
-
-constructor TFtThemeDefault.Create(const AName: string);
-begin
-  inherited Create(AName);
-  FCornerRadius := 5.0; // Modern Breeze flat vector curvature
-  FEnableShadow := True;
-  FShadowOffsetY := 2.0;
-  FShadowBlur := 4.0;
-  FShadowOpacity := 0.14;
-end;
-
-function TFtThemeDefault.HasDarkMode(): Boolean;
-begin
-  Result := True;
-end;
-
-function TFtThemeDefault.GetAccentColor(): TFtRgbColor;
-begin
-  Result := MakeRgbColor(0.24, 0.60, 0.92);
-end;
-
-function TFtThemeDefault.GetTextColor(): TFtRgbColor;
-begin
-  if DarkMode then
-    Result := MakeRgbColor(0.935, 0.942, 0.950)
-  else
-    Result := MakeRgbColor(0.12, 0.14, 0.16);
-end;
-
-procedure TFtThemeDefault.DrawWindowBackground(Canvas: TFtCanvasAgg; W, H: Integer);
-begin
-  if DarkMode then
-    Canvas.Clear(0.137, 0.149, 0.161)
-  else
-    Canvas.Clear(0.935, 0.942, 0.950);
-end;
-
-procedure TFtThemeDefault.DrawButtonEx(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
-  State: TFtButtonState; Toggled: Boolean; const Caption: string; Font: TFtFont;
-  CustomRadius: Double; CustomShadow: Integer);
-var
-  borderR, borderG, borderB: Double;
-  plateR, plateG, plateB: Double;
-  textR, textG, textB: Double;
-  textOffsetX, textOffsetY: Integer;
-  rad: Double;
-  hasShadow: Boolean;
-  sRed, sGreen, sBlue, shOffY, shBlur, shOpac: Double;
-begin
-  textOffsetX := 0;
-  textOffsetY := 0;
-
-  rad := FCornerRadius;
-  if CustomRadius >= 0.0 then rad := CustomRadius;
-
-  hasShadow := FEnableShadow;
-  if CustomShadow = 0 then hasShadow := False
-  else if CustomShadow > 0 then hasShadow := True;
-
-  sRed := 0.0; sGreen := 0.0; sBlue := 0.0;
-
-  if DarkMode then
-  begin
-    if Toggled then
-    begin
-      borderR := 0.24; borderG := 0.60; borderB := 0.92;
-      plateR  := 0.16; plateG  := 0.22; plateB  := 0.28;
-      textR   := 0.35; textG   := 0.70; textB   := 0.95;
-      textOffsetY := 1;
-    end
-    else
-    begin
-      case State of
-        bsPressed:
-        begin
-          borderR := 0.15; borderG := 0.50; borderB := 0.85;
-          plateR  := 0.16; plateG  := 0.18; plateB  := 0.20;
-          textR   := 0.24; textG   := 0.60; textB   := 0.92;
-          textOffsetY := 1;
-        end;
-        bsHovered:
-        begin
-          borderR := 0.24; borderG := 0.60; borderB := 0.92; // Breeze Blue
-          plateR  := 0.23; plateG  := 0.25; plateB  := 0.27;
-          textR   := 1.00; textG   := 1.00; textB   := 1.00;
-          // Blue glow shadow on hover in dark mode!
-          sRed := 0.24; sGreen := 0.60; sBlue := 0.92;
-        end;
-        else // bsNormal
-        begin
-          borderR := 0.28; borderG := 0.30; borderB := 0.32;
-          plateR  := 0.19; plateG  := 0.21; plateB  := 0.23;
-          textR   := 0.935; textG  := 0.942; textB  := 0.950;
-        end;
-      end;
-    end;
-  end
-  else
-  begin
-    if Toggled then
-    begin
-      borderR := 0.24; borderG := 0.60; borderB := 0.92;
-      plateR  := 0.86; plateG  := 0.91; plateB  := 0.97;
-      textR   := 0.10; textG   := 0.30; textB   := 0.58;
-      textOffsetY := 1;
-    end
-    else
-    begin
-      case State of
-        bsPressed:
-        begin
-          borderR := 0.18; borderG := 0.50; borderB := 0.85;
-          plateR  := 0.86; plateG  := 0.90; plateB  := 0.94;
-          textR   := 0.08; textG   := 0.25; textB   := 0.52;
-          textOffsetY := 1;
-        end;
-        bsHovered:
-        begin
-          borderR := 0.24; borderG := 0.60; borderB := 0.92; // Breeze Blue
-          plateR  := 1.00; plateG  := 1.00; plateB  := 1.00;
-          textR   := 0.08; textG   := 0.12; textB   := 0.18;
-          sRed := 0.24; sGreen := 0.60; sBlue := 0.92;
-        end;
-        else // bsNormal
-        begin
-          borderR := 0.74; borderG := 0.77; borderB := 0.82;
-          plateR  := 0.975; plateG := 0.980; plateB := 0.985;
-          textR   := 0.16; textG   := 0.18; textB   := 0.22;
-        end;
-      end;
-    end;
-  end;
-
-  // 1. Soft Drop Shadow
-  if hasShadow and not Toggled then
-  begin
-    if State = bsPressed then
-    begin
-      shOffY := 0.5;
-      shBlur := 1.5;
-      shOpac := 0.08;
-    end
-    else if State = bsHovered then
-    begin
-      shOffY := FShadowOffsetY + 0.5;
-      shBlur := FShadowBlur + 2.0;
-      if DarkMode then
-        shOpac := 0.28
-      else
-        shOpac := 0.20;
-    end
-    else
-    begin
-      shOffY := FShadowOffsetY;
-      shBlur := FShadowBlur;
-      if DarkMode then
-        shOpac := 0.25
-      else
-        shOpac := FShadowOpacity;
-    end;
-    Canvas.DrawShadow(X, Y, W, H, rad, 0.0, shOffY, shBlur, sRed, sGreen, sBlue, shOpac);
-  end;
-
-  // 2. Rounded Button Plate Fill
-  Canvas.DrawRoundedRect(X + 0.5, Y + 0.5, W - 1.0, H - 1.0, rad, plateR, plateG, plateB);
-
-  // 3. Rounded Border (1px)
-  Canvas.DrawRoundedRectOutline(X, Y, W, H, rad, 1.0, borderR, borderG, borderB);
-
-  // 4. Button Caption
-  if Caption <> '' then
-    Canvas.DrawTextCentered(X + textOffsetX, Y + textOffsetY, W, H, Caption, Font, textR, textG, textB);
-end;
-
-procedure TFtThemeDefault.DrawSwitchEx(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
-  State: TFtButtonState; Checked: Boolean; const Caption: string; Font: TFtFont;
-  CustomRadius: Double; CustomShadow: Integer);
+procedure TFtTheme.DrawSwitchEx(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
+                                State: TFtButtonState; Checked: Boolean; 
+                                const Caption: string; Font: TFtFont;
+                                CustomRadius: Double; CustomShadow: Integer);
 var
   trackW, trackH: Integer;
-  rad: Double;
-  hasShadow: Boolean;
-  pad: Double;
-  thumbD: Double;
-  thumbX, thumbY: Double;
-  labelX, labelY: Double;
-  trackR, trackG, trackB: Double;
-  borderR, borderG, borderB: Double;
-  thumbR, thumbG, thumbB: Double;
-  thumbBorderR, thumbBorderG, thumbBorderB: Double;
+  rad, thumbD, thumbX, thumbY, labelX, labelY: Double;
+  trackR, trackG, trackB, borderR, borderG, borderB, thumbR, thumbG, thumbB: Double;
   textR, textG, textB: Double;
-  sRed, sGreen, sBlue, shOffY, shBlur, shOpac: Double;
   actualFont: TFtFont;
 begin
   if (Caption <> '') and (W >= Round(H * 2.2)) then
@@ -910,133 +528,64 @@ begin
     trackH := H;
     trackW := Round(H * 1.85);
     if trackW < 36 then trackW := 36;
-    labelX := X + trackW + 10;
+    labelX := X + trackW + 8;
   end
   else
   begin
     trackH := H;
     trackW := W;
-    labelX := 0;
+    labelX := X + W + 8;
   end;
 
   rad := trackH / 2.0;
-  if (CustomRadius >= 0.0) and (CustomRadius < rad) then
-    rad := CustomRadius;
-
-  hasShadow := FEnableShadow;
-  if CustomShadow = 0 then hasShadow := False
-  else if CustomShadow > 0 then hasShadow := True;
-
-  pad := 3.0;
-  if trackH < 22 then pad := 2.0;
-  thumbD := trackH - pad * 2.0;
-  if thumbD < 4.0 then thumbD := 4.0;
-  thumbY := Y + pad;
+  thumbD := trackH - 4.0;
+  thumbY := Y + 2.0;
 
   if Checked then
-    thumbX := X + trackW - pad - thumbD
+    thumbX := X + trackW - thumbD - 2.0
   else
-    thumbX := X + pad;
+    thumbX := X + 2.0;
 
-  sRed := 0.0; sGreen := 0.0; sBlue := 0.0;
-  shOffY := FShadowOffsetY;
-  shBlur := FShadowBlur;
-  shOpac := FShadowOpacity;
-
-  if DarkMode then
+  if Checked then
   begin
-    textR := 0.935; textG := 0.942; textB := 0.950;
-    if Checked then
-    begin
-      trackR := 0.24; trackG := 0.60; trackB := 0.92; // Breeze Blue
-      borderR := 0.18; borderG := 0.52; borderB := 0.84;
-      thumbR := 1.00; thumbG := 1.00; thumbB := 1.00;
-      thumbBorderR := 0.90; thumbBorderG := 0.95; thumbBorderB := 1.00;
-      // Blue glow shadow
-      sRed := 0.24; sGreen := 0.60; sBlue := 0.92;
-      shOpac := 0.35;
-    end
-    else
-    begin
-      trackR := 0.18; trackG := 0.20; trackB := 0.22;
-      if State = bsHovered then
-      begin
-        borderR := 0.24; borderG := 0.60; borderB := 0.92;
-      end
-      else
-      begin
-        borderR := 0.32; borderG := 0.35; borderB := 0.38;
-      end;
-      thumbR := 0.92; thumbG := 0.94; thumbB := 0.96;
-      thumbBorderR := 0.70; thumbBorderG := 0.72; thumbBorderB := 0.75;
-    end;
+    trackR := 0.23; trackG := 0.51; trackB := 0.96;
+    borderR := 0.18; borderG := 0.42; borderB := 0.85;
+    thumbR := 1.0; thumbG := 1.0; thumbB := 1.0;
   end
   else
   begin
-    textR := 0.12; textG := 0.14; textB := 0.16;
-    if Checked then
+    if FDarkMode then
     begin
-      trackR := 0.24; trackG := 0.60; trackB := 0.92; // Breeze Blue
-      borderR := 0.18; borderG := 0.52; borderB := 0.84;
-      thumbR := 1.00; thumbG := 1.00; thumbB := 1.00;
-      thumbBorderR := 0.92; thumbBorderG := 0.96; thumbBorderB := 1.00;
-      // Soft blue glow
-      sRed := 0.24; sGreen := 0.60; sBlue := 0.92;
-      shOpac := 0.28;
+      trackR := 0.25; trackG := 0.27; trackB := 0.30;
+      borderR := 0.35; borderG := 0.38; borderB := 0.42;
+      thumbR := 0.90; thumbG := 0.92; thumbB := 0.94;
     end
     else
     begin
-      trackR := 0.86; trackG := 0.88; trackB := 0.90;
-      if State = bsHovered then
-      begin
-        borderR := 0.24; borderG := 0.60; borderB := 0.92;
-      end
-      else
-      begin
-        borderR := 0.70; borderG := 0.73; borderB := 0.76;
-      end;
-      thumbR := 1.00; thumbG := 1.00; thumbB := 1.00;
-      thumbBorderR := 0.78; thumbBorderG := 0.80; thumbBorderB := 0.83;
+      trackR := 0.85; trackG := 0.87; trackB := 0.90;
+      borderR := 0.75; borderG := 0.77; borderB := 0.80;
+      thumbR := 1.0; thumbG := 1.0; thumbB := 1.0;
     end;
   end;
 
-  if State = bsHovered then
+  if FDarkMode then
   begin
-    if Checked then
-    begin
-      trackR := 0.30; trackG := 0.66; trackB := 0.98;
-    end;
+    textR := 0.95; textG := 0.96; textB := 0.97;
   end
-  else if State = bsPressed then
+  else
   begin
-    if Checked then
-    begin
-      trackR := 0.18; trackG := 0.52; trackB := 0.84;
-    end;
+    textR := 0.15; textG := 0.18; textB := 0.22;
   end;
 
-  // 1. Soft track shadow / glow
-  if hasShadow then
-    Canvas.DrawShadow(X, Y, trackW, trackH, rad, 0.0, shOffY, shBlur, sRed, sGreen, sBlue, shOpac);
-
-  // 2. Track Plate
-  Canvas.DrawRoundedRect(X + 0.5, Y + 0.5, trackW - 1.0, trackH - 1.0, rad, trackR, trackG, trackB);
-
-  // 3. Track Border Outline
+  // Track plate
+  Canvas.DrawRoundedRect(X, Y, trackW, trackH, rad, trackR, trackG, trackB);
   Canvas.DrawRoundedRectOutline(X, Y, trackW, trackH, rad, 1.0, borderR, borderG, borderB);
 
-  // 4. Thumb Elevation Shadow
-  if hasShadow then
-    Canvas.DrawShadow(thumbX, thumbY, thumbD, thumbD, thumbD / 2.0, 0.0, 1.5, 2.5, 0.0, 0.0, 0.0, 0.30);
-
-  // 5. Thumb Plate
+  // Thumb plate
   Canvas.DrawRoundedRect(thumbX, thumbY, thumbD, thumbD, thumbD / 2.0, thumbR, thumbG, thumbB);
 
-  // 6. Thumb Border
-  Canvas.DrawRoundedRectOutline(thumbX, thumbY, thumbD, thumbD, thumbD / 2.0, 0.8, thumbBorderR, thumbBorderG, thumbBorderB);
-
-  // 7. Caption Text
-  if (Caption <> '') and (labelX > X) then
+  // Caption text
+  if Caption <> '' then
   begin
     if not Assigned(Font) then
       actualFont := FtGetSystemFont()
@@ -1047,600 +596,390 @@ begin
   end;
 end;
 
-{ TFtFileTheme }
-
-constructor TFtFileTheme.CreateFromFile(const APath: string);
-begin
-  FFilePath := APath;
-  FName := ChangeFileExt(ExtractFileName(APath), '');
-  FDarkMode := False;
-  FAuthor := 'Community';
-  FDescription := '';
-  FStyleType := 'modern';
-  FHasDarkSection := False;
-
-  LoadFromFile(APath);
-  inherited Create(FName);
-end;
-
-destructor TFtFileTheme.Destroy();
-begin
-  inherited Destroy();
-end;
-
-procedure ReadPalette(Ini: TIniFile; const Section: string; var Pal: TFtThemePalette; IsDark: Boolean);
+function TFtTheme.GetAccentColor(): TFtRgbColor;
 var
-  defPlate, defBorder, defText: TFtRgbColor;
-  defHovPlate, defHovBorder: TFtRgbColor;
-  defPressPlate: TFtRgbColor;
-  defTop, defBot: TFtRgbColor;
+  st: TFtWidgetStyle;
+  cls: string;
 begin
-  if IsDark then
-  begin
-    Pal.WindowBg := ReadColorFromIni(Ini, Section, 'window.bg', MakeRgbColor(0.15, 0.16, 0.18));
-    defPlate   := MakeRgbColor(0.22, 0.24, 0.26);
-    defBorder  := MakeRgbColor(0.35, 0.38, 0.42);
-    defText    := MakeRgbColor(0.92, 0.93, 0.95);
-    defHovPlate:= MakeRgbColor(0.28, 0.30, 0.33);
-    defHovBorder:= MakeRgbColor(0.24, 0.60, 0.92);
-    defPressPlate := MakeRgbColor(0.18, 0.19, 0.21);
-  end
+  if FDarkMode then cls := 'dark' else cls := '';
+  st := FtGetStyleSheet().ResolveStyle('switch', '', cls, ':checked', '');
+  if st.HasBgColor then
+    Result := MakeRgb(st.BgColor.R, st.BgColor.G, st.BgColor.B)
   else
-  begin
-    Pal.WindowBg := ReadColorFromIni(Ini, Section, 'window.bg', MakeRgbColor(0.94, 0.94, 0.95));
-    defPlate   := MakeRgbColor(0.96, 0.96, 0.97);
-    defBorder  := MakeRgbColor(0.75, 0.78, 0.82);
-    defText    := MakeRgbColor(0.15, 0.17, 0.20);
-    defHovPlate:= MakeRgbColor(1.00, 1.00, 1.00);
-    defHovBorder:= MakeRgbColor(0.24, 0.60, 0.92);
-    defPressPlate := MakeRgbColor(0.88, 0.90, 0.93);
-  end;
-
-  Pal.BtnNormPlate  := ReadColorFromIni(Ini, Section, 'button.normal.plate', defPlate);
-  Pal.BtnNormBorder := ReadColorFromIni(Ini, Section, 'button.normal.border', defBorder);
-  Pal.BtnNormText   := ReadColorFromIni(Ini, Section, 'button.normal.text', defText);
-
-  defTop := Pal.BtnNormPlate;
-  AdjustRgb(defTop, 1.15);
-  defBot := Pal.BtnNormPlate;
-  AdjustRgb(defBot, 0.85);
-  Pal.BtnNormBevelTop := ReadColorFromIni(Ini, Section, 'button.normal.bevel.top', defTop);
-  Pal.BtnNormBevelBot := ReadColorFromIni(Ini, Section, 'button.normal.bevel.bot', defBot);
-
-  Pal.BtnHovPlate  := ReadColorFromIni(Ini, Section, 'button.hover.plate', defHovPlate);
-  Pal.BtnHovBorder := ReadColorFromIni(Ini, Section, 'button.hover.border', defHovBorder);
-  Pal.BtnHovText   := ReadColorFromIni(Ini, Section, 'button.hover.text', Pal.BtnNormText);
-
-  defTop := Pal.BtnHovPlate;
-  AdjustRgb(defTop, 1.15);
-  defBot := Pal.BtnHovPlate;
-  AdjustRgb(defBot, 0.85);
-  Pal.BtnHovBevelTop := ReadColorFromIni(Ini, Section, 'button.hover.bevel.top', defTop);
-  Pal.BtnHovBevelBot := ReadColorFromIni(Ini, Section, 'button.hover.bevel.bot', defBot);
-
-  Pal.BtnPressPlate  := ReadColorFromIni(Ini, Section, 'button.pressed.plate', defPressPlate);
-  Pal.BtnPressBorder := ReadColorFromIni(Ini, Section, 'button.pressed.border', Pal.BtnHovBorder);
-  Pal.BtnPressText   := ReadColorFromIni(Ini, Section, 'button.pressed.text', Pal.BtnNormText);
-
-  defTop := Pal.BtnPressPlate;
-  AdjustRgb(defTop, 0.80);
-  defBot := Pal.BtnPressPlate;
-  AdjustRgb(defBot, 1.20);
-  Pal.BtnPressBevelTop := ReadColorFromIni(Ini, Section, 'button.pressed.bevel.top', defTop);
-  Pal.BtnPressBevelBot := ReadColorFromIni(Ini, Section, 'button.pressed.bevel.bot', defBot);
-
-  Pal.BtnTogPlate     := ReadColorFromIni(Ini, Section, 'button.toggled.plate', Pal.BtnPressPlate);
-  Pal.BtnTogBorder    := ReadColorFromIni(Ini, Section, 'button.toggled.border', Pal.BtnHovBorder);
-  Pal.BtnTogText      := ReadColorFromIni(Ini, Section, 'button.toggled.text', Pal.BtnNormText);
-  Pal.BtnTogIndicator := ReadColorFromIni(Ini, Section, 'button.toggled.indicator', Pal.BtnHovBorder);
-  Pal.BtnTogBevelTop  := ReadColorFromIni(Ini, Section, 'button.toggled.bevel.top', Pal.BtnPressBevelTop);
-  Pal.BtnTogBevelBot  := ReadColorFromIni(Ini, Section, 'button.toggled.bevel.bot', Pal.BtnPressBevelBot);
+    Result := MakeRgb(0.23, 0.51, 0.96);
 end;
 
-procedure TFtFileTheme.LoadFromFile(const APath: string);
+function TFtTheme.GetTextColor(): TFtRgbColor;
 var
-  ini: TIniFile;
-  lightSection: string;
+  st: TFtWidgetStyle;
+  cls: string;
 begin
-  ini := TIniFile.Create(APath);
-  try
-    FName := Trim(ini.ReadString('Theme', 'Name', FName));
-    FAuthor := Trim(ini.ReadString('Theme', 'Author', 'Community'));
-    FDescription := Trim(ini.ReadString('Theme', 'Description', ''));
-    FStyleType := LowerCase(Trim(ini.ReadString('Theme', 'Style', 'modern')));
-
-    // Rounded Corners & Shadow parameters from [Theme] section
-    FCornerRadius := ini.ReadFloat('Theme', 'CornerRadius', 5.0);
-    FEnableShadow := ini.ReadBool('Theme', 'Shadow', True);
-    FShadowOffsetY := ini.ReadFloat('Theme', 'ShadowOffsetY', 2.0);
-    FShadowBlur := ini.ReadFloat('Theme', 'ShadowBlur', 4.0);
-    FShadowOpacity := ini.ReadFloat('Theme', 'ShadowOpacity', 0.16);
-
-    if ini.SectionExists('Light') then
-      lightSection := 'Light'
-    else if ini.SectionExists('Colors') then
-      lightSection := 'Colors'
-    else if ini.SectionExists('Palette') then
-      lightSection := 'Palette'
-    else
-      lightSection := 'Light';
-
-    ReadPalette(ini, lightSection, FLightPalette, False);
-
-    if ini.SectionExists('Dark') then
-    begin
-      FHasDarkSection := True;
-      ReadPalette(ini, 'Dark', FDarkPalette, True);
-    end
-    else
-    begin
-      FHasDarkSection := False;
-      FDarkPalette := FLightPalette;
-    end;
-  finally
-    ini.Free();
-  end;
-end;
-
-function TFtFileTheme.HasDarkMode(): Boolean;
-begin
-  Result := FHasDarkSection;
-end;
-
-function TFtFileTheme.GetActivePalette(): TFtThemePalette;
-begin
-  if FDarkMode and FHasDarkSection then
-    Result := FDarkPalette
+  if FDarkMode then cls := 'dark' else cls := '';
+  st := FtGetStyleSheet().ResolveStyle('label', '', cls, '', '');
+  if not st.HasTextColor then
+    st := FtGetStyleSheet().ResolveStyle('window', '', cls, '', '');
+  if st.HasTextColor then
+    Result := MakeRgb(st.TextColor.R, st.TextColor.G, st.TextColor.B)
+  else if FDarkMode then
+    Result := MakeRgb(0.95, 0.96, 0.97)
   else
-    Result := FLightPalette;
+    Result := MakeRgb(0.12, 0.15, 0.18);
 end;
 
-function TFtFileTheme.GetAccentColor(): TFtRgbColor;
-begin
-  Result := GetActivePalette().BtnTogIndicator;
-end;
-
-function TFtFileTheme.GetTextColor(): TFtRgbColor;
-begin
-  Result := GetActivePalette().BtnNormText;
-end;
-
-function TFtFileTheme.GetInputBackground(): TFtRgbColor;
+function TFtTheme.GetInputBackground(): TFtRgbColor;
 var
-  pal: TFtThemePalette;
+  st: TFtWidgetStyle;
+  cls: string;
 begin
-  pal := GetActivePalette();
-  if DarkMode then
-  begin
-    Result := pal.WindowBg;
-    AdjustRgb(Result, 0.82);
-  end
+  if FDarkMode then cls := 'dark' else cls := '';
+  st := FtGetStyleSheet().ResolveStyle('entry', '', cls, '', '');
+  if st.HasBgColor then
+    Result := MakeRgb(st.BgColor.R, st.BgColor.G, st.BgColor.B)
+  else if FDarkMode then
+    Result := MakeRgb(0.15, 0.17, 0.20)
   else
-    Result := MakeRgbColor(1.0, 1.0, 1.0);
+    Result := MakeRgb(1.0, 1.0, 1.0);
 end;
 
-function TFtFileTheme.GetInputBorder(): TFtRgbColor;
-begin
-  Result := GetActivePalette().BtnNormBorder;
- end;
-
-function TFtFileTheme.GetScrollBarTrackColor(): TFtRgbColor;
-begin
-  Result := GetActivePalette().WindowBg;
-end;
-
-function TFtFileTheme.GetScrollBarThumbColor(): TFtRgbColor;
-begin
-  Result := GetActivePalette().BtnNormBorder;
-end;
-
-function TFtFileTheme.GetMenuBackground(): TFtRgbColor;
+function TFtTheme.GetInputBorder(): TFtRgbColor;
 var
-  pal: TFtThemePalette;
+  st: TFtWidgetStyle;
+  cls: string;
 begin
-  pal := GetActivePalette();
-  Result := pal.WindowBg;
-  if DarkMode then
-    AdjustRgb(Result, 1.08)
+  if FDarkMode then cls := 'dark' else cls := '';
+  st := FtGetStyleSheet().ResolveStyle('entry', '', cls, '', '');
+  if st.HasBorderColor then
+    Result := MakeRgb(st.BorderColor.R, st.BorderColor.G, st.BorderColor.B)
+  else if FDarkMode then
+    Result := MakeRgb(0.30, 0.33, 0.38)
   else
-    AdjustRgb(Result, 1.02);
+    Result := MakeRgb(0.80, 0.82, 0.85);
 end;
 
-function TFtFileTheme.GetMenuBorder(): TFtRgbColor;
-var
-  pal: TFtThemePalette;
+function TFtTheme.GetInputPlaceholderColor(): TFtRgbColor;
 begin
-  pal := GetActivePalette();
-  Result := pal.BtnNormBorder;
+  if FDarkMode then
+    Result := MakeRgb(0.50, 0.53, 0.58)
+  else
+    Result := MakeRgb(0.60, 0.63, 0.68);
 end;
 
-procedure TFtFileTheme.DrawWindowBackground(Canvas: TFtCanvasAgg; W, H: Integer);
-var
-  pal: TFtThemePalette;
+procedure TFtTheme.DrawFocusRing(Canvas: TFtCanvasAgg; X, Y, W, H: Double; Radius: Double);
 begin
-  pal := GetActivePalette();
-  Canvas.Clear(pal.WindowBg.R, pal.WindowBg.G, pal.WindowBg.B);
+  Canvas.DrawRoundedRectOutline(X - 1.5, Y - 1.5, W + 3.0, H + 3.0, Radius + 1.5, 2.0, 0.23, 0.51, 0.96, 0.6);
 end;
 
-procedure TFtFileTheme.DrawButtonEx(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
-  State: TFtButtonState; Toggled: Boolean; const Caption: string; Font: TFtFont;
-  CustomRadius: Double; CustomShadow: Integer);
+procedure TFtTheme.DrawInputPlate(Canvas: TFtCanvasAgg; X, Y, W, H: Double; Focused: Boolean; CustomRadius: Double);
 var
-  pal: TFtThemePalette;
-  plate, border, text: TFtRgbColor;
-  textOffsetX, textOffsetY: Integer;
-  is3d: Boolean;
   rad: Double;
-  hasShadow: Boolean;
-  sRed, sGreen, sBlue, shOffY, shBlur, shOpac: Double;
+  bg, bd: TFtRgbColor;
 begin
-  pal := GetActivePalette();
-  textOffsetX := 0;
-  textOffsetY := 0;
-  is3d := (FStyleType = 'bevel') or (FStyleType = '3d');
-
-  rad := FCornerRadius;
-  if CustomRadius >= 0.0 then rad := CustomRadius;
-
-  hasShadow := FEnableShadow;
-  if CustomShadow = 0 then hasShadow := False
-  else if CustomShadow > 0 then hasShadow := True;
-
-  sRed := 0.0; sGreen := 0.0; sBlue := 0.0;
-
-  if Toggled then
-  begin
-    plate   := pal.BtnTogPlate;
-    border  := pal.BtnTogBorder;
-    text    := pal.BtnTogText;
-    if is3d then
-    begin
-      textOffsetX := 1;
-      textOffsetY := 1;
-    end;
-  end
+  if CustomRadius >= 0.0 then rad := CustomRadius else rad := 5.0;
+  bg := GetInputBackground();
+  if Focused then
+    bd := GetAccentColor()
   else
-  begin
-    case State of
-      bsPressed:
-      begin
-        plate   := pal.BtnPressPlate;
-        border  := pal.BtnPressBorder;
-        text    := pal.BtnPressText;
-        textOffsetY := 1;
-        if is3d then
-          textOffsetX := 1;
-      end;
-      bsHovered:
-      begin
-        plate   := pal.BtnHovPlate;
-        border  := pal.BtnHovBorder;
-        text    := pal.BtnHovText;
-        // Accent-tinted glow on hover!
-        sRed := pal.BtnHovBorder.R;
-        sGreen := pal.BtnHovBorder.G;
-        sBlue := pal.BtnHovBorder.B;
-      end;
-      else // bsNormal
-      begin
-        plate   := pal.BtnNormPlate;
-        border  := pal.BtnNormBorder;
-        text    := pal.BtnNormText;
-      end;
-    end;
-  end;
+    bd := GetInputBorder();
 
-  // 1. Drop Shadow
-  if hasShadow and not Toggled then
-  begin
-    if State = bsPressed then
-    begin
-      shOffY := 0.5;
-      shBlur := 1.5;
-      shOpac := 0.10;
-    end
-    else if State = bsHovered then
-    begin
-      shOffY := FShadowOffsetY + 0.5;
-      shBlur := FShadowBlur + 2.0;
-      shOpac := FShadowOpacity + 0.10;
-    end
-    else
-    begin
-      shOffY := FShadowOffsetY;
-      shBlur := FShadowBlur;
-      shOpac := FShadowOpacity;
-    end;
-    Canvas.DrawShadow(X, Y, W, H, rad, 0.0, shOffY, shBlur, sRed, sGreen, sBlue, shOpac);
-  end;
-
-  // 2. Rounded Button Plate Fill
-  Canvas.DrawRoundedRect(X + 0.5, Y + 0.5, W - 1.0, H - 1.0, rad, plate.R, plate.G, plate.B);
-
-  // 3. Rounded Border (1px)
-  Canvas.DrawRoundedRectOutline(X, Y, W, H, rad, 1.0, border.R, border.G, border.B);
-
-  // 4. Caption
-  if Caption <> '' then
-    Canvas.DrawTextCentered(X + textOffsetX, Y + textOffsetY, W, H, Caption, Font, text.R, text.G, text.B);
+  Canvas.DrawRoundedRect(X, Y, W, H, rad, bg.R, bg.G, bg.B);
+  Canvas.DrawRoundedRectOutline(X, Y, W, H, rad, 1.0, bd.R, bd.G, bd.B);
+  if Focused then
+    DrawFocusRing(Canvas, X, Y, W, H, rad);
 end;
 
-procedure TFtFileTheme.DrawSwitchEx(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
-  State: TFtButtonState; Checked: Boolean; const Caption: string; Font: TFtFont;
-  CustomRadius: Double; CustomShadow: Integer);
+function TFtTheme.GetScrollBarTrackColor(): TFtRgbColor;
 var
-  pal: TFtThemePalette;
-  trackW, trackH: Integer;
+  st: TFtWidgetStyle;
+  cls: string;
+begin
+  if FDarkMode then cls := 'dark' else cls := '';
+  st := FtGetStyleSheet().ResolveStyle('scrollbar', '', cls, '', '');
+  if st.HasBgColor then
+    Result := MakeRgb(st.BgColor.R, st.BgColor.G, st.BgColor.B)
+  else if FDarkMode then
+    Result := MakeRgb(0.16, 0.18, 0.20)
+  else
+    Result := MakeRgb(0.92, 0.93, 0.95);
+end;
+
+function TFtTheme.GetScrollBarThumbColor(): TFtRgbColor;
+var
+  st: TFtWidgetStyle;
+  cls: string;
+begin
+  if FDarkMode then cls := 'dark' else cls := '';
+  st := FtGetStyleSheet().ResolveStyle('scrollbar', '', cls, '', '');
+  if st.HasTextColor then
+    Result := MakeRgb(st.TextColor.R, st.TextColor.G, st.TextColor.B)
+  else if FDarkMode then
+    Result := MakeRgb(0.35, 0.38, 0.42)
+  else
+    Result := MakeRgb(0.72, 0.75, 0.78);
+end;
+
+procedure TFtTheme.DrawScrollBar(Canvas: TFtCanvasAgg; X, Y, W, H: Double; 
+                                Orientation: TFtScrollBarOrientation; 
+                                ThumbX, ThumbY, ThumbW, ThumbH: Double;
+                                Hovered, Dragging: Boolean;
+                                CustomRadius: Double);
+var
+  trackCol, thumbCol: TFtRgbColor;
   rad: Double;
-  hasShadow: Boolean;
-  pad: Double;
-  thumbD: Double;
-  thumbX, thumbY: Double;
-  labelX, labelY: Double;
-  track, border, thumb, thumbBorder, text: TFtRgbColor;
-  sRed, sGreen, sBlue, shOffY, shBlur, shOpac: Double;
+begin
+  if CustomRadius >= 0.0 then rad := CustomRadius else rad := 3.0;
+  trackCol := GetScrollBarTrackColor();
+  thumbCol := GetScrollBarThumbColor();
+
+  if Dragging then
+  begin
+    thumbCol.R := thumbCol.R * 0.8;
+    thumbCol.G := thumbCol.G * 0.8;
+    thumbCol.B := thumbCol.B * 0.8;
+  end
+  else if Hovered then
+  begin
+    thumbCol.R := thumbCol.R * 0.9;
+    thumbCol.G := thumbCol.G * 0.9;
+    thumbCol.B := thumbCol.B * 0.9;
+  end;
+
+  Canvas.DrawRect(Round(X), Round(Y), Round(W), Round(H), trackCol.R, trackCol.G, trackCol.B);
+  Canvas.DrawRoundedRect(ThumbX, ThumbY, ThumbW, ThumbH, rad, thumbCol.R, thumbCol.G, thumbCol.B);
+end;
+
+function TFtTheme.GetMenuBackground(): TFtRgbColor;
+var
+  st: TFtWidgetStyle;
+  cls: string;
+begin
+  if FDarkMode then cls := 'dark' else cls := '';
+  st := FtGetStyleSheet().ResolveStyle('menu', '', cls, '', '');
+  if st.HasBgColor then
+    Result := MakeRgb(st.BgColor.R, st.BgColor.G, st.BgColor.B)
+  else if FDarkMode then
+    Result := MakeRgb(0.18, 0.20, 0.23)
+  else
+    Result := MakeRgb(0.98, 0.99, 1.00);
+end;
+
+function TFtTheme.GetMenuBorder(): TFtRgbColor;
+var
+  st: TFtWidgetStyle;
+  cls: string;
+begin
+  if FDarkMode then cls := 'dark' else cls := '';
+  st := FtGetStyleSheet().ResolveStyle('menu', '', cls, '', '');
+  if st.HasBorderColor then
+    Result := MakeRgb(st.BorderColor.R, st.BorderColor.G, st.BorderColor.B)
+  else if FDarkMode then
+    Result := MakeRgb(0.30, 0.33, 0.38)
+  else
+    Result := MakeRgb(0.85, 0.87, 0.90);
+end;
+
+function TFtTheme.GetMenuHoverBackground(): TFtRgbColor;
+var
+  st: TFtWidgetStyle;
+  cls: string;
+begin
+  if FDarkMode then cls := 'dark' else cls := '';
+  st := FtGetStyleSheet().ResolveStyle('menu', '', cls, ':hover', '');
+  if st.HasBgColor then
+    Result := MakeRgb(st.BgColor.R, st.BgColor.G, st.BgColor.B)
+  else
+    Result := MakeRgb(0.23, 0.51, 0.96);
+end;
+
+function TFtTheme.GetMenuHoverTextColor(): TFtRgbColor;
+var
+  st: TFtWidgetStyle;
+  cls: string;
+begin
+  if FDarkMode then cls := 'dark' else cls := '';
+  st := FtGetStyleSheet().ResolveStyle('menu', '', cls, ':hover', '');
+  if st.HasTextColor then
+    Result := MakeRgb(st.TextColor.R, st.TextColor.G, st.TextColor.B)
+  else
+    Result := MakeRgb(1.0, 1.0, 1.0);
+end;
+
+function TFtTheme.GetMenuSeparatorColor(): TFtRgbColor;
+begin
+  if FDarkMode then
+    Result := MakeRgb(0.26, 0.28, 0.32)
+  else
+    Result := MakeRgb(0.88, 0.90, 0.92);
+end;
+
+procedure TFtTheme.DrawMenuBar(Canvas: TFtCanvasAgg; X, Y, W, H: Integer);
+var
+  bg, bd: TFtRgbColor;
+begin
+  bg := GetMenuBackground();
+  bd := GetMenuBorder();
+  Canvas.DrawRect(X, Y, W, H, bg.R, bg.G, bg.B);
+  Canvas.DrawRect(X, Y + H - 1, W, 1, bd.R, bd.G, bd.B);
+end;
+
+procedure TFtTheme.DrawMenuBarItem(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
+                                  const Caption: string; Font: TFtFont; 
+                                  Hovered, Active: Boolean);
+var
+  bg, txt: TFtRgbColor;
   actualFont: TFtFont;
 begin
-  pal := GetActivePalette();
-
-  if (Caption <> '') and (W >= Round(H * 2.2)) then
+  if Active or Hovered then
   begin
-    trackH := H;
-    trackW := Round(H * 1.85);
-    if trackW < 36 then trackW := 36;
-    labelX := X + trackW + 10;
+    bg := GetMenuHoverBackground();
+    txt := GetMenuHoverTextColor();
+    Canvas.DrawRoundedRect(X + 2, Y + 2, W - 4, H - 4, 4.0, bg.R, bg.G, bg.B);
   end
   else
+    txt := GetTextColor();
+
+  if Caption <> '' then
   begin
-    trackH := H;
-    trackW := W;
-    labelX := 0;
+    if not Assigned(Font) then actualFont := FtGetSystemFont() else actualFont := Font;
+    Canvas.DrawTextCentered(X, Y, W, H, Caption, actualFont, txt.R, txt.G, txt.B);
   end;
+end;
 
-  rad := trackH / 2.0;
-  if (CustomRadius >= 0.0) and (CustomRadius < rad) then
-    rad := CustomRadius;
+procedure TFtTheme.DrawPopupMenuPlate(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; CustomRadius: Double);
+var
+  bg, bd: TFtRgbColor;
+  rad: Double;
+begin
+  if CustomRadius >= 0.0 then rad := CustomRadius else rad := 6.0;
+  bg := GetMenuBackground();
+  bd := GetMenuBorder();
+  Canvas.DrawShadow(X, Y, W, H, rad, 0.0, 3.0, 8.0, 0.0, 0.0, 0.0, 0.25);
+  Canvas.DrawRoundedRect(X, Y, W, H, rad, bg.R, bg.G, bg.B);
+  Canvas.DrawRoundedRectOutline(X, Y, W, H, rad, 1.0, bd.R, bd.G, bd.B);
+end;
 
-  hasShadow := FEnableShadow;
-  if CustomShadow = 0 then hasShadow := False
-  else if CustomShadow > 0 then hasShadow := True;
-
-  pad := 3.0;
-  if trackH < 22 then pad := 2.0;
-  thumbD := trackH - pad * 2.0;
-  if thumbD < 4.0 then thumbD := 4.0;
-  thumbY := Y + pad;
-
-  if Checked then
-    thumbX := X + trackW - pad - thumbD
-  else
-    thumbX := X + pad;
-
-  text := pal.BtnNormText;
-  sRed := 0.0; sGreen := 0.0; sBlue := 0.0;
-  shOffY := FShadowOffsetY;
-  shBlur := FShadowBlur;
-  shOpac := FShadowOpacity;
-
-  if Checked then
+procedure TFtTheme.DrawPopupMenuItem(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
+                                    const Caption, Shortcut: string; Font: TFtFont; 
+                                    Hovered, Enabled, Checked, HasSubMenu: Boolean);
+var
+  bg, txt: TFtRgbColor;
+  actualFont: TFtFont;
+  txtY: Double;
+begin
+  if Hovered and Enabled then
   begin
-    track := pal.BtnTogIndicator; // Theme accent color (e.g. Nord #88C0D0, Dracula #BD93F9, Gruvbox #FE8019)
-    border := pal.BtnTogBorder;
-    thumb := MakeRgbColor(1.0, 1.0, 1.0); // Crisp pure white knob
-    thumbBorder := pal.BtnTogBorder;
-    // Accent glow shadow if enabled
-    sRed := track.R; sGreen := track.G; sBlue := track.B;
-    shOpac := 0.30;
+    bg := GetMenuHoverBackground();
+    txt := GetMenuHoverTextColor();
+    Canvas.DrawRoundedRect(X + 3, Y + 1, W - 6, H - 2, 4.0, bg.R, bg.G, bg.B);
   end
   else
   begin
-    track := pal.BtnNormBorder;
-    border := pal.BtnPressBorder;
-    if DarkMode then
+    txt := GetTextColor();
+    if not Enabled then
     begin
-      thumb := pal.BtnNormText; // Light foreground knob in dark mode
-      thumbBorder := pal.BtnNormBorder;
-    end
-    else
-    begin
-      thumb := MakeRgbColor(1.0, 1.0, 1.0); // Clean white knob in light mode
-      thumbBorder := pal.BtnNormBorder;
+      txt.R := txt.R * 0.6;
+      txt.G := txt.G * 0.6;
+      txt.B := txt.B * 0.6;
     end;
   end;
 
-  if State = bsHovered then
-  begin
-    AdjustRgb(thumb, 1.08);
-  end;
+  if not Assigned(Font) then actualFont := FtGetSystemFont() else actualFont := Font;
+  txtY := Y + (H / 2.0) + (actualFont.Ascent - actualFont.Descent) / 2.0;
 
-  // 1. Drop shadow under switch track
-  if hasShadow then
-    Canvas.DrawShadow(X, Y, trackW, trackH, rad, 0.0, shOffY, shBlur, sRed, sGreen, sBlue, shOpac);
+  if Checked then
+    Canvas.DrawText(X + 6, txtY, #$E2#$9C#$93, actualFont, txt.R, txt.G, txt.B);
 
-  // 2. Track Plate
-  Canvas.DrawRoundedRect(X + 0.5, Y + 0.5, trackW - 1.0, trackH - 1.0, rad, track.R, track.G, track.B);
+  if Caption <> '' then
+    Canvas.DrawText(X + 24, txtY, Caption, actualFont, txt.R, txt.G, txt.B);
 
-  // 3. Track Border Outline
-  Canvas.DrawRoundedRectOutline(X, Y, trackW, trackH, rad, 1.0, border.R, border.G, border.B);
+  if Shortcut <> '' then
+    Canvas.DrawText(X + W - Round(actualFont.GetTextWidth(Shortcut)) - 16, txtY, Shortcut, actualFont, txt.R * 0.8, txt.G * 0.8, txt.B * 0.8);
 
-  // 4. Thumb Elevation Shadow
-  if hasShadow then
-    Canvas.DrawShadow(thumbX, thumbY, thumbD, thumbD, thumbD / 2.0, 0.0, 1.5, 2.5, 0.0, 0.0, 0.0, 0.30);
+  if HasSubMenu then
+    Canvas.DrawText(X + W - 14, txtY, #$E2#$96#$B6, actualFont, txt.R, txt.G, txt.B);
+end;
 
-  // 5. Thumb Plate
-  Canvas.DrawRoundedRect(thumbX, thumbY, thumbD, thumbD, thumbD / 2.0, thumb.R, thumb.G, thumb.B);
-
-  // 6. Thumb Border
-  Canvas.DrawRoundedRectOutline(thumbX, thumbY, thumbD, thumbD, thumbD / 2.0, 0.8, thumbBorder.R, thumbBorder.G, thumbBorder.B);
-
-  // 7. Caption Text
-  if (Caption <> '') and (labelX > X) then
-  begin
-    if not Assigned(Font) then
-      actualFont := FtGetSystemFont()
-    else
-      actualFont := Font;
-    labelY := Y + (H / 2.0) + (actualFont.Ascent - actualFont.Descent) / 2.0;
-    Canvas.DrawText(labelX, labelY, Caption, actualFont, text.R, text.G, text.B);
-  end;
+procedure TFtTheme.DrawMenuSeparator(Canvas: TFtCanvasAgg; X, Y, W: Integer);
+var
+  sep: TFtRgbColor;
+begin
+  sep := GetMenuSeparatorColor();
+  Canvas.DrawRect(X + 6, Y, W - 12, 1, sep.R, sep.G, sep.B);
 end;
 
 { TFtThemeManager }
 
 constructor TFtThemeManager.Create();
-var
-  initThemeName: string;
 begin
   inherited Create();
-  FThemes := TFPList.Create();
+  FCurrentTheme := TFtTheme.Create('default');
+  FDarkMode := False;
+  FThemes := TStringList.Create();
   FOnThemeChange := nil;
 
-  FDarkMode := DetectDarkMode();
-
-  RegisterTheme(TFtThemeDefault.Create('default'));
-
   ScanThemeDirectories();
-
-  SetDarkMode(FDarkMode);
-
-  initThemeName := DetectThemeName();
-  if not SetTheme(initThemeName) then
-    SetTheme('default');
+  SetTheme('default');
 end;
 
-destructor TFtThemeManager.Destroy();
-var
-  i: Integer;
+procedure TFtThemeManager.SetDarkMode(AValue: Boolean);
 begin
-  for i := 0 to FThemes.Count - 1 do
-    TFtTheme(FThemes[i]).Free();
-  FThemes.Free();
-  inherited Destroy();
-end;
-
-function TFtThemeManager.DetectDarkMode(): Boolean;
-var
-  val: string;
-  cfgPath: string;
-  lines: TStringList;
-begin
-  Result := False;
-
-  val := LowerCase(Trim(GetEnvironmentVariable('FT_DARK_MODE')));
-  if (val = '1') or (val = 'true') or (val = 'yes') or (val = 'dark') then
-    Exit(True);
-  if (val = '0') or (val = 'false') or (val = 'no') or (val = 'light') then
-    Exit(False);
-
-  cfgPath := GetEnvironmentVariable('HOME') + '/.config/floria/dark_mode';
-  if FileExists(cfgPath) then
+  if FDarkMode <> AValue then
   begin
-    lines := TStringList.Create();
-    try
-      lines.LoadFromFile(cfgPath);
-      if lines.Count > 0 then
-      begin
-        val := LowerCase(Trim(lines[0]));
-        if (val = '1') or (val = 'true') or (val = 'yes') or (val = 'dark') then
-          Exit(True);
-        if (val = '0') or (val = 'false') or (val = 'no') or (val = 'light') then
-          Exit(False);
-      end;
-    finally
-      lines.Free();
-    end;
-  end;
-
-  val := LowerCase(GetEnvironmentVariable('GTK_THEME'));
-  if Pos('dark', val) > 0 then
-    Exit(True);
-
-  Result := False;
-end;
-
-function TFtThemeManager.DetectThemeName(): string;
-var
-  val: string;
-  cfgPath: string;
-  lines: TStringList;
-begin
-  Result := '';
-
-  val := GetEnvironmentVariable('FT_THEME');
-  if val <> '' then
-    Exit(LowerCase(Trim(val)));
-
-  cfgPath := GetEnvironmentVariable('HOME') + '/.config/floria/theme';
-  if FileExists(cfgPath) then
-  begin
-    lines := TStringList.Create();
-    try
-      lines.LoadFromFile(cfgPath);
-      if lines.Count > 0 then
-      begin
-        val := LowerCase(Trim(lines[0]));
-        if val <> '' then
-          Exit(val);
-      end;
-    finally
-      lines.Free();
-    end;
-  end;
-
-  Result := 'default';
-end;
-
-procedure TFtThemeManager.RegisterTheme(ATheme: TFtTheme);
-begin
-  if Assigned(ATheme) and (FindTheme(ATheme.Name) = nil) then
-  begin
-    ATheme.DarkMode := FDarkMode;
-    FThemes.Add(ATheme);
-  end;
-end;
-
-function TFtThemeManager.FindTheme(const AName: string): TFtTheme;
-var
-  i: Integer;
-  T: TFtTheme;
-begin
-  Result := nil;
-  for i := 0 to FThemes.Count - 1 do
-  begin
-    T := TFtTheme(FThemes[i]);
-    if SameText(T.Name, AName) then
-      Exit(T);
-  end;
-  if SameText(AName, 'qt6') then
-    Exit(FindTheme('default'));
-end;
-
-function TFtThemeManager.SetTheme(const AName: string): Boolean;
-var
-  T: TFtTheme;
-begin
-  Result := False;
-  T := FindTheme(AName);
-
-  if (T = nil) and (FileExists(AName) or (Pos('.theme', LowerCase(AName)) > 0)) then
-  begin
-    if LoadThemeFile(AName) then
-      T := FindTheme(ChangeFileExt(ExtractFileName(AName), ''));
-  end;
-
-  if Assigned(T) then
-  begin
-    FCurrentTheme := T;
-    T.DarkMode := FDarkMode;
-    Result := True;
+    FDarkMode := AValue;
+    if Assigned(FCurrentTheme) then
+      FCurrentTheme.DarkMode := AValue;
     if Assigned(FOnThemeChange) then
       FOnThemeChange();
   end;
 end;
 
-function TFtThemeManager.GetCurrentTheme(): TFtTheme;
+destructor TFtThemeManager.Destroy();
 begin
-  Result := FCurrentTheme;
+  FThemes.Free();
+  FCurrentTheme.Free();
+  inherited Destroy();
+end;
+
+function TFtThemeManager.FindThemePath(const AName: string): string;
+var
+  lower: string;
+begin
+  lower := LowerCase(Trim(AName));
+  Result := FThemes.Values[lower];
+  if (Result = '') or not FileExists(Result) then
+  begin
+    if FileExists('themes/' + lower + '.css') then
+      Result := 'themes/' + lower + '.css'
+    else if FileExists('../themes/' + lower + '.css') then
+      Result := '../themes/' + lower + '.css';
+  end;
+end;
+
+function TFtThemeManager.SetTheme(const AName: string): Boolean;
+var
+  lowerName, path: string;
+begin
+  lowerName := LowerCase(Trim(AName));
+  if lowerName = '' then lowerName := 'default';
+
+  path := FindThemePath(lowerName);
+  if (path <> '') and FileExists(path) then
+  begin
+    Result := FtGetStyleSheet().LoadFromFile(path);
+  end
+  else if lowerName = 'default' then
+  begin
+    Result := FtGetStyleSheet().LoadFromString(DEFAULT_THEME_CSS);
+  end
+  else
+    Result := False;
+
+  if Result then
+  begin
+    FCurrentTheme.Name := lowerName;
+    FCurrentTheme.DarkMode := FDarkMode;
+    if Assigned(FOnThemeChange) then
+      FOnThemeChange();
+  end;
 end;
 
 function TFtThemeManager.GetThemeName(): string;
@@ -1658,36 +997,94 @@ begin
   Result := '';
   for i := 0 to FThemes.Count - 1 do
   begin
-    if i > 0 then Result := Result + ',';
-    Result := Result + TFtTheme(FThemes[i]).Name;
+    if Result <> '' then Result := Result + ',';
+    Result := Result + FThemes.Names[i];
+  end;
+  if (Result = '') or (Pos('default', Result) = 0) then
+  begin
+    if Result <> '' then Result := 'default,' + Result else Result := 'default';
   end;
 end;
 
-function TFtThemeManager.GetDarkMode(): Boolean;
-begin
-  Result := FDarkMode;
-end;
-
-procedure TFtThemeManager.SetDarkMode(AValue: Boolean);
-var
-  i: Integer;
-begin
-  FDarkMode := AValue;
-  for i := 0 to FThemes.Count - 1 do
-    TFtTheme(FThemes[i]).DarkMode := FDarkMode;
-
-  if Assigned(FOnThemeChange) then
-    FOnThemeChange();
-end;
-
 function TFtThemeManager.HasDarkMode(const AName: string): Boolean;
+begin
+  Result := True;
+end;
+
+function TFtThemeManager.LoadThemeFile(const AFilePath: string): Boolean;
 var
-  T: TFtTheme;
+  cleanPath, baseName: string;
 begin
   Result := False;
-  T := FindTheme(AName);
-  if Assigned(T) then
-    Result := T.HasDarkMode();
+  cleanPath := Trim(AFilePath);
+  if not FileExists(cleanPath) then Exit;
+
+  baseName := LowerCase(ChangeFileExt(ExtractFileName(cleanPath), ''));
+  if baseName <> '' then
+  begin
+    FThemes.Values[baseName] := cleanPath;
+    Result := True;
+  end;
+end;
+
+function TFtThemeManager.LoadThemeDir(const ADirPath: string): Integer;
+var
+  sr: TSearchRec;
+  cleanDir: string;
+begin
+  Result := 0;
+  cleanDir := ExcludeTrailingPathDelimiter(ADirPath);
+  if not DirectoryExists(cleanDir) then Exit;
+
+  if FindFirst(cleanDir + '/*.css', faAnyFile, sr) = 0 then
+  begin
+    repeat
+      if (sr.Attr and faDirectory = 0) then
+      begin
+        if LoadThemeFile(cleanDir + '/' + sr.Name) then
+          Inc(Result);
+      end;
+    until FindNext(sr) <> 0;
+    FindClose(sr);
+  end;
+end;
+
+procedure TFtThemeManager.ScanThemeDirectories();
+var
+  homeDir, customPath, dirItem: string;
+  posDelim: Integer;
+begin
+  // Built-in themes in themes/ directory
+  LoadThemeDir('themes');
+  LoadThemeDir('../themes');
+
+  homeDir := GetEnvironmentVariable('HOME');
+  customPath := GetEnvironmentVariable('FT_THEME_PATH');
+  while customPath <> '' do
+  begin
+    posDelim := Pos(':', customPath);
+    if posDelim > 0 then
+    begin
+      dirItem := Copy(customPath, 1, posDelim - 1);
+      Delete(customPath, 1, posDelim);
+    end
+    else
+    begin
+      dirItem := customPath;
+      customPath := '';
+    end;
+    if dirItem <> '' then
+      LoadThemeDir(Trim(dirItem));
+  end;
+
+  if homeDir <> '' then
+  begin
+    LoadThemeDir(homeDir + '/.config/floria/themes');
+    LoadThemeDir(homeDir + '/.local/share/floria/themes');
+  end;
+
+  LoadThemeDir('/usr/share/floria/themes');
+  LoadThemeDir('/etc/floria/themes');
 end;
 
 function TFtThemeManager.GetCornerRadius(): Double;
@@ -1695,7 +1092,7 @@ begin
   if Assigned(FCurrentTheme) then
     Result := FCurrentTheme.CornerRadius
   else
-    Result := 4.0;
+    Result := 6.0;
 end;
 
 procedure TFtThemeManager.SetCornerRadius(AValue: Double);
@@ -1724,85 +1121,6 @@ begin
     if Assigned(FOnThemeChange) then
       FOnThemeChange();
   end;
-end;
-
-function TFtThemeManager.LoadThemeFile(const AFilePath: string): Boolean;
-var
-  T: TFtFileTheme;
-begin
-  Result := False;
-  if not FileExists(AFilePath) then Exit;
-  try
-    T := TFtFileTheme.CreateFromFile(AFilePath);
-    if Assigned(T) then
-    begin
-      T.DarkMode := FDarkMode;
-      RegisterTheme(T);
-      Result := True;
-    end;
-  except
-    Result := False;
-  end;
-end;
-
-function TFtThemeManager.LoadThemeDir(const ADirPath: string): Integer;
-var
-  sr: TSearchRec;
-  cleanDir: string;
-begin
-  Result := 0;
-  cleanDir := ExcludeTrailingPathDelimiter(ADirPath);
-  if not DirectoryExists(cleanDir) then Exit;
-
-  if FindFirst(cleanDir + '/*.theme', faAnyFile, sr) = 0 then
-  begin
-    repeat
-      if (sr.Attr and faDirectory = 0) then
-      begin
-        if LoadThemeFile(cleanDir + '/' + sr.Name) then
-          Inc(Result);
-      end;
-    until FindNext(sr) <> 0;
-    FindClose(sr);
-  end;
-end;
-
-procedure TFtThemeManager.ScanThemeDirectories();
-var
-  homeDir: string;
-  customPath: string;
-  dirItem: string;
-  posDelim: Integer;
-begin
-  homeDir := GetEnvironmentVariable('HOME');
-
-  customPath := GetEnvironmentVariable('FT_THEME_PATH');
-  while customPath <> '' do
-  begin
-    posDelim := Pos(':', customPath);
-    if posDelim > 0 then
-    begin
-      dirItem := Copy(customPath, 1, posDelim - 1);
-      Delete(customPath, 1, posDelim);
-    end
-    else
-    begin
-      dirItem := customPath;
-      customPath := '';
-    end;
-    if dirItem <> '' then
-      LoadThemeDir(Trim(dirItem));
-  end;
-
-  if homeDir <> '' then
-  begin
-    LoadThemeDir(homeDir + '/.config/floria/themes');
-    LoadThemeDir(homeDir + '/.local/share/floria/themes');
-  end;
-
-  LoadThemeDir('/usr/share/floria/themes');
-  LoadThemeDir('/etc/floria/themes');
-  LoadThemeDir('themes');
 end;
 
 function FtThemeManager(): TFtThemeManager;
@@ -1840,6 +1158,8 @@ end;
 procedure FtSetDarkMode(AValue: Boolean);
 begin
   FtThemeManager().DarkMode := AValue;
+  if Assigned(FtThemeManager().OnThemeChange) then
+    FtThemeManager().OnThemeChange();
 end;
 
 function FtThemeHasDarkMode(const AName: string): Boolean;

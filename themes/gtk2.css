@@ -1,0 +1,167 @@
+/* Floria Toolkit - GTK2 Classic Gray Theme */
+
+window {
+    background-color: #ededed;
+    color: #1f1f1f;
+}
+
+button {
+    background-color: #e0e0e0;
+    border-color: #858585;
+    border-width: 1px;
+    border-radius: 3px;
+    color: #1f1f1f;
+    box-shadow: 1;
+    transition: all 100ms ease;
+}
+
+button:hover {
+    background-color: #eaeaea;
+    border-color: #757575;
+    color: #0a0a0a;
+}
+
+button:active {
+    background-color: #c8c8c8;
+    border-color: #505050;
+    color: #000000;
+}
+
+entry, textarea {
+    background-color: #ffffff;
+    color: #1f1f1f;
+    border-color: #858585;
+    border-width: 1px;
+    border-radius: 3px;
+}
+
+entry:focus, textarea:focus {
+    border-color: #4a6e9b;
+}
+
+switch {
+    background-color: #d0d0d0;
+    border-color: #858585;
+    border-radius: 12px;
+}
+
+switch:checked {
+    background-color: #4a6e9b;
+    border-color: #386088;
+}
+
+label {
+    color: #1f1f1f;
+}
+
+scrollbar {
+    background-color: #ededed;
+    color: #b0b0b0;
+    border-radius: 3px;
+    transition: all 100ms ease;
+}
+
+scrollbar:hover {
+    color: #858585;
+}
+
+scrollbar:active {
+    color: #505050;
+}
+
+menu {
+    background-color: #ffffff;
+    border-color: #858585;
+    color: #1f1f1f;
+    border-radius: 3px;
+}
+
+menu:hover {
+    background-color: #4a6e9b;
+    color: #ffffff;
+}
+
+container {
+    background-color: #ffffff;
+    border-color: #858585;
+    border-width: 1px;
+    border-radius: 3px;
+}
+
+/* GTK2 Dark Mode */
+window.dark {
+    background-color: #2e2e2e;
+    color: #eaeaea;
+}
+
+button.dark {
+    background-color: #3a3a3a;
+    border-color: #262626;
+    color: #eaeaea;
+}
+
+button.dark:hover {
+    background-color: #454545;
+    border-color: #333333;
+    color: #ffffff;
+}
+
+button.dark:active {
+    background-color: #2a2a2a;
+    border-color: #1c1c1c;
+    color: #ffffff;
+}
+
+entry.dark, textarea.dark {
+    background-color: #242424;
+    color: #eaeaea;
+    border-color: #404040;
+}
+
+entry.dark:focus, textarea.dark:focus {
+    border-color: #4a6e9b;
+}
+
+switch.dark {
+    background-color: #3a3a3a;
+    border-color: #262626;
+}
+
+switch.dark:checked {
+    background-color: #4a6e9b;
+    border-color: #386088;
+}
+
+label.dark {
+    color: #eaeaea;
+}
+
+scrollbar.dark {
+    background-color: #2e2e2e;
+    color: #454545;
+}
+
+scrollbar.dark:hover {
+    color: #555555;
+}
+
+scrollbar.dark:active {
+    color: #333333;
+}
+
+menu.dark {
+    background-color: #2a2a2a;
+    border-color: #404040;
+    color: #eaeaea;
+}
+
+menu.dark:hover {
+    background-color: #4a6e9b;
+    color: #ffffff;
+}
+
+container.dark {
+    background-color: #242424;
+    border-color: #404040;
+}
+

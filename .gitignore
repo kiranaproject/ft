@@ -1,6 +1,7 @@
 # Free Pascal Compiler (FPC) build outputs
 *.o
 *.ppu
+*.rsj
 
 # Common FPC/Lazarus IDE output and backup directories
 /target/

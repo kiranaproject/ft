@@ -297,6 +297,19 @@ void ft_theme_set_dark_mode(int32_t enabled);
 int32_t ft_theme_get_dark_mode(void);
 int32_t ft_theme_has_dark_mode(const char* theme_name);
 
+/* CSS Styling */
+void ft_widget_set_style_class(FtWidget widget, const char* style_class);
+const char* ft_widget_get_style_class(FtWidget widget);
+void ft_widget_set_style_id(FtWidget widget, const char* style_id);
+const char* ft_widget_get_style_id(FtWidget widget);
+void ft_widget_set_style(FtWidget widget, const char* inline_css);
+const char* ft_widget_get_style(FtWidget widget);
+int32_t ft_style_load_css_file(const char* filepath);
+int32_t ft_style_load_css_string(const char* css_string);
+
+/* Animation Engine */
+int32_t ft_animation_is_running(void);
+
 #ifdef __cplusplus
 }
 #endif
