@@ -36,6 +36,7 @@ eval gcc $CFLAGS examples/c/css_animation_demo.c $LDFLAGS -o target/bin/example_
 eval gcc $CFLAGS examples/c/css_animation_demo.c $LDFLAGS -o target/bin/css_animation_demo
 eval gcc $CFLAGS examples/c/form_controls_demo.c $LDFLAGS -o target/bin/example_form_controls
 eval gcc $CFLAGS examples/c/form_controls_demo.c $LDFLAGS -o target/bin/form_controls_demo
+eval gcc $CFLAGS examples/c/test_all_widgets_css.c $LDFLAGS -o target/bin/test_all_widgets_css
 
 echo "[INFO] Successfully built all C examples in target/bin/:"
-ls -lh target/bin/example_* target/bin/c_example target/bin/input_example target/bin/scrollbar_example target/bin/multilingual_example target/bin/menu_example target/bin/outside_menu_demo target/bin/widget_context_menus_demo target/bin/css_button_demo target/bin/css_animation_demo target/bin/form_controls_demo
+ls -lh target/bin/example_* target/bin/c_example target/bin/input_example target/bin/scrollbar_example target/bin/multilingual_example target/bin/menu_example target/bin/outside_menu_demo target/bin/widget_context_menus_demo target/bin/css_button_demo target/bin/css_animation_demo target/bin/form_controls_demo target/bin/test_all_widgets_css
