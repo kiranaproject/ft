@@ -83,6 +83,7 @@ type
     destructor Destroy(); override;
 
     procedure Draw(Canvas: TFtCanvasAgg); override;
+    procedure Invalidate(); override;
 
     function GetElementType(): string; override;
 
@@ -574,6 +575,12 @@ end;
 function TFtProgressBar.GetElementType(): string;
 begin
   Result := 'progressbar';
+end;
+
+procedure TFtProgressBar.Invalidate();
+begin
+  if not Visible then Exit;
+  InvalidateRect(X - 2, Y - 2, Width + 4, Height + 4);
 end;
 
 procedure TFtProgressBar.Draw(Canvas: TFtCanvasAgg);

@@ -56,6 +56,8 @@ type
     procedure SetClipRect(X, Y, W, H: Integer);
     procedure ResetClipRect();
     procedure ResetAllClipping();
+    function GetClipRect(out X, Y, W, H: Integer): Boolean;
+    function IntersectsClip(X, Y, W, H: Integer): Boolean;
 
     procedure DrawText(X, Y: Double; const AText: string; AFont: TFtFont; R, G, B: Double);
     procedure DrawTextCentered(X, Y, W, H: Integer; const AText: string; AFont: TFtFont; R, G, B: Double);
@@ -186,6 +188,50 @@ procedure TFtCanvasAgg.ResetAllClipping();
 begin
   FClipStackCount := 0;
   FRendererBase.reset_clipping(True);
+end;
+
+function TFtCanvasAgg.GetClipRect(out X, Y, W, H: Integer): Boolean;
+var
+  cr: TFtClipRect;
+begin
+  if FClipStackCount > 0 then
+  begin
+    cr := FClipStack[FClipStackCount - 1];
+    X := cr.X1;
+    Y := cr.Y1;
+    W := cr.X2 - cr.X1 + 1;
+    H := cr.Y2 - cr.Y1 + 1;
+    Result := True;
+  end
+  else
+  begin
+    X := 0;
+    Y := 0;
+    W := FWidth;
+    H := FHeight;
+    Result := False;
+  end;
+end;
+
+function TFtCanvasAgg.IntersectsClip(X, Y, W, H: Integer): Boolean;
+var
+  cr: TFtClipRect;
+begin
+  if (W <= 0) or (H <= 0) then Exit(False);
+  if FClipStackCount > 0 then
+    cr := FClipStack[FClipStackCount - 1]
+  else
+  begin
+    cr.X1 := 0;
+    cr.Y1 := 0;
+    cr.X2 := FWidth - 1;
+    cr.Y2 := FHeight - 1;
+  end;
+
+  if (cr.X2 < cr.X1) or (cr.Y2 < cr.Y1) then Exit(False);
+
+  Result := (X <= cr.X2) and (X + W > cr.X1) and
+            (Y <= cr.Y2) and (Y + H > cr.Y1);
 end;
 
 procedure TFtCanvasAgg.Clear(R, G, B: Double);

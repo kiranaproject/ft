@@ -49,6 +49,12 @@ type
     FMainMenu: TFtWidget;
     FActivePopup: TFtWidget;
     FNeedsRepaint: Boolean;
+    FDirtyLeft: Integer;
+    FDirtyTop: Integer;
+    FDirtyRight: Integer;
+    FDirtyBottom: Integer;
+    FHasDirtyRect: Boolean;
+    FFullRepaint: Boolean;
     FBorderless: Boolean;
     FSkipTaskbar: Boolean;
     FWindowType: TFtWindowType;
@@ -74,6 +80,7 @@ type
     procedure Show();
     procedure Hide();
     procedure Invalidate(); override;
+    procedure InvalidateRect(AX, AY, AW, AH: Integer); override;
     procedure WidgetDestroyed(AWidget: TFtWidget); override;
     procedure RequestFocus(AWidget: TFtWidget); override;
     procedure SetFocusedWidget(AWidget: TFtWidget);
@@ -244,10 +251,20 @@ begin
     begin
       nowMs := GetTickCount64();
       elapsedMs := Integer(nowMs - frameStartMs);
-      if elapsedMs < 16 then
-        Sleep(16 - elapsedMs)
+      if animator.HasActiveTransitions() then
+      begin
+        if elapsedMs < 16 then
+          Sleep(16 - elapsedMs)
+        else
+          Sleep(1);
+      end
       else
-        Sleep(1);
+      begin
+        if elapsedMs < 33 then
+          Sleep(33 - elapsedMs)
+        else
+          Sleep(1);
+      end;
     end
     else
     begin
@@ -341,6 +358,12 @@ begin
   FActivePopup := nil;
   FCursorIBeam := None;
   FNeedsRepaint := False;
+  FDirtyLeft := 0;
+  FDirtyTop := 0;
+  FDirtyRight := 0;
+  FDirtyBottom := 0;
+  FHasDirtyRect := False;
+  FFullRepaint := True;
   XSelectInput(FDisplay, FWindow, ExposureMask or ButtonPressMask or ButtonReleaseMask or PointerMotionMask or LeaveWindowMask or StructureNotifyMask or KeyPressMask or KeyReleaseMask);
 
   FWMDeleteWindow := XInternAtom(FDisplay, 'WM_DELETE_WINDOW', False);
@@ -615,6 +638,7 @@ begin
   else
     FCanvas := TFtCanvasAgg.Create(FPixelBuffer, Width, Height);
 
+  FFullRepaint := True;
   Repaint();
 end;
 
@@ -647,20 +671,71 @@ end;
 procedure TFtX11Window.Repaint();
 var
   st: TFtWidgetStyle;
+  isPartial: Boolean;
+  dirtyX, dirtyY, dirtyW, dirtyH: Integer;
 begin
   if (Width <= 0) or (Height <= 0) or (FWindow = None) or not Assigned(FCanvas) then Exit;
-  FCanvas.ResetAllClipping();
-  if not (FWindowType in [ftwtPopupMenu, ftwtDropdownMenu]) then
+
+  FNeedsRepaint := False;
+  isPartial := FHasDirtyRect and not FFullRepaint;
+  if FHasDirtyRect then
   begin
-    st := GetResolvedStyle();
-    if st.HasBgColor then
-      FCanvas.DrawRect(0, 0, Width, Height, st.BgColor.R, st.BgColor.G, st.BgColor.B)
-    else
-      FtGetTheme().DrawWindowBackground(FCanvas, Width, Height);
+    dirtyX := FDirtyLeft;
+    dirtyY := FDirtyTop;
+    dirtyW := FDirtyRight - FDirtyLeft;
+    dirtyH := FDirtyBottom - FDirtyTop;
+  end
+  else
+  begin
+    dirtyX := 0; dirtyY := 0; dirtyW := Width; dirtyH := Height;
   end;
-  Self.Draw(FCanvas);
-  XPutImage(FDisplay, FWindow, FGC, FXImage, 0, 0, 0, 0, Width, Height);
-  XFlush(FDisplay);
+
+  if isPartial then
+  begin
+
+    FHasDirtyRect := False;
+    FFullRepaint := False;
+
+    if (dirtyW <= 0) or (dirtyH <= 0) then Exit;
+
+    FCanvas.ResetAllClipping();
+    FCanvas.PushClipRect(dirtyX, dirtyY, dirtyW, dirtyH);
+    try
+      if not (FWindowType in [ftwtPopupMenu, ftwtDropdownMenu]) then
+      begin
+        st := GetResolvedStyle();
+        if st.HasBgColor then
+          FCanvas.DrawRect(0, 0, Width, Height, st.BgColor.R, st.BgColor.G, st.BgColor.B)
+        else
+          FtGetTheme().DrawWindowBackground(FCanvas, Width, Height);
+      end;
+      Self.Draw(FCanvas);
+    finally
+      FCanvas.ResetAllClipping();
+    end;
+
+    XPutImage(FDisplay, FWindow, FGC, FXImage, dirtyX, dirtyY, dirtyX, dirtyY, dirtyW, dirtyH);
+    XFlush(FDisplay);
+  end
+  else
+  begin
+    FHasDirtyRect := False;
+    FFullRepaint := False;
+
+    FCanvas.ResetAllClipping();
+    if not (FWindowType in [ftwtPopupMenu, ftwtDropdownMenu]) then
+    begin
+      st := GetResolvedStyle();
+      if st.HasBgColor then
+        FCanvas.DrawRect(0, 0, Width, Height, st.BgColor.R, st.BgColor.G, st.BgColor.B)
+      else
+        FtGetTheme().DrawWindowBackground(FCanvas, Width, Height);
+    end;
+    Self.Draw(FCanvas);
+
+    XPutImage(FDisplay, FWindow, FGC, FXImage, 0, 0, 0, 0, Width, Height);
+    XFlush(FDisplay);
+  end;
 end;
 
 procedure TFtX11Window.SetActivePopup(APopup: TFtWidget);
@@ -689,6 +764,50 @@ end;
 
 procedure TFtX11Window.Invalidate();
 begin
+  FFullRepaint := True;
+  FNeedsRepaint := True;
+end;
+
+procedure TFtX11Window.InvalidateRect(AX, AY, AW, AH: Integer);
+var
+  cx1, cy1, cx2, cy2: Integer;
+begin
+  if not Visible or (Width <= 0) or (Height <= 0) then Exit;
+  if (AW <= 0) or (AH <= 0) then Exit;
+
+  // Clamp incoming rect to window bounds
+  cx1 := AX;
+  cy1 := AY;
+  cx2 := AX + AW;
+  cy2 := AY + AH;
+  if cx1 < 0 then cx1 := 0;
+  if cy1 < 0 then cy1 := 0;
+  if cx2 > Width then cx2 := Width;
+  if cy2 > Height then cy2 := Height;
+  if (cx2 <= cx1) or (cy2 <= cy1) then Exit;
+
+  if FFullRepaint then
+  begin
+    FNeedsRepaint := True;
+    Exit;
+  end;
+
+  if not FHasDirtyRect then
+  begin
+    FDirtyLeft := cx1;
+    FDirtyTop := cy1;
+    FDirtyRight := cx2;
+    FDirtyBottom := cy2;
+    FHasDirtyRect := True;
+  end
+  else
+  begin
+    if cx1 < FDirtyLeft then FDirtyLeft := cx1;
+    if cy1 < FDirtyTop then FDirtyTop := cy1;
+    if cx2 > FDirtyRight then FDirtyRight := cx2;
+    if cy2 > FDirtyBottom then FDirtyBottom := cy2;
+  end;
+
   FNeedsRepaint := True;
 end;
 
@@ -1083,7 +1202,7 @@ begin
   case Event._type of
     Expose:
     begin
-      FNeedsRepaint := True;
+      InvalidateRect(Event.xexpose.x, Event.xexpose.y, Event.xexpose.width, Event.xexpose.height);
     end;
 
     ConfigureNotify:

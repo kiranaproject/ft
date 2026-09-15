@@ -43,6 +43,7 @@ type
     function HitTest(AX, AY: Integer): TFtWidget; virtual;
     procedure Click(); virtual;
     procedure Invalidate(); virtual;
+    procedure InvalidateRect(AX, AY, AW, AH: Integer); virtual;
 
     procedure MouseEnter(); virtual;
     procedure MouseLeave(); virtual;
@@ -168,10 +169,15 @@ end;
 procedure TFtWidget.Draw(Canvas: TFtCanvasAgg);
 var
   I: Integer;
+  child: TFtWidget;
 begin
   if not Visible then Exit;
   for I := 0 to Children.Count - 1 do
-    TFtWidget(Children[I]).Draw(Canvas);
+  begin
+    child := TFtWidget(Children[I]);
+    if child.Visible and Canvas.IntersectsClip(child.X - 4, child.Y - 4, child.Width + 8, child.Height + 8) then
+      child.Draw(Canvas);
+  end;
 end;
 
 function TFtWidget.HitTest(AX, AY: Integer): TFtWidget;
@@ -199,8 +205,15 @@ end;
 
 procedure TFtWidget.Invalidate();
 begin
+  if not Visible then Exit;
+  InvalidateRect(X - 4, Y - 4, Width + 8, Height + 8);
+end;
+
+procedure TFtWidget.InvalidateRect(AX, AY, AW, AH: Integer);
+begin
+  if not Visible then Exit;
   if Assigned(Parent) then
-    Parent.Invalidate();
+    Parent.InvalidateRect(AX, AY, AW, AH);
 end;
 
 procedure TFtWidget.MouseEnter();

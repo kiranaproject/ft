@@ -40,6 +40,7 @@ type
     procedure RegisterContinuous(AWidget: Pointer);
     procedure UnregisterContinuous(AWidget: Pointer);
     function HasActiveAnimations(): Boolean;
+    function HasActiveTransitions(): Boolean;
     function GetAnimatedStyle(AWidget: Pointer; out OutStyle: TFtWidgetStyle): Boolean;
     procedure Tick(NowMs: QWord);
   end;
@@ -410,6 +411,11 @@ end;
 function TFtAnimator.HasActiveAnimations(): Boolean;
 begin
   Result := (FTransitions.Count > 0) or (FContinuousWidgets.Count > 0);
+end;
+
+function TFtAnimator.HasActiveTransitions(): Boolean;
+begin
+  Result := (FTransitions.Count > 0);
 end;
 
 function TFtAnimator.GetAnimatedStyle(AWidget: Pointer; out OutStyle: TFtWidgetStyle): Boolean;

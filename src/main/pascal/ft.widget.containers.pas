@@ -54,6 +54,7 @@ type
     procedure Draw(Canvas: TFtCanvasAgg); override;
     function HitTest(AX, AY: Integer): TFtWidget; override;
     procedure MouseDown(AX, AY: Integer; AButton: Integer); override;
+    procedure InvalidateRect(AX, AY, AW, AH: Integer); override;
 
     procedure GetClientRect(out AX, AY, AW, AH: Double); virtual;
     procedure SetContentSize(AWidth, AHeight: Double);
@@ -449,6 +450,8 @@ var
   st: TFtWidgetStyle;
   rad, bw: Double;
   bg: TFtRgbColor;
+  cx, cy, cw, ch: Integer;
+  drawShadow: Boolean;
 begin
   st := GetResolvedStyle();
   if st.HasBgColor or st.HasBorderColor or st.HasBorderRadius then
@@ -461,7 +464,14 @@ begin
       rad := FtGetTheme().CornerRadius;
 
     // Drop shadow
-    if (st.HasShadow and st.EnableShadow) or (not st.HasShadow and FtGetTheme().EnableShadow) then
+    drawShadow := (st.HasShadow and st.EnableShadow) or (not st.HasShadow and FtGetTheme().EnableShadow);
+    if drawShadow and Canvas.GetClipRect(cx, cy, cw, ch) then
+    begin
+      // If clip rect is strictly inside the container interior, the outer shadow is not touched
+      if (cx >= X + 6) and (cy >= Y + 6) and (cx + cw <= X + Width - 6) and (cy + ch <= Y + Height - 6) then
+        drawShadow := False;
+    end;
+    if drawShadow then
       Canvas.DrawShadow(X, Y, Width, Height, rad, 0.0, 2.0, 4.0, 0.0, 0.0, 0.0, 0.12);
 
     // Background
@@ -501,7 +511,8 @@ begin
   begin
     child := TFtWidget(Children[i]);
     if (child <> FVScrollBar) and (child <> FHScrollBar) and child.Visible then
-      child.Draw(Canvas);
+      if Canvas.IntersectsClip(child.X - 4, child.Y - 4, child.Width + 8, child.Height + 8) then
+        child.Draw(Canvas);
   end;
 end;
 
@@ -510,6 +521,7 @@ var
   cx, cy, cw, ch: Double;
 begin
   if not Visible then Exit;
+  if not Canvas.IntersectsClip(X - 4, Y - 4, Width + 8, Height + 8) then Exit;
 
   UpdateScrollBars();
 
@@ -525,10 +537,31 @@ begin
     Canvas.ResetClipRect();
   end;
 
-  if Assigned(FVScrollBar) and FVScrollBar.Visible then
+  if Assigned(FVScrollBar) and FVScrollBar.Visible and Canvas.IntersectsClip(FVScrollBar.X - 4, FVScrollBar.Y - 4, FVScrollBar.Width + 8, FVScrollBar.Height + 8) then
     FVScrollBar.Draw(Canvas);
-  if Assigned(FHScrollBar) and FHScrollBar.Visible then
+  if Assigned(FHScrollBar) and FHScrollBar.Visible and Canvas.IntersectsClip(FHScrollBar.X - 4, FHScrollBar.Y - 4, FHScrollBar.Width + 8, FHScrollBar.Height + 8) then
     FHScrollBar.Draw(Canvas);
+end;
+
+procedure TFtContainer.InvalidateRect(AX, AY, AW, AH: Integer);
+var
+  ix1, iy1, ix2, iy2: Integer;
+begin
+  if not Visible then Exit;
+  ix1 := AX;
+  iy1 := AY;
+  ix2 := AX + AW;
+  iy2 := AY + AH;
+  if ix1 < X - 4 then ix1 := X - 4;
+  if iy1 < Y - 4 then iy1 := Y - 4;
+  if ix2 > X + Width + 4 then ix2 := X + Width + 4;
+  if iy2 > Y + Height + 4 then iy2 := Y + Height + 4;
+
+  if (ix2 > ix1) and (iy2 > iy1) then
+  begin
+    if Assigned(Parent) then
+      Parent.InvalidateRect(ix1, iy1, ix2 - ix1, iy2 - iy1);
+  end;
 end;
 
 function TFtContainer.HitTest(AX, AY: Integer): TFtWidget;
