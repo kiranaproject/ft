@@ -44,7 +44,6 @@ type
     procedure MouseEnter(); override;
     procedure MouseLeave(); override;
     procedure KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string); override;
-    function GetCursor(): Integer; override;
 
     function GetElementType(): string; override;
     function GetStatePseudoClass(): string; override;
@@ -272,14 +271,6 @@ begin
     InvalidateStyle();
     Invalidate();
   end;
-end;
-
-function TFtSlider.GetCursor(): Integer;
-begin
-  if FEnabled then
-    Result := 1
-  else
-    Result := 0;
 end;
 
 procedure TFtSlider.MouseEnter();
