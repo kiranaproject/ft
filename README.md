@@ -57,27 +57,20 @@ Comprehensive documentation is available in the [`docs/`](docs/) directory:
 ## Visual Showcase
 
 ### Form Controls & Meters
-| Form Controls & Meters (Light) | Dropdown ComboBox Popup |
-| :---: | :---: |
-| ![Form Controls Showcase](docs/screenshots/floria_form_controls.png) | ![ComboBox Dropdown](docs/screenshots/floria_combobox_open.png) |
-*CheckBoxes, RadioButtons, ComboBoxes, Sliders (horizontal/vertical), and ProgressBars (determinate/indeterminate).*
+![Form Controls & Meters Showcase](docs/screenshots/floria_form_controls.gif)
+*Interactive CheckBoxes, RadioButtons, ComboBox dropdowns, live Slider dragging, and smooth 60 FPS indeterminate progress bar.*
 
 ### Window Main Menu & Pop-up Context Menus
-![Window Main Menu & Pop-up Menu Showcase](docs/screenshots/floria_menus.png)
-*Window Main Menu bar with hover sweep tracking, cascading submenus, checkmarks, and dark mode.*
+![Window Main Menu & Pop-up Menu Showcase](docs/screenshots/floria_menus.gif)
+*Window Main Menu bar with hover sweep tracking, cascading submenus, checkmarks, dynamic theming, and floating context menus.*
 
 ### Reusable Containers & Scrolled Viewports
-![Reusable Container Showcase](docs/screenshots/floria_containers.png)
-*`TFtContainer` hosting heterogeneous child widgets with relative layout, auto scrollbars, and AGG clipping.*
+![Reusable Container Showcase](docs/screenshots/floria_containers.gif)
+*`TFtContainer` hosting heterogeneous child widgets with relative layout, auto scrollbars, and AGG viewport clipping.*
 
-### Themes: Light & Dark Modes
-| Default Theme (Light Mode) | Default Theme (Dark Mode) |
-| :---: | :---: |
-| ![Default Light Mode](docs/screenshots/floria_widgets_light.png) | ![Default Dark Mode](docs/screenshots/floria_widgets_dark.png) |
-
-| Nord Theme (Dark Mode) | Dracula Theme (Dark Mode) |
-| :---: | :---: |
-| ![Nord Theme](docs/screenshots/floria_theme_nord.png) | ![Dracula Theme](docs/screenshots/floria_theme_dracula.png) |
+### Themes & Dynamic CSS Transitions
+![Themes & CSS Transitions Showcase](docs/screenshots/floria_themes.gif)
+*Pure CSS theming engine with runtime hot-swapping between Default, Dark Mode, Dracula, Nord, Gruvbox, GTK2, and Classic themes.*
 
 ---
 
