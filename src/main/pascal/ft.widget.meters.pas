@@ -5,7 +5,7 @@ unit Ft.Widget.Meters;
 interface
 
 uses
-  ctypes, SysUtils, Classes, Math, Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Theme, Ft.Css;
+  ctypes, SysUtils, Classes, Math, Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Theme, Ft.Css, Ft.Animation;
 
 type
   TFtSliderOrientation = (ftSliderHorizontal = 0, ftSliderVertical = 1);
@@ -44,6 +44,7 @@ type
     procedure MouseEnter(); override;
     procedure MouseLeave(); override;
     procedure KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string); override;
+    function GetCursor(): Integer; override;
 
     function GetElementType(): string; override;
     function GetStatePseudoClass(): string; override;
@@ -80,6 +81,7 @@ type
     function ClampValue(AValue: Double): Double;
   public
     constructor Create(AParent: TFtWidget; AOrientation: TFtProgressOrientation = ftProgressHorizontal); reintroduce;
+    destructor Destroy(); override;
 
     procedure Draw(Canvas: TFtCanvasAgg); override;
 
@@ -219,15 +221,15 @@ begin
   begin
     trackStart := FThumbSize / 2.0;
     trackLength := Math.Max(1.0, Width - FThumbSize);
-    pos := Math.Max(0.0, Math.Min(trackLength, Double(AX) - trackStart));
+    pos := Math.Max(0.0, Math.Min(trackLength, Double(AX - X) - trackStart));
     ratio := pos / trackLength;
   end
   else
   begin
     trackStart := FThumbSize / 2.0;
     trackLength := Math.Max(1.0, Height - FThumbSize);
-    // Vertical slider: bottom is min, top is max (or top min, bottom max)
-    pos := Math.Max(0.0, Math.Min(trackLength, Double(Height - AY) - trackStart));
+    // Vertical slider: bottom is min, top is max
+    pos := Math.Max(0.0, Math.Min(trackLength, Double(Y + Height - AY) - trackStart));
     ratio := pos / trackLength;
   end;
 
@@ -263,13 +265,21 @@ begin
   if (AButton = 1) and FIsDragging then
   begin
     FIsDragging := False;
-    if (AX >= 0) and (AX < Width) and (AY >= 0) and (AY < Height) then
+    if (AX >= X) and (AX < X + Width) and (AY >= Y) and (AY < Y + Height) then
       FState := bsHovered
     else
       FState := bsNormal;
     InvalidateStyle();
     Invalidate();
   end;
+end;
+
+function TFtSlider.GetCursor(): Integer;
+begin
+  if FEnabled then
+    Result := 1
+  else
+    Result := 0;
 end;
 
 procedure TFtSlider.MouseEnter();
@@ -471,6 +481,12 @@ begin
   end;
 end;
 
+destructor TFtProgressBar.Destroy();
+begin
+  FtGetAnimator().UnregisterContinuous(Self);
+  inherited Destroy();
+end;
+
 function TFtProgressBar.ClampValue(AValue: Double): Double;
 begin
   if AValue < FMin then
@@ -529,6 +545,10 @@ begin
   if FIndeterminate <> AValue then
   begin
     FIndeterminate := AValue;
+    if FIndeterminate then
+      FtGetAnimator().RegisterContinuous(Self)
+    else
+      FtGetAnimator().UnregisterContinuous(Self);
     Invalidate();
   end;
 end;
@@ -648,14 +668,14 @@ begin
 
     if FOrientation = ftProgressHorizontal then
     begin
-      blockLen := Width * 0.35;
-      fillX := X + animPhase * (Width - blockLen);
+      blockLen := Math.Max(10.0, (Width - 2.0) * 0.35);
+      fillX := X + 1.0 + animPhase * (Width - 2.0 - blockLen);
       Canvas.DrawRoundedRect(fillX, Y + 1.0, blockLen, Height - 2.0, Math.Max(2.0, rad - 1.0), fillR, fillG, fillB, 1.0);
     end
     else
     begin
-      blockLen := Height * 0.35;
-      fillY := Y + animPhase * (Height - blockLen);
+      blockLen := Math.Max(10.0, (Height - 2.0) * 0.35);
+      fillY := Y + 1.0 + animPhase * (Height - 2.0 - blockLen);
       Canvas.DrawRoundedRect(X + 1.0, fillY, Width - 2.0, blockLen, Math.Max(2.0, rad - 1.0), fillR, fillG, fillB, 1.0);
     end;
   end

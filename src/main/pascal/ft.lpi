@@ -36,6 +36,7 @@
       <Unit>
         <Filename Value="ft.backend.x11.pas"/>
         <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Backend.X11"/>
       </Unit>
       <Unit>
         <Filename Value="ft.canvas.agg.pas"/>
@@ -106,6 +107,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
+      <OtherUnitFiles Value="../../../3rdparty/fcl-css/src"/>
       <UnitOutputDirectory Value="../../../target/bin/lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <CodeGeneration>

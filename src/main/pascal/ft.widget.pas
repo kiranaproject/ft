@@ -110,6 +110,7 @@ var
   I: Integer;
 begin
   FtGetAnimator().StopTransitions(Self);
+  FtGetAnimator().UnregisterContinuous(Self);
   if Assigned(Parent) then
     Parent.WidgetDestroyed(Self);
   FContextMenu := nil;
@@ -426,7 +427,10 @@ end;
 procedure InvalidateWidgetAnim(AWidget: Pointer);
 begin
   if Assigned(AWidget) and (TObject(AWidget) is TFtWidget) then
-    TFtWidget(AWidget).Invalidate();
+  begin
+    if TFtWidget(AWidget).Visible then
+      TFtWidget(AWidget).Invalidate();
+  end;
 end;
 
 initialization

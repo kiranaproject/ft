@@ -30,12 +30,15 @@ type
   TFtAnimator = class
   private
     FTransitions: TFPList;
+    FContinuousWidgets: TFPList;
   public
     constructor Create();
     destructor Destroy(); override;
 
     procedure StartTransition(AWidget: Pointer; const AFrom, ATo: TFtWidgetStyle; const AProp: string; ADuration: Integer; const ATiming: string);
     procedure StopTransitions(AWidget: Pointer);
+    procedure RegisterContinuous(AWidget: Pointer);
+    procedure UnregisterContinuous(AWidget: Pointer);
     function HasActiveAnimations(): Boolean;
     function GetAnimatedStyle(AWidget: Pointer; out OutStyle: TFtWidgetStyle): Boolean;
     procedure Tick(NowMs: QWord);
@@ -332,6 +335,7 @@ constructor TFtAnimator.Create();
 begin
   inherited Create();
   FTransitions := TFPList.Create();
+  FContinuousWidgets := TFPList.Create();
 end;
 
 destructor TFtAnimator.Destroy();
@@ -341,6 +345,7 @@ begin
   for i := 0 to FTransitions.Count - 1 do
     TFtTransition(FTransitions[i]).Free();
   FTransitions.Free();
+  FContinuousWidgets.Free();
   inherited Destroy();
 end;
 
@@ -386,11 +391,25 @@ begin
       trans.Free();
     end;
   end;
+  UnregisterContinuous(AWidget);
+end;
+
+procedure TFtAnimator.RegisterContinuous(AWidget: Pointer);
+begin
+  if not Assigned(AWidget) then Exit;
+  if FContinuousWidgets.IndexOf(AWidget) < 0 then
+    FContinuousWidgets.Add(AWidget);
+end;
+
+procedure TFtAnimator.UnregisterContinuous(AWidget: Pointer);
+begin
+  if not Assigned(AWidget) then Exit;
+  FContinuousWidgets.Remove(AWidget);
 end;
 
 function TFtAnimator.HasActiveAnimations(): Boolean;
 begin
-  Result := (FTransitions.Count > 0);
+  Result := (FTransitions.Count > 0) or (FContinuousWidgets.Count > 0);
 end;
 
 function TFtAnimator.GetAnimatedStyle(AWidget: Pointer; out OutStyle: TFtWidgetStyle): Boolean;
@@ -414,6 +433,7 @@ procedure TFtAnimator.Tick(NowMs: QWord);
 var
   i: Integer;
   trans: TFtTransition;
+  w: Pointer;
 begin
   for i := FTransitions.Count - 1 downto 0 do
   begin
@@ -426,6 +446,16 @@ begin
     begin
       FTransitions.Delete(i);
       trans.Free();
+    end;
+  end;
+
+  for i := FContinuousWidgets.Count - 1 downto 0 do
+  begin
+    if i < FContinuousWidgets.Count then
+    begin
+      w := FContinuousWidgets[i];
+      if Assigned(GInvalidateWidgetProc) and Assigned(w) then
+        GInvalidateWidgetProc(w);
     end;
   end;
 end;

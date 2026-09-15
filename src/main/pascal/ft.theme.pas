@@ -1117,6 +1117,7 @@ begin
   // Built-in themes in themes/ directory
   LoadThemeDir('themes');
   LoadThemeDir('../themes');
+  LoadThemeDir('../../themes');
 
   homeDir := GetEnvironmentVariable('HOME');
   customPath := GetEnvironmentVariable('FT_THEME_PATH');
