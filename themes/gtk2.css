@@ -165,3 +165,73 @@ container.dark {
     border-color: #404040;
 }
 
+checkbox, radio {
+    background-color: #ffffff;
+    border-color: #858585;
+    border-width: 1px;
+    color: #1f1f1f;
+}
+
+checkbox:checked, radio:checked {
+    background-color: #4a6e9b;
+    border-color: #386088;
+}
+
+checkbox.dark, radio.dark {
+    background-color: #242424;
+    border-color: #404040;
+    color: #eaeaea;
+}
+
+checkbox.dark:checked, radio.dark:checked {
+    background-color: #4a6e9b;
+    border-color: #386088;
+}
+
+combobox {
+    background-color: #ffffff;
+    border-color: #858585;
+    border-width: 1px;
+    border-radius: 3px;
+    color: #1f1f1f;
+}
+
+combobox:focus {
+    border-color: #4a6e9b;
+}
+
+combobox.dark {
+    background-color: #242424;
+    border-color: #404040;
+    color: #eaeaea;
+}
+
+combobox.dark:focus {
+    border-color: #4a6e9b;
+}
+
+slider {
+    background-color: #d0d0d0;
+    color: #4a6e9b;
+}
+
+slider.dark {
+    background-color: #404040;
+    color: #4a6e9b;
+}
+
+progressbar {
+    background-color: #e0e0e0;
+    border-color: #858585;
+    border-width: 1px;
+    border-radius: 3px;
+    color: #4a6e9b;
+}
+
+progressbar.dark {
+    background-color: #242424;
+    border-color: #404040;
+    color: #4a6e9b;
+}
+
+

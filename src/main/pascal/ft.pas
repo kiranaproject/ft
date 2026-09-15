@@ -15,6 +15,8 @@ uses
   Ft.Widget.ScrollBars,
   Ft.Widget.Containers,
   Ft.Widget.Menus,
+  Ft.Widget.Selectors,
+  Ft.Widget.Meters,
   Ft.Theme,
   Ft.Css,
   Ft.Animation;
@@ -34,6 +36,12 @@ var
   gLastTextAreaPlaceholder: AnsiString;
   gLastMenuCaption: AnsiString;
   gLastMenuShortcut: AnsiString;
+  gLastCheckBoxCaption: AnsiString;
+  gLastRadioCaption: AnsiString;
+  gLastComboItem: AnsiString;
+  gLastComboText: AnsiString;
+  gLastComboPlaceholder: AnsiString;
+  gLastProgressFormat: AnsiString;
   gLastStyleClass: AnsiString;
   gLastStyleId: AnsiString;
   gLastInlineStyle: AnsiString;
@@ -1668,6 +1676,581 @@ begin
     Result := 0;
 end;
 
+{ CheckBox Widgets }
+
+function ft_checkbox_create(parent: Pointer; x, y, w, h: cint32; caption: PChar): Pointer; cdecl; export;
+var
+  cb: TFtCheckBox;
+begin
+  AdjustChildCoordinates(parent, x, y);
+  cb := TFtCheckBox.Create(TFtWidget(parent));
+  cb.X := x;
+  cb.Y := y;
+  if w > 0 then cb.Width := w;
+  if h > 0 then cb.Height := h;
+  if Assigned(caption) then
+    cb.Caption := StrPas(caption);
+  Result := Pointer(cb);
+end;
+
+procedure ft_checkbox_set_checked(checkbox: Pointer; checked: cint32); cdecl; export;
+begin
+  if Assigned(checkbox) and (TObject(checkbox) is TFtCheckBox) then
+    TFtCheckBox(checkbox).Checked := (checked <> 0);
+end;
+
+function ft_checkbox_get_checked(checkbox: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(checkbox) and (TObject(checkbox) is TFtCheckBox) then
+  begin
+    if TFtCheckBox(checkbox).Checked then
+      Result := 1
+    else
+      Result := 0;
+  end
+  else
+    Result := 0;
+end;
+
+procedure ft_checkbox_toggle(checkbox: Pointer); cdecl; export;
+begin
+  if Assigned(checkbox) and (TObject(checkbox) is TFtCheckBox) then
+    TFtCheckBox(checkbox).Toggle();
+end;
+
+procedure ft_checkbox_set_caption(checkbox: Pointer; caption: PChar); cdecl; export;
+begin
+  if Assigned(checkbox) and (TObject(checkbox) is TFtCheckBox) and Assigned(caption) then
+    TFtCheckBox(checkbox).Caption := StrPas(caption);
+end;
+
+function ft_checkbox_get_caption(checkbox: Pointer): PChar; cdecl; export;
+begin
+  if Assigned(checkbox) and (TObject(checkbox) is TFtCheckBox) then
+  begin
+    gLastCheckBoxCaption := TFtCheckBox(checkbox).Caption;
+    Result := PChar(gLastCheckBoxCaption);
+  end
+  else
+    Result := PChar('');
+end;
+
+procedure ft_checkbox_set_corner_radius(checkbox: Pointer; radius: Double); cdecl; export;
+begin
+  if Assigned(checkbox) and (TObject(checkbox) is TFtCheckBox) then
+    TFtCheckBox(checkbox).CornerRadius := radius;
+end;
+
+function ft_checkbox_get_corner_radius(checkbox: Pointer): Double; cdecl; export;
+begin
+  if Assigned(checkbox) and (TObject(checkbox) is TFtCheckBox) then
+    Result := TFtCheckBox(checkbox).CornerRadius
+  else
+    Result := 0.0;
+end;
+
+procedure ft_checkbox_on_toggle(checkbox: Pointer; callback: TFtCheckCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(checkbox) and (TObject(checkbox) is TFtCheckBox) then
+  begin
+    TFtCheckBox(checkbox).OnToggle := callback;
+    TFtCheckBox(checkbox).UserData := user_data;
+  end;
+end;
+
+{ RadioButton Widgets }
+
+function ft_radio_create(parent: Pointer; x, y, w, h: cint32; caption: PChar): Pointer; cdecl; export;
+var
+  rb: TFtRadioButton;
+begin
+  AdjustChildCoordinates(parent, x, y);
+  rb := TFtRadioButton.Create(TFtWidget(parent));
+  rb.X := x;
+  rb.Y := y;
+  if w > 0 then rb.Width := w;
+  if h > 0 then rb.Height := h;
+  if Assigned(caption) then
+    rb.Caption := StrPas(caption);
+  Result := Pointer(rb);
+end;
+
+procedure ft_radio_set_checked(radio: Pointer; checked: cint32); cdecl; export;
+begin
+  if Assigned(radio) and (TObject(radio) is TFtRadioButton) then
+    TFtRadioButton(radio).Checked := (checked <> 0);
+end;
+
+function ft_radio_get_checked(radio: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(radio) and (TObject(radio) is TFtRadioButton) then
+  begin
+    if TFtRadioButton(radio).Checked then
+      Result := 1
+    else
+      Result := 0;
+  end
+  else
+    Result := 0;
+end;
+
+procedure ft_radio_set_group(radio: Pointer; group_id: cint32); cdecl; export;
+begin
+  if Assigned(radio) and (TObject(radio) is TFtRadioButton) then
+    TFtRadioButton(radio).GroupId := group_id;
+end;
+
+function ft_radio_get_group(radio: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(radio) and (TObject(radio) is TFtRadioButton) then
+    Result := TFtRadioButton(radio).GroupId
+  else
+    Result := 0;
+end;
+
+procedure ft_radio_set_caption(radio: Pointer; caption: PChar); cdecl; export;
+begin
+  if Assigned(radio) and (TObject(radio) is TFtRadioButton) and Assigned(caption) then
+    TFtRadioButton(radio).Caption := StrPas(caption);
+end;
+
+function ft_radio_get_caption(radio: Pointer): PChar; cdecl; export;
+begin
+  if Assigned(radio) and (TObject(radio) is TFtRadioButton) then
+  begin
+    gLastRadioCaption := TFtRadioButton(radio).Caption;
+    Result := PChar(gLastRadioCaption);
+  end
+  else
+    Result := PChar('');
+end;
+
+procedure ft_radio_on_toggle(radio: Pointer; callback: TFtRadioCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(radio) and (TObject(radio) is TFtRadioButton) then
+  begin
+    TFtRadioButton(radio).OnToggle := callback;
+    TFtRadioButton(radio).UserData := user_data;
+  end;
+end;
+
+{ ComboBox Widgets }
+
+function ft_combobox_create(parent: Pointer; x, y, w, h: cint32): Pointer; cdecl; export;
+var
+  cb: TFtComboBox;
+begin
+  AdjustChildCoordinates(parent, x, y);
+  cb := TFtComboBox.Create(TFtWidget(parent));
+  cb.X := x;
+  cb.Y := y;
+  if w > 0 then cb.Width := w;
+  if h > 0 then cb.Height := h;
+  Result := Pointer(cb);
+end;
+
+function ft_combobox_add_item(combobox: Pointer; item: PChar): cint32; cdecl; export;
+begin
+  if Assigned(combobox) and (TObject(combobox) is TFtComboBox) and Assigned(item) then
+    Result := TFtComboBox(combobox).AddItem(StrPas(item))
+  else
+    Result := -1;
+end;
+
+procedure ft_combobox_clear(combobox: Pointer); cdecl; export;
+begin
+  if Assigned(combobox) and (TObject(combobox) is TFtComboBox) then
+    TFtComboBox(combobox).Clear();
+end;
+
+function ft_combobox_get_item_count(combobox: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(combobox) and (TObject(combobox) is TFtComboBox) then
+    Result := TFtComboBox(combobox).GetItemCount()
+  else
+    Result := 0;
+end;
+
+function ft_combobox_get_item(combobox: Pointer; index: cint32): PChar; cdecl; export;
+begin
+  if Assigned(combobox) and (TObject(combobox) is TFtComboBox) then
+  begin
+    gLastComboItem := TFtComboBox(combobox).GetItem(index);
+    Result := PChar(gLastComboItem);
+  end
+  else
+    Result := PChar('');
+end;
+
+procedure ft_combobox_set_selected(combobox: Pointer; index: cint32); cdecl; export;
+begin
+  if Assigned(combobox) and (TObject(combobox) is TFtComboBox) then
+    TFtComboBox(combobox).SelectedIndex := index;
+end;
+
+function ft_combobox_get_selected(combobox: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(combobox) and (TObject(combobox) is TFtComboBox) then
+    Result := TFtComboBox(combobox).SelectedIndex
+  else
+    Result := -1;
+end;
+
+function ft_combobox_get_selected_text(combobox: Pointer): PChar; cdecl; export;
+begin
+  if Assigned(combobox) and (TObject(combobox) is TFtComboBox) then
+  begin
+    gLastComboText := TFtComboBox(combobox).GetItem(TFtComboBox(combobox).SelectedIndex);
+    Result := PChar(gLastComboText);
+  end
+  else
+    Result := PChar('');
+end;
+
+procedure ft_combobox_set_text(combobox: Pointer; text: PChar); cdecl; export;
+begin
+  if Assigned(combobox) and (TObject(combobox) is TFtComboBox) and Assigned(text) then
+    TFtComboBox(combobox).Text := StrPas(text);
+end;
+
+function ft_combobox_get_text(combobox: Pointer): PChar; cdecl; export;
+begin
+  if Assigned(combobox) and (TObject(combobox) is TFtComboBox) then
+  begin
+    gLastComboText := TFtComboBox(combobox).Text;
+    Result := PChar(gLastComboText);
+  end
+  else
+    Result := PChar('');
+end;
+
+procedure ft_combobox_set_placeholder(combobox: Pointer; placeholder: PChar); cdecl; export;
+begin
+  if Assigned(combobox) and (TObject(combobox) is TFtComboBox) and Assigned(placeholder) then
+    TFtComboBox(combobox).Placeholder := StrPas(placeholder);
+end;
+
+function ft_combobox_get_placeholder(combobox: Pointer): PChar; cdecl; export;
+begin
+  if Assigned(combobox) and (TObject(combobox) is TFtComboBox) then
+  begin
+    gLastComboPlaceholder := TFtComboBox(combobox).Placeholder;
+    Result := PChar(gLastComboPlaceholder);
+  end
+  else
+    Result := PChar('');
+end;
+
+procedure ft_combobox_set_editable(combobox: Pointer; editable: cint32); cdecl; export;
+begin
+  if Assigned(combobox) and (TObject(combobox) is TFtComboBox) then
+    TFtComboBox(combobox).Editable := (editable <> 0);
+end;
+
+function ft_combobox_get_editable(combobox: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(combobox) and (TObject(combobox) is TFtComboBox) then
+  begin
+    if TFtComboBox(combobox).Editable then
+      Result := 1
+    else
+      Result := 0;
+  end
+  else
+    Result := 0;
+end;
+
+procedure ft_combobox_set_corner_radius(combobox: Pointer; radius: Double); cdecl; export;
+begin
+  if Assigned(combobox) and (TObject(combobox) is TFtComboBox) then
+    TFtComboBox(combobox).CornerRadius := radius;
+end;
+
+function ft_combobox_get_corner_radius(combobox: Pointer): Double; cdecl; export;
+begin
+  if Assigned(combobox) and (TObject(combobox) is TFtComboBox) then
+    Result := TFtComboBox(combobox).CornerRadius
+  else
+    Result := 0.0;
+end;
+
+procedure ft_combobox_popup(combobox: Pointer); cdecl; export;
+begin
+  if Assigned(combobox) and (TObject(combobox) is TFtComboBox) then
+    TFtComboBox(combobox).Popup();
+end;
+
+procedure ft_combobox_on_change(combobox: Pointer; callback: TFtComboChangeCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(combobox) and (TObject(combobox) is TFtComboBox) then
+  begin
+    TFtComboBox(combobox).OnChange := callback;
+    TFtComboBox(combobox).UserData := user_data;
+  end;
+end;
+
+{ Slider Widgets }
+
+function ft_slider_create(parent: Pointer; x, y, w, h: cint32; orientation: cint32): Pointer; cdecl; export;
+var
+  orient: TFtSliderOrientation;
+  sl: TFtSlider;
+begin
+  if orientation = 1 then
+    orient := ftSliderVertical
+  else
+    orient := ftSliderHorizontal;
+  AdjustChildCoordinates(parent, x, y);
+  sl := TFtSlider.Create(TFtWidget(parent), orient);
+  sl.X := x;
+  sl.Y := y;
+  if w > 0 then sl.Width := w;
+  if h > 0 then sl.Height := h;
+  Result := Pointer(sl);
+end;
+
+procedure ft_slider_set_orientation(slider: Pointer; orientation: cint32); cdecl; export;
+begin
+  if Assigned(slider) and (TObject(slider) is TFtSlider) then
+  begin
+    if orientation = 1 then
+      TFtSlider(slider).Orientation := ftSliderVertical
+    else
+      TFtSlider(slider).Orientation := ftSliderHorizontal;
+  end;
+end;
+
+function ft_slider_get_orientation(slider: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(slider) and (TObject(slider) is TFtSlider) then
+    Result := Ord(TFtSlider(slider).Orientation)
+  else
+    Result := 0;
+end;
+
+procedure ft_slider_set_range(slider: Pointer; min, max: Double); cdecl; export;
+begin
+  if Assigned(slider) and (TObject(slider) is TFtSlider) then
+  begin
+    TFtSlider(slider).Min := min;
+    TFtSlider(slider).Max := max;
+  end;
+end;
+
+function ft_slider_get_min(slider: Pointer): Double; cdecl; export;
+begin
+  if Assigned(slider) and (TObject(slider) is TFtSlider) then
+    Result := TFtSlider(slider).Min
+  else
+    Result := 0.0;
+end;
+
+function ft_slider_get_max(slider: Pointer): Double; cdecl; export;
+begin
+  if Assigned(slider) and (TObject(slider) is TFtSlider) then
+    Result := TFtSlider(slider).Max
+  else
+    Result := 100.0;
+end;
+
+procedure ft_slider_set_value(slider: Pointer; value: Double); cdecl; export;
+begin
+  if Assigned(slider) and (TObject(slider) is TFtSlider) then
+    TFtSlider(slider).Value := value;
+end;
+
+function ft_slider_get_value(slider: Pointer): Double; cdecl; export;
+begin
+  if Assigned(slider) and (TObject(slider) is TFtSlider) then
+    Result := TFtSlider(slider).Value
+  else
+    Result := 0.0;
+end;
+
+procedure ft_slider_set_step(slider: Pointer; step: Double); cdecl; export;
+begin
+  if Assigned(slider) and (TObject(slider) is TFtSlider) then
+    TFtSlider(slider).Step := step;
+end;
+
+function ft_slider_get_step(slider: Pointer): Double; cdecl; export;
+begin
+  if Assigned(slider) and (TObject(slider) is TFtSlider) then
+    Result := TFtSlider(slider).Step
+  else
+    Result := 0.0;
+end;
+
+procedure ft_slider_set_thumb_size(slider: Pointer; thumb_size: Double); cdecl; export;
+begin
+  if Assigned(slider) and (TObject(slider) is TFtSlider) then
+    TFtSlider(slider).ThumbSize := thumb_size;
+end;
+
+function ft_slider_get_thumb_size(slider: Pointer): Double; cdecl; export;
+begin
+  if Assigned(slider) and (TObject(slider) is TFtSlider) then
+    Result := TFtSlider(slider).ThumbSize
+  else
+    Result := 18.0;
+end;
+
+procedure ft_slider_on_change(slider: Pointer; callback: TFtSliderChangeCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(slider) and (TObject(slider) is TFtSlider) then
+  begin
+    TFtSlider(slider).OnChange := callback;
+    TFtSlider(slider).UserData := user_data;
+  end;
+end;
+
+{ ProgressBar Widgets }
+
+function ft_progressbar_create(parent: Pointer; x, y, w, h: cint32; orientation: cint32): Pointer; cdecl; export;
+var
+  orient: TFtProgressOrientation;
+  pb: TFtProgressBar;
+begin
+  if orientation = 1 then
+    orient := ftProgressVertical
+  else
+    orient := ftProgressHorizontal;
+  AdjustChildCoordinates(parent, x, y);
+  pb := TFtProgressBar.Create(TFtWidget(parent), orient);
+  pb.X := x;
+  pb.Y := y;
+  if w > 0 then pb.Width := w;
+  if h > 0 then pb.Height := h;
+  Result := Pointer(pb);
+end;
+
+procedure ft_progressbar_set_orientation(progressbar: Pointer; orientation: cint32); cdecl; export;
+begin
+  if Assigned(progressbar) and (TObject(progressbar) is TFtProgressBar) then
+  begin
+    if orientation = 1 then
+      TFtProgressBar(progressbar).Orientation := ftProgressVertical
+    else
+      TFtProgressBar(progressbar).Orientation := ftProgressHorizontal;
+  end;
+end;
+
+function ft_progressbar_get_orientation(progressbar: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(progressbar) and (TObject(progressbar) is TFtProgressBar) then
+    Result := Ord(TFtProgressBar(progressbar).Orientation)
+  else
+    Result := 0;
+end;
+
+procedure ft_progressbar_set_range(progressbar: Pointer; min, max: Double); cdecl; export;
+begin
+  if Assigned(progressbar) and (TObject(progressbar) is TFtProgressBar) then
+  begin
+    TFtProgressBar(progressbar).Min := min;
+    TFtProgressBar(progressbar).Max := max;
+  end;
+end;
+
+function ft_progressbar_get_min(progressbar: Pointer): Double; cdecl; export;
+begin
+  if Assigned(progressbar) and (TObject(progressbar) is TFtProgressBar) then
+    Result := TFtProgressBar(progressbar).Min
+  else
+    Result := 0.0;
+end;
+
+function ft_progressbar_get_max(progressbar: Pointer): Double; cdecl; export;
+begin
+  if Assigned(progressbar) and (TObject(progressbar) is TFtProgressBar) then
+    Result := TFtProgressBar(progressbar).Max
+  else
+    Result := 100.0;
+end;
+
+procedure ft_progressbar_set_value(progressbar: Pointer; value: Double); cdecl; export;
+begin
+  if Assigned(progressbar) and (TObject(progressbar) is TFtProgressBar) then
+    TFtProgressBar(progressbar).Value := value;
+end;
+
+function ft_progressbar_get_value(progressbar: Pointer): Double; cdecl; export;
+begin
+  if Assigned(progressbar) and (TObject(progressbar) is TFtProgressBar) then
+    Result := TFtProgressBar(progressbar).Value
+  else
+    Result := 0.0;
+end;
+
+procedure ft_progressbar_set_indeterminate(progressbar: Pointer; indeterminate: cint32); cdecl; export;
+begin
+  if Assigned(progressbar) and (TObject(progressbar) is TFtProgressBar) then
+    TFtProgressBar(progressbar).Indeterminate := (indeterminate <> 0);
+end;
+
+function ft_progressbar_get_indeterminate(progressbar: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(progressbar) and (TObject(progressbar) is TFtProgressBar) then
+  begin
+    if TFtProgressBar(progressbar).Indeterminate then
+      Result := 1
+    else
+      Result := 0;
+  end
+  else
+    Result := 0;
+end;
+
+procedure ft_progressbar_set_show_text(progressbar: Pointer; show_text: cint32); cdecl; export;
+begin
+  if Assigned(progressbar) and (TObject(progressbar) is TFtProgressBar) then
+    TFtProgressBar(progressbar).ShowText := (show_text <> 0);
+end;
+
+function ft_progressbar_get_show_text(progressbar: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(progressbar) and (TObject(progressbar) is TFtProgressBar) then
+  begin
+    if TFtProgressBar(progressbar).ShowText then
+      Result := 1
+    else
+      Result := 0;
+  end
+  else
+    Result := 0;
+end;
+
+procedure ft_progressbar_set_text_format(progressbar: Pointer; format: PChar); cdecl; export;
+begin
+  if Assigned(progressbar) and (TObject(progressbar) is TFtProgressBar) and Assigned(format) then
+    TFtProgressBar(progressbar).TextFormat := StrPas(format);
+end;
+
+function ft_progressbar_get_text_format(progressbar: Pointer): PChar; cdecl; export;
+begin
+  if Assigned(progressbar) and (TObject(progressbar) is TFtProgressBar) then
+  begin
+    gLastProgressFormat := TFtProgressBar(progressbar).TextFormat;
+    Result := PChar(gLastProgressFormat);
+  end
+  else
+    Result := PChar('');
+end;
+
+procedure ft_progressbar_set_corner_radius(progressbar: Pointer; radius: Double); cdecl; export;
+begin
+  if Assigned(progressbar) and (TObject(progressbar) is TFtProgressBar) then
+    TFtProgressBar(progressbar).CornerRadius := radius;
+end;
+
+function ft_progressbar_get_corner_radius(progressbar: Pointer): Double; cdecl; export;
+begin
+  if Assigned(progressbar) and (TObject(progressbar) is TFtProgressBar) then
+    Result := TFtProgressBar(progressbar).CornerRadius
+  else
+    Result := 0.0;
+end;
+
 exports
   ft_init,
   ft_main_loop,
@@ -1812,6 +2395,70 @@ exports
   ft_container_on_scroll,
   ft_container_get_client_rect,
   ft_container_update_scrollbars,
+  ft_checkbox_create,
+  ft_checkbox_set_checked,
+  ft_checkbox_get_checked,
+  ft_checkbox_toggle,
+  ft_checkbox_set_caption,
+  ft_checkbox_get_caption,
+  ft_checkbox_set_corner_radius,
+  ft_checkbox_get_corner_radius,
+  ft_checkbox_on_toggle,
+  ft_radio_create,
+  ft_radio_set_checked,
+  ft_radio_get_checked,
+  ft_radio_set_group,
+  ft_radio_get_group,
+  ft_radio_set_caption,
+  ft_radio_get_caption,
+  ft_radio_on_toggle,
+  ft_combobox_create,
+  ft_combobox_add_item,
+  ft_combobox_clear,
+  ft_combobox_get_item_count,
+  ft_combobox_get_item,
+  ft_combobox_set_selected,
+  ft_combobox_get_selected,
+  ft_combobox_get_selected_text,
+  ft_combobox_set_text,
+  ft_combobox_get_text,
+  ft_combobox_set_placeholder,
+  ft_combobox_get_placeholder,
+  ft_combobox_set_editable,
+  ft_combobox_get_editable,
+  ft_combobox_set_corner_radius,
+  ft_combobox_get_corner_radius,
+  ft_combobox_popup,
+  ft_combobox_on_change,
+  ft_slider_create,
+  ft_slider_set_orientation,
+  ft_slider_get_orientation,
+  ft_slider_set_range,
+  ft_slider_get_min,
+  ft_slider_get_max,
+  ft_slider_set_value,
+  ft_slider_get_value,
+  ft_slider_set_step,
+  ft_slider_get_step,
+  ft_slider_set_thumb_size,
+  ft_slider_get_thumb_size,
+  ft_slider_on_change,
+  ft_progressbar_create,
+  ft_progressbar_set_orientation,
+  ft_progressbar_get_orientation,
+  ft_progressbar_set_range,
+  ft_progressbar_get_min,
+  ft_progressbar_get_max,
+  ft_progressbar_set_value,
+  ft_progressbar_get_value,
+  ft_progressbar_set_indeterminate,
+  ft_progressbar_get_indeterminate,
+  ft_progressbar_set_show_text,
+  ft_progressbar_get_show_text,
+  ft_progressbar_set_text_format,
+  ft_progressbar_get_text_format,
+  ft_progressbar_set_corner_radius,
+  ft_progressbar_get_corner_radius,
   ft_main_menu_create,
   ft_main_menu_add_menu,
   ft_main_menu_add_item,

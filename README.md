@@ -25,6 +25,11 @@ A lightweight, high-performance native GUI toolkit engineered with Free Pascal, 
   - **Window**: Native X11 windows with double-buffered vector rendering.
   - **Button & Toggle Button**: Interactive push and latching buttons with hover transitions.
   - **Switch**: Modern toggle switch with circular thumb slider and accent highlights.
+  - **CheckBox**: Crisp vector checkboxes with checkmark glyph and keyboard toggle.
+  - **RadioButton**: Mutually exclusive options with grouping support and circular indicator.
+  - **ComboBox**: Dropdown selection menu with popup list and optional editable entry.
+  - **Slider**: Horizontal and vertical continuous or stepped sliders with dragging and keyboard arrows.
+  - **ProgressBar**: Determinate percentage progress and 60 FPS indeterminate animated activity bar.
   - **Text / Label**: Dual-mode text with selectable mouse-drag highlight and clipboard copy.
   - **Entry**: Single-line text input with blinking caret, selection, and clipboard support.
   - **TextArea**: Multi-line text area with line navigation and dynamic scrollbars.
@@ -50,6 +55,12 @@ Comprehensive documentation is available in the [`docs/`](docs/) directory:
 ---
 
 ## Visual Showcase
+
+### Form Controls & Meters
+| Form Controls & Meters (Light) | Dropdown ComboBox Popup |
+| :---: | :---: |
+| ![Form Controls Showcase](docs/screenshots/floria_form_controls.png) | ![ComboBox Dropdown](docs/screenshots/floria_combobox_open.png) |
+*CheckBoxes, RadioButtons, ComboBoxes, Sliders (horizontal/vertical), and ProgressBars (determinate/indeterminate).*
 
 ### Window Main Menu & Pop-up Context Menus
 ![Window Main Menu & Pop-up Menu Showcase](docs/screenshots/floria_menus.png)

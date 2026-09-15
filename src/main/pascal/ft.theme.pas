@@ -295,6 +295,66 @@ const
     'container.dark {' + LineEnding +
     '    background-color: #27272a;' + LineEnding +
     '    border-color: #3f3f46;' + LineEnding +
+    '}' + LineEnding +
+    'checkbox, radio {' + LineEnding +
+    '    background-color: #ffffff;' + LineEnding +
+    '    border-color: #94a3b8;' + LineEnding +
+    '    border-width: 1px;' + LineEnding +
+    '    color: #1e293b;' + LineEnding +
+    '    transition: all 150ms ease;' + LineEnding +
+    '}' + LineEnding +
+    'checkbox:checked, radio:checked {' + LineEnding +
+    '    background-color: #3b82f6;' + LineEnding +
+    '    border-color: #2563eb;' + LineEnding +
+    '}' + LineEnding +
+    'checkbox.dark, radio.dark {' + LineEnding +
+    '    background-color: #27272a;' + LineEnding +
+    '    border-color: #52525b;' + LineEnding +
+    '    color: #f1f5f9;' + LineEnding +
+    '}' + LineEnding +
+    'checkbox.dark:checked, radio.dark:checked {' + LineEnding +
+    '    background-color: #3b82f6;' + LineEnding +
+    '    border-color: #60a5fa;' + LineEnding +
+    '}' + LineEnding +
+    'combobox {' + LineEnding +
+    '    background-color: #ffffff;' + LineEnding +
+    '    border-color: #cbd5e1;' + LineEnding +
+    '    border-width: 1px;' + LineEnding +
+    '    border-radius: 6px;' + LineEnding +
+    '    color: #0f172a;' + LineEnding +
+    '    box-shadow: 1;' + LineEnding +
+    '    transition: border-color 150ms ease;' + LineEnding +
+    '}' + LineEnding +
+    'combobox:focus {' + LineEnding +
+    '    border-color: #3b82f6;' + LineEnding +
+    '}' + LineEnding +
+    'combobox.dark {' + LineEnding +
+    '    background-color: #27272a;' + LineEnding +
+    '    border-color: #3f3f46;' + LineEnding +
+    '    color: #f4f4f5;' + LineEnding +
+    '}' + LineEnding +
+    'combobox.dark:focus {' + LineEnding +
+    '    border-color: #60a5fa;' + LineEnding +
+    '}' + LineEnding +
+    'slider {' + LineEnding +
+    '    background-color: #cbd5e1;' + LineEnding +
+    '    color: #3b82f6;' + LineEnding +
+    '}' + LineEnding +
+    'slider.dark {' + LineEnding +
+    '    background-color: #3f3f46;' + LineEnding +
+    '    color: #60a5fa;' + LineEnding +
+    '}' + LineEnding +
+    'progressbar {' + LineEnding +
+    '    background-color: #e2e8f0;' + LineEnding +
+    '    border-color: #cbd5e1;' + LineEnding +
+    '    border-width: 1px;' + LineEnding +
+    '    border-radius: 6px;' + LineEnding +
+    '    color: #3b82f6;' + LineEnding +
+    '}' + LineEnding +
+    'progressbar.dark {' + LineEnding +
+    '    background-color: #27272a;' + LineEnding +
+    '    border-color: #3f3f46;' + LineEnding +
+    '    color: #60a5fa;' + LineEnding +
     '}';
 
 var

@@ -10,19 +10,24 @@ This document provides a comprehensive reference for the Floria Toolkit C ABI ex
 3. [Widget Focus & Keyboard Navigation](#widget-focus--keyboard-navigation)
 4. [Push Button & Toggle Button](#push-button--toggle-button)
 5. [Toggle Switch](#toggle-switch)
-6. [Text / Label](#text--label)
-7. [Entry (Single-Line Input)](#entry-single-line-input)
-8. [TextArea (Multi-Line Text)](#textarea-multi-line-text)
-9. [ScrollBar](#scrollbar)
-10. [Container (Scrollable Viewport)](#container-scrollable-viewport)
-11. [Window Main Menu](#window-main-menu)
-12. [Pop-up & Context Menus](#pop-up--context-menus)
-13. [Menu Items](#menu-items)
-14. [Context Menu & Window Attachment](#context-menu--window-attachment)
-15. [Clipboard Management](#clipboard-management)
-16. [Theme Management](#theme-management)
-17. [CSS Styling & Animation](#css-styling--animation)
-18. [Typography & Screen DPI](#typography--screen-dpi)
+6. [CheckBox](#checkbox)
+7. [RadioButton](#radiobutton)
+8. [ComboBox (Dropdown Select)](#combobox-dropdown-select)
+9. [Slider](#slider)
+10. [ProgressBar](#progressbar)
+11. [Text / Label](#text--label)
+12. [Entry (Single-Line Input)](#entry-single-line-input)
+13. [TextArea (Multi-Line Text)](#textarea-multi-line-text)
+14. [ScrollBar](#scrollbar)
+15. [Container (Scrollable Viewport)](#container-scrollable-viewport)
+16. [Window Main Menu](#window-main-menu)
+17. [Pop-up & Context Menus](#pop-up--context-menus)
+18. [Menu Items](#menu-items)
+19. [Context Menu & Window Attachment](#context-menu--window-attachment)
+20. [Clipboard Management](#clipboard-management)
+21. [Theme Management](#theme-management)
+22. [CSS Styling & Animation](#css-styling--animation)
+23. [Typography & Screen DPI](#typography--screen-dpi)
 
 ---
 
@@ -105,6 +110,105 @@ This document provides a comprehensive reference for the Floria Toolkit C ABI ex
 | `void ft_switch_set_shadow(FtWidget sw, int32_t enabled)` | Sets per-widget drop shadow. |
 | `void ft_switch_set_caption(FtWidget sw, const char* caption)` | Sets adjacent label text. |
 | `const char* ft_switch_get_caption(FtWidget sw)` | Gets adjacent label text. |
+
+---
+
+## CheckBox
+
+| Function | Description |
+|---|---|
+| `FtWidget ft_checkbox_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, const char* caption)` | Creates a checkbox widget with caption. |
+| `void ft_checkbox_set_checked(FtWidget cb, int32_t checked)` | Sets checked state (`1` = checked, `0` = unchecked). |
+| `int32_t ft_checkbox_get_checked(FtWidget cb)` | Returns `1` if checked, `0` if unchecked. |
+| `void ft_checkbox_toggle(FtWidget cb)` | Inverts checked state. |
+| `void ft_checkbox_set_caption(FtWidget cb, const char* caption)` | Updates the checkbox caption label. |
+| `const char* ft_checkbox_get_caption(FtWidget cb)` | Gets current checkbox caption label. |
+| `void ft_checkbox_set_corner_radius(FtWidget cb, double radius)` | Sets corner radius of check plate (`-1.0` inherits theme). |
+| `double ft_checkbox_get_corner_radius(FtWidget cb)` | Gets corner radius. |
+| `void ft_checkbox_on_toggle(FtWidget cb, FtCheckCallback callback, void* user_data)` | Registers toggle callback (`void (*)(FtWidget, int32_t checked, void*)`). |
+
+---
+
+## RadioButton
+
+| Function | Description |
+|---|---|
+| `FtWidget ft_radio_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, const char* caption)` | Creates a radio button with caption. |
+| `void ft_radio_set_checked(FtWidget rb, int32_t checked)` | Selects radio button and automatically unchecks other options in the group. |
+| `int32_t ft_radio_get_checked(FtWidget rb)` | Returns `1` if selected, `0` if not selected. |
+| `void ft_radio_set_group(FtWidget rb, int32_t group_id)` | Assigns integer group ID for mutual exclusivity. |
+| `int32_t ft_radio_get_group(FtWidget rb)` | Gets group ID. |
+| `void ft_radio_set_caption(FtWidget rb, const char* caption)` | Sets caption label text. |
+| `const char* ft_radio_get_caption(FtWidget rb)` | Gets caption label text. |
+| `void ft_radio_on_toggle(FtWidget rb, FtRadioCallback callback, void* user_data)` | Registers toggle callback (`void (*)(FtWidget, int32_t checked, void*)`). |
+
+---
+
+## ComboBox (Dropdown Select)
+
+| Function | Description |
+|---|---|
+| `FtWidget ft_combobox_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h)` | Creates a dropdown select combobox. |
+| `int32_t ft_combobox_add_item(FtWidget cb, const char* item)` | Appends an item to the list; returns new item index. |
+| `void ft_combobox_clear(FtWidget cb)` | Clears all items. |
+| `int32_t ft_combobox_get_item_count(FtWidget cb)` | Returns number of items. |
+| `const char* ft_combobox_get_item(FtWidget cb, int32_t index)` | Gets item string at index. |
+| `void ft_combobox_set_selected(FtWidget cb, int32_t index)` | Selects item by index. |
+| `int32_t ft_combobox_get_selected(FtWidget cb)` | Returns currently selected index (`-1` if none). |
+| `const char* ft_combobox_get_selected_text(FtWidget cb)` | Returns currently selected text string. |
+| `void ft_combobox_set_text(FtWidget cb, const char* text)` | Sets display text string. |
+| `const char* ft_combobox_get_text(FtWidget cb)` | Gets current display text. |
+| `void ft_combobox_set_placeholder(FtWidget cb, const char* placeholder)` | Sets placeholder when nothing is selected. |
+| `const char* ft_combobox_get_placeholder(FtWidget cb)` | Gets placeholder text. |
+| `void ft_combobox_set_editable(FtWidget cb, int32_t editable)` | Toggles editable text entry mode. |
+| `int32_t ft_combobox_get_editable(FtWidget cb)` | Queries whether combobox is editable. |
+| `void ft_combobox_set_corner_radius(FtWidget cb, double radius)` | Sets corner radius of combobox plate. |
+| `double ft_combobox_get_corner_radius(FtWidget cb)` | Gets corner radius. |
+| `void ft_combobox_popup(FtWidget cb)` | Programmatically pops open the dropdown list. |
+| `void ft_combobox_on_change(FtWidget cb, FtComboChangeCallback callback, void* user_data)` | Registers selection change callback (`void (*)(FtWidget, int32_t index, const char* text, void*)`). |
+
+---
+
+## Slider
+
+| Function | Description |
+|---|---|
+| `FtWidget ft_slider_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, int32_t orientation)` | Creates a slider (`FT_SLIDER_HORIZONTAL` or `FT_SLIDER_VERTICAL`). |
+| `void ft_slider_set_orientation(FtWidget sl, int32_t orientation)` | Sets orientation (`0` = Horizontal, `1` = Vertical). |
+| `int32_t ft_slider_get_orientation(FtWidget sl)` | Gets orientation. |
+| `void ft_slider_set_range(FtWidget sl, double min, double max)` | Sets minimum and maximum value bounds. |
+| `double ft_slider_get_min(FtWidget sl)` | Gets minimum bound. |
+| `double ft_slider_get_max(FtWidget sl)` | Gets maximum bound. |
+| `void ft_slider_set_value(FtWidget sl, double value)` | Sets current slider position value. |
+| `double ft_slider_get_value(FtWidget sl)` | Gets current slider value. |
+| `void ft_slider_set_step(FtWidget sl, double step)` | Sets discrete step increment (`0.0` for continuous). |
+| `double ft_slider_get_step(FtWidget sl)` | Gets step increment. |
+| `void ft_slider_set_thumb_size(FtWidget sl, double thumb_size)` | Sets diameter of draggable thumb handle. |
+| `double ft_slider_get_thumb_size(FtWidget sl)` | Gets thumb handle diameter. |
+| `void ft_slider_on_change(FtWidget sl, FtSliderChangeCallback callback, void* user_data)` | Registers value change callback (`void (*)(FtWidget, double value, void*)`). |
+
+---
+
+## ProgressBar
+
+| Function | Description |
+|---|---|
+| `FtWidget ft_progressbar_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, int32_t orientation)` | Creates a progress bar (`FT_PROGRESS_HORIZONTAL` or `FT_PROGRESS_VERTICAL`). |
+| `void ft_progressbar_set_orientation(FtWidget pb, int32_t orientation)` | Sets orientation (`0` = Horizontal, `1` = Vertical). |
+| `int32_t ft_progressbar_get_orientation(FtWidget pb)` | Gets orientation. |
+| `void ft_progressbar_set_range(FtWidget pb, double min, double max)` | Sets range bounds. |
+| `double ft_progressbar_get_min(FtWidget pb)` | Gets minimum bound. |
+| `double ft_progressbar_get_max(FtWidget pb)` | Gets maximum bound. |
+| `void ft_progressbar_set_value(FtWidget pb, double value)` | Sets current progress value. |
+| `double ft_progressbar_get_value(FtWidget pb)` | Gets current progress value. |
+| `void ft_progressbar_set_indeterminate(FtWidget pb, int32_t indeterminate)` | Toggles indeterminate mode (`1` = animated 60 FPS sweep, `0` = determinate). |
+| `int32_t ft_progressbar_get_indeterminate(FtWidget pb)` | Queries whether in indeterminate mode. |
+| `void ft_progressbar_set_show_text(FtWidget pb, int32_t show_text)` | Toggles percentage text readout inside progress bar. |
+| `int32_t ft_progressbar_get_show_text(FtWidget pb)` | Queries whether percentage text is shown. |
+| `void ft_progressbar_set_text_format(FtWidget pb, const char* format)` | Sets custom format string (e.g. `"%.0f%%"`). |
+| `const char* ft_progressbar_get_text_format(FtWidget pb)` | Gets current format string. |
+| `void ft_progressbar_set_corner_radius(FtWidget pb, double radius)` | Sets corner radius of progress track plate. |
+| `double ft_progressbar_get_corner_radius(FtWidget pb)` | Gets corner radius. |
 
 ---
 

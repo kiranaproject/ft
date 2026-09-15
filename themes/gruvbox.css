@@ -90,3 +90,44 @@ container {
     border-radius: 4px;
 }
 
+checkbox, radio {
+    background-color: #32302f;
+    border-color: #504945;
+    border-width: 1px;
+    color: #ebdbb2;
+    transition: all 150ms ease;
+}
+
+checkbox:checked, radio:checked {
+    background-color: #d79921;
+    border-color: #fabd2f;
+}
+
+combobox {
+    background-color: #32302f;
+    border-color: #504945;
+    border-width: 1px;
+    border-radius: 4px;
+    color: #ebdbb2;
+    box-shadow: 1;
+    transition: border-color 150ms ease;
+}
+
+combobox:focus {
+    border-color: #fabd2f;
+}
+
+slider {
+    background-color: #504945;
+    color: #fabd2f;
+}
+
+progressbar {
+    background-color: #32302f;
+    border-color: #504945;
+    border-width: 1px;
+    border-radius: 4px;
+    color: #d79921;
+}
+
+

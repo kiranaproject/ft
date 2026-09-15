@@ -62,6 +62,10 @@ type
 
     procedure DrawCheckMark(CX, CY: Double; R, G, B: Double; A: Double = 1.0);
     procedure DrawSubMenuArrow(CX, CY: Double; R, G, B: Double; A: Double = 1.0);
+    procedure DrawCircle(CX, CY, Radius: Double; R, G, B: Double; A: Double = 1.0);
+    procedure DrawCircleOutline(CX, CY, Radius, BorderWidth: Double; R, G, B: Double; A: Double = 1.0);
+    procedure DrawLine(X1, Y1, X2, Y2, Width: Double; R, G, B: Double; A: Double = 1.0);
+    procedure DrawTextLeft(X, Y, W, H: Double; const AText: string; AFont: TFtFont; R, G, B: Double);
 
     { Legacy overloads }
     procedure DrawText(X, Y: Double; const AText: string; ASize: Double; R, G, B: Double);
@@ -327,6 +331,47 @@ begin
   FRasterizer.line_to_d(CX + 2.5, CY);
   FRasterizer.line_to_d(CX - 2.5, CY + 4.0);
   render_scanlines_aa_solid(@FRasterizer, @FScanline, @FRendererBase, @C);
+end;
+
+procedure TFtCanvasAgg.DrawCircle(CX, CY, Radius: Double; R, G, B: Double; A: Double = 1.0);
+begin
+  DrawRoundedRect(CX - Radius, CY - Radius, Radius * 2.0, Radius * 2.0, Radius, R, G, B, A);
+end;
+
+procedure TFtCanvasAgg.DrawCircleOutline(CX, CY, Radius, BorderWidth: Double; R, G, B: Double; A: Double = 1.0);
+begin
+  DrawRoundedRectOutline(CX - Radius, CY - Radius, Radius * 2.0, Radius * 2.0, Radius, BorderWidth, R, G, B, A);
+end;
+
+procedure TFtCanvasAgg.DrawLine(X1, Y1, X2, Y2, Width: Double; R, G, B: Double; A: Double = 1.0);
+var
+  Path: path_storage;
+  Stroke: conv_stroke;
+  C: aggclr;
+begin
+  Path.Construct();
+  Path.move_to(X1, Y1);
+  Path.line_to(X2, Y2);
+  Stroke.Construct(@Path);
+  Stroke.width_(Width);
+  Stroke.line_cap_(round_cap);
+  C.ConstrDbl(R, G, B, A);
+  FRasterizer.reset();
+  FRasterizer.add_path(@Stroke);
+  render_scanlines_aa_solid(@FRasterizer, @FScanline, @FRendererBase, @C);
+  Stroke.Destruct();
+  Path.Destruct();
+end;
+
+procedure TFtCanvasAgg.DrawTextLeft(X, Y, W, H: Double; const AText: string; AFont: TFtFont; R, G, B: Double);
+var
+  actualFont: TFtFont;
+  ty: Double;
+begin
+  if AText = '' then Exit;
+  if not Assigned(AFont) then actualFont := FtGetSystemFont() else actualFont := AFont;
+  ty := Y + (H / 2.0) + (actualFont.Ascent - actualFont.Descent) / 2.0;
+  DrawText(X, ty, AText, actualFont, R, G, B);
 end;
 
 procedure TFtCanvasAgg.DrawTextHershey(X, Y: Double; const AText: string; ASize: Double; R, G, B: Double);

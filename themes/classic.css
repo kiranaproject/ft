@@ -166,3 +166,73 @@ container.dark {
     border-color: #3e4654;
 }
 
+checkbox, radio {
+    background-color: #ffffff;
+    border-color: #b0b6c2;
+    border-width: 1px;
+    color: #262e38;
+}
+
+checkbox:checked, radio:checked {
+    background-color: #2eb38a;
+    border-color: #248c6c;
+}
+
+checkbox.dark, radio.dark {
+    background-color: #16181d;
+    border-color: #3e4654;
+    color: #e6eaf2;
+}
+
+checkbox.dark:checked, radio.dark:checked {
+    background-color: #2eb38a;
+    border-color: #248c6c;
+}
+
+combobox {
+    background-color: #ffffff;
+    border-color: #b0b6c2;
+    border-width: 1px;
+    border-radius: 4px;
+    color: #262e38;
+}
+
+combobox:focus {
+    border-color: #38a082;
+}
+
+combobox.dark {
+    background-color: #16181d;
+    border-color: #3e4654;
+    color: #e6eaf2;
+}
+
+combobox.dark:focus {
+    border-color: #38a082;
+}
+
+slider {
+    background-color: #d0d8e6;
+    color: #2eb38a;
+}
+
+slider.dark {
+    background-color: #3e4654;
+    color: #2eb38a;
+}
+
+progressbar {
+    background-color: #d8dce3;
+    border-color: #b0b6c2;
+    border-width: 1px;
+    border-radius: 4px;
+    color: #2eb38a;
+}
+
+progressbar.dark {
+    background-color: #16181d;
+    border-color: #3e4654;
+    color: #2eb38a;
+}
+
+

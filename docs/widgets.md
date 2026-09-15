@@ -10,12 +10,17 @@ Floria Toolkit provides a rich suite of native desktop widgets designed with obj
 3. [Top-Level Window (`TFtX11Window`)](#top-level-window-tftx11window)
 4. [Push & Toggle Buttons (`TFtButton`)](#push--toggle-buttons-tftbutton)
 5. [Toggle Switch (`TFtSwitch`)](#toggle-switch-tftswitch)
-6. [Text / Label (`TFtText`)](#text--label-tfttext)
-7. [Container Box & Viewport (`TFtContainer`)](#container-box--viewport-tftcontainer)
-8. [Single-Line Text Entry (`TFtEntry`)](#single-line-text-entry-tftentry)
-9. [Multi-Line Text Area (`TFtTextArea`)](#multi-line-text-area-tfttextarea)
-10. [Vector ScrollBar (`TFtScrollBar`)](#vector-scrollbar-tftscrollbar)
-11. [Main Menu & Popup Context Menus](#main-menu--popup-context-menus)
+6. [CheckBox (`TFtCheckBox`)](#checkbox-tftcheckbox)
+7. [RadioButton (`TFtRadioButton`)](#radiobutton-tftradiobutton)
+8. [ComboBox Dropdown (`TFtComboBox`)](#combobox-dropdown-tftcombobox)
+9. [Slider (`TFtSlider`)](#slider-tftslider)
+10. [ProgressBar (`TFtProgressBar`)](#progressbar-tftprogressbar)
+11. [Text / Label (`TFtText`)](#text--label-tfttext)
+12. [Container Box & Viewport (`TFtContainer`)](#container-box--viewport-tftcontainer)
+13. [Single-Line Text Entry (`TFtEntry`)](#single-line-text-entry-tftentry)
+14. [Multi-Line Text Area (`TFtTextArea`)](#multi-line-text-area-tfttextarea)
+15. [Vector ScrollBar (`TFtScrollBar`)](#vector-scrollbar-tftscrollbar)
+16. [Main Menu & Popup Context Menus](#main-menu--popup-context-menus)
 
 ---
 
@@ -26,6 +31,11 @@ TFtWidget (Ft.Widget)
 ├── TFtX11Window (Ft.Backend.X11)
 ├── TFtButton (Ft.Widget.Buttons)
 ├── TFtSwitch (Ft.Widget.Switches)
+├── TFtCheckBox (Ft.Widget.Selectors)
+├── TFtRadioButton (Ft.Widget.Selectors)
+├── TFtComboBox (Ft.Widget.Selectors)
+├── TFtSlider (Ft.Widget.Meters)
+├── TFtProgressBar (Ft.Widget.Meters)
 ├── TFtText (Ft.Widget.Texts)
 ├── TFtScrollBar (Ft.Widget.ScrollBars)
 ├── TFtContainer (Ft.Widget.Containers)
@@ -75,6 +85,60 @@ A modern toggle switch inspired by modern mobile and desktop operating systems:
 - Pill-shaped track with accent highlight when active.
 - Keyboard support (`Left`/`Right` arrow keys to switch, `Space`/`Enter` to toggle).
 - Integrated side caption label.
+
+---
+
+## CheckBox (`TFtCheckBox`)
+*Equivalent to `GtkCheckButton` in GTK, `QCheckBox` in Qt, and `TCheckBox` in Lazarus LCL.*
+
+- **Visuals**: Crisp vector square plate with customizable corner radius, theme-reactive borders, and anti-aliased vector checkmark (`✓`).
+- **Interaction**: Mouse clicks or keyboard activation (`Space` / `Return`).
+- **Events**: `OnToggle` callback receiving checked state (`1` / `0`).
+- **CSS Selectors**: Styled via `checkbox` element selector with `:hover`, `:active`, `:checked`, `:focus`, and `:disabled` pseudo-classes.
+
+---
+
+## RadioButton (`TFtRadioButton`)
+*Equivalent to `GtkRadioButton` in GTK, `QRadioButton` in Qt, and `TRadioButton` in Lazarus LCL.*
+
+- **Mutual Exclusivity**: Automatic mutual exclusivity among sibling radio buttons in the same parent container, with optional custom `GroupId` grouping.
+- **Visuals**: Subpixel vector circular plate with crisp centered bullet when selected.
+- **Interaction**: Keyboard navigation (`Space`/`Enter` to select, `Up`/`Down` arrows to navigate options).
+- **CSS Selectors**: Styled via `radio` element selector with pseudo-classes.
+
+---
+
+## ComboBox Dropdown (`TFtComboBox`)
+*Equivalent to `GtkComboBoxText` in GTK, `QComboBox` in Qt, and `TComboBox` in Lazarus LCL.*
+
+- **Dropdown Popup**: Native borderless X11 popup window displaying selectable items with elevation drop shadow.
+- **Modes**: Read-only dropdown selection plate with integrated chevron dropdown indicator (`▼`), plus optional editable text entry mode.
+- **Keyboard Navigation**: `Space` or `Return` opens dropdown; `Up`/`Down` arrow keys step through options or navigate popup list.
+- **Events**: `OnChange` callback passing selected index and text string.
+- **CSS Selectors**: Styled via `combobox` element selector with full pseudo-class cascade.
+
+---
+
+## Slider (`TFtSlider`)
+*Equivalent to `GtkScale` in GTK, `QSlider` in Qt, and `TTrackBar` in Lazarus LCL.*
+
+- **Orientations**: Supports both Horizontal (`FT_SLIDER_HORIZONTAL`) and Vertical (`FT_SLIDER_VERTICAL`).
+- **Visuals**: Rounded track plate with filled active track segment and circular thumb with subtle elevation shadow.
+- **Range & Stepping**: Configurable floating-point `Min`, `Max`, and optional discrete `Step` increments.
+- **Mouse & Keyboard Tracking**: Continuous smooth mouse dragging, track-jump clicks, and keyboard arrow adjustments (`Left`/`Down` to decrement, `Right`/`Up` to increment).
+- **Events**: `OnChange` callback emitting updated floating-point values in real-time.
+- **CSS Selectors**: Styled via `slider` element selector.
+
+---
+
+## ProgressBar (`TFtProgressBar`)
+*Equivalent to `GtkProgressBar` in GTK, `QProgressBar` in Qt, and `TProgressBar` in Lazarus LCL.*
+
+- **Orientations**: Supports Horizontal (`FT_PROGRESS_HORIZONTAL`) and Vertical (`FT_PROGRESS_VERTICAL`).
+- **Dual Modes**:
+  - **Determinate**: Displays progress ratio between `Min` and `Max` (e.g., `0.0`..`100.0`), with optional centered percentage text readout (e.g., `45%`, `100%`) with automatic theme contrast.
+  - **Indeterminate**: Animated 60 FPS sweeping pulse oscillating smoothly back and forth across the track using smooth cosine easing.
+- **CSS Selectors**: Styled via `progressbar` element selector.
 
 ---
 

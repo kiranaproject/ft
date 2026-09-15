@@ -217,6 +217,103 @@ void ft_container_on_scroll(FtWidget container, FtScrollCallback callback, void*
 void ft_container_get_client_rect(FtWidget container, double* x, double* y, double* w, double* h);
 void ft_container_update_scrollbars(FtWidget container);
 
+/* CheckBox Enums & Callbacks */
+typedef void (*FtCheckCallback)(FtWidget widget, int32_t checked, void* user_data);
+
+/* Widgets: CheckBox */
+FtWidget ft_checkbox_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, const char* caption);
+void ft_checkbox_set_checked(FtWidget checkbox, int32_t checked);
+int32_t ft_checkbox_get_checked(FtWidget checkbox);
+void ft_checkbox_toggle(FtWidget checkbox);
+void ft_checkbox_set_caption(FtWidget checkbox, const char* caption);
+const char* ft_checkbox_get_caption(FtWidget checkbox);
+void ft_checkbox_set_corner_radius(FtWidget checkbox, double radius);
+double ft_checkbox_get_corner_radius(FtWidget checkbox);
+void ft_checkbox_on_toggle(FtWidget checkbox, FtCheckCallback callback, void* user_data);
+
+/* RadioButton Enums & Callbacks */
+typedef void (*FtRadioCallback)(FtWidget widget, int32_t checked, void* user_data);
+
+/* Widgets: RadioButton */
+FtWidget ft_radio_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, const char* caption);
+void ft_radio_set_checked(FtWidget radio, int32_t checked);
+int32_t ft_radio_get_checked(FtWidget radio);
+void ft_radio_set_group(FtWidget radio, int32_t group_id);
+int32_t ft_radio_get_group(FtWidget radio);
+void ft_radio_set_caption(FtWidget radio, const char* caption);
+const char* ft_radio_get_caption(FtWidget radio);
+void ft_radio_on_toggle(FtWidget radio, FtRadioCallback callback, void* user_data);
+
+/* ComboBox Enums & Callbacks */
+typedef void (*FtComboChangeCallback)(FtWidget widget, int32_t selected_index, const char* text, void* user_data);
+
+/* Widgets: ComboBox */
+FtWidget ft_combobox_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h);
+int32_t ft_combobox_add_item(FtWidget combobox, const char* item);
+void ft_combobox_clear(FtWidget combobox);
+int32_t ft_combobox_get_item_count(FtWidget combobox);
+const char* ft_combobox_get_item(FtWidget combobox, int32_t index);
+void ft_combobox_set_selected(FtWidget combobox, int32_t index);
+int32_t ft_combobox_get_selected(FtWidget combobox);
+const char* ft_combobox_get_selected_text(FtWidget combobox);
+void ft_combobox_set_text(FtWidget combobox, const char* text);
+const char* ft_combobox_get_text(FtWidget combobox);
+void ft_combobox_set_placeholder(FtWidget combobox, const char* placeholder);
+const char* ft_combobox_get_placeholder(FtWidget combobox);
+void ft_combobox_set_editable(FtWidget combobox, int32_t editable);
+int32_t ft_combobox_get_editable(FtWidget combobox);
+void ft_combobox_set_corner_radius(FtWidget combobox, double radius);
+double ft_combobox_get_corner_radius(FtWidget combobox);
+void ft_combobox_popup(FtWidget combobox);
+void ft_combobox_on_change(FtWidget combobox, FtComboChangeCallback callback, void* user_data);
+
+/* Slider Enums & Callbacks */
+typedef enum {
+    FT_SLIDER_HORIZONTAL = 0,
+    FT_SLIDER_VERTICAL = 1
+} FtSliderOrientation;
+
+typedef void (*FtSliderChangeCallback)(FtWidget widget, double value, void* user_data);
+
+/* Widgets: Slider */
+FtWidget ft_slider_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, int32_t orientation);
+void ft_slider_set_orientation(FtWidget slider, int32_t orientation);
+int32_t ft_slider_get_orientation(FtWidget slider);
+void ft_slider_set_range(FtWidget slider, double min, double max);
+double ft_slider_get_min(FtWidget slider);
+double ft_slider_get_max(FtWidget slider);
+void ft_slider_set_value(FtWidget slider, double value);
+double ft_slider_get_value(FtWidget slider);
+void ft_slider_set_step(FtWidget slider, double step);
+double ft_slider_get_step(FtWidget slider);
+void ft_slider_set_thumb_size(FtWidget slider, double thumb_size);
+double ft_slider_get_thumb_size(FtWidget slider);
+void ft_slider_on_change(FtWidget slider, FtSliderChangeCallback callback, void* user_data);
+
+/* ProgressBar Enums */
+typedef enum {
+    FT_PROGRESS_HORIZONTAL = 0,
+    FT_PROGRESS_VERTICAL = 1
+} FtProgressOrientation;
+
+/* Widgets: ProgressBar */
+FtWidget ft_progressbar_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, int32_t orientation);
+void ft_progressbar_set_orientation(FtWidget progressbar, int32_t orientation);
+int32_t ft_progressbar_get_orientation(FtWidget progressbar);
+void ft_progressbar_set_range(FtWidget progressbar, double min, double max);
+double ft_progressbar_get_min(FtWidget progressbar);
+double ft_progressbar_get_max(FtWidget progressbar);
+void ft_progressbar_set_value(FtWidget progressbar, double value);
+double ft_progressbar_get_value(FtWidget progressbar);
+void ft_progressbar_set_indeterminate(FtWidget progressbar, int32_t indeterminate);
+int32_t ft_progressbar_get_indeterminate(FtWidget progressbar);
+void ft_progressbar_set_show_text(FtWidget progressbar, int32_t show_text);
+int32_t ft_progressbar_get_show_text(FtWidget progressbar);
+void ft_progressbar_set_text_format(FtWidget progressbar, const char* format);
+const char* ft_progressbar_get_text_format(FtWidget progressbar);
+void ft_progressbar_set_corner_radius(FtWidget progressbar, double radius);
+double ft_progressbar_get_corner_radius(FtWidget progressbar);
+
 /* Menus: Types and Callbacks */
 typedef void* FtMenuItem;
 typedef void (*FtMenuCallback)(FtMenuItem item, void* user_data);
