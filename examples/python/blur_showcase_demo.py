@@ -2,7 +2,7 @@
 """
 Floria Toolkit (Ft) - Background Blur & Frosted Glass Showcase
 Demonstrates:
-  1. Window-Level Compositor Background Blur (_KDE_NET_WM_BLUR_BEHIND_REGION on X11 / KWin / Picom).
+  1. Window-Level Compositor Background Blur (_NET_WM_BLUR_BEHIND_REGION & _KDE_NET_WM_BLUR_BEHIND_REGION).
   2. In-Window Frosted Glass Backdrop Blur (AggPas multi-pass downsampled blur).
   3. CSS backdrop-filter: blur(Npx) support.
   4. Light Acrylic and Dark Obsidian Frosted Glass Cards with anti-aliased rounded corners.
@@ -140,7 +140,7 @@ def main():
     ft.ft_widget_set_style(title, to_bytes("font-size: 20px; font-weight: bold; color: #ffffff;"))
 
     sub = ft.ft_text_create(win, 28, 54, 850, 20, to_bytes(
-        "Demonstrating Compositor Blur (_KDE_NET_WM_BLUR_BEHIND_REGION) + In-Window Frosted Glass Backdrop Blur"
+        "Demonstrating Compositor Blur (_NET_WM_BLUR_BEHIND_REGION) + In-Window Frosted Glass Backdrop Blur"
     ))
     ft.ft_widget_set_style(sub, to_bytes("font-size: 12px; color: #a1a1aa;"))
 
@@ -311,7 +311,7 @@ def main():
         preset_x += b_w + 8
 
     # Row 2: Compositor Window Blur Switch
-    sw_comp = ft.ft_switch_create(panel, 18, 115, 340, 26, to_bytes("Compositor Window Blur (_KDE_NET_WM_BLUR_BEHIND_REGION)"))
+    sw_comp = ft.ft_switch_create(panel, 18, 115, 340, 26, to_bytes("Compositor Window Blur (_NET_WM_BLUR_BEHIND_REGION)"))
     ft.ft_switch_set_checked(sw_comp, 1)
 
     def on_comp_blur_toggle(sw, checked, ud):

@@ -69,7 +69,8 @@ type
     FColormap: TColormap;
     FBackgroundOpacity: Double;
     FBackgroundBlur: Boolean;
-    FAtomBlurRegion: TAtom;
+    FAtomBlurRegionNet: TAtom;
+    FAtomBlurRegionKde: TAtom;
     procedure OnThemeChanged();
     procedure OnStyleSheetChanged();
     procedure UpdateCursor();
@@ -410,7 +411,8 @@ begin
   FWindowType := ftwtNormal;
   FBackgroundOpacity := 1.0;
   FBackgroundBlur := False;
-  FAtomBlurRegion := None;
+  FAtomBlurRegionNet := None;
+  FAtomBlurRegionKde := None;
 
   ScreenNum := DefaultScreen(FDisplay);
   has32BitVisual := (XMatchVisualInfo(FDisplay, ScreenNum, 32, TrueColor, @vinfo) <> 0);
@@ -672,8 +674,10 @@ var
   data: array[0..3] of culong;
 begin
   if (FWindow = None) or (FDisplay = nil) then Exit;
-  if FAtomBlurRegion = None then
-    FAtomBlurRegion := XInternAtom(FDisplay, '_KDE_NET_WM_BLUR_BEHIND_REGION', False);
+  if FAtomBlurRegionNet = None then
+    FAtomBlurRegionNet := XInternAtom(FDisplay, '_NET_WM_BLUR_BEHIND_REGION', False);
+  if FAtomBlurRegionKde = None then
+    FAtomBlurRegionKde := XInternAtom(FDisplay, '_KDE_NET_WM_BLUR_BEHIND_REGION', False);
 
   if FBackgroundBlur then
   begin
@@ -681,11 +685,15 @@ begin
     data[1] := 0;
     data[2] := Width;
     data[3] := Height;
-    XChangeProperty(FDisplay, FWindow, FAtomBlurRegion, 6 {XA_CARDINAL}, 32, PropModeReplace, PByte(@data), 4);
+    // Standard EWMH atom for our custom compositing window manager
+    XChangeProperty(FDisplay, FWindow, FAtomBlurRegionNet, 6 {XA_CARDINAL}, 32, PropModeReplace, PByte(@data), 4);
+    // Legacy KDE / Picom compatibility atom
+    XChangeProperty(FDisplay, FWindow, FAtomBlurRegionKde, 6 {XA_CARDINAL}, 32, PropModeReplace, PByte(@data), 4);
   end
   else
   begin
-    XDeleteProperty(FDisplay, FWindow, FAtomBlurRegion);
+    XDeleteProperty(FDisplay, FWindow, FAtomBlurRegionNet);
+    XDeleteProperty(FDisplay, FWindow, FAtomBlurRegionKde);
   end;
   XFlush(FDisplay);
 end;
