@@ -196,6 +196,20 @@ begin
     Result := 1.0;
 end;
 
+procedure ft_window_set_background_blur(window: Pointer; blur: cint32); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtX11Window) then
+    TFtX11Window(window).SetBackgroundBlur(blur <> 0);
+end;
+
+function ft_window_get_background_blur(window: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtX11Window) and TFtX11Window(window).GetBackgroundBlur() then
+    Result := 1
+  else
+    Result := 0;
+end;
+
 procedure ft_widget_set_focus(widget: Pointer); cdecl; export;
 begin
   if Assigned(widget) and (TObject(widget) is TFtWidget) then
@@ -1078,6 +1092,20 @@ begin
     Result := TFtContainer(container).CornerRadius
   else
     Result := -1.0;
+end;
+
+procedure ft_container_set_backdrop_blur(container: Pointer; radius: cdouble); cdecl; export;
+begin
+  if Assigned(container) and (TObject(container) is TFtContainer) then
+    TFtContainer(container).BackdropBlur := radius;
+end;
+
+function ft_container_get_backdrop_blur(container: Pointer): cdouble; cdecl; export;
+begin
+  if Assigned(container) and (TObject(container) is TFtContainer) then
+    Result := TFtContainer(container).BackdropBlur
+  else
+    Result := 0.0;
 end;
 
 procedure ft_container_set_padding(container: Pointer; pad_x, pad_y: Double); cdecl; export;
@@ -2522,6 +2550,8 @@ exports
   ft_window_get_opacity,
   ft_window_set_background_opacity,
   ft_window_get_background_opacity,
+  ft_window_set_background_blur,
+  ft_window_get_background_blur,
   ft_widget_show,
   ft_widget_hide,
   ft_widget_set_focus,
@@ -2640,6 +2670,8 @@ exports
   ft_container_get_scroll_y,
   ft_container_set_corner_radius,
   ft_container_get_corner_radius,
+  ft_container_set_backdrop_blur,
+  ft_container_get_backdrop_blur,
   ft_container_set_padding,
   ft_container_set_draw_frame,
   ft_container_get_draw_frame,

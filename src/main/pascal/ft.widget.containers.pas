@@ -25,6 +25,7 @@ type
     FDrawFrame: Boolean;
     FDrawFocusRing: Boolean;
     FAutoContentSize: Boolean;
+    FBackdropBlur: Double;
     FOnScroll: TFtScrollCallback;
     FOnScrollEvent: TFtScrollEvent;
     FUserData: Pointer;
@@ -33,6 +34,7 @@ type
     procedure SetScrollX(AValue: Double); virtual;
     procedure SetScrollY(AValue: Double); virtual;
     procedure SetCornerRadius(AValue: Double); virtual;
+    procedure SetBackdropBlur(AValue: Double); virtual;
     procedure SetContentWidth(AValue: Double); virtual;
     procedure SetContentHeight(AValue: Double); virtual;
     procedure SetDrawFrame(AValue: Boolean); virtual;
@@ -72,6 +74,7 @@ type
     property ContentWidth: Double read FContentWidth write SetContentWidth;
     property ContentHeight: Double read FContentHeight write SetContentHeight;
     property CornerRadius: Double read FCornerRadius write SetCornerRadius;
+    property BackdropBlur: Double read FBackdropBlur write SetBackdropBlur;
     property PaddingX: Double read FPaddingX write SetPaddingX;
     property PaddingY: Double read FPaddingY write SetPaddingY;
     property DrawFrame: Boolean read FDrawFrame write SetDrawFrame;
@@ -98,6 +101,7 @@ begin
   FContentWidth := 0.0;
   FContentHeight := 0.0;
   FCornerRadius := -1.0;
+  FBackdropBlur := 0.0;
   FPaddingX := 8.0;
   FPaddingY := 6.0;
   FDrawFrame := True;
@@ -193,6 +197,16 @@ begin
   if Abs(FCornerRadius - AValue) > 1e-4 then
   begin
     FCornerRadius := AValue;
+    Invalidate();
+  end;
+end;
+
+procedure TFtContainer.SetBackdropBlur(AValue: Double);
+begin
+  if AValue < 0.0 then AValue := 0.0;
+  if Abs(FBackdropBlur - AValue) > 1e-4 then
+  begin
+    FBackdropBlur := AValue;
     Invalidate();
   end;
 end;
@@ -452,9 +466,10 @@ var
   bg: TFtRgbColor;
   cx, cy, cw, ch: Integer;
   drawShadow: Boolean;
+  effBlur: Double;
 begin
   st := GetResolvedStyle();
-  if st.HasBgColor or st.HasBorderColor or st.HasBorderRadius then
+  if st.HasBgColor or st.HasBorderColor or st.HasBorderRadius or (FBackdropBlur > 0.5) or st.HasBackdropBlur then
   begin
     if FCornerRadius >= 0.0 then
       rad := FCornerRadius
@@ -474,10 +489,20 @@ begin
     if drawShadow then
       Canvas.DrawShadow(X, Y, Width, Height, rad, 0.0, 2.0, 4.0, 0.0, 0.0, 0.0, 0.12);
 
+    // Backdrop blur (frosted glass / acrylic effect)
+    effBlur := 0.0;
+    if FBackdropBlur > 0.5 then
+      effBlur := FBackdropBlur
+    else if st.HasBackdropBlur and (st.BackdropBlur > 0.5) then
+      effBlur := st.BackdropBlur;
+
+    if effBlur > 0.5 then
+      Canvas.BlurRoundedRect(X, Y, Width, Height, rad, effBlur);
+
     // Background
     if st.HasBgColor then
       Canvas.DrawRoundedRect(X, Y, Width, Height, rad, st.BgColor.R, st.BgColor.G, st.BgColor.B, st.BgColor.A)
-    else
+    else if not ((FBackdropBlur > 0.5) or st.HasBackdropBlur) then
     begin
       bg := FtGetTheme().GetInputBackground();
       Canvas.DrawRoundedRect(X, Y, Width, Height, rad, bg.R, bg.G, bg.B, 1.0);

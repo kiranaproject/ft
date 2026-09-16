@@ -24,7 +24,8 @@ uses
   agg_math_stroke,
   agg_basics,
   Ft.Font,
-  Ft.Bitmap;
+  Ft.Bitmap,
+  Ft.Blur;
 
 type
   TFtClipRect = record
@@ -56,6 +57,8 @@ type
     procedure DrawRoundedRect(X, Y, W, H: Double; Radius: Double; R, G, B: Double; A: Double = 1.0);
     procedure DrawRoundedRectOutline(X, Y, W, H: Double; Radius: Double; BorderWidth: Double; R, G, B: Double; A: Double = 1.0);
     procedure DrawShadow(X, Y, W, H: Double; Radius: Double; OffsetX, OffsetY: Double; BlurRadius: Double; ShadowR, ShadowG, ShadowB, ShadowOpacity: Double);
+    procedure BlurRoundedRect(X, Y, W, H: Double; Radius: Double; BlurRadius: Double);
+    procedure BlurRect(X, Y, W, H: Double; BlurRadius: Double);
     procedure PushClipRect(X, Y, W, H: Integer);
     procedure PopClipRect();
     procedure SetClipRect(X, Y, W, H: Integer);
@@ -400,6 +403,17 @@ begin
     FRasterizer.add_path(@RR);
     render_scanlines_aa_solid(@FRasterizer, @FScanline, @FRendererBase, @C);
   end;
+end;
+
+procedure TFtCanvasAgg.BlurRoundedRect(X, Y, W, H: Double; Radius: Double; BlurRadius: Double);
+begin
+  if (BlurRadius <= 0.0) or (W <= 0) or (H <= 0) or not Assigned(FBuffer) then Exit;
+  FtFastBlurRoundedRect(FBuffer, FWidth, FHeight, Round(X), Round(Y), Round(W), Round(H), Radius, BlurRadius);
+end;
+
+procedure TFtCanvasAgg.BlurRect(X, Y, W, H: Double; BlurRadius: Double);
+begin
+  BlurRoundedRect(X, Y, W, H, 0.0, BlurRadius);
 end;
 
 procedure TFtCanvasAgg.DrawCheckMark(CX, CY: Double; R, G, B: Double; A: Double = 1.0);

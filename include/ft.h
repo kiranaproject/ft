@@ -52,6 +52,8 @@ void ft_window_set_opacity(FtWidget window, double opacity);
 double ft_window_get_opacity(FtWidget window);
 void ft_window_set_background_opacity(FtWidget window, double opacity);
 double ft_window_get_background_opacity(FtWidget window);
+void ft_window_set_background_blur(FtWidget window, int32_t blur);
+int32_t ft_window_get_background_blur(FtWidget window);
 
 void ft_widget_show(FtWidget widget);
 void ft_widget_hide(FtWidget widget);
@@ -210,6 +212,8 @@ double ft_container_get_scroll_x(FtWidget container);
 double ft_container_get_scroll_y(FtWidget container);
 void ft_container_set_corner_radius(FtWidget container, double radius);
 double ft_container_get_corner_radius(FtWidget container);
+void ft_container_set_backdrop_blur(FtWidget container, double radius);
+double ft_container_get_backdrop_blur(FtWidget container);
 void ft_container_set_padding(FtWidget container, double pad_x, double pad_y);
 void ft_container_set_draw_frame(FtWidget container, int32_t draw_frame);
 int32_t ft_container_get_draw_frame(FtWidget container);

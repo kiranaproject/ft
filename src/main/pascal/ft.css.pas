@@ -43,6 +43,9 @@ type
     HasOpacity: Boolean;
     Opacity: Double;
 
+    HasBackdropBlur: Boolean;
+    BackdropBlur: Double;
+
     HasTransition: Boolean;
     TransitionProp: string;
     TransitionDurationMs: Integer;
@@ -141,6 +144,9 @@ begin
   HasOpacity := False;
   Opacity := 1.0;
 
+  HasBackdropBlur := False;
+  BackdropBlur := 0.0;
+
   HasTransition := False;
   TransitionProp := '';
   TransitionDurationMs := 0;
@@ -193,6 +199,11 @@ begin
   begin
     HasOpacity := True;
     Opacity := Other.Opacity;
+  end;
+  if Other.HasBackdropBlur then
+  begin
+    HasBackdropBlur := True;
+    BackdropBlur := Other.BackdropBlur;
   end;
   if Other.HasTransition then
   begin
@@ -840,6 +851,8 @@ var
   lenVal: Double;
   parts: TStringList;
   i: Integer;
+  pIdx: Integer;
+  subStr: string;
 begin
   Result := False;
   if (Decl.KeyCount = 0) or (Decl.ChildCount = 0) then Exit;
@@ -929,6 +942,26 @@ begin
       Style.HasOpacity := True;
       Style.Opacity := lenVal;
       Result := True;
+    end;
+  end
+  else if (key = 'backdrop-filter') or (key = '-webkit-backdrop-filter') then
+  begin
+    valStr := '';
+    for i := 0 to Decl.ChildCount - 1 do
+      valStr := valStr + Decl.Children[i].AsString;
+    pIdx := Pos('blur(', LowerCase(valStr));
+    if pIdx > 0 then
+    begin
+      subStr := Copy(valStr, pIdx + 5, Length(valStr));
+      pIdx := Pos(')', subStr);
+      if pIdx > 0 then
+        subStr := Trim(Copy(subStr, 1, pIdx - 1));
+      if FtParseLength(subStr, lenVal) then
+      begin
+        Style.HasBackdropBlur := True;
+        Style.BackdropBlur := lenVal;
+        Result := True;
+      end;
     end;
   end
   else if key = 'transition' then

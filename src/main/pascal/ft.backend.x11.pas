@@ -68,9 +68,12 @@ type
     FDepth: cint;
     FColormap: TColormap;
     FBackgroundOpacity: Double;
+    FBackgroundBlur: Boolean;
+    FAtomBlurRegion: TAtom;
     procedure OnThemeChanged();
     procedure OnStyleSheetChanged();
     procedure UpdateCursor();
+    procedure UpdateBlurBehindRegion();
   public
     constructor Create(W, H: Integer; Title: string); reintroduce;
     destructor Destroy(); override;
@@ -84,6 +87,8 @@ type
     procedure SetOpacity(AValue: Double); override;
     procedure SetBackgroundOpacity(AValue: Double);
     function GetBackgroundOpacity(): Double;
+    procedure SetBackgroundBlur(AValue: Boolean);
+    function GetBackgroundBlur(): Boolean;
     procedure SetPosition(NewX, NewY: Integer);
     procedure GetPosition(out OutX, OutY: Integer);
     function ClientToScreen(AX, AY: Integer): TPoint;
@@ -110,6 +115,7 @@ type
     property WindowType: TFtWindowType read FWindowType write SetWindowType;
     property WindowOpacity: Double read GetWindowOpacity write SetWindowOpacity;
     property BackgroundOpacity: Double read GetBackgroundOpacity write SetBackgroundOpacity;
+    property BackgroundBlur: Boolean read GetBackgroundBlur write SetBackgroundBlur;
     property FocusedWidget: TFtWidget read FFocusedWidget;
     property MainMenu: TFtWidget read FMainMenu write FMainMenu;
     property ActivePopup: TFtWidget read FActivePopup write SetActivePopup;
@@ -403,6 +409,8 @@ begin
   FSkipTaskbar := False;
   FWindowType := ftwtNormal;
   FBackgroundOpacity := 1.0;
+  FBackgroundBlur := False;
+  FAtomBlurRegion := None;
 
   ScreenNum := DefaultScreen(FDisplay);
   has32BitVisual := (XMatchVisualInfo(FDisplay, ScreenNum, 32, TrueColor, @vinfo) <> 0);
@@ -644,6 +652,44 @@ begin
   Result := FBackgroundOpacity;
 end;
 
+procedure TFtX11Window.SetBackgroundBlur(AValue: Boolean);
+begin
+  if FBackgroundBlur <> AValue then
+  begin
+    FBackgroundBlur := AValue;
+    UpdateBlurBehindRegion();
+    Invalidate();
+  end;
+end;
+
+function TFtX11Window.GetBackgroundBlur(): Boolean;
+begin
+  Result := FBackgroundBlur;
+end;
+
+procedure TFtX11Window.UpdateBlurBehindRegion();
+var
+  data: array[0..3] of culong;
+begin
+  if (FWindow = None) or (FDisplay = nil) then Exit;
+  if FAtomBlurRegion = None then
+    FAtomBlurRegion := XInternAtom(FDisplay, '_KDE_NET_WM_BLUR_BEHIND_REGION', False);
+
+  if FBackgroundBlur then
+  begin
+    data[0] := 0;
+    data[1] := 0;
+    data[2] := Width;
+    data[3] := Height;
+    XChangeProperty(FDisplay, FWindow, FAtomBlurRegion, 6 {XA_CARDINAL}, 32, PropModeReplace, PByte(@data), 4);
+  end
+  else
+  begin
+    XDeleteProperty(FDisplay, FWindow, FAtomBlurRegion);
+  end;
+  XFlush(FDisplay);
+end;
+
 procedure TFtX11Window.SetPosition(NewX, NewY: Integer);
 begin
   X := NewX;
@@ -764,7 +810,11 @@ begin
     FMainMenu.Width := Width;
 
   if AApplyToX11 and (FWindow <> None) and Assigned(FDisplay) then
+  begin
     XResizeWindow(FDisplay, FWindow, Width, Height);
+    if FBackgroundBlur then
+      UpdateBlurBehindRegion();
+  end;
 
   if Assigned(FXImage) then
   begin
