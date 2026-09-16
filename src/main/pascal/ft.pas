@@ -182,6 +182,20 @@ begin
     Result := 1.0;
 end;
 
+procedure ft_window_set_background_opacity(window: Pointer; opacity: cdouble); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtX11Window) then
+    TFtX11Window(window).SetBackgroundOpacity(opacity);
+end;
+
+function ft_window_get_background_opacity(window: Pointer): cdouble; cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtX11Window) then
+    Result := TFtX11Window(window).GetBackgroundOpacity()
+  else
+    Result := 1.0;
+end;
+
 procedure ft_widget_set_focus(widget: Pointer); cdecl; export;
 begin
   if Assigned(widget) and (TObject(widget) is TFtWidget) then
@@ -2506,6 +2520,8 @@ exports
   ft_window_get_position,
   ft_window_set_opacity,
   ft_window_get_opacity,
+  ft_window_set_background_opacity,
+  ft_window_get_background_opacity,
   ft_widget_show,
   ft_widget_hide,
   ft_widget_set_focus,

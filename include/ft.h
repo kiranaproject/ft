@@ -50,6 +50,8 @@ void ft_window_set_position(FtWidget window, int32_t x, int32_t y);
 void ft_window_get_position(FtWidget window, int32_t* x, int32_t* y);
 void ft_window_set_opacity(FtWidget window, double opacity);
 double ft_window_get_opacity(FtWidget window);
+void ft_window_set_background_opacity(FtWidget window, double opacity);
+double ft_window_get_background_opacity(FtWidget window);
 
 void ft_widget_show(FtWidget widget);
 void ft_widget_hide(FtWidget widget);

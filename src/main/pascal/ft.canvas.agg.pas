@@ -52,7 +52,7 @@ type
     destructor Destroy(); override;
     procedure Resize(ABuffer: Pointer; AWidth, AHeight: Integer);
     procedure Clear(R, G, B: Double);
-    procedure DrawRect(X, Y, W, H: Integer; R, G, B: Double);
+    procedure DrawRect(X, Y, W, H: Integer; R, G, B: Double; A: Double = 1.0);
     procedure DrawRoundedRect(X, Y, W, H: Double; Radius: Double; R, G, B: Double; A: Double = 1.0);
     procedure DrawRoundedRectOutline(X, Y, W, H: Double; Radius: Double; BorderWidth: Double; R, G, B: Double; A: Double = 1.0);
     procedure DrawShadow(X, Y, W, H: Double; Radius: Double; OffsetX, OffsetY: Double; BlurRadius: Double; ShadowR, ShadowG, ShadowB, ShadowOpacity: Double);
@@ -290,12 +290,14 @@ begin
   FRendererBase.clear(@C);
 end;
 
-procedure TFtCanvasAgg.DrawRect(X, Y, W, H: Integer; R, G, B: Double);
+procedure TFtCanvasAgg.DrawRect(X, Y, W, H: Integer; R, G, B: Double; A: Double = 1.0);
 var
   C: aggclr;
+  effA: Double;
 begin
-  if (W <= 0) or (H <= 0) or (FCurrentAlpha <= 0.0) then Exit;
-  C.ConstrDbl(R, G, B, FCurrentAlpha);
+  effA := A * FCurrentAlpha;
+  if (W <= 0) or (H <= 0) or (effA <= 0.0) then Exit;
+  C.ConstrDbl(R, G, B, effA);
   FRasterizer.reset();
   FRasterizer.move_to_d(X, Y);
   FRasterizer.line_to_d(X + W, Y);

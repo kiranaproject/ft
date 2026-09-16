@@ -64,6 +64,10 @@ type
     FBorderless: Boolean;
     FSkipTaskbar: Boolean;
     FWindowType: TFtWindowType;
+    FVisual: PVisual;
+    FDepth: cint;
+    FColormap: TColormap;
+    FBackgroundOpacity: Double;
     procedure OnThemeChanged();
     procedure OnStyleSheetChanged();
     procedure UpdateCursor();
@@ -78,6 +82,8 @@ type
     procedure SetWindowOpacity(AOpacity: Double);
     function GetWindowOpacity(): Double;
     procedure SetOpacity(AValue: Double); override;
+    procedure SetBackgroundOpacity(AValue: Double);
+    function GetBackgroundOpacity(): Double;
     procedure SetPosition(NewX, NewY: Integer);
     procedure GetPosition(out OutX, OutY: Integer);
     function ClientToScreen(AX, AY: Integer): TPoint;
@@ -103,6 +109,7 @@ type
     property SkipTaskbar: Boolean read FSkipTaskbar write SetSkipTaskbar;
     property WindowType: TFtWindowType read FWindowType write SetWindowType;
     property WindowOpacity: Double read GetWindowOpacity write SetWindowOpacity;
+    property BackgroundOpacity: Double read GetBackgroundOpacity write SetBackgroundOpacity;
     property FocusedWidget: TFtWidget read FFocusedWidget;
     property MainMenu: TFtWidget read FMainMenu write FMainMenu;
     property ActivePopup: TFtWidget read FActivePopup write SetActivePopup;
@@ -382,7 +389,8 @@ end;
 constructor TFtX11Window.Create(W, H: Integer; Title: string);
 var
   ScreenNum: cint;
-  Visual: PVisual;
+  vinfo: TXVisualInfo;
+  has32BitVisual: Boolean;
   winAttr: TXSetWindowAttributes;
 begin
   inherited Create(nil);
@@ -394,20 +402,42 @@ begin
   FBorderless := False;
   FSkipTaskbar := False;
   FWindowType := ftwtNormal;
+  FBackgroundOpacity := 1.0;
 
   ScreenNum := DefaultScreen(FDisplay);
-  Visual := DefaultVisual(FDisplay, ScreenNum);
+  has32BitVisual := (XMatchVisualInfo(FDisplay, ScreenNum, 32, TrueColor, @vinfo) <> 0);
+  if has32BitVisual then
+  begin
+    FVisual := vinfo.visual;
+    FDepth := 32;
+    FColormap := XCreateColormap(FDisplay, RootWindow(FDisplay, ScreenNum), FVisual, AllocNone);
+    FillChar(winAttr, SizeOf(winAttr), 0);
+    winAttr.colormap := FColormap;
+    winAttr.border_pixel := 0;
+    winAttr.background_pixmap := None;
+    winAttr.bit_gravity := NorthWestGravity;
+    FWindow := XCreateWindow(FDisplay, RootWindow(FDisplay, ScreenNum),
+      100, 100, Width, Height, 0,
+      32, InputOutput, FVisual,
+      CWColormap or CWBorderPixel or CWBackPixmap or CWBitGravity,
+      @winAttr);
+  end
+  else
+  begin
+    FVisual := DefaultVisual(FDisplay, ScreenNum);
+    FDepth := 24;
+    FColormap := None;
+    FWindow := XCreateSimpleWindow(FDisplay, RootWindow(FDisplay, ScreenNum),
+      100, 100, Width, Height, 0,
+      BlackPixel(FDisplay, ScreenNum),
+      BlackPixel(FDisplay, ScreenNum));
 
-  FWindow := XCreateSimpleWindow(FDisplay, RootWindow(FDisplay, ScreenNum),
-    100, 100, Width, Height, 0,
-    BlackPixel(FDisplay, ScreenNum),
-    BlackPixel(FDisplay, ScreenNum));
-
-  // Disable X server background clearing and retain bit gravity during resize to eliminate flicker
-  FillChar(winAttr, SizeOf(winAttr), 0);
-  winAttr.background_pixmap := None;
-  winAttr.bit_gravity := NorthWestGravity;
-  XChangeWindowAttributes(FDisplay, FWindow, CWBackPixmap or CWBitGravity, @winAttr);
+    // Disable X server background clearing and retain bit gravity during resize to eliminate flicker
+    FillChar(winAttr, SizeOf(winAttr), 0);
+    winAttr.background_pixmap := None;
+    winAttr.bit_gravity := NorthWestGravity;
+    XChangeWindowAttributes(FDisplay, FWindow, CWBackPixmap or CWBitGravity, @winAttr);
+  end;
 
   SetTitle(Title);
   FHoverWidget := nil;
@@ -440,7 +470,7 @@ begin
   FGC := XCreateGC(FDisplay, FWindow, 0, nil);
 
   GetMem(FPixelBuffer, Width * Height * 4);
-  FXImage := XCreateImage(FDisplay, Visual, 24, ZPixmap, 0, PChar(FPixelBuffer), Width, Height, 32, 0);
+  FXImage := XCreateImage(FDisplay, FVisual, FDepth, ZPixmap, 0, PChar(FPixelBuffer), Width, Height, 32, 0);
 
   FCanvas := TFtCanvasAgg.Create(FPixelBuffer, Width, Height);
   if not Assigned(GWindows) then
@@ -598,6 +628,22 @@ begin
   SetWindowOpacity(AValue);
 end;
 
+procedure TFtX11Window.SetBackgroundOpacity(AValue: Double);
+begin
+  if AValue < 0.0 then AValue := 0.0;
+  if AValue > 1.0 then AValue := 1.0;
+  if Abs(FBackgroundOpacity - AValue) > 1e-4 then
+  begin
+    FBackgroundOpacity := AValue;
+    Invalidate();
+  end;
+end;
+
+function TFtX11Window.GetBackgroundOpacity(): Double;
+begin
+  Result := FBackgroundOpacity;
+end;
+
 procedure TFtX11Window.SetPosition(NewX, NewY: Integer);
 begin
   X := NewX;
@@ -695,6 +741,11 @@ begin
   end;
   if Assigned(FGC) then
     XFreeGC(FDisplay, FGC);
+  if (FColormap <> None) and (FDepth = 32) then
+  begin
+    XFreeColormap(FDisplay, FColormap);
+    FColormap := None;
+  end;
   if FWindow <> None then
     XDestroyWindow(FDisplay, FWindow);
   FWindow := None;
@@ -702,9 +753,6 @@ begin
 end;
 
 procedure TFtX11Window.Resize(NewW, NewH: Integer; AApplyToX11: Boolean = True);
-var
-  Visual: PVisual;
-  ScreenNum: cint;
 begin
   if (NewW <= 0) or (NewH <= 0) or ((NewW = Width) and (NewH = Height)) then Exit;
 
@@ -729,9 +777,7 @@ begin
     FreeMem(FPixelBuffer);
 
   GetMem(FPixelBuffer, Width * Height * 4);
-  ScreenNum := DefaultScreen(FDisplay);
-  Visual := DefaultVisual(FDisplay, ScreenNum);
-  FXImage := XCreateImage(FDisplay, Visual, 24, ZPixmap, 0, PChar(FPixelBuffer), Width, Height, 32, 0);
+  FXImage := XCreateImage(FDisplay, FVisual, FDepth, ZPixmap, 0, PChar(FPixelBuffer), Width, Height, 32, 0);
 
   if Assigned(FCanvas) then
     FCanvas.Resize(FPixelBuffer, Width, Height)
@@ -774,6 +820,9 @@ var
   st: TFtWidgetStyle;
   isPartial: Boolean;
   dirtyX, dirtyY, dirtyW, dirtyH: Integer;
+  isTranslucent: Boolean;
+  effBgA: Double;
+  rowY: Integer;
 begin
   if (Width <= 0) or (Height <= 0) or (FWindow = None) or not Assigned(FCanvas) then Exit;
 
@@ -791,24 +840,34 @@ begin
     dirtyX := 0; dirtyY := 0; dirtyW := Width; dirtyH := Height;
   end;
 
+  st := GetResolvedStyle();
+  isTranslucent := (FDepth = 32) and ((FBackgroundOpacity < 0.999) or (st.HasBgColor and (st.BgColor.A < 0.999)));
+
   if isPartial then
   begin
-
     FHasDirtyRect := False;
     FFullRepaint := False;
 
     if (dirtyW <= 0) or (dirtyH <= 0) then Exit;
+
+    if isTranslucent then
+    begin
+      for rowY := dirtyY to dirtyY + dirtyH - 1 do
+        FillChar(PByte(FPixelBuffer)[(rowY * Width + dirtyX) * 4], dirtyW * 4, 0);
+    end;
 
     FCanvas.ResetAllClipping();
     FCanvas.PushClipRect(dirtyX, dirtyY, dirtyW, dirtyH);
     try
       if not (FWindowType in [ftwtPopupMenu, ftwtDropdownMenu]) then
       begin
-        st := GetResolvedStyle();
         if st.HasBgColor then
-          FCanvas.DrawRect(0, 0, Width, Height, st.BgColor.R, st.BgColor.G, st.BgColor.B)
+        begin
+          effBgA := st.BgColor.A * FBackgroundOpacity;
+          FCanvas.DrawRect(0, 0, Width, Height, st.BgColor.R, st.BgColor.G, st.BgColor.B, effBgA);
+        end
         else
-          FtGetTheme().DrawWindowBackground(FCanvas, Width, Height);
+          FtGetTheme().DrawWindowBackground(FCanvas, Width, Height, FBackgroundOpacity);
       end;
       Self.Draw(FCanvas);
     finally
@@ -823,14 +882,19 @@ begin
     FHasDirtyRect := False;
     FFullRepaint := False;
 
+    if isTranslucent then
+      FillChar(FPixelBuffer^, Width * Height * 4, 0);
+
     FCanvas.ResetAllClipping();
     if not (FWindowType in [ftwtPopupMenu, ftwtDropdownMenu]) then
     begin
-      st := GetResolvedStyle();
       if st.HasBgColor then
-        FCanvas.DrawRect(0, 0, Width, Height, st.BgColor.R, st.BgColor.G, st.BgColor.B)
+      begin
+        effBgA := st.BgColor.A * FBackgroundOpacity;
+        FCanvas.DrawRect(0, 0, Width, Height, st.BgColor.R, st.BgColor.G, st.BgColor.B, effBgA);
+      end
       else
-        FtGetTheme().DrawWindowBackground(FCanvas, Width, Height);
+        FtGetTheme().DrawWindowBackground(FCanvas, Width, Height, FBackgroundOpacity);
     end;
     Self.Draw(FCanvas);
 

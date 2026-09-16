@@ -50,7 +50,7 @@ type
     procedure SetEnableShadow(AValue: Boolean); virtual;
 
     function HasDarkMode(): Boolean; virtual;
-    procedure DrawWindowBackground(Canvas: TFtCanvasAgg; W, H: Integer); virtual;
+    procedure DrawWindowBackground(Canvas: TFtCanvasAgg; W, H: Integer; AOpacity: Double = 1.0); virtual;
     procedure DrawButton(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
                          State: TFtButtonState; Toggled: Boolean; 
                          const Caption: string; Font: TFtFont); virtual;
@@ -436,19 +436,23 @@ begin
   Result := True;
 end;
 
-procedure TFtTheme.DrawWindowBackground(Canvas: TFtCanvasAgg; W, H: Integer);
+procedure TFtTheme.DrawWindowBackground(Canvas: TFtCanvasAgg; W, H: Integer; AOpacity: Double = 1.0);
 var
   st: TFtWidgetStyle;
   cls: string;
+  effA: Double;
 begin
   if FDarkMode then cls := 'dark' else cls := '';
   st := FtGetStyleSheet().ResolveStyle('window', '', cls, '', '');
   if st.HasBgColor then
-    Canvas.DrawRect(0, 0, W, H, st.BgColor.R, st.BgColor.G, st.BgColor.B)
+  begin
+    effA := st.BgColor.A * AOpacity;
+    Canvas.DrawRect(0, 0, W, H, st.BgColor.R, st.BgColor.G, st.BgColor.B, effA);
+  end
   else if FDarkMode then
-    Canvas.DrawRect(0, 0, W, H, 0.09, 0.09, 0.11)
+    Canvas.DrawRect(0, 0, W, H, 0.09, 0.09, 0.11, AOpacity)
   else
-    Canvas.DrawRect(0, 0, W, H, 0.94, 0.95, 0.96);
+    Canvas.DrawRect(0, 0, W, H, 0.94, 0.95, 0.96, AOpacity);
 end;
 
 procedure TFtTheme.DrawButton(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
