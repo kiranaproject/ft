@@ -5,7 +5,9 @@ unit Ft.Backend.X11;
 interface
 
 uses
-  ctypes, x, xlib, xutil, SysUtils, Classes, Ft.Canvas.Agg, Ft.Widget, Ft.Theme, Ft.Css, Ft.Animation;
+  ctypes, SysUtils, Classes,
+  Floria.XCB, Floria.XCB.Keysyms, Floria.XCB.Cursor, Floria.X11.KeySym,
+  Ft.Canvas.Agg, Ft.Widget, Ft.Theme, Ft.Css, Ft.Animation;
 
 type
   TFtWindowType = (
@@ -26,23 +28,37 @@ type
   end;
   PMWMHints = ^TMWMHints;
 
+  Pxcb_expose_event_t = ^xcb_expose_event_t;
+  Pxcb_configure_notify_event_t = ^xcb_configure_notify_event_t;
+  Pxcb_motion_notify_event_t = ^xcb_motion_notify_event_t;
+  Pxcb_enter_notify_event_t = ^xcb_enter_notify_event_t;
+  Pxcb_leave_notify_event_t = ^xcb_leave_notify_event_t;
+  Pxcb_button_press_event_t = ^xcb_button_press_event_t;
+  Pxcb_button_release_event_t = ^xcb_button_release_event_t;
+  Pxcb_key_press_event_t = ^xcb_key_press_event_t;
+  Pxcb_key_release_event_t = ^xcb_key_release_event_t;
+  Pxcb_selection_clear_event_t = ^xcb_selection_clear_event_t;
+  Pxcb_selection_request_event_t = ^xcb_selection_request_event_t;
+  Pxcb_selection_notify_event_t = ^xcb_selection_notify_event_t;
+  Pxcb_client_message_event_t = ^xcb_client_message_event_t;
+  Pxcb_destroy_notify_event_t = ^xcb_destroy_notify_event_t;
+
 const
   MWM_HINTS_DECORATIONS = 1 shl 1;
 
 type
   TFtX11Window = class(TFtWidget)
   private
-    FDisplay: PDisplay;
-    FWindow: TWindow;
-    FGC: TGC;
-    FXImage: PXImage;
+    FConnection: Pxcb_connection_t;
+    FWindow: xcb_window_t;
+    FGC: xcb_gcontext_t;
     FPixelBuffer: Pointer;
+    FScratchBuffer: Pointer;
+    FScratchBufferSize: Cardinal;
     FCanvas: TFtCanvasAgg;
-    FWMDeleteWindow: TAtom;
-    FAtomClipboard: TAtom;
-    FAtomUTF8String: TAtom;
-    FAtomTargets: TAtom;
-    FCursorIBeam: TCursor;
+    FVisual: xcb_visualid_t;
+    FDepth: Byte;
+    FColormap: xcb_colormap_t;
     FHoverWidget: TFtWidget;
     FPressedWidget: TFtWidget;
     FFocusedWidget: TFtWidget;
@@ -64,17 +80,15 @@ type
     FBorderless: Boolean;
     FSkipTaskbar: Boolean;
     FWindowType: TFtWindowType;
-    FVisual: PVisual;
-    FDepth: cint;
-    FColormap: TColormap;
     FBackgroundOpacity: Double;
     FBackgroundBlur: Boolean;
-    FAtomBlurRegionNet: TAtom;
-    FAtomBlurRegionKde: TAtom;
+
     procedure OnThemeChanged();
     procedure OnStyleSheetChanged();
     procedure UpdateCursor();
     procedure UpdateBlurBehindRegion();
+    function GetScreenWidth(): Integer;
+    function GetScreenHeight(): Integer;
   public
     constructor Create(W, H: Integer; Title: string); reintroduce;
     destructor Destroy(); override;
@@ -97,7 +111,7 @@ type
     function GetElementType(): string; override;
     procedure Repaint();
     procedure HandleEvents();
-    procedure HandleEvent(var Event: TXEvent);
+    procedure HandleGenericEvent(Event: Pxcb_generic_event_t);
     procedure Show();
     procedure Hide();
     procedure Invalidate(); override;
@@ -109,8 +123,12 @@ type
     procedure ClaimClipboard();
     procedure SetActivePopup(APopup: TFtWidget);
     procedure ClearActivePopup();
-    property Window: TWindow read FWindow;
-    property Display: PDisplay read FDisplay;
+
+    property Window: xcb_window_t read FWindow;
+    property Connection: Pxcb_connection_t read FConnection;
+    property Display: Pxcb_connection_t read FConnection; // For backwards compatibility
+    property ScreenWidth: Integer read GetScreenWidth;
+    property ScreenHeight: Integer read GetScreenHeight;
     property Borderless: Boolean read FBorderless write SetBorderless;
     property SkipTaskbar: Boolean read FSkipTaskbar write SetSkipTaskbar;
     property WindowType: TFtWindowType read FWindowType write SetWindowType;
@@ -122,11 +140,19 @@ type
     property ActivePopup: TFtWidget read FActivePopup write SetActivePopup;
   end;
 
+  TFtWindow = TFtX11Window;
+  TFtXCBWindow = TFtX11Window;
+
 type
   TFtSelectionLostHandler = procedure();
 
 var
-  GDisplay: PDisplay = nil;
+  GConnection: Pxcb_connection_t = nil;
+  GDisplay: Pxcb_connection_t = nil; // For backwards compatibility
+  GScreen: Pxcb_screen_t = nil;
+  GKeySymbols: Pxcb_key_symbols_t = nil;
+  GCursorContext: Pxcb_cursor_context_t = nil;
+  GCursorIBeam: xcb_cursor_t = 0;
   GRunning: Boolean = False;
   GActiveWindow: TFtX11Window = nil;
   GWindows: TFPList = nil;
@@ -138,25 +164,145 @@ procedure FtBackendProcessEvents();
 procedure FtBackendQuit();
 procedure FtGrabMenuInput(AWindow: TFtX11Window);
 procedure FtUngrabMenuInput(AWindow: TFtX11Window);
-function FindWindowByHandle(AWindow: TWindow): TFtX11Window;
+function FindWindowByHandle(AWindow: xcb_window_t): TFtX11Window;
 function HasMainWindows(): Boolean;
 procedure FtSetClipboardText(const AText: string);
 function FtGetClipboardText(): string;
 procedure FtClaimPrimarySelection(const AText: string);
 procedure FtClearPrimarySelection();
 procedure FtSetSelectionLostHandler(AHandler: TFtSelectionLostHandler);
+function FtGetScreenWidth(): Integer;
+function FtGetScreenHeight(): Integer;
 
 implementation
 
 uses
   Ft.Widget.Menus;
 
-procedure FtBackendInit();
+procedure c_free(p: Pointer); cdecl; external 'c' name 'free';
+function xcb_cursor_load_cursor(ctx: Pxcb_cursor_context_t; const name: PChar): xcb_cursor_t; cdecl; external 'xcb-cursor' name 'xcb_cursor_load_cursor';
+function xcb_key_press_lookup_keysym(syms: Pxcb_key_symbols_t; event: Pxcb_key_press_event_t; col: Integer): xcb_keysym_t; cdecl; external 'xcb-keysyms' name 'xcb_key_press_lookup_keysym';
+function xcb_key_release_lookup_keysym(syms: Pxcb_key_symbols_t; event: Pxcb_key_release_event_t; col: Integer): xcb_keysym_t; cdecl; external 'xcb-keysyms' name 'xcb_key_release_lookup_keysym';
+
+var
+  atomWMProtocols: xcb_atom_t = 0;
+  atomWMDeleteWindow: xcb_atom_t = 0;
+  atomWMName: xcb_atom_t = 0;
+  atomClipboard: xcb_atom_t = 0;
+  atomUTF8String: xcb_atom_t = 0;
+  atomTargets: xcb_atom_t = 0;
+  atomFtSelection: xcb_atom_t = 0;
+  atomMotifWmHints: xcb_atom_t = 0;
+  atomNetWmName: xcb_atom_t = 0;
+  atomNetWmIconName: xcb_atom_t = 0;
+  atomNetWmState: xcb_atom_t = 0;
+  atomNetWmStateSkipTaskbar: xcb_atom_t = 0;
+  atomNetWmStateSkipPager: xcb_atom_t = 0;
+  atomNetWmWindowType: xcb_atom_t = 0;
+  atomNetWmWindowTypeNormal: xcb_atom_t = 0;
+  atomNetWmWindowTypeDialog: xcb_atom_t = 0;
+  atomNetWmWindowTypePopupMenu: xcb_atom_t = 0;
+  atomNetWmWindowTypeDropdownMenu: xcb_atom_t = 0;
+  atomNetWmWindowTypeTooltip: xcb_atom_t = 0;
+  atomNetWmWindowTypeUtility: xcb_atom_t = 0;
+  atomNetWmWindowOpacity: xcb_atom_t = 0;
+  atomBlurRegionNet: xcb_atom_t = 0;
+  atomBlurRegionKde: xcb_atom_t = 0;
+
+function InternAtom(const AName: string): xcb_atom_t;
+var
+  cookie: xcb_intern_atom_cookie_t;
+  reply: Pxcb_intern_atom_reply_t;
 begin
-  XInitThreads();
-  GDisplay := XOpenDisplay(nil);
-  if GDisplay = nil then
-    raise Exception.Create('Floria Toolkit: Unable to connect to X11 display.');
+  cookie := xcb_intern_atom(GConnection, 0, Length(AName), PChar(AName));
+  reply := xcb_intern_atom_reply(GConnection, cookie, nil);
+  if Assigned(reply) then
+  begin
+    Result := reply^.atom;
+    c_free(reply);
+  end
+  else
+    Result := 0;
+end;
+
+procedure InitAtoms();
+begin
+  atomWMProtocols := InternAtom('WM_PROTOCOLS');
+  atomWMDeleteWindow := InternAtom('WM_DELETE_WINDOW');
+  atomWMName := InternAtom('WM_NAME');
+  atomClipboard := InternAtom('CLIPBOARD');
+  atomUTF8String := InternAtom('UTF8_STRING');
+  atomTargets := InternAtom('TARGETS');
+  atomFtSelection := InternAtom('FT_SELECTION');
+  atomMotifWmHints := InternAtom('_MOTIF_WM_HINTS');
+  atomNetWmName := InternAtom('_NET_WM_NAME');
+  atomNetWmIconName := InternAtom('_NET_WM_ICON_NAME');
+  atomNetWmState := InternAtom('_NET_WM_STATE');
+  atomNetWmStateSkipTaskbar := InternAtom('_NET_WM_STATE_SKIP_TASKBAR');
+  atomNetWmStateSkipPager := InternAtom('_NET_WM_STATE_SKIP_PAGER');
+  atomNetWmWindowType := InternAtom('_NET_WM_WINDOW_TYPE');
+  atomNetWmWindowTypeNormal := InternAtom('_NET_WM_WINDOW_TYPE_NORMAL');
+  atomNetWmWindowTypeDialog := InternAtom('_NET_WM_WINDOW_TYPE_DIALOG');
+  atomNetWmWindowTypePopupMenu := InternAtom('_NET_WM_WINDOW_TYPE_POPUP_MENU');
+  atomNetWmWindowTypeDropdownMenu := InternAtom('_NET_WM_WINDOW_TYPE_DROPDOWN_MENU');
+  atomNetWmWindowTypeTooltip := InternAtom('_NET_WM_WINDOW_TYPE_TOOLTIP');
+  atomNetWmWindowTypeUtility := InternAtom('_NET_WM_WINDOW_TYPE_UTILITY');
+  atomNetWmWindowOpacity := InternAtom('_NET_WM_WINDOW_OPACITY');
+  atomBlurRegionNet := InternAtom('_NET_WM_BLUR_BEHIND_REGION');
+  atomBlurRegionKde := InternAtom('_KDE_NET_WM_BLUR_BEHIND_REGION');
+end;
+
+function FindVisual(screen: Pxcb_screen_t; targetDepth: Integer): xcb_visualid_t;
+var
+  depth_iter: xcb_depth_iterator_t;
+  vis_iter: xcb_visualtype_iterator_t;
+begin
+  Result := 0;
+  if screen = nil then Exit;
+  depth_iter := xcb_screen_allowed_depths_iterator(screen);
+  while depth_iter.rem > 0 do
+  begin
+    if depth_iter.data^.depth = targetDepth then
+    begin
+      vis_iter := xcb_depth_visuals_iterator(depth_iter.data);
+      while vis_iter.rem > 0 do
+      begin
+        // TrueColor = 4
+        if (vis_iter.data^._class = 4) or (targetDepth = 32) then
+          Exit(vis_iter.data^.visual_id);
+        xcb_visualtype_next(@vis_iter);
+      end;
+    end;
+    xcb_depth_next(@depth_iter);
+  end;
+end;
+
+procedure FtBackendInit();
+var
+  screenIdx: cint = 0;
+  setup: Pxcb_setup_t;
+  iter: xcb_screen_iterator_t;
+begin
+  GConnection := xcb_connect(nil, @screenIdx);
+  if (GConnection = nil) or (xcb_connection_has_error(GConnection) > 0) then
+    raise Exception.Create('Floria Toolkit: Unable to connect to XCB display.');
+
+  GDisplay := GConnection;
+  setup := xcb_get_setup(GConnection);
+  iter := xcb_setup_roots_iterator(setup);
+  while (screenIdx > 0) and (iter.rem > 0) do
+  begin
+    xcb_screen_next(@iter);
+    Dec(screenIdx);
+  end;
+  GScreen := iter.data;
+
+  InitAtoms();
+
+  GKeySymbols := xcb_key_symbols_alloc(GConnection);
+  if xcb_cursor_context_new(GConnection, GScreen, @GCursorContext) >= 0 then
+    GCursorIBeam := xcb_cursor_load_cursor(GCursorContext, 'xterm');
+
   GRunning := True;
 end;
 
@@ -165,13 +311,13 @@ begin
   GRunning := False;
 end;
 
-function FindWindowByHandle(AWindow: TWindow): TFtX11Window;
+function FindWindowByHandle(AWindow: xcb_window_t): TFtX11Window;
 var
   i: Integer;
   w: TFtX11Window;
 begin
   Result := nil;
-  if not Assigned(GWindows) then Exit;
+  if not Assigned(GWindows) or (AWindow = 0) then Exit;
   for i := 0 to GWindows.Count - 1 do
   begin
     w := TFtX11Window(GWindows[i]);
@@ -195,49 +341,94 @@ begin
   end;
 end;
 
-procedure FtGrabMenuInput(AWindow: TFtX11Window);
+function FtGetScreenWidth(): Integer;
 begin
-  if Assigned(AWindow) and (AWindow.FWindow <> None) and Assigned(AWindow.FDisplay) then
+  if Assigned(GScreen) then
+    Result := GScreen^.width_in_pixels
+  else
+    Result := 1920;
+end;
+
+function FtGetScreenHeight(): Integer;
+begin
+  if Assigned(GScreen) then
+    Result := GScreen^.height_in_pixels
+  else
+    Result := 1080;
+end;
+
+procedure FtGrabMenuInput(AWindow: TFtX11Window);
+var
+  mask: Word;
+begin
+  if Assigned(AWindow) and (AWindow.FWindow <> 0) and Assigned(AWindow.FConnection) then
   begin
-    XGrabPointer(AWindow.FDisplay, AWindow.FWindow, True,
-      ButtonPressMask or ButtonReleaseMask or PointerMotionMask,
-      GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
-    XGrabKeyboard(AWindow.FDisplay, AWindow.FWindow, True,
-      GrabModeAsync, GrabModeAsync, CurrentTime);
+    mask := XCB_EVENT_MASK_BUTTON_PRESS or
+            XCB_EVENT_MASK_BUTTON_RELEASE or
+            XCB_EVENT_MASK_POINTER_MOTION;
+    xcb_grab_pointer(AWindow.FConnection, 1, AWindow.FWindow, mask,
+                     XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, 0, 0, XCB_CURRENT_TIME);
+    xcb_grab_keyboard(AWindow.FConnection, 1, AWindow.FWindow, XCB_CURRENT_TIME,
+                      XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC);
+    xcb_flush(AWindow.FConnection);
   end;
 end;
 
 procedure FtUngrabMenuInput(AWindow: TFtX11Window);
 begin
-  if Assigned(AWindow) and Assigned(AWindow.FDisplay) then
+  if Assigned(AWindow) and Assigned(AWindow.FConnection) then
   begin
-    XUngrabPointer(AWindow.FDisplay, CurrentTime);
-    XUngrabKeyboard(AWindow.FDisplay, CurrentTime);
+    xcb_ungrab_pointer(AWindow.FConnection, XCB_CURRENT_TIME);
+    xcb_ungrab_keyboard(AWindow.FConnection, XCB_CURRENT_TIME);
+    xcb_flush(AWindow.FConnection);
   end;
 end;
 
 procedure FtBackendProcessEvents();
 var
-  Event: TXEvent;
+  ev: Pxcb_generic_event_t;
+  evType: Byte;
   win: TFtX11Window;
+  winId: xcb_window_t;
   i: Integer;
   nowMs: QWord;
   shouldResize: Boolean;
 begin
-  while Assigned(GDisplay) and (XPending(GDisplay) > 0) do
+  while Assigned(GConnection) do
   begin
-    XNextEvent(GDisplay, @Event);
-    win := FindWindowByHandle(Event.xany.window);
+    ev := xcb_poll_for_event(GConnection);
+    if ev = nil then Break;
+
+    evType := ev^.response_type and $7F;
+    winId := 0;
+
+    case evType of
+      XCB_EXPOSE: winId := Pxcb_expose_event_t(ev)^.window;
+      XCB_CONFIGURE_NOTIFY: winId := Pxcb_configure_notify_event_t(ev)^.window;
+      XCB_MOTION_NOTIFY: winId := Pxcb_motion_notify_event_t(ev)^.event;
+      XCB_ENTER_NOTIFY, XCB_LEAVE_NOTIFY: winId := Pxcb_enter_notify_event_t(ev)^.event;
+      XCB_BUTTON_PRESS, XCB_BUTTON_RELEASE: winId := Pxcb_button_press_event_t(ev)^.event;
+      XCB_KEY_PRESS, XCB_KEY_RELEASE: winId := Pxcb_key_press_event_t(ev)^.event;
+      XCB_SELECTION_CLEAR: winId := Pxcb_selection_clear_event_t(ev)^.owner;
+      XCB_SELECTION_REQUEST: winId := Pxcb_selection_request_event_t(ev)^.owner;
+      XCB_SELECTION_NOTIFY: winId := Pxcb_selection_notify_event_t(ev)^.requestor;
+      XCB_CLIENT_MESSAGE: winId := Pxcb_client_message_event_t(ev)^.window;
+      XCB_DESTROY_NOTIFY: winId := Pxcb_destroy_notify_event_t(ev)^.window;
+    end;
+
+    win := FindWindowByHandle(winId);
     if Assigned(win) then
-      win.HandleEvent(Event)
+      win.HandleGenericEvent(ev)
     else
     begin
-      if (Event._type = SelectionRequest) or (Event._type = SelectionClear) then
+      if (evType = XCB_SELECTION_REQUEST) or (evType = XCB_SELECTION_CLEAR) then
       begin
         if Assigned(GActiveWindow) then
-          GActiveWindow.HandleEvent(Event);
+          GActiveWindow.HandleGenericEvent(ev);
       end;
     end;
+
+    c_free(ev);
   end;
 
   if Assigned(GWindows) then
@@ -254,20 +445,12 @@ begin
             win.FHasPendingResize := False
           else
           begin
-            // Frame skipping during resize bursts:
-            // 1) Drag has paused/ended (>= 25ms since last configure event), OR
-            // 2) At least 30ms passed since previous resize render completed (~30 FPS rate)
             shouldResize := ((nowMs - win.FLastConfigureTime) >= 25) or
                             ((nowMs - win.FLastResizeRenderTime) >= 30);
             if shouldResize then
             begin
               win.FHasPendingResize := False;
               win.FNeedsRepaint := False;
-
-              // Discard any queued Expose events for this window since Resize does a full redraw
-              while XCheckTypedWindowEvent(win.FDisplay, win.FWindow, Expose, @Event) do
-                ;
-
               win.Resize(win.FPendingResizeW, win.FPendingResizeH, False);
             end;
           end;
@@ -335,19 +518,28 @@ begin
     end
     else
     begin
-      if Assigned(GDisplay) and (XPending(GDisplay) = 0) then
-      begin
-        nowMs := GetTickCount64();
-        if IsAnyWindowResizing(nowMs) then
-          Sleep(8)
-        else
-          Sleep(10);
-      end;
+      nowMs := GetTickCount64();
+      if IsAnyWindowResizing(nowMs) then
+        Sleep(8)
+      else
+        Sleep(10);
     end;
   end;
-  if Assigned(GDisplay) then
+
+  if Assigned(GCursorContext) then
   begin
-    XCloseDisplay(GDisplay);
+    xcb_cursor_context_free(GCursorContext);
+    GCursorContext := nil;
+  end;
+  if Assigned(GKeySymbols) then
+  begin
+    xcb_key_symbols_free(GKeySymbols);
+    GKeySymbols := nil;
+  end;
+  if Assigned(GConnection) then
+  begin
+    xcb_disconnect(GConnection);
+    GConnection := nil;
     GDisplay := nil;
   end;
 end;
@@ -393,61 +585,141 @@ begin
   end;
 end;
 
+procedure FtXcbPutImage(c: Pxcb_connection_t; wid: xcb_window_t; gc: xcb_gcontext_t;
+                        depth: Byte; buffer: Pointer; bufWidth, bufHeight: Integer;
+                        rx, ry, rw, rh: Integer; var scratchBuf: Pointer; var scratchSize: Cardinal);
+var
+  maxBytes, rowsPerChunk: Cardinal;
+  curY, remH, chunkH: Integer;
+  chunkData: PByte;
+  row: Integer;
+  needed: Cardinal;
+begin
+  if (rw <= 0) or (rh <= 0) or (buffer = nil) then Exit;
+
+  maxBytes := xcb_get_maximum_request_length(c) * 4;
+  if maxBytes > 32 then
+    Dec(maxBytes, 32)
+  else
+    maxBytes := 65535 * 4 - 32;
+
+  if (rw = bufWidth) and (rx = 0) then
+  begin
+    rowsPerChunk := maxBytes div Cardinal(rw * 4);
+    if rowsPerChunk < 1 then rowsPerChunk := 1;
+
+    curY := ry;
+    remH := rh;
+    while remH > 0 do
+    begin
+      chunkH := remH;
+      if Cardinal(chunkH) > rowsPerChunk then
+        chunkH := rowsPerChunk;
+      chunkData := PByte(buffer) + ((curY * bufWidth + rx) * 4);
+      xcb_put_image(c, XCB_IMAGE_FORMAT_Z_PIXMAP, wid, gc, Word(rw), Word(chunkH),
+                    SmallInt(rx), SmallInt(curY), 0, depth,
+                    Cardinal(chunkH * rw * 4), chunkData);
+      Inc(curY, chunkH);
+      Dec(remH, chunkH);
+    end;
+  end
+  else
+  begin
+    rowsPerChunk := maxBytes div Cardinal(rw * 4);
+    if rowsPerChunk < 1 then rowsPerChunk := 1;
+
+    curY := ry;
+    remH := rh;
+    while remH > 0 do
+    begin
+      chunkH := remH;
+      if Cardinal(chunkH) > rowsPerChunk then
+        chunkH := rowsPerChunk;
+
+      needed := Cardinal(chunkH * rw * 4);
+      if needed > scratchSize then
+      begin
+        ReallocMem(scratchBuf, needed);
+        scratchSize := needed;
+      end;
+
+      for row := 0 to chunkH - 1 do
+      begin
+        Move((PByte(buffer) + (((curY + row) * bufWidth + rx) * 4))^,
+             (PByte(scratchBuf) + (row * rw * 4))^,
+             rw * 4);
+      end;
+
+      xcb_put_image(c, XCB_IMAGE_FORMAT_Z_PIXMAP, wid, gc, Word(rw), Word(chunkH),
+                    SmallInt(rx), SmallInt(curY), 0, depth,
+                    needed, PByte(scratchBuf));
+      Inc(curY, chunkH);
+      Dec(remH, chunkH);
+    end;
+  end;
+end;
+
 constructor TFtX11Window.Create(W, H: Integer; Title: string);
 var
-  ScreenNum: cint;
-  vinfo: TXVisualInfo;
-  has32BitVisual: Boolean;
-  winAttr: TXSetWindowAttributes;
+  vis32: xcb_visualid_t;
+  mask: Cardinal;
+  valList: xcb_create_window_value_list_t;
 begin
   inherited Create(nil);
   X := 0;
   Y := 0;
   Width := W;
   Height := H;
-  FDisplay := GDisplay;
+  FConnection := GConnection;
   FBorderless := False;
   FSkipTaskbar := False;
   FWindowType := ftwtNormal;
   FBackgroundOpacity := 1.0;
   FBackgroundBlur := False;
-  FAtomBlurRegionNet := None;
-  FAtomBlurRegionKde := None;
+  FScratchBuffer := nil;
+  FScratchBufferSize := 0;
 
-  ScreenNum := DefaultScreen(FDisplay);
-  has32BitVisual := (XMatchVisualInfo(FDisplay, ScreenNum, 32, TrueColor, @vinfo) <> 0);
-  if has32BitVisual then
+  vis32 := FindVisual(GScreen, 32);
+  if vis32 <> 0 then
   begin
-    FVisual := vinfo.visual;
+    FVisual := vis32;
     FDepth := 32;
-    FColormap := XCreateColormap(FDisplay, RootWindow(FDisplay, ScreenNum), FVisual, AllocNone);
-    FillChar(winAttr, SizeOf(winAttr), 0);
-    winAttr.colormap := FColormap;
-    winAttr.border_pixel := 0;
-    winAttr.background_pixmap := None;
-    winAttr.bit_gravity := NorthWestGravity;
-    FWindow := XCreateWindow(FDisplay, RootWindow(FDisplay, ScreenNum),
-      100, 100, Width, Height, 0,
-      32, InputOutput, FVisual,
-      CWColormap or CWBorderPixel or CWBackPixmap or CWBitGravity,
-      @winAttr);
+    FColormap := xcb_generate_id(FConnection);
+    xcb_create_colormap(FConnection, XCB_COLORMAP_ALLOC_NONE, FColormap, GScreen^.root, FVisual);
   end
   else
   begin
-    FVisual := DefaultVisual(FDisplay, ScreenNum);
-    FDepth := 24;
-    FColormap := None;
-    FWindow := XCreateSimpleWindow(FDisplay, RootWindow(FDisplay, ScreenNum),
-      100, 100, Width, Height, 0,
-      BlackPixel(FDisplay, ScreenNum),
-      BlackPixel(FDisplay, ScreenNum));
-
-    // Disable X server background clearing and retain bit gravity during resize to eliminate flicker
-    FillChar(winAttr, SizeOf(winAttr), 0);
-    winAttr.background_pixmap := None;
-    winAttr.bit_gravity := NorthWestGravity;
-    XChangeWindowAttributes(FDisplay, FWindow, CWBackPixmap or CWBitGravity, @winAttr);
+    FVisual := GScreen^.root_visual;
+    FDepth := GScreen^.root_depth;
+    FColormap := 0;
   end;
+
+  FWindow := xcb_generate_id(FConnection);
+
+  FillChar(valList, SizeOf(valList), 0);
+  valList.background_pixmap := 0; // None - disable X background clear to eliminate flicker
+  valList.border_pixel := 0;
+  valList.bit_gravity := XCB_GRAVITY_NORTH_WEST;
+  valList.event_mask := XCB_EVENT_MASK_EXPOSURE or
+                        XCB_EVENT_MASK_BUTTON_PRESS or
+                        XCB_EVENT_MASK_BUTTON_RELEASE or
+                        XCB_EVENT_MASK_POINTER_MOTION or
+                        XCB_EVENT_MASK_LEAVE_WINDOW or
+                        XCB_EVENT_MASK_STRUCTURE_NOTIFY or
+                        XCB_EVENT_MASK_KEY_PRESS or
+                        XCB_EVENT_MASK_KEY_RELEASE or
+                        XCB_EVENT_MASK_PROPERTY_CHANGE;
+
+  mask := XCB_CW_BACK_PIXMAP or XCB_CW_BORDER_PIXEL or XCB_CW_BIT_GRAVITY or XCB_CW_EVENT_MASK;
+  if FDepth = 32 then
+  begin
+    mask := mask or XCB_CW_COLORMAP;
+    valList.colormap := FColormap;
+  end;
+
+  xcb_create_window_aux(FConnection, FDepth, FWindow, GScreen^.root,
+                        100, 100, Width, Height, 0,
+                        XCB_WINDOW_CLASS_INPUT_OUTPUT, FVisual, mask, @valList);
 
   SetTitle(Title);
   FHoverWidget := nil;
@@ -455,7 +727,6 @@ begin
   FFocusedWidget := nil;
   FMainMenu := nil;
   FActivePopup := nil;
-  FCursorIBeam := None;
   FNeedsRepaint := False;
   FDirtyLeft := 0;
   FDirtyTop := 0;
@@ -469,20 +740,17 @@ begin
   FLastResizeTime := 0;
   FLastConfigureTime := 0;
   FLastResizeRenderTime := 0;
-  XSelectInput(FDisplay, FWindow, ExposureMask or ButtonPressMask or ButtonReleaseMask or PointerMotionMask or LeaveWindowMask or StructureNotifyMask or KeyPressMask or KeyReleaseMask);
 
-  FWMDeleteWindow := XInternAtom(FDisplay, 'WM_DELETE_WINDOW', False);
-  FAtomClipboard := XInternAtom(FDisplay, 'CLIPBOARD', False);
-  FAtomUTF8String := XInternAtom(FDisplay, 'UTF8_STRING', False);
-  FAtomTargets := XInternAtom(FDisplay, 'TARGETS', False);
-  XSetWMProtocols(FDisplay, FWindow, @FWMDeleteWindow, 1);
+  // Configure WM_PROTOCOLS for graceful window close
+  xcb_change_property(FConnection, XCB_PROP_MODE_REPLACE, FWindow,
+                      atomWMProtocols, XCB_ATOM_ATOM, 32, 1, @atomWMDeleteWindow);
 
-  FGC := XCreateGC(FDisplay, FWindow, 0, nil);
+  FGC := xcb_generate_id(FConnection);
+  xcb_create_gc(FConnection, FGC, FWindow, 0, nil);
 
   GetMem(FPixelBuffer, Width * Height * 4);
-  FXImage := XCreateImage(FDisplay, FVisual, FDepth, ZPixmap, 0, PChar(FPixelBuffer), Width, Height, 32, 0);
-
   FCanvas := TFtCanvasAgg.Create(FPixelBuffer, Width, Height);
+
   if not Assigned(GWindows) then
     GWindows := TFPList.Create();
   GWindows.Add(Self);
@@ -494,42 +762,34 @@ begin
     FtThemeManager().OnThemeChange := @GBroadcaster.HandleThemeChanged;
     FtGetStyleSheet().OnChange := @GBroadcaster.HandleStyleSheetChanged;
   end;
+
+  xcb_flush(FConnection);
 end;
 
 procedure TFtX11Window.SetTitle(const ATitle: string);
 var
-  utf8String, netWmName, netWmIconName, wmName: TAtom;
   p: PChar;
   len: Integer;
 begin
   p := PChar(ATitle);
   len := Length(ATitle);
 
-  // 1. Legacy fallback (Latin-1)
-  XStoreName(FDisplay, FWindow, p);
-
-  // 2. Modern EWMH UTF-8 window title and icon name
-  utf8String := XInternAtom(FDisplay, 'UTF8_STRING', False);
-  netWmName := XInternAtom(FDisplay, '_NET_WM_NAME', False);
-  netWmIconName := XInternAtom(FDisplay, '_NET_WM_ICON_NAME', False);
-  wmName := XInternAtom(FDisplay, 'WM_NAME', False);
-
-  if len > 0 then
+  if (len > 0) and (FWindow <> 0) and Assigned(FConnection) then
   begin
-    XChangeProperty(FDisplay, FWindow, netWmName, utf8String, 8, PropModeReplace, PByte(p), len);
-    XChangeProperty(FDisplay, FWindow, netWmIconName, utf8String, 8, PropModeReplace, PByte(p), len);
-    XChangeProperty(FDisplay, FWindow, wmName, utf8String, 8, PropModeReplace, PByte(p), len);
+    xcb_change_property(FConnection, XCB_PROP_MODE_REPLACE, FWindow, atomNetWmName, atomUTF8String, 8, len, p);
+    xcb_change_property(FConnection, XCB_PROP_MODE_REPLACE, FWindow, atomNetWmIconName, atomUTF8String, 8, len, p);
+    xcb_change_property(FConnection, XCB_PROP_MODE_REPLACE, FWindow, atomWMName, atomUTF8String, 8, len, p);
+    xcb_flush(FConnection);
   end;
 end;
 
 procedure TFtX11Window.SetBorderless(ABorderless: Boolean);
 var
   hints: TMWMHints;
-  prop: TAtom;
-  winAttr: TXSetWindowAttributes;
+  val: xcb_change_window_attributes_value_list_t;
 begin
   FBorderless := ABorderless;
-  if FWindow = None then Exit;
+  if (FWindow = 0) or (FConnection = nil) then Exit;
 
   FillChar(hints, SizeOf(hints), 0);
   hints.flags := MWM_HINTS_DECORATIONS;
@@ -538,93 +798,84 @@ begin
   else
     hints.decorations := 1;
 
-  prop := XInternAtom(FDisplay, '_MOTIF_WM_HINTS', False);
-  XChangeProperty(FDisplay, FWindow, prop, prop, 32, PropModeReplace, PByte(@hints), 5);
+  xcb_change_property(FConnection, XCB_PROP_MODE_REPLACE, FWindow, atomMotifWmHints, atomMotifWmHints, 32, 5, @hints);
 
   if FWindowType in [ftwtPopupMenu, ftwtDropdownMenu, ftwtTooltip] then
   begin
-    FillChar(winAttr, SizeOf(winAttr), 0);
-    winAttr.override_redirect := 1;
-    XChangeWindowAttributes(FDisplay, FWindow, CWOverrideRedirect, @winAttr);
+    FillChar(val, SizeOf(val), 0);
+    val.override_redirect := 1;
+    xcb_change_window_attributes_aux(FConnection, FWindow, XCB_CW_OVERRIDE_REDIRECT, @val);
   end;
+  xcb_flush(FConnection);
 end;
 
 procedure TFtX11Window.SetSkipTaskbar(ASkip: Boolean);
 var
-  netWmState, atomSkipTaskbar, atomSkipPager: TAtom;
-  atoms: array[0..1] of TAtom;
+  atoms: array[0..1] of xcb_atom_t;
 begin
   FSkipTaskbar := ASkip;
-  if FWindow = None then Exit;
-
-  netWmState := XInternAtom(FDisplay, '_NET_WM_STATE', False);
-  atomSkipTaskbar := XInternAtom(FDisplay, '_NET_WM_STATE_SKIP_TASKBAR', False);
-  atomSkipPager := XInternAtom(FDisplay, '_NET_WM_STATE_SKIP_PAGER', False);
+  if (FWindow = 0) or (FConnection = nil) then Exit;
 
   if ASkip then
   begin
-    atoms[0] := atomSkipTaskbar;
-    atoms[1] := atomSkipPager;
-    XChangeProperty(FDisplay, FWindow, netWmState, 4 {XA_ATOM}, 32, PropModeReplace, PByte(@atoms), 2);
+    atoms[0] := atomNetWmStateSkipTaskbar;
+    atoms[1] := atomNetWmStateSkipPager;
+    xcb_change_property(FConnection, XCB_PROP_MODE_REPLACE, FWindow, atomNetWmState, XCB_ATOM_ATOM, 32, 2, @atoms[0]);
   end
   else
-    XDeleteProperty(FDisplay, FWindow, netWmState);
+    xcb_delete_property(FConnection, FWindow, atomNetWmState);
+  xcb_flush(FConnection);
 end;
 
 procedure TFtX11Window.SetWindowType(AType: TFtWindowType);
 var
-  netWmWindowType, typeAtom: TAtom;
-  typeName: string;
-  winAttr: TXSetWindowAttributes;
+  typeAtom: xcb_atom_t;
+  val: xcb_change_window_attributes_value_list_t;
 begin
   FWindowType := AType;
-  if FWindow = None then Exit;
+  if (FWindow = 0) or (FConnection = nil) then Exit;
 
   case AType of
-    ftwtNormal: typeName := '_NET_WM_WINDOW_TYPE_NORMAL';
-    ftwtDialog: typeName := '_NET_WM_WINDOW_TYPE_DIALOG';
-    ftwtPopupMenu: typeName := '_NET_WM_WINDOW_TYPE_POPUP_MENU';
-    ftwtDropdownMenu: typeName := '_NET_WM_WINDOW_TYPE_DROPDOWN_MENU';
-    ftwtTooltip: typeName := '_NET_WM_WINDOW_TYPE_TOOLTIP';
-    ftwtUtility: typeName := '_NET_WM_WINDOW_TYPE_UTILITY';
+    ftwtNormal: typeAtom := atomNetWmWindowTypeNormal;
+    ftwtDialog: typeAtom := atomNetWmWindowTypeDialog;
+    ftwtPopupMenu: typeAtom := atomNetWmWindowTypePopupMenu;
+    ftwtDropdownMenu: typeAtom := atomNetWmWindowTypeDropdownMenu;
+    ftwtTooltip: typeAtom := atomNetWmWindowTypeTooltip;
+    ftwtUtility: typeAtom := atomNetWmWindowTypeUtility;
   else
-    typeName := '_NET_WM_WINDOW_TYPE_NORMAL';
+    typeAtom := atomNetWmWindowTypeNormal;
   end;
 
-  netWmWindowType := XInternAtom(FDisplay, '_NET_WM_WINDOW_TYPE', False);
-  typeAtom := XInternAtom(FDisplay, PChar(typeName), False);
-  XChangeProperty(FDisplay, FWindow, netWmWindowType, 4 {XA_ATOM}, 32, PropModeReplace, PByte(@typeAtom), 1);
+  xcb_change_property(FConnection, XCB_PROP_MODE_REPLACE, FWindow, atomNetWmWindowType, XCB_ATOM_ATOM, 32, 1, @typeAtom);
 
   if AType in [ftwtPopupMenu, ftwtDropdownMenu, ftwtTooltip] then
   begin
-    FillChar(winAttr, SizeOf(winAttr), 0);
-    winAttr.override_redirect := 1;
-    XChangeWindowAttributes(FDisplay, FWindow, CWOverrideRedirect, @winAttr);
+    FillChar(val, SizeOf(val), 0);
+    val.override_redirect := 1;
+    xcb_change_window_attributes_aux(FConnection, FWindow, XCB_CW_OVERRIDE_REDIRECT, @val);
     SetSkipTaskbar(True);
     SetBorderless(True);
   end;
+  xcb_flush(FConnection);
 end;
 
 procedure TFtX11Window.SetWindowOpacity(AOpacity: Double);
 var
-  netWmWindowOpacity, atomCardinal: TAtom;
-  cardinalValue: culong;
+  cardinalValue: Cardinal;
 begin
   if AOpacity < 0.0 then AOpacity := 0.0;
   if AOpacity > 1.0 then AOpacity := 1.0;
   FOpacity := AOpacity;
-  if (FDisplay = nil) or (FWindow = None) then Exit;
+  if (FConnection = nil) or (FWindow = 0) then Exit;
 
-  netWmWindowOpacity := XInternAtom(FDisplay, '_NET_WM_WINDOW_OPACITY', False);
   if AOpacity >= 0.999 then
-    XDeleteProperty(FDisplay, FWindow, netWmWindowOpacity)
+    xcb_delete_property(FConnection, FWindow, atomNetWmWindowOpacity)
   else
   begin
-    atomCardinal := XInternAtom(FDisplay, 'CARDINAL', False);
-    cardinalValue := culong(Round(AOpacity * 4294967295.0));
-    XChangeProperty(FDisplay, FWindow, netWmWindowOpacity, atomCardinal, 32, PropModeReplace, PByte(@cardinalValue), 1);
+    cardinalValue := Cardinal(Round(AOpacity * 4294967295.0));
+    xcb_change_property(FConnection, XCB_PROP_MODE_REPLACE, FWindow, atomNetWmWindowOpacity, XCB_ATOM_CARDINAL, 32, 1, @cardinalValue);
   end;
-  XFlush(FDisplay);
+  xcb_flush(FConnection);
 end;
 
 function TFtX11Window.GetWindowOpacity(): Double;
@@ -671,13 +922,9 @@ end;
 
 procedure TFtX11Window.UpdateBlurBehindRegion();
 var
-  data: array[0..3] of culong;
+  data: array[0..3] of Cardinal;
 begin
-  if (FWindow = None) or (FDisplay = nil) then Exit;
-  if FAtomBlurRegionNet = None then
-    FAtomBlurRegionNet := XInternAtom(FDisplay, '_NET_WM_BLUR_BEHIND_REGION', False);
-  if FAtomBlurRegionKde = None then
-    FAtomBlurRegionKde := XInternAtom(FDisplay, '_KDE_NET_WM_BLUR_BEHIND_REGION', False);
+  if (FWindow = 0) or (FConnection = nil) then Exit;
 
   if FBackgroundBlur then
   begin
@@ -685,77 +932,99 @@ begin
     data[1] := 0;
     data[2] := Width;
     data[3] := Height;
-    // Standard EWMH atom for our custom compositing window manager
-    XChangeProperty(FDisplay, FWindow, FAtomBlurRegionNet, 6 {XA_CARDINAL}, 32, PropModeReplace, PByte(@data), 4);
-    // Legacy KDE / Picom compatibility atom
-    XChangeProperty(FDisplay, FWindow, FAtomBlurRegionKde, 6 {XA_CARDINAL}, 32, PropModeReplace, PByte(@data), 4);
+    xcb_change_property(FConnection, XCB_PROP_MODE_REPLACE, FWindow, atomBlurRegionNet, XCB_ATOM_CARDINAL, 32, 4, @data[0]);
+    xcb_change_property(FConnection, XCB_PROP_MODE_REPLACE, FWindow, atomBlurRegionKde, XCB_ATOM_CARDINAL, 32, 4, @data[0]);
   end
   else
   begin
-    XDeleteProperty(FDisplay, FWindow, FAtomBlurRegionNet);
-    XDeleteProperty(FDisplay, FWindow, FAtomBlurRegionKde);
+    xcb_delete_property(FConnection, FWindow, atomBlurRegionNet);
+    xcb_delete_property(FConnection, FWindow, atomBlurRegionKde);
   end;
-  XFlush(FDisplay);
+  xcb_flush(FConnection);
+end;
+
+function TFtX11Window.GetScreenWidth(): Integer;
+begin
+  Result := FtGetScreenWidth();
+end;
+
+function TFtX11Window.GetScreenHeight(): Integer;
+begin
+  Result := FtGetScreenHeight();
 end;
 
 procedure TFtX11Window.SetPosition(NewX, NewY: Integer);
+var
+  values: array[0..1] of Cardinal;
 begin
   X := NewX;
   Y := NewY;
-  if FWindow <> None then
-    XMoveWindow(FDisplay, FWindow, NewX, NewY);
+  if (FWindow <> 0) and Assigned(FConnection) then
+  begin
+    values[0] := Cardinal(NewX);
+    values[1] := Cardinal(NewY);
+    xcb_configure_window(FConnection, FWindow, XCB_CONFIG_WINDOW_X or XCB_CONFIG_WINDOW_Y, @values[0]);
+    xcb_flush(FConnection);
+  end;
 end;
 
 procedure TFtX11Window.GetPosition(out OutX, OutY: Integer);
 var
-  rootRet, childRet: TWindow;
-  rx, ry: cint;
-  w, h, bw, d: cuint;
+  cookie: xcb_translate_coordinates_cookie_t;
+  reply: Pxcb_translate_coordinates_reply_t;
 begin
   OutX := X;
   OutY := Y;
-  if FWindow <> None then
+  if (FWindow <> 0) and Assigned(FConnection) and Assigned(GScreen) then
   begin
-    rootRet := None;
-    childRet := None;
-    XGetGeometry(FDisplay, FWindow, @rootRet, @rx, @ry, @w, @h, @bw, @d);
-    XTranslateCoordinates(FDisplay, FWindow, rootRet, 0, 0, @rx, @ry, @childRet);
-    OutX := rx;
-    OutY := ry;
+    cookie := xcb_translate_coordinates(FConnection, FWindow, GScreen^.root, 0, 0);
+    reply := xcb_translate_coordinates_reply(FConnection, cookie, nil);
+    if Assigned(reply) then
+    begin
+      OutX := reply^.dst_x;
+      OutY := reply^.dst_y;
+      c_free(reply);
+    end;
   end;
 end;
 
 function TFtX11Window.ClientToScreen(AX, AY: Integer): TPoint;
 var
-  rootX, rootY: cint;
-  child: TWindow;
-  rootWin: TWindow;
+  cookie: xcb_translate_coordinates_cookie_t;
+  reply: Pxcb_translate_coordinates_reply_t;
 begin
   Result.X := AX;
   Result.Y := AY;
-  if FWindow <> None then
+  if (FWindow <> 0) and Assigned(FConnection) and Assigned(GScreen) then
   begin
-    rootWin := RootWindow(FDisplay, DefaultScreen(FDisplay));
-    XTranslateCoordinates(FDisplay, FWindow, rootWin, AX, AY, @rootX, @rootY, @child);
-    Result.X := rootX;
-    Result.Y := rootY;
+    cookie := xcb_translate_coordinates(FConnection, FWindow, GScreen^.root, SmallInt(AX), SmallInt(AY));
+    reply := xcb_translate_coordinates_reply(FConnection, cookie, nil);
+    if Assigned(reply) then
+    begin
+      Result.X := reply^.dst_x;
+      Result.Y := reply^.dst_y;
+      c_free(reply);
+    end;
   end;
 end;
 
 function TFtX11Window.ScreenToClient(AX, AY: Integer): TPoint;
 var
-  clX, clY: cint;
-  child: TWindow;
-  rootWin: TWindow;
+  cookie: xcb_translate_coordinates_cookie_t;
+  reply: Pxcb_translate_coordinates_reply_t;
 begin
   Result.X := AX;
   Result.Y := AY;
-  if FWindow <> None then
+  if (FWindow <> 0) and Assigned(FConnection) and Assigned(GScreen) then
   begin
-    rootWin := RootWindow(FDisplay, DefaultScreen(FDisplay));
-    XTranslateCoordinates(FDisplay, rootWin, FWindow, AX, AY, @clX, @clY, @child);
-    Result.X := clX;
-    Result.Y := clY;
+    cookie := xcb_translate_coordinates(FConnection, GScreen^.root, FWindow, SmallInt(AX), SmallInt(AY));
+    reply := xcb_translate_coordinates_reply(FConnection, cookie, nil);
+    if Assigned(reply) then
+    begin
+      Result.X := reply^.dst_x;
+      Result.Y := reply^.dst_y;
+      c_free(reply);
+    end;
   end;
 end;
 
@@ -776,37 +1045,41 @@ begin
   FHoverWidget := nil;
   FPressedWidget := nil;
   FFocusedWidget := nil;
-  if FCursorIBeam <> None then
-  begin
-    XFreeCursor(FDisplay, FCursorIBeam);
-    FCursorIBeam := None;
-  end;
   FCanvas.Free();
-  if Assigned(FXImage) then
-  begin
-    FXImage^.data := nil;
-    XDestroyImage(FXImage);
-    FXImage := nil;
-  end;
+
   if Assigned(FPixelBuffer) then
   begin
     FreeMem(FPixelBuffer);
     FPixelBuffer := nil;
   end;
-  if Assigned(FGC) then
-    XFreeGC(FDisplay, FGC);
-  if (FColormap <> None) and (FDepth = 32) then
+  if Assigned(FScratchBuffer) then
   begin
-    XFreeColormap(FDisplay, FColormap);
-    FColormap := None;
+    FreeMem(FScratchBuffer);
+    FScratchBuffer := nil;
+    FScratchBufferSize := 0;
   end;
-  if FWindow <> None then
-    XDestroyWindow(FDisplay, FWindow);
-  FWindow := None;
+
+  if (FGC <> 0) and Assigned(FConnection) then
+  begin
+    xcb_free_gc(FConnection, FGC);
+    FGC := 0;
+  end;
+  if (FColormap <> 0) and (FDepth = 32) and Assigned(FConnection) then
+  begin
+    xcb_free_colormap(FConnection, FColormap);
+    FColormap := 0;
+  end;
+  if (FWindow <> 0) and Assigned(FConnection) then
+  begin
+    xcb_destroy_window(FConnection, FWindow);
+    FWindow := 0;
+  end;
   inherited Destroy();
 end;
 
 procedure TFtX11Window.Resize(NewW, NewH: Integer; AApplyToX11: Boolean = True);
+var
+  values: array[0..1] of Cardinal;
 begin
   if (NewW <= 0) or (NewH <= 0) or ((NewW = Width) and (NewH = Height)) then Exit;
 
@@ -817,25 +1090,20 @@ begin
   if Assigned(FMainMenu) then
     FMainMenu.Width := Width;
 
-  if AApplyToX11 and (FWindow <> None) and Assigned(FDisplay) then
+  if AApplyToX11 and (FWindow <> 0) and Assigned(FConnection) then
   begin
-    XResizeWindow(FDisplay, FWindow, Width, Height);
+    values[0] := Cardinal(Width);
+    values[1] := Cardinal(Height);
+    xcb_configure_window(FConnection, FWindow, XCB_CONFIG_WINDOW_WIDTH or XCB_CONFIG_WINDOW_HEIGHT, @values[0]);
     if FBackgroundBlur then
       UpdateBlurBehindRegion();
-  end;
-
-  if Assigned(FXImage) then
-  begin
-    FXImage^.data := nil;
-    XDestroyImage(FXImage);
-    FXImage := nil;
+    xcb_flush(FConnection);
   end;
 
   if Assigned(FPixelBuffer) then
     FreeMem(FPixelBuffer);
 
   GetMem(FPixelBuffer, Width * Height * 4);
-  FXImage := XCreateImage(FDisplay, FVisual, FDepth, ZPixmap, 0, PChar(FPixelBuffer), Width, Height, 32, 0);
 
   if Assigned(FCanvas) then
     FCanvas.Resize(FPixelBuffer, Width, Height)
@@ -850,21 +1118,21 @@ end;
 procedure TFtX11Window.Show();
 begin
   Visible := True;
-  if FWindow <> None then
+  if (FWindow <> 0) and Assigned(FConnection) then
   begin
-    XMapRaised(FDisplay, FWindow);
+    xcb_map_window(FConnection, FWindow);
     FNeedsRepaint := True;
-    XFlush(FDisplay);
+    xcb_flush(FConnection);
   end;
 end;
 
 procedure TFtX11Window.Hide();
 begin
   Visible := False;
-  if FWindow <> None then
+  if (FWindow <> 0) and Assigned(FConnection) then
   begin
-    XUnmapWindow(FDisplay, FWindow);
-    XFlush(FDisplay);
+    xcb_unmap_window(FConnection, FWindow);
+    xcb_flush(FConnection);
   end;
 end;
 
@@ -882,7 +1150,7 @@ var
   effBgA: Double;
   rowY: Integer;
 begin
-  if (Width <= 0) or (Height <= 0) or (FWindow = None) or not Assigned(FCanvas) then Exit;
+  if (Width <= 0) or (Height <= 0) or (FWindow = 0) or not Assigned(FCanvas) or not Assigned(FConnection) then Exit;
 
   FNeedsRepaint := False;
   isPartial := FHasDirtyRect and not FFullRepaint;
@@ -932,8 +1200,9 @@ begin
       FCanvas.ResetAllClipping();
     end;
 
-    XPutImage(FDisplay, FWindow, FGC, FXImage, dirtyX, dirtyY, dirtyX, dirtyY, dirtyW, dirtyH);
-    XFlush(FDisplay);
+    FtXcbPutImage(FConnection, FWindow, FGC, FDepth, FPixelBuffer, Width, Height,
+                  dirtyX, dirtyY, dirtyW, dirtyH, FScratchBuffer, FScratchBufferSize);
+    xcb_flush(FConnection);
   end
   else
   begin
@@ -956,8 +1225,9 @@ begin
     end;
     Self.Draw(FCanvas);
 
-    XPutImage(FDisplay, FWindow, FGC, FXImage, 0, 0, 0, 0, Width, Height);
-    XFlush(FDisplay);
+    FtXcbPutImage(FConnection, FWindow, FGC, FDepth, FPixelBuffer, Width, Height,
+                  0, 0, Width, Height, FScratchBuffer, FScratchBufferSize);
+    xcb_flush(FConnection);
   end;
 end;
 
@@ -998,7 +1268,6 @@ begin
   if not Visible or (Width <= 0) or (Height <= 0) then Exit;
   if (AW <= 0) or (AH <= 0) then Exit;
 
-  // Clamp incoming rect to window bounds
   cx1 := AX;
   cy1 := AY;
   cx2 := AX + AW;
@@ -1047,22 +1316,33 @@ end;
 procedure FtClaimPrimarySelection(const AText: string);
 begin
   gPrimarySelectionText := AText;
-  if Assigned(GActiveWindow) and Assigned(GActiveWindow.FDisplay) and (GActiveWindow.FWindow <> None) then
+  if Assigned(GActiveWindow) and Assigned(GActiveWindow.FConnection) and (GActiveWindow.FWindow <> 0) then
   begin
-    XSetSelectionOwner(GActiveWindow.FDisplay, 1 {XA_PRIMARY}, GActiveWindow.FWindow, CurrentTime);
-    XFlush(GActiveWindow.FDisplay);
+    xcb_set_selection_owner(GActiveWindow.FConnection, GActiveWindow.FWindow, 1 {XA_PRIMARY}, XCB_CURRENT_TIME);
+    xcb_flush(GActiveWindow.FConnection);
   end;
 end;
 
 procedure FtClearPrimarySelection();
+var
+  cookie: xcb_get_selection_owner_cookie_t;
+  reply: Pxcb_get_selection_owner_reply_t;
+  isOwner: Boolean;
 begin
   gPrimarySelectionText := '';
-  if Assigned(GActiveWindow) and Assigned(GActiveWindow.FDisplay) and (GActiveWindow.FWindow <> None) then
+  if Assigned(GActiveWindow) and Assigned(GActiveWindow.FConnection) and (GActiveWindow.FWindow <> 0) then
   begin
-    if XGetSelectionOwner(GActiveWindow.FDisplay, 1 {XA_PRIMARY}) = GActiveWindow.FWindow then
+    cookie := xcb_get_selection_owner(GActiveWindow.FConnection, 1);
+    reply := xcb_get_selection_owner_reply(GActiveWindow.FConnection, cookie, nil);
+    if Assigned(reply) then
     begin
-      XSetSelectionOwner(GActiveWindow.FDisplay, 1 {XA_PRIMARY}, None, CurrentTime);
-      XFlush(GActiveWindow.FDisplay);
+      isOwner := (reply^.owner = GActiveWindow.FWindow);
+      c_free(reply);
+      if isOwner then
+      begin
+        xcb_set_selection_owner(GActiveWindow.FConnection, 0, 1, XCB_CURRENT_TIME);
+        xcb_flush(GActiveWindow.FConnection);
+      end;
     end;
   end;
 end;
@@ -1079,60 +1359,59 @@ var
   i: Integer;
   w: TFtX11Window;
 begin
-  if Assigned(GActiveWindow) and (GActiveWindow.FWindowType = ftwtNormal) and (GActiveWindow.FWindow <> None) then
+  if Assigned(GActiveWindow) and (GActiveWindow.FWindowType = ftwtNormal) and (GActiveWindow.FWindow <> 0) then
     Exit(GActiveWindow);
   if Assigned(GWindows) then
   begin
     for i := 0 to GWindows.Count - 1 do
     begin
       w := TFtX11Window(GWindows[i]);
-      if Assigned(w) and (w.FWindowType = ftwtNormal) and (w.FWindow <> None) then
+      if Assigned(w) and (w.FWindowType = ftwtNormal) and (w.FWindow <> 0) then
         Exit(w);
     end;
     for i := 0 to GWindows.Count - 1 do
     begin
       w := TFtX11Window(GWindows[i]);
-      if Assigned(w) and (w.FWindow <> None) then
+      if Assigned(w) and (w.FWindow <> 0) then
         Exit(w);
     end;
   end;
   Result := GActiveWindow;
 end;
 
-function FtFetchSelectionFromX11(ASelectionAtom: TAtom): string;
+function FtFetchSelectionFromXCB(ASelectionAtom: xcb_atom_t): string;
 var
-  win, wItem: TFtX11Window;
-  disp: PDisplay;
-  reqWin: TWindow;
-  owner: TWindow;
-  atomUTF8, atomString, selProp: TAtom;
-  targetAtom: TAtom;
+  win: TFtX11Window;
+  conn: Pxcb_connection_t;
+  ownerCookie: xcb_get_selection_owner_cookie_t;
+  ownerReply: Pxcb_get_selection_owner_reply_t;
+  ownerWin: xcb_window_t;
+  targetAtom: xcb_atom_t;
   attempt: Integer;
   startTime: QWord;
-  gotNotify: Boolean;
-  ev, evReq: TXEvent;
-  actualType: TAtom;
-  actualFormat: cint;
-  nItems, bytesAfter: culong;
-  propData: PByte;
-  ret: cint;
-  retStr: string;
-  i: Integer;
+  ev: Pxcb_generic_event_t;
+  evType: Byte;
+  selNotify: Pxcb_selection_notify_event_t;
+  propCookie: xcb_get_property_cookie_t;
+  propReply: Pxcb_get_property_reply_t;
+  propLen: Cardinal;
+  propData: Pointer;
 begin
   Result := '';
   win := GetSelectionRequestorWindow();
-  if not Assigned(win) or not Assigned(win.FDisplay) or (win.FWindow = None) then
+  if not Assigned(win) or not Assigned(win.FConnection) or (win.FWindow = 0) then
     Exit;
 
-  disp := win.FDisplay;
-  reqWin := win.FWindow;
+  conn := win.FConnection;
+  ownerCookie := xcb_get_selection_owner(conn, ASelectionAtom);
+  ownerReply := xcb_get_selection_owner_reply(conn, ownerCookie, nil);
+  if not Assigned(ownerReply) then Exit;
+  ownerWin := ownerReply^.owner;
+  c_free(ownerReply);
 
-  owner := XGetSelectionOwner(disp, ASelectionAtom);
-  if owner = None then
-    Exit;
+  if ownerWin = 0 then Exit;
 
-  // If one of our windows owns the selection, return the cached text immediately
-  if owner = reqWin then
+  if ownerWin = win.FWindow then
   begin
     if ASelectionAtom = 1 then
       Exit(gPrimarySelectionText)
@@ -1142,10 +1421,9 @@ begin
 
   if Assigned(GWindows) then
   begin
-    for i := 0 to GWindows.Count - 1 do
+    for attempt := 0 to GWindows.Count - 1 do
     begin
-      wItem := TFtX11Window(GWindows[i]);
-      if Assigned(wItem) and (wItem.FWindow = owner) then
+      if TFtX11Window(GWindows[attempt]).FWindow = ownerWin then
       begin
         if ASelectionAtom = 1 then
           Exit(gPrimarySelectionText)
@@ -1155,66 +1433,55 @@ begin
     end;
   end;
 
-  atomUTF8 := win.FAtomUTF8String;
-  if atomUTF8 = None then
-    atomUTF8 := XInternAtom(disp, 'UTF8_STRING', False);
-  atomString := 31; // XA_STRING = 31
-  selProp := XInternAtom(disp, 'FT_SELECTION', False);
-
-  // Try UTF8_STRING first (attempt 1), then XA_STRING fallback (attempt 2)
   for attempt := 1 to 2 do
   begin
     if attempt = 1 then
-      targetAtom := atomUTF8
+      targetAtom := atomUTF8String
     else
-      targetAtom := atomString;
+      targetAtom := XCB_ATOM_STRING;
 
-    XDeleteProperty(disp, reqWin, selProp);
-    XConvertSelection(disp, ASelectionAtom, targetAtom, selProp, reqWin, CurrentTime);
-    XFlush(disp);
+    xcb_delete_property(conn, win.FWindow, atomFtSelection);
+    xcb_convert_selection(conn, win.FWindow, ASelectionAtom, targetAtom, atomFtSelection, XCB_CURRENT_TIME);
+    xcb_flush(conn);
 
     startTime := GetTickCount64();
-    gotNotify := False;
-    FillChar(ev, SizeOf(ev), 0);
-
     while (GetTickCount64() - startTime < 300) do
     begin
-      if XCheckTypedWindowEvent(disp, reqWin, SelectionNotify, @ev) then
+      ev := xcb_poll_for_event(conn);
+      if Assigned(ev) then
       begin
-        gotNotify := True;
-        Break;
-      end;
-      if XCheckTypedEvent(disp, SelectionNotify, @ev) then
-      begin
-        gotNotify := True;
-        Break;
-      end;
-      if XCheckTypedEvent(disp, SelectionRequest, @evReq) then
-      begin
-        win.HandleEvent(evReq);
-      end;
-      Sleep(2);
-    end;
-
-    if gotNotify and (ev.xselection._property <> None) then
-    begin
-      actualType := None;
-      actualFormat := 0;
-      nItems := 0;
-      bytesAfter := 0;
-      propData := nil;
-      ret := XGetWindowProperty(disp, reqWin, ev.xselection._property, 0, 1024 * 1024, True, AnyPropertyType,
-                                @actualType, @actualFormat, @nItems, @bytesAfter, @propData);
-      if (ret = 0) and Assigned(propData) and (nItems > 0) then
-      begin
-        SetLength(retStr, nItems);
-        Move(propData^, retStr[1], nItems);
-        XFree(propData);
-        Result := retStr;
-        Exit;
-      end;
-      if Assigned(propData) then
-        XFree(propData);
+        evType := ev^.response_type and $7F;
+        if evType = XCB_SELECTION_NOTIFY then
+        begin
+          selNotify := Pxcb_selection_notify_event_t(ev);
+          if selNotify^.property_ <> 0 then
+          begin
+            propCookie := xcb_get_property(conn, 1, win.FWindow, selNotify^.property_, XCB_GET_PROPERTY_TYPE_ANY, 0, 1024 * 1024);
+            propReply := xcb_get_property_reply(conn, propCookie, nil);
+            if Assigned(propReply) then
+            begin
+              propLen := xcb_get_property_value_length(propReply);
+              propData := xcb_get_property_value(propReply);
+              if propLen > 0 then
+              begin
+                SetLength(Result, propLen);
+                Move(propData^, Result[1], propLen);
+              end;
+              c_free(propReply);
+            end;
+          end;
+          c_free(ev);
+          if Result <> '' then Exit;
+          Break;
+        end
+        else
+        begin
+          win.HandleGenericEvent(ev);
+          c_free(ev);
+        end;
+      end
+      else
+        Sleep(2);
     end;
   end;
 end;
@@ -1222,43 +1489,52 @@ end;
 function FtGetClipboardText(): string;
 var
   win: TFtX11Window;
-  disp: PDisplay;
-  clipAtom: TAtom;
-  owner: TWindow;
+  conn: Pxcb_connection_t;
+  cookie: xcb_get_selection_owner_cookie_t;
+  reply: Pxcb_get_selection_owner_reply_t;
+  owner: xcb_window_t;
   fetched: string;
 begin
   win := GetSelectionRequestorWindow();
-  if Assigned(win) and Assigned(win.FDisplay) and (win.FWindow <> None) then
+  if Assigned(win) and Assigned(win.FConnection) and (win.FWindow <> 0) then
   begin
-    disp := win.FDisplay;
-    clipAtom := win.FAtomClipboard;
-    if clipAtom = None then
-      clipAtom := XInternAtom(disp, 'CLIPBOARD', False);
-
-    owner := XGetSelectionOwner(disp, clipAtom);
-    if owner <> None then
+    conn := win.FConnection;
+    cookie := xcb_get_selection_owner(conn, atomClipboard);
+    reply := xcb_get_selection_owner_reply(conn, cookie, nil);
+    if Assigned(reply) then
     begin
-      if owner = win.FWindow then
-        Exit(gClipboardText);
+      owner := reply^.owner;
+      c_free(reply);
 
-      fetched := FtFetchSelectionFromX11(clipAtom);
-      if fetched <> '' then
+      if owner <> 0 then
       begin
-        gClipboardText := fetched;
-        Exit(fetched);
-      end;
-    end
-    else
-    begin
-      // Fallback: check primary selection (XA_PRIMARY = 1)
-      owner := XGetSelectionOwner(disp, 1);
-      if (owner <> None) and (owner <> win.FWindow) then
-      begin
-        fetched := FtFetchSelectionFromX11(1);
+        if owner = win.FWindow then
+          Exit(gClipboardText);
+
+        fetched := FtFetchSelectionFromXCB(atomClipboard);
         if fetched <> '' then
         begin
           gClipboardText := fetched;
           Exit(fetched);
+        end;
+      end
+      else
+      begin
+        cookie := xcb_get_selection_owner(conn, 1);
+        reply := xcb_get_selection_owner_reply(conn, cookie, nil);
+        if Assigned(reply) then
+        begin
+          owner := reply^.owner;
+          c_free(reply);
+          if (owner <> 0) and (owner <> win.FWindow) then
+          begin
+            fetched := FtFetchSelectionFromXCB(1);
+            if fetched <> '' then
+            begin
+              gClipboardText := fetched;
+              Exit(fetched);
+            end;
+          end;
         end;
       end;
     end;
@@ -1270,29 +1546,33 @@ end;
 procedure TFtX11Window.UpdateCursor();
 var
   target: TFtWidget;
+  valList: xcb_change_window_attributes_value_list_t;
+  targetCursor: xcb_cursor_t;
 begin
+  if (FWindow = 0) or (FConnection = nil) then Exit;
+
   if Assigned(FPressedWidget) then
     target := FPressedWidget
   else
     target := FHoverWidget;
 
   if Assigned(target) and (target.GetCursor() = 1) then
-  begin
-    if FCursorIBeam = None then
-      FCursorIBeam := XCreateFontCursor(FDisplay, 152); // XC_xterm
-    XDefineCursor(FDisplay, FWindow, FCursorIBeam);
-  end
+    targetCursor := GCursorIBeam
   else
-    XUndefineCursor(FDisplay, FWindow);
+    targetCursor := 0;
+
+  FillChar(valList, SizeOf(valList), 0);
+  valList.cursor := targetCursor;
+  xcb_change_window_attributes_aux(FConnection, FWindow, XCB_CW_CURSOR, @valList);
+  xcb_flush(FConnection);
 end;
 
 procedure TFtX11Window.ClaimClipboard();
 begin
-  if Assigned(FDisplay) and (FWindow <> None) then
+  if Assigned(FConnection) and (FWindow <> 0) and (atomClipboard <> 0) then
   begin
-    if FAtomClipboard <> None then
-      XSetSelectionOwner(FDisplay, FAtomClipboard, FWindow, CurrentTime);
-    XFlush(FDisplay);
+    xcb_set_selection_owner(FConnection, FWindow, atomClipboard, XCB_CURRENT_TIME);
+    xcb_flush(FConnection);
   end;
 end;
 
@@ -1403,62 +1683,98 @@ begin
   FtBackendProcessEvents();
 end;
 
-procedure TFtX11Window.HandleEvent(var Event: TXEvent);
+function KeySymToUtf8(sym: Cardinal): string;
 var
+  wc: WideString;
+begin
+  if (sym >= 32) and (sym <= 126) then
+    Result := Chr(sym)
+  else if (sym >= 160) and (sym <= $10FFFF) then
+  begin
+    if (sym >= $01000100) and (sym <= $0110FFFF) then
+      sym := sym - $01000000;
+    if sym <= $FFFF then
+      Result := UTF8Encode(WideChar(sym))
+    else
+    begin
+      SetLength(wc, 2);
+      wc[1] := WideChar($D800 + ((sym - $10000) shr 10));
+      wc[2] := WideChar($DC00 + ((sym - $10000) and $3FF));
+      Result := UTF8Encode(wc);
+    end;
+  end
+  else
+    Result := '';
+end;
+
+procedure TFtX11Window.HandleGenericEvent(Event: Pxcb_generic_event_t);
+var
+  evType: Byte;
   Target: TFtWidget;
   focusTarget: TFtWidget;
   ctxWidget: TFtWidget;
-  keysym: TKeySym;
-  strBuf: array[0..31] of AnsiChar;
-  charCount: Integer;
-  composeStatus: TXComposeStatus;
-  req: TXSelectionRequestEvent;
-  resp: TXSelectionEvent;
-  targets: array[0..2] of TAtom;
-  atomString: TAtom;
-  sendText: string;
+  keysym: Cardinal;
+  col: Integer;
+  strUtf8: string;
   navPop: TFtPopupMenu;
   clickedIdx: Integer;
   wasSameItem: Boolean;
+
+  ep: Pxcb_expose_event_t;
+  cp: Pxcb_configure_notify_event_t;
+  mp: Pxcb_motion_notify_event_t;
+  bp: Pxcb_button_press_event_t;
+  kp: Pxcb_key_press_event_t;
+  kr: Pxcb_key_release_event_t;
+  req: Pxcb_selection_request_event_t;
+  resp: xcb_selection_notify_event_t;
+  targets: array[0..2] of xcb_atom_t;
+  sendText: string;
+  sc: Pxcb_selection_clear_event_t;
+  cm: Pxcb_client_message_event_t;
 begin
-  case Event._type of
-    Expose:
+  if Event = nil then Exit;
+  evType := Event^.response_type and $7F;
+
+  case evType of
+    XCB_EXPOSE:
     begin
-      InvalidateRect(Event.xexpose.x, Event.xexpose.y, Event.xexpose.width, Event.xexpose.height);
+      ep := Pxcb_expose_event_t(Event);
+      InvalidateRect(ep^.x, ep^.y, ep^.width, ep^.height);
     end;
 
-    ConfigureNotify:
+    XCB_CONFIGURE_NOTIFY:
     begin
-      while XCheckTypedWindowEvent(FDisplay, FWindow, ConfigureNotify, @Event) do
-        ;
-      FPendingResizeW := Event.xconfigure.width;
-      FPendingResizeH := Event.xconfigure.height;
+      cp := Pxcb_configure_notify_event_t(Event);
+      FPendingResizeW := cp^.width;
+      FPendingResizeH := cp^.height;
       FHasPendingResize := True;
-      X := Event.xconfigure.x;
-      Y := Event.xconfigure.y;
+      X := cp^.x;
+      Y := cp^.y;
       FLastConfigureTime := GetTickCount64();
     end;
 
-    MotionNotify:
+    XCB_MOTION_NOTIFY:
     begin
+      mp := Pxcb_motion_notify_event_t(Event);
       if FWindowType in [ftwtPopupMenu, ftwtDropdownMenu] then
       begin
         if (Children.Count > 0) and (TFtWidget(Children[0]) is TFtPopupMenu) then
-          TFtPopupMenu(Children[0]).MouseMove(Event.xmotion.x, Event.xmotion.y);
+          TFtPopupMenu(Children[0]).MouseMove(mp^.event_x, mp^.event_y);
       end
       else if Assigned(GGrabbedPopup) and Assigned(FMainMenu) and
               (TFtMainMenu(FMainMenu).ActiveIndex >= 0) and
-              (FMainMenu.HitTest(Event.xmotion.x, Event.xmotion.y) <> nil) then
+              (FMainMenu.HitTest(mp^.event_x, mp^.event_y) <> nil) then
       begin
-        FMainMenu.MouseMove(Event.xmotion.x, Event.xmotion.y);
+        FMainMenu.MouseMove(mp^.event_x, mp^.event_y);
       end
       else if Assigned(FPressedWidget) then
       begin
-        FPressedWidget.MouseMove(Event.xmotion.x, Event.xmotion.y);
+        FPressedWidget.MouseMove(mp^.event_x, mp^.event_y);
       end
       else
       begin
-        Target := HitTest(Event.xmotion.x, Event.xmotion.y);
+        Target := HitTest(mp^.event_x, mp^.event_y);
         if Target = Self then
           Target := nil;
 
@@ -1472,11 +1788,11 @@ begin
           UpdateCursor();
         end;
         if Assigned(Target) then
-          Target.MouseMove(Event.xmotion.x, Event.xmotion.y);
+          Target.MouseMove(mp^.event_x, mp^.event_y);
       end;
     end;
 
-    LeaveNotify:
+    XCB_LEAVE_NOTIFY:
     begin
       if Assigned(FHoverWidget) then
       begin
@@ -1486,12 +1802,13 @@ begin
       end;
     end;
 
-    ButtonPress:
+    XCB_BUTTON_PRESS:
     begin
+      bp := Pxcb_button_press_event_t(Event);
       if FWindowType in [ftwtPopupMenu, ftwtDropdownMenu] then
       begin
-        if (Event.xbutton.x < 0) or (Event.xbutton.x >= Width) or
-           (Event.xbutton.y < 0) or (Event.xbutton.y >= Height) then
+        if (bp^.event_x < 0) or (bp^.event_x >= Width) or
+           (bp^.event_y < 0) or (bp^.event_y >= Height) then
         begin
           if Assigned(GGrabbedPopup) then
             TFtPopupMenu(GGrabbedPopup).DismissAll();
@@ -1501,76 +1818,76 @@ begin
           if (Children.Count > 0) and (TFtWidget(Children[0]) is TFtPopupMenu) then
           begin
             FPressedWidget := TFtPopupMenu(Children[0]);
-            TFtPopupMenu(Children[0]).MouseDown(Event.xbutton.x, Event.xbutton.y, Event.xbutton.button);
+            TFtPopupMenu(Children[0]).MouseDown(bp^.event_x, bp^.event_y, bp^.detail);
           end;
         end;
       end
       else if Assigned(GGrabbedPopup) then
       begin
-        if Assigned(FMainMenu) and (FMainMenu.HitTest(Event.xbutton.x, Event.xbutton.y) <> nil) then
+        if Assigned(FMainMenu) and (FMainMenu.HitTest(bp^.event_x, bp^.event_y) <> nil) then
         begin
-          clickedIdx := TFtMainMenu(FMainMenu).ItemAt(Event.xbutton.x, Event.xbutton.y);
+          clickedIdx := TFtMainMenu(FMainMenu).ItemAt(bp^.event_x, bp^.event_y);
           wasSameItem := (TFtMainMenu(FMainMenu).ActiveIndex >= 0) and (clickedIdx = TFtMainMenu(FMainMenu).ActiveIndex);
 
           TFtPopupMenu(GGrabbedPopup).DismissAll();
 
-          if (Event.xbutton.button = 1) and (clickedIdx >= 0) and not wasSameItem then
+          if (bp^.detail = 1) and (clickedIdx >= 0) and not wasSameItem then
           begin
             FPressedWidget := FMainMenu;
-            FMainMenu.MouseDown(Event.xbutton.x, Event.xbutton.y, Event.xbutton.button);
+            FMainMenu.MouseDown(bp^.event_x, bp^.event_y, bp^.detail);
           end;
         end
         else
         begin
           TFtPopupMenu(GGrabbedPopup).DismissAll();
-          if Event.xbutton.button = 3 then
+          if bp^.detail = 3 then
           begin
-            Target := HitTest(Event.xbutton.x, Event.xbutton.y);
+            Target := HitTest(bp^.event_x, bp^.event_y);
             if Target = Self then
               Target := nil;
             focusTarget := FindFocusableWidget(Target);
             if Assigned(focusTarget) then
               SetFocusedWidget(focusTarget);
             if Assigned(Target) then
-              Target.MouseDown(Event.xbutton.x, Event.xbutton.y, Event.xbutton.button);
+              Target.MouseDown(bp^.event_x, bp^.event_y, bp^.detail);
 
             ctxWidget := Target;
             while Assigned(ctxWidget) and (ctxWidget.ContextMenu = nil) do
               ctxWidget := ctxWidget.Parent;
 
             if Assigned(ctxWidget) and Assigned(ctxWidget.ContextMenu) then
-              TFtPopupMenu(ctxWidget.ContextMenu).Popup(Event.xbutton.x_root, Event.xbutton.y_root)
+              TFtPopupMenu(ctxWidget.ContextMenu).Popup(bp^.root_x, bp^.root_y)
             else if Assigned(FContextMenu) then
-              TFtPopupMenu(FContextMenu).Popup(Event.xbutton.x_root, Event.xbutton.y_root);
+              TFtPopupMenu(FContextMenu).Popup(bp^.root_x, bp^.root_y);
           end;
         end;
       end
-      else if Event.xbutton.button = 3 then
+      else if bp^.detail = 3 then
       begin
-        Target := HitTest(Event.xbutton.x, Event.xbutton.y);
+        Target := HitTest(bp^.event_x, bp^.event_y);
         if Target = Self then
           Target := nil;
         focusTarget := FindFocusableWidget(Target);
         if Assigned(focusTarget) then
           SetFocusedWidget(focusTarget);
         if Assigned(Target) then
-          Target.MouseDown(Event.xbutton.x, Event.xbutton.y, Event.xbutton.button);
+          Target.MouseDown(bp^.event_x, bp^.event_y, bp^.detail);
 
         ctxWidget := Target;
         while Assigned(ctxWidget) and (ctxWidget.ContextMenu = nil) do
           ctxWidget := ctxWidget.Parent;
 
         if Assigned(ctxWidget) and Assigned(ctxWidget.ContextMenu) then
-          TFtPopupMenu(ctxWidget.ContextMenu).Popup(Event.xbutton.x_root, Event.xbutton.y_root)
+          TFtPopupMenu(ctxWidget.ContextMenu).Popup(bp^.root_x, bp^.root_y)
         else if Assigned(FContextMenu) then
-          TFtPopupMenu(FContextMenu).Popup(Event.xbutton.x_root, Event.xbutton.y_root);
+          TFtPopupMenu(FContextMenu).Popup(bp^.root_x, bp^.root_y);
       end
       else
       begin
-        Target := HitTest(Event.xbutton.x, Event.xbutton.y);
+        Target := HitTest(bp^.event_x, bp^.event_y);
         if Target = Self then
           Target := nil;
-        if not (Event.xbutton.button in [4, 5, 6, 7]) then
+        if not (bp^.detail in [4, 5, 6, 7]) then
         begin
           focusTarget := FindFocusableWidget(Target);
           if not Assigned(focusTarget) then
@@ -1587,17 +1904,18 @@ begin
         end;
         UpdateCursor();
         if Assigned(Target) then
-          Target.MouseDown(Event.xbutton.x, Event.xbutton.y, Event.xbutton.button);
+          Target.MouseDown(bp^.event_x, bp^.event_y, bp^.detail);
       end;
     end;
 
-    ButtonRelease:
+    XCB_BUTTON_RELEASE:
     begin
+      bp := Pxcb_button_release_event_t(Event);
       if FWindowType in [ftwtPopupMenu, ftwtDropdownMenu] then
       begin
         if (Children.Count > 0) and (TFtWidget(Children[0]) is TFtPopupMenu) then
         begin
-          TFtPopupMenu(Children[0]).MouseUp(Event.xbutton.x, Event.xbutton.y, Event.xbutton.button);
+          TFtPopupMenu(Children[0]).MouseUp(bp^.event_x, bp^.event_y, bp^.detail);
           TFtPopupMenu(Children[0]).Click();
         end;
         FPressedWidget := nil;
@@ -1605,12 +1923,12 @@ begin
       end
       else
       begin
-        Target := HitTest(Event.xbutton.x, Event.xbutton.y);
+        Target := HitTest(bp^.event_x, bp^.event_y);
         if Target = Self then
           Target := nil;
         if Assigned(FPressedWidget) then
         begin
-          FPressedWidget.MouseUp(Event.xbutton.x, Event.xbutton.y, Event.xbutton.button);
+          FPressedWidget.MouseUp(bp^.event_x, bp^.event_y, bp^.detail);
           if Target = FPressedWidget then
             FPressedWidget.Click();
           FPressedWidget := nil;
@@ -1619,14 +1937,13 @@ begin
       end;
     end;
 
-    2: // KeyPress
+    XCB_KEY_PRESS:
     begin
-      keysym := 0;
-      charCount := XLookupString(@Event.xkey, strBuf, SizeOf(strBuf) - 1, @keysym, @composeStatus);
-      if charCount > 0 then
-        strBuf[charCount] := #0
-      else
-        strBuf[0] := #0;
+      kp := Pxcb_key_press_event_t(Event);
+      col := 0;
+      if (kp^.state and 1) <> 0 then col := 1;
+      keysym := xcb_key_press_lookup_keysym(GKeySymbols, kp, col);
+      strUtf8 := KeySymToUtf8(keysym);
 
       if Assigned(GGrabbedPopup) and TFtPopupMenu(GGrabbedPopup).IsOpen then
       begin
@@ -1635,19 +1952,19 @@ begin
           navPop := navPop.ActiveSubMenu;
 
         case keysym of
-          $FF1B: // Escape
+          XK_Escape:
             TFtPopupMenu(GGrabbedPopup).DismissAll();
-          $FF54: // Down arrow
+          XK_Down:
             navPop.SelectNext();
-          $FF52: // Up arrow
+          XK_Up:
             navPop.SelectPrev();
-          $FF53: // Right arrow
+          XK_Right:
           begin
             if (navPop.HoverIndex >= 0) and (navPop.HoverIndex < navPop.Items.Count) and
                TFtMenuItem(navPop.Items[navPop.HoverIndex]).HasSubMenu() then
               navPop.ActivateSelected();
           end;
-          $FF51: // Left arrow
+          XK_Left:
           begin
             if Assigned(navPop.ParentPopupMenu) then
             begin
@@ -1656,90 +1973,89 @@ begin
                 navPop.ParentPopupMenu.Invalidate();
             end;
           end;
-          $FF0D, $FF8D: // Return / Enter / KP_Enter
+          XK_Return, XK_KP_Enter:
           begin
             navPop.ActivateSelected();
           end;
         end;
       end
-      else if (keysym = $FF09) or (keysym = $FE20) then
+      else if (keysym = XK_Tab) or (keysym = XK_ISO_Left_Tab) then
       begin
-        FocusNext((keysym = $FE20) or ((Event.xkey.state and 1) <> 0));
+        FocusNext((keysym = XK_ISO_Left_Tab) or ((kp^.state and 1) <> 0));
       end
       else if Assigned(FFocusedWidget) then
-        FFocusedWidget.KeyDown(keysym, Event.xkey.state, StrPas(strBuf));
+        FFocusedWidget.KeyDown(keysym, kp^.state, strUtf8);
     end;
 
-    3: // KeyRelease
+    XCB_KEY_RELEASE:
     begin
-      keysym := 0;
-      XLookupString(@Event.xkey, nil, 0, @keysym, nil);
+      kr := Pxcb_key_release_event_t(Event);
+      col := 0;
+      if (kr^.state and 1) <> 0 then col := 1;
+      keysym := xcb_key_release_lookup_keysym(GKeySymbols, kr, col);
       if Assigned(FFocusedWidget) then
-        FFocusedWidget.KeyUp(keysym, Event.xkey.state);
+        FFocusedWidget.KeyUp(keysym, kr^.state);
     end;
 
-    SelectionRequest:
+    XCB_SELECTION_REQUEST:
     begin
-      req := Event.xselectionrequest;
+      req := Pxcb_selection_request_event_t(Event);
       FillChar(resp, SizeOf(resp), 0);
-      resp._type := SelectionNotify;
-      resp.display := req.display;
-      resp.requestor := req.requestor;
-      resp.selection := req.selection;
-      resp.target := req.target;
-      resp._property := None;
-      resp.time := req.time;
-      atomString := 31; // XA_STRING = 31
+      resp.response_type := XCB_SELECTION_NOTIFY;
+      resp.time := req^.time;
+      resp.requestor := req^.requestor;
+      resp.selection := req^.selection;
+      resp.target := req^.target;
+      resp.property_ := 0;
 
-      if (req.target = FAtomTargets) and (FAtomTargets <> None) then
+      if (req^.target = atomTargets) and (atomTargets <> 0) then
       begin
-        targets[0] := FAtomTargets;
-        targets[1] := FAtomUTF8String;
-        targets[2] := atomString;
-        XChangeProperty(FDisplay, req.requestor, req._property, 4 {XA_ATOM=4}, 32, PropModeReplace, PByte(@targets), 3);
-        resp._property := req._property;
+        targets[0] := atomTargets;
+        targets[1] := atomUTF8String;
+        targets[2] := XCB_ATOM_STRING;
+        xcb_change_property(FConnection, XCB_PROP_MODE_REPLACE, req^.requestor,
+                            req^.property_, XCB_ATOM_ATOM, 32, 3, @targets[0]);
+        resp.property_ := req^.property_;
       end
-      else if (req.target = FAtomUTF8String) or (req.target = atomString) then
+      else if (req^.target = atomUTF8String) or (req^.target = XCB_ATOM_STRING) then
       begin
-        if req.selection = 1 then
+        if req^.selection = 1 then
           sendText := gPrimarySelectionText
         else
           sendText := gClipboardText;
 
         if Length(sendText) > 0 then
-          XChangeProperty(FDisplay, req.requestor, req._property, req.target, 8, PropModeReplace, PByte(PChar(sendText)), Length(sendText))
+          xcb_change_property(FConnection, XCB_PROP_MODE_REPLACE, req^.requestor,
+                              req^.property_, req^.target, 8, Length(sendText), PChar(sendText))
         else
-          XChangeProperty(FDisplay, req.requestor, req._property, req.target, 8, PropModeReplace, nil, 0);
-        resp._property := req._property;
+          xcb_change_property(FConnection, XCB_PROP_MODE_REPLACE, req^.requestor,
+                              req^.property_, req^.target, 8, 0, nil);
+        resp.property_ := req^.property_;
       end;
 
-      XSendEvent(FDisplay, req.requestor, False, 0, @resp);
+      xcb_send_event(FConnection, 0, req^.requestor, 0, PChar(@resp));
+      xcb_flush(FConnection);
     end;
 
-    SelectionClear:
+    XCB_SELECTION_CLEAR:
     begin
-      if Event.xselectionclear.selection = 1 then
+      sc := Pxcb_selection_clear_event_t(Event);
+      if sc^.selection = 1 then
       begin
-        if XGetSelectionOwner(FDisplay, 1) <> FWindow then
-        begin
-          gPrimarySelectionText := '';
-          if Assigned(gOnPrimarySelectionLost) then
-            gOnPrimarySelectionLost();
-        end;
+        gPrimarySelectionText := '';
+        if Assigned(gOnPrimarySelectionLost) then
+          gOnPrimarySelectionLost();
       end
-      else if (FAtomClipboard <> None) and (Event.xselectionclear.selection = FAtomClipboard) then
+      else if (atomClipboard <> 0) and (sc^.selection = atomClipboard) then
       begin
-        if XGetSelectionOwner(FDisplay, FAtomClipboard) <> FWindow then
-        begin
-          gClipboardText := '';
-        end;
+        gClipboardText := '';
       end;
     end;
 
-    ClientMessage:
+    XCB_CLIENT_MESSAGE:
     begin
-      if (Event.xclient.format = 32) and
-         (TAtom(Event.xclient.data.l[0]) = FWMDeleteWindow) then
+      cm := Pxcb_client_message_event_t(Event);
+      if (cm^.format = 32) and (PCardinal(@cm^.data.raw[0])^ = atomWMDeleteWindow) then
       begin
         if FWindowType in [ftwtNormal, ftwtDialog] then
         begin
@@ -1752,7 +2068,7 @@ begin
       end;
     end;
 
-    DestroyNotify:
+    XCB_DESTROY_NOTIFY:
     begin
       if FWindowType in [ftwtNormal, ftwtDialog] then
       begin

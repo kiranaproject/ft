@@ -25,6 +25,9 @@
     </RunParams>
     <RequiredPackages>
       <Item>
+        <PackageName Value="florialib"/>
+      </Item>
+      <Item>
         <PackageName Value="fpgui_toolkit"/>
       </Item>
     </RequiredPackages>
@@ -37,6 +40,11 @@
         <Filename Value="ft.backend.x11.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="Ft.Backend.X11"/>
+      </Unit>
+      <Unit>
+        <Filename Value="ft.backend.xcb.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Backend.XCB"/>
       </Unit>
       <Unit>
         <Filename Value="ft.canvas.agg.pas"/>

@@ -154,7 +154,7 @@ type
 implementation
 
 uses
-  Types, ctypes, x, xlib, Ft.Backend.X11;
+  Types, Ft.Backend.X11;
 
 { TFtMenuItem }
 
@@ -437,16 +437,15 @@ end;
 procedure TFtPopupMenu.Popup(AX, AY: Integer);
 var
   popWin: TFtX11Window;
-  screenNum, screenW, screenH: Integer;
+  screenW, screenH: Integer;
 begin
   RecalcLayout();
 
   popWin := TFtX11Window(FPopupWindow);
-  if Assigned(popWin) and Assigned(popWin.Display) then
+  if Assigned(popWin) then
   begin
-    screenNum := DefaultScreen(popWin.Display);
-    screenW := DisplayWidth(popWin.Display, screenNum);
-    screenH := DisplayHeight(popWin.Display, screenNum);
+    screenW := popWin.ScreenWidth;
+    screenH := popWin.ScreenHeight;
 
     if AX + Width > screenW then
       AX := screenW - Width - 2;
@@ -619,8 +618,7 @@ begin
           subX := popWin.X + Width - 2;
           subY := popWin.Y + item.Y - 2;
 
-          screenNum := DefaultScreen(popWin.Display);
-          screenW := DisplayWidth(popWin.Display, screenNum);
+          screenW := popWin.ScreenWidth;
           if subX + FActiveSubMenu.Width > screenW then
             subX := popWin.X - FActiveSubMenu.Width + 2;
 

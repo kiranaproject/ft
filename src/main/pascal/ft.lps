@@ -106,6 +106,24 @@
         <UsageCount Value="22"/>
       </Unit>
       <Unit>
+        <Filename Value="ft.bitmap.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Bitmap"/>
+        <UsageCount Value="20"/>
+      </Unit>
+      <Unit>
+        <Filename Value="ft.widget.images.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Widget.Images"/>
+        <UsageCount Value="20"/>
+      </Unit>
+      <Unit>
+        <Filename Value="ft.blur.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Blur"/>
+        <UsageCount Value="20"/>
+      </Unit>
+      <Unit>
         <Filename Value="ft.buttons.pas"/>
         <UnitName Value="Ft.Buttons"/>
         <UsageCount Value="20"/>
