@@ -42,6 +42,7 @@ Floria Toolkit bypasses traditional rasterization libraries in favor of Anti-Gra
 - **Subpixel Antialiasing**: Every line, curve, rounded rectangle, and text glyph is rasterized with subpixel precision.
 - **Gaussian Drop Shadows**: Employs true 2D dual-pass Gaussian box blurs to create realistic elevation shadows under buttons, menus, and cards.
 - **Scissor Clipping Stack**: Hierarchical scissor rectangles allow containers and viewports to nest arbitrarily with zero visual clipping artifacts.
+- **Pluggable Architecture (Roadmap)**: As hardware-accelerated GPU backends (OpenGL, Vulkan) are introduced via an abstract `TFtCanvas` interface, `AggPas` remains the primary zero-dependency **Software Reference and Fallback Engine** for headless CI, VMs, remote X11/VNC sessions, and pre-rasterization asset caching. See [ROADMAP.md](../ROADMAP.md) for details.
 
 ### 2. X11 Backend & Event Loop (`Ft.Backend.X11`)
 - **Native X11 Integration**: Manages `Display`, `Window`, `GC`, and `XImage` with double-buffered software rendering.

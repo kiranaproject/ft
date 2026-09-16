@@ -221,6 +221,21 @@ floria-toolkit/
 
 ---
 
+## Roadmap
+
+Floria Toolkit is continuously evolving. High-priority initiatives include:
+
+- **Pluggable Graphics Architecture (`TFtCanvas`)**:
+  - Abstracting the vector canvas to support **Hardware-Accelerated GPU backends** (OpenGL / Vulkan) alongside **AggPas as the premier Software Fallback & Reference Engine** (ensuring zero-driver reliability in VMs, headless CI, and remote sessions).
+  - Dynamic runtime backend negotiation (`ft_init`) with transparent fallback.
+- **Display Protocols**: Native Wayland (`xdg-shell`) backend, Windows (Win32), and macOS (Cocoa).
+- **Advanced Controls**: DataGrids with virtual scrolling, TreeViews, Tabbed notebooks, and Splitter panes.
+- **Typography & i18n**: HarfBuzz complex text shaping, BiDi support, and IME integration.
+
+See the complete [ROADMAP.md](ROADMAP.md) for full architectural details and technical milestones.
+
+---
+
 ## License
 
 Floria Toolkit is licensed under the [Mozilla Public License 2.0 (MPL-2.0)](LICENSE).  
