@@ -4,9 +4,19 @@ program TestRunner;
 
 uses
   Classes, SysUtils, Math, fpcunit, testregistry, consoletestrunner,
-  Ft.Css;
+  Floria.SVG.DOM, Floria.SVG.Parser,
+  Ft.Css, Ft.Bitmap, Ft.Canvas.Agg, Ft.Svg, Ft.Widget.Images;
 
 type
+  TFtSvgTest = class(TTestCase)
+  published
+    procedure TestSVGRasterizeRect();
+    procedure TestSVGRasterizeCircle();
+    procedure TestSVGRasterizePath();
+    procedure TestSVGRasterizeUseAndGroup();
+    procedure TestBitmapCreateFromSVG();
+    procedure TestImageWidgetLoadSVG();
+  end;
   TFtCssTest = class(TTestCase)
   published
     procedure TestColorParsing();
@@ -221,6 +231,153 @@ begin
   end;
 end;
 
+{ TFtSvgTest }
+
+procedure TFtSvgTest.TestSVGRasterizeRect();
+var
+  svg: string;
+  bmp: TFtBitmap;
+  p: PByte;
+begin
+  svg := '<svg width="100" height="100" viewBox="0 0 100 100">' +
+         '  <rect x="10" y="10" width="80" height="80" fill="#ff0000" />' +
+         '</svg>';
+  bmp := TFtSVGRenderer.RenderStringToBitmap(svg, 100, 100);
+  try
+    AssertEquals('Width', 100, bmp.Width);
+    AssertEquals('Height', 100, bmp.Height);
+
+    // Center pixel (50, 50) must be red (BGRA: B=0, G=0, R=255, A=255)
+    p := PByte(bmp.PixelBuffer) + (50 * bmp.Stride + 50 * 4);
+    AssertTrue('Center pixel Red >= 240', p[2] >= 240);
+    AssertTrue('Center pixel Green <= 10', p[1] <= 10);
+    AssertTrue('Center pixel Blue <= 10', p[0] <= 10);
+    AssertTrue('Center pixel Alpha >= 240', p[3] >= 240);
+
+    // Outside pixel (2, 2) must be transparent
+    p := PByte(bmp.PixelBuffer) + (2 * bmp.Stride + 2 * 4);
+    AssertEquals('Outside pixel Alpha', 0, p[3]);
+  finally
+    bmp.Free();
+  end;
+end;
+
+procedure TFtSvgTest.TestSVGRasterizeCircle();
+var
+  svg: string;
+  bmp: TFtBitmap;
+  p: PByte;
+begin
+  svg := '<svg width="100" height="100" viewBox="0 0 100 100">' +
+         '  <circle cx="50" cy="50" r="30" fill="#00ff00" />' +
+         '</svg>';
+  bmp := TFtSVGRenderer.RenderStringToBitmap(svg, 100, 100);
+  try
+    // Center pixel (50, 50) must be green
+    p := PByte(bmp.PixelBuffer) + (50 * bmp.Stride + 50 * 4);
+    AssertTrue('Center pixel Green >= 240', p[1] >= 240);
+    AssertTrue('Center pixel Red <= 10', p[2] <= 10);
+    AssertTrue('Center pixel Alpha >= 240', p[3] >= 240);
+
+    // Outside pixel (5, 5) must be transparent
+    p := PByte(bmp.PixelBuffer) + (5 * bmp.Stride + 5 * 4);
+    AssertEquals('Outside pixel Alpha', 0, p[3]);
+  finally
+    bmp.Free();
+  end;
+end;
+
+procedure TFtSvgTest.TestSVGRasterizePath();
+var
+  svg: string;
+  bmp: TFtBitmap;
+  p: PByte;
+begin
+  svg := '<svg width="100" height="100" viewBox="0 0 100 100">' +
+         '  <path d="M 20 20 L 80 20 L 80 80 L 20 80 Z" fill="#0000ff" />' +
+         '</svg>';
+  bmp := TFtSVGRenderer.RenderStringToBitmap(svg, 100, 100);
+  try
+    // Center pixel (50, 50) must be blue
+    p := PByte(bmp.PixelBuffer) + (50 * bmp.Stride + 50 * 4);
+    AssertTrue('Center pixel Blue >= 240', p[0] >= 240);
+    AssertTrue('Center pixel Red <= 10', p[2] <= 10);
+    AssertTrue('Center pixel Alpha >= 240', p[3] >= 240);
+  finally
+    bmp.Free();
+  end;
+end;
+
+procedure TFtSvgTest.TestSVGRasterizeUseAndGroup();
+var
+  svg: string;
+  bmp: TFtBitmap;
+  p: PByte;
+begin
+  svg := '<svg width="100" height="100">' +
+         '  <defs>' +
+         '    <rect id="box" width="40" height="40" fill="#ffff00" />' +
+         '  </defs>' +
+         '  <g transform="translate(30, 30)">' +
+         '    <use href="#box" />' +
+         '  </g>' +
+         '</svg>';
+  bmp := TFtSVGRenderer.RenderStringToBitmap(svg, 100, 100);
+  try
+    // Pixel inside the used box (50, 50) must be yellow (R=255, G=255, B=0)
+    p := PByte(bmp.PixelBuffer) + (50 * bmp.Stride + 50 * 4);
+    AssertTrue('Used box Red >= 240', p[2] >= 240);
+    AssertTrue('Used box Green >= 240', p[1] >= 240);
+    AssertTrue('Used box Blue <= 10', p[0] <= 10);
+    AssertTrue('Used box Alpha >= 240', p[3] >= 240);
+
+    // Pixel outside (10, 10) must be transparent
+    p := PByte(bmp.PixelBuffer) + (10 * bmp.Stride + 10 * 4);
+    AssertEquals('Outside Alpha', 0, p[3]);
+  finally
+    bmp.Free();
+  end;
+end;
+
+procedure TFtSvgTest.TestBitmapCreateFromSVG();
+var
+  svg: string;
+  bmp: TFtBitmap;
+  p: PByte;
+begin
+  svg := '<svg width="60" height="60" viewBox="0 0 60 60">' +
+         '  <rect width="60" height="60" fill="#00ffff" />' +
+         '</svg>';
+  bmp := TFtBitmap.CreateFromSVG(svg, 60, 60);
+  try
+    AssertEquals('Bmp Width', 60, bmp.Width);
+    AssertEquals('Bmp Height', 60, bmp.Height);
+    p := PByte(bmp.PixelBuffer) + (30 * bmp.Stride + 30 * 4);
+    // Cyan: B=255, G=255, R=0, A=255
+    AssertTrue('Cyan Blue >= 240', p[0] >= 240);
+    AssertTrue('Cyan Green >= 240', p[1] >= 240);
+    AssertTrue('Cyan Red <= 10', p[2] <= 10);
+  finally
+    bmp.Free();
+  end;
+end;
+
+procedure TFtSvgTest.TestImageWidgetLoadSVG();
+var
+  img: TFtImage;
+  svg: string;
+begin
+  img := TFtImage.Create(nil, 0, 0, 100, 100);
+  try
+    svg := '<svg width="50" height="50"><circle cx="25" cy="25" r="20" fill="#800080" /></svg>';
+    img.LoadSVGFromString(svg);
+    AssertTrue('SVGDocument assigned', Assigned(img.SVGDocument));
+    AssertEquals('Intrinsic Width', 50.0, img.SVGDocument.GetIntrinsicWidth());
+  finally
+    img.Free();
+  end;
+end;
+
 var
   Application: TTestRunner;
 
@@ -228,6 +385,7 @@ begin
   Application := TTestRunner.Create(nil);
   try
     RegisterTest(TFtCssTest);
+    RegisterTest(TFtSvgTest);
     Application.Initialize;
     Application.Run;
   finally

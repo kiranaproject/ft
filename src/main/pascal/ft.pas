@@ -22,7 +22,10 @@ uses
   Ft.Animation,
   Ft.Canvas.Agg,
   Ft.Bitmap,
-  Ft.Widget.Images;
+  Ft.Widget.Images,
+  Ft.Svg,
+  Floria.SVG.DOM,
+  Floria.SVG.Parser;
 
 var
   gLastSystemFontDesc: AnsiString;
@@ -2403,6 +2406,12 @@ begin
     TFtBitmap(ABitmap).Free();
 end;
 
+procedure ft_bitmap_save_to_file(ABitmap: Pointer; AFileName: PAnsiChar); cdecl; export;
+begin
+  if Assigned(ABitmap) and (TObject(ABitmap) is TFtBitmap) and (AFileName <> nil) then
+    TFtBitmap(ABitmap).SaveToFile(string(AFileName));
+end;
+
 { --- Image Widget API --- }
 
 function ft_image_create(AParent: Pointer; AX, AY, AW, AH: cint32; AFilePath: PAnsiChar): Pointer; cdecl; export;
@@ -2484,6 +2493,46 @@ begin
     Result := TFtImage(AWidget).Opacity
   else
     Result := 1.0;
+end;
+
+procedure ft_image_load_svg_file(AWidget: Pointer; AFilePath: PAnsiChar); cdecl; export;
+begin
+  if Assigned(AWidget) and (TObject(AWidget) is TFtImage) and (AFilePath <> nil) then
+    TFtImage(AWidget).LoadSVGFromFile(string(AFilePath));
+end;
+
+procedure ft_image_load_svg_string(AWidget: Pointer; ASVGContent: PAnsiChar); cdecl; export;
+begin
+  if Assigned(AWidget) and (TObject(AWidget) is TFtImage) and (ASVGContent <> nil) then
+    TFtImage(AWidget).LoadSVGFromString(string(ASVGContent));
+end;
+
+function ft_bitmap_create_from_svg(ASVGContent: PAnsiChar; AWidth, AHeight: cint32): Pointer; cdecl; export;
+begin
+  if ASVGContent <> nil then
+    Result := Pointer(TFtBitmap.CreateFromSVG(string(ASVGContent), AWidth, AHeight))
+  else
+    Result := nil;
+end;
+
+function ft_bitmap_create_from_svg_file(AFilePath: PAnsiChar; AWidth, AHeight: cint32): Pointer; cdecl; export;
+begin
+  if AFilePath <> nil then
+    Result := Pointer(TFtBitmap.CreateFromSVGFile(string(AFilePath), AWidth, AHeight))
+  else
+    Result := nil;
+end;
+
+procedure ft_canvas_draw_svg(ACanvas: Pointer; AX, AY, AW, AH: cdouble; ASVGContent: PAnsiChar); cdecl; export;
+begin
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvasAgg) and (ASVGContent <> nil) then
+    TFtCanvasAgg(ACanvas).DrawSVGString(AX, AY, AW, AH, string(ASVGContent));
+end;
+
+procedure ft_canvas_draw_svg_file(ACanvas: Pointer; AX, AY, AW, AH: cdouble; AFilePath: PAnsiChar); cdecl; export;
+begin
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvasAgg) and (AFilePath <> nil) then
+    TFtCanvasAgg(ACanvas).DrawSVGFile(AX, AY, AW, AH, string(AFilePath));
 end;
 
 { --- Canvas Direct Image Drawing API --- }
@@ -2808,18 +2857,25 @@ exports
   ft_bitmap_get_pixels,
   ft_bitmap_create_scaled,
   ft_bitmap_destroy,
+  ft_bitmap_save_to_file,
   ft_image_create,
   ft_image_load_file,
   ft_image_load_memory,
+  ft_image_load_svg_file,
+  ft_image_load_svg_string,
   ft_image_set_bitmap,
   ft_image_get_bitmap,
   ft_image_set_scale_mode,
   ft_image_get_scale_mode,
   ft_image_set_opacity,
   ft_image_get_opacity,
+  ft_bitmap_create_from_svg,
+  ft_bitmap_create_from_svg_file,
   ft_canvas_draw_image,
   ft_canvas_draw_image_scaled,
   ft_canvas_draw_image_part,
+  ft_canvas_draw_svg,
+  ft_canvas_draw_svg_file,
   ft_canvas_push_alpha,
   ft_canvas_pop_alpha,
   ft_canvas_reset_alpha,

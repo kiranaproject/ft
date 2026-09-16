@@ -6,7 +6,7 @@ interface
 
 uses
   SysUtils, Classes,
-  FPImage, fpreadpng, fpreadjpeg, fpreadbmp,
+  FPImage, fpreadpng, fpreadjpeg, fpreadbmp, fpwritepng,
   agg_basics,
   agg_rendering_buffer,
   agg_pixfmt,
@@ -24,6 +24,9 @@ type
     procedure AllocateBuffer(AWidth, AHeight: Integer);
     procedure CopyFromFPImage(AImg: TFPMemoryImage);
     procedure DetectAndLoadFromStream(AStream: TStream);
+    function LoadFromSVGStream(AStream: TStream): Boolean;
+    procedure LoadFromSVGFile(const AFileName: string; AWidth: Integer = 0; AHeight: Integer = 0);
+    procedure LoadFromSVGString(const ASVGContent: string; AWidth: Integer = 0; AHeight: Integer = 0);
   public
     constructor Create(AWidth, AHeight: Integer);
     constructor CreateFromFile(const AFileName: string);
@@ -31,6 +34,8 @@ type
     constructor CreateFromMemory(AData: Pointer; ASize: Integer);
     constructor CreateFromRGBA(AData: Pointer; AWidth, AHeight: Integer);
     constructor CreateFromBGRA(AData: Pointer; AWidth, AHeight: Integer);
+    constructor CreateFromSVG(const ASVGContent: string; AWidth: Integer = 0; AHeight: Integer = 0);
+    constructor CreateFromSVGFile(const AFileName: string; AWidth: Integer = 0; AHeight: Integer = 0);
     destructor Destroy(); override;
 
     procedure Clear(R, G, B, A: Byte);
@@ -38,6 +43,7 @@ type
     function RenderingBufPtr(): rendering_buffer_ptr;
     function Clone(): TFtBitmap;
     function CreateScaled(NewW, NewH: Integer): TFtBitmap;
+    procedure SaveToFile(const AFileName: string);
 
     property Width: Integer read FWidth;
     property Height: Integer read FHeight;
@@ -47,6 +53,9 @@ type
   end;
 
 implementation
+
+uses
+  Ft.Svg;
 
 constructor TFtBitmap.Create(AWidth, AHeight: Integer);
 begin
@@ -130,6 +139,62 @@ begin
   end;
 end;
 
+function TFtBitmap.LoadFromSVGStream(AStream: TStream): Boolean;
+var
+  ss: TStringStream;
+  tempBmp: TFtBitmap;
+  s: string;
+begin
+  Result := False;
+  ss := TStringStream.Create('');
+  try
+    ss.CopyFrom(AStream, AStream.Size - AStream.Position);
+    s := ss.DataString;
+    if (Pos('<svg', LowerCase(s)) > 0) then
+    begin
+      tempBmp := TFtSVGRenderer.RenderStringToBitmap(s);
+      try
+        AllocateBuffer(tempBmp.Width, tempBmp.Height);
+        if (FPixelBuffer <> nil) and (tempBmp.FPixelBuffer <> nil) then
+          Move(tempBmp.FPixelBuffer^, FPixelBuffer^, FHeight * FStride);
+        Result := True;
+      finally
+        tempBmp.Free();
+      end;
+    end;
+  finally
+    ss.Free();
+  end;
+end;
+
+procedure TFtBitmap.LoadFromSVGFile(const AFileName: string; AWidth: Integer = 0; AHeight: Integer = 0);
+var
+  tempBmp: TFtBitmap;
+begin
+  tempBmp := TFtSVGRenderer.RenderFileToBitmap(AFileName, AWidth, AHeight);
+  try
+    AllocateBuffer(tempBmp.Width, tempBmp.Height);
+    if (FPixelBuffer <> nil) and (tempBmp.FPixelBuffer <> nil) then
+      Move(tempBmp.FPixelBuffer^, FPixelBuffer^, FHeight * FStride);
+  finally
+    tempBmp.Free();
+  end;
+end;
+
+procedure TFtBitmap.LoadFromSVGString(const ASVGContent: string; AWidth: Integer = 0; AHeight: Integer = 0);
+var
+  tempBmp: TFtBitmap;
+begin
+  tempBmp := TFtSVGRenderer.RenderStringToBitmap(ASVGContent, AWidth, AHeight);
+  try
+    AllocateBuffer(tempBmp.Width, tempBmp.Height);
+    if (FPixelBuffer <> nil) and (tempBmp.FPixelBuffer <> nil) then
+      Move(tempBmp.FPixelBuffer^, FPixelBuffer^, FHeight * FStride);
+  finally
+    tempBmp.Free();
+  end;
+end;
+
 procedure TFtBitmap.DetectAndLoadFromStream(AStream: TStream);
 var
   memImg: TFPMemoryImage;
@@ -148,6 +213,13 @@ begin
   FillChar(header, SizeOf(header), 0);
   readBytes := AStream.Read(header, 4);
   AStream.Position := oldPos;
+
+  // Check for SVG
+  if (readBytes >= 4) and (header[0] = ord('<')) then
+  begin
+    if LoadFromSVGStream(AStream) then Exit;
+    AStream.Position := oldPos;
+  end;
 
   reader := nil;
   if readBytes >= 4 then
@@ -188,6 +260,12 @@ begin
     Exit;
   end;
 
+  if LowerCase(ExtractFileExt(AFileName)) = '.svg' then
+  begin
+    LoadFromSVGFile(AFileName);
+    Exit;
+  end;
+
   try
     fs := TFileStream.Create(AFileName, fmOpenRead or fmShareDenyNone);
     try
@@ -204,6 +282,18 @@ constructor TFtBitmap.CreateFromStream(AStream: TStream);
 begin
   inherited Create();
   DetectAndLoadFromStream(AStream);
+end;
+
+constructor TFtBitmap.CreateFromSVG(const ASVGContent: string; AWidth: Integer = 0; AHeight: Integer = 0);
+begin
+  inherited Create();
+  LoadFromSVGString(ASVGContent, AWidth, AHeight);
+end;
+
+constructor TFtBitmap.CreateFromSVGFile(const AFileName: string; AWidth: Integer = 0; AHeight: Integer = 0);
+begin
+  inherited Create();
+  LoadFromSVGFile(AFileName, AWidth, AHeight);
 end;
 
 constructor TFtBitmap.CreateFromMemory(AData: Pointer; ASize: Integer);
@@ -340,6 +430,47 @@ begin
       dstRow[3] := a;
       Inc(dstRow, 4);
     end;
+  end;
+end;
+
+procedure TFtBitmap.SaveToFile(const AFileName: string);
+var
+  memImg: TFPMemoryImage;
+  writer: TFPWriterPNG;
+  x, y: Integer;
+  p: PDWord;
+  val: DWord;
+  a, r, g, b: Byte;
+  col: TFPColor;
+begin
+  if (FPixelBuffer = nil) or (FWidth <= 0) or (FHeight <= 0) then Exit;
+  memImg := TFPMemoryImage.Create(FWidth, FHeight);
+  writer := TFPWriterPNG.Create();
+  try
+    writer.Indexed := False;
+    writer.UseAlpha := True;
+    for y := 0 to FHeight - 1 do
+    begin
+      p := PDWord(PByte(FPixelBuffer) + y * FStride);
+      for x := 0 to FWidth - 1 do
+      begin
+        val := p^;
+        b := val and $FF;
+        g := (val shr 8) and $FF;
+        r := (val shr 16) and $FF;
+        a := (val shr 24) and $FF;
+        col.Red := (r shl 8) or r;
+        col.Green := (g shl 8) or g;
+        col.Blue := (b shl 8) or b;
+        col.Alpha := (a shl 8) or a;
+        memImg.Colors[x, y] := col;
+        Inc(p);
+      end;
+    end;
+    memImg.SaveToFile(AFileName, writer);
+  finally
+    writer.Free();
+    memImg.Free();
   end;
 end;
 

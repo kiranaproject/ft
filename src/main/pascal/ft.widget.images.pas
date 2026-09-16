@@ -6,6 +6,8 @@ interface
 
 uses
   SysUtils, Classes,
+  Floria.SVG.DOM,
+  Floria.SVG.Parser,
   Ft.Widget,
   Ft.Canvas.Agg,
   Ft.Bitmap,
@@ -25,23 +27,59 @@ type
     FBitmap: TFtBitmap;
     FOwnsBitmap: Boolean;
     FScaleMode: TFtImageScaleMode;
+    FSVGDoc: TSVGDocument;
+    function GetBitmap(): TFtBitmap;
+    procedure ClearImage();
   public
     constructor Create(AParent: TFtWidget; AX, AY, AW, AH: Integer; const AFilePath: string = ''); reintroduce;
     destructor Destroy(); override;
 
     procedure LoadFromFile(const AFilePath: string);
     procedure LoadFromMemory(AData: Pointer; ASize: Integer);
+    procedure LoadSVGFromFile(const AFilePath: string);
+    procedure LoadSVGFromString(const ASVGContent: string);
     procedure SetBitmap(ABitmap: TFtBitmap; AOwnsBitmap: Boolean = False);
 
     procedure Draw(ACanvas: TFtCanvasAgg); override;
     function GetElementType(): string; override;
 
-    property Bitmap: TFtBitmap read FBitmap;
+    property Bitmap: TFtBitmap read GetBitmap;
+    property SVGDocument: TSVGDocument read FSVGDoc;
     property OwnsBitmap: Boolean read FOwnsBitmap write FOwnsBitmap;
     property ScaleMode: TFtImageScaleMode read FScaleMode write FScaleMode;
   end;
 
 implementation
+
+uses
+  Ft.Svg;
+
+procedure TFtImage.ClearImage();
+begin
+  if FOwnsBitmap and Assigned(FBitmap) then
+  begin
+    FBitmap.Free();
+    FBitmap := nil;
+  end
+  else
+    FBitmap := nil;
+
+  if Assigned(FSVGDoc) then
+  begin
+    FSVGDoc.Free();
+    FSVGDoc := nil;
+  end;
+end;
+
+function TFtImage.GetBitmap(): TFtBitmap;
+begin
+  if (FBitmap = nil) and Assigned(FSVGDoc) then
+  begin
+    FBitmap := TFtSVGRenderer.RenderToBitmap(FSVGDoc, Width, Height);
+    FOwnsBitmap := True;
+  end;
+  Result := FBitmap;
+end;
 
 constructor TFtImage.Create(AParent: TFtWidget; AX, AY, AW, AH: Integer; const AFilePath: string = '');
 begin
@@ -52,6 +90,7 @@ begin
   Height := AH;
   FBitmap := nil;
   FOwnsBitmap := False;
+  FSVGDoc := nil;
   FScaleMode := ftismFit;
 
   if AFilePath <> '' then
@@ -60,29 +99,49 @@ end;
 
 destructor TFtImage.Destroy();
 begin
-  if FOwnsBitmap and Assigned(FBitmap) then
-  begin
-    FBitmap.Free();
-    FBitmap := nil;
-  end;
+  ClearImage();
   inherited Destroy();
 end;
 
 procedure TFtImage.LoadFromFile(const AFilePath: string);
 begin
-  if FOwnsBitmap and Assigned(FBitmap) then
-    FBitmap.Free();
+  ClearImage();
+  if LowerCase(ExtractFileExt(AFilePath)) = '.svg' then
+  begin
+    LoadSVGFromFile(AFilePath);
+    Exit;
+  end;
 
   FBitmap := TFtBitmap.CreateFromFile(AFilePath);
   FOwnsBitmap := True;
   Invalidate();
 end;
 
+procedure TFtImage.LoadSVGFromFile(const AFilePath: string);
+begin
+  ClearImage();
+  try
+    FSVGDoc := TSVGParser.ParseFile(AFilePath);
+  except
+    FSVGDoc := nil;
+  end;
+  Invalidate();
+end;
+
+procedure TFtImage.LoadSVGFromString(const ASVGContent: string);
+begin
+  ClearImage();
+  try
+    FSVGDoc := TSVGParser.ParseString(ASVGContent);
+  except
+    FSVGDoc := nil;
+  end;
+  Invalidate();
+end;
+
 procedure TFtImage.LoadFromMemory(AData: Pointer; ASize: Integer);
 begin
-  if FOwnsBitmap and Assigned(FBitmap) then
-    FBitmap.Free();
-
+  ClearImage();
   FBitmap := TFtBitmap.CreateFromMemory(AData, ASize);
   FOwnsBitmap := True;
   Invalidate();
@@ -90,9 +149,7 @@ end;
 
 procedure TFtImage.SetBitmap(ABitmap: TFtBitmap; AOwnsBitmap: Boolean = False);
 begin
-  if FOwnsBitmap and Assigned(FBitmap) and (FBitmap <> ABitmap) then
-    FBitmap.Free();
-
+  ClearImage();
   FBitmap := ABitmap;
   FOwnsBitmap := AOwnsBitmap;
   Invalidate();
@@ -124,7 +181,61 @@ begin
       ACanvas.DrawRect(X, Y, Width, Height, st.BgColor.R, st.BgColor.G, st.BgColor.B);
   end;
 
-  if Assigned(FBitmap) and (FBitmap.Width > 0) and (FBitmap.Height > 0) then
+  if Assigned(FSVGDoc) then
+  begin
+    case FScaleMode of
+      ftismStretch:
+      begin
+        drawX := X;
+        drawY := Y;
+        drawW := Width;
+        drawH := Height;
+      end;
+      ftismCenter:
+      begin
+        drawW := FSVGDoc.GetIntrinsicWidth();
+        drawH := FSVGDoc.GetIntrinsicHeight();
+        drawX := X + (Width - drawW) / 2.0;
+        drawY := Y + (Height - drawH) / 2.0;
+      end;
+      ftismNone:
+      begin
+        drawX := X;
+        drawY := Y;
+        drawW := FSVGDoc.GetIntrinsicWidth();
+        drawH := FSVGDoc.GetIntrinsicHeight();
+      end;
+      else // ftismFit
+      begin
+        if (FSVGDoc.GetIntrinsicWidth() > 0.0) and (FSVGDoc.GetIntrinsicHeight() > 0.0) then
+        begin
+          scaleX := Width / FSVGDoc.GetIntrinsicWidth();
+          scaleY := Height / FSVGDoc.GetIntrinsicHeight();
+          if scaleX < scaleY then
+            scale := scaleX
+          else
+            scale := scaleY;
+          drawW := FSVGDoc.GetIntrinsicWidth() * scale;
+          drawH := FSVGDoc.GetIntrinsicHeight() * scale;
+        end
+        else
+        begin
+          drawW := Width;
+          drawH := Height;
+        end;
+        drawX := X + (Width - drawW) / 2.0;
+        drawY := Y + (Height - drawH) / 2.0;
+      end;
+    end;
+
+    ACanvas.PushClipRect(Round(X), Round(Y), Round(Width), Round(Height));
+    try
+      TFtSVGRenderer.Render(ACanvas, FSVGDoc, drawX, drawY, drawW, drawH);
+    finally
+      ACanvas.PopClipRect();
+    end;
+  end
+  else if Assigned(FBitmap) and (FBitmap.Width > 0) and (FBitmap.Height > 0) then
   begin
     case FScaleMode of
       ftismStretch:

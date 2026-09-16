@@ -126,6 +126,11 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="Ft.Css"/>
       </Unit>
+      <Unit>
+        <Filename Value="ft.svg.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Svg"/>
+      </Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

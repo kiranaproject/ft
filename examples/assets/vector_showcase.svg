@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <linearGradient id="cyberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f2fe" />
+      <stop offset="100%" stop-color="#4facfe" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f6d365" />
+      <stop offset="100%" stop-color="#fda085" />
+    </linearGradient>
+    <g id="star">
+      <polygon points="0,-25 7,-8 24,-7 11,5 15,22 0,13 -15,22 -11,5 -24,-7 -7,-8" fill="#ffb703" stroke="#fb8500" stroke-width="1.5" />
+    </g>
+  </defs>
+
+  <style>
+    .glow-card { fill: #1e1e2e; stroke: #45475a; stroke-width: 2px; rx: 16px; }
+    .badge { fill: #313244; stroke: #89b4fa; stroke-width: 1.5px; }
+    .neon-path { fill: none; stroke: #a6e3a1; stroke-width: 3px; stroke-linecap: round; stroke-linejoin: round; }
+    .accent-circle { fill: #f38ba8; stroke: #fab387; stroke-width: 2px; }
+  </style>
+
+  <!-- Background Rounded Panel -->
+  <rect class="glow-card" x="15" y="15" width="370" height="370" rx="20" ry="20" />
+
+  <!-- Central Circular Aura -->
+  <circle cx="200" cy="180" r="110" fill="none" stroke="#313244" stroke-width="4" stroke-dasharray="6,6" />
+  <circle cx="200" cy="180" r="90" fill="url(#cyberGrad)" opacity="0.85" />
+  <circle cx="200" cy="180" r="70" class="accent-circle" opacity="0.9" />
+
+  <!-- Smooth Cubic Wave Path -->
+  <path class="neon-path" d="M 50 310 C 100 250, 150 370, 200 310 C 250 250, 300 370, 350 310" />
+
+  <!-- Reusable Star Elements via <use> -->
+  <g transform="translate(200, 180)">
+    <use href="#star" />
+  </g>
+  <g transform="translate(100, 100) scale(0.6)">
+    <use href="#star" />
+  </g>
+  <g transform="translate(300, 100) scale(0.6)">
+    <use href="#star" />
+  </g>
+  <g transform="translate(200, 70) scale(0.5)">
+    <use href="#star" />
+  </g>
+
+  <!-- Geometric Badges -->
+  <rect class="badge" x="40" y="40" width="60" height="30" rx="8" />
+  <polygon points="70,45 85,60 55,60" fill="#f9e2af" />
+
+  <ellipse cx="330" cy="55" rx="35" ry="18" fill="#fab387" opacity="0.8" />
+  <circle cx="330" cy="55" r="8" fill="#11111b" />
+
+  <!-- Decorative Polygon and Polyline -->
+  <polygon points="170,335 200,365 230,335" fill="#f38ba8" />
+  <polyline points="60,220 80,240 100,210 120,230" fill="none" stroke="#cba6f7" stroke-width="3" stroke-linecap="round" />
+  <polyline points="280,230 300,210 320,240 340,220" fill="none" stroke="#cba6f7" stroke-width="3" stroke-linecap="round" />
+</svg>

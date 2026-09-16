@@ -18,11 +18,14 @@ uses
   agg_font_cache_manager,
   agg_gsv_text,
   agg_conv_stroke,
+  agg_conv_curve,
   agg_bounding_rect,
   agg_rounded_rect,
   agg_path_storage,
   agg_math_stroke,
   agg_basics,
+  Floria.SVG.Types,
+  Floria.SVG.DOM,
   Ft.Font,
   Ft.Bitmap,
   Ft.Blur;
@@ -87,12 +90,22 @@ type
     procedure DrawImageScaled(X, Y, W, H: Double; AImage: TFtBitmap; AOpacity: Double = 1.0);
     procedure DrawImagePart(X, Y, W, H: Double; AImage: TFtBitmap; SrcX, SrcY, SrcW, SrcH: Integer; AOpacity: Double = 1.0);
 
+    { Vector & Path Drawing }
+    procedure RenderPath(var APath: path_storage; const AStyle: TSVGStyleRecord; Scale: Double = 1.0);
+    procedure DrawSVG(X, Y: Double; ADoc: TSVGDocument);
+    procedure DrawSVGScaled(X, Y, W, H: Double; ADoc: TSVGDocument);
+    procedure DrawSVGFile(X, Y, W, H: Double; const AFileName: string);
+    procedure DrawSVGString(X, Y, W, H: Double; const ASVGContent: string);
+
     { Legacy overloads }
     procedure DrawText(X, Y: Double; const AText: string; ASize: Double; R, G, B: Double);
     procedure DrawTextCentered(X, Y, W, H: Integer; const AText: string; ASize: Double; R, G, B: Double);
   end;
 
 implementation
+
+uses
+  Ft.Svg;
 
 constructor TFtCanvasAgg.Create(ABuffer: Pointer; AWidth, AHeight: Integer);
 begin
@@ -826,6 +839,96 @@ begin
     DrawImage(X, Y, AImage, AOpacity)
   else
     DrawImagePart(X, Y, W, H, AImage, 0, 0, AImage.Width, AImage.Height, AOpacity);
+end;
+
+procedure TFtCanvasAgg.RenderPath(var APath: path_storage; const AStyle: TSVGStyleRecord; Scale: Double = 1.0);
+var
+  curved: conv_curve;
+  stroke: conv_stroke;
+  c: aggclr;
+  effA: Double;
+  miterLim: Double;
+begin
+  if APath.total_vertices() = 0 then Exit;
+
+  curved.Construct(@APath);
+  try
+    // 1. Fill pass
+    if (AStyle.Fill.Kind <> pkNone) and (AStyle.FillOpacity > 0.0) then
+    begin
+      effA := AStyle.FillOpacity * FCurrentAlpha;
+      if effA > 0.0 then
+      begin
+        c.ConstrDbl(AStyle.Fill.Color.R / 255.0, AStyle.Fill.Color.G / 255.0, AStyle.Fill.Color.B / 255.0, effA);
+        FRasterizer.reset();
+        if AStyle.FillRule = sfrEvenOdd then
+          FRasterizer.filling_rule(fill_even_odd)
+        else
+          FRasterizer.filling_rule(fill_non_zero);
+        FRasterizer.add_path(@curved);
+        render_scanlines_aa_solid(@FRasterizer, @FScanline, @FRendererBase, @c);
+      end;
+    end;
+
+    // 2. Stroke pass
+    if (AStyle.Stroke.Kind <> pkNone) and (AStyle.StrokeWidth > 0.0) and (AStyle.StrokeOpacity > 0.0) then
+    begin
+      effA := AStyle.StrokeOpacity * FCurrentAlpha;
+      if effA > 0.0 then
+      begin
+        c.ConstrDbl(AStyle.Stroke.Color.R / 255.0, AStyle.Stroke.Color.G / 255.0, AStyle.Stroke.Color.B / 255.0, effA);
+        stroke.Construct(@curved);
+        try
+          stroke.width_(AStyle.StrokeWidth * Scale);
+
+          case AStyle.StrokeLineCap of
+            slcRound: stroke.line_cap_(round_cap);
+            slcSquare: stroke.line_cap_(square_cap);
+            else stroke.line_cap_(butt_cap);
+          end;
+
+          case AStyle.StrokeLineJoin of
+            sljRound: stroke.line_join_(round_join);
+            sljBevel: stroke.line_join_(bevel_join);
+            else stroke.line_join_(miter_join);
+          end;
+
+          miterLim := AStyle.StrokeMiterLimit;
+          if miterLim <= 0.0 then miterLim := 4.0;
+          stroke.miter_limit_(miterLim);
+
+          FRasterizer.reset();
+          FRasterizer.filling_rule(fill_non_zero);
+          FRasterizer.add_path(@stroke);
+          render_scanlines_aa_solid(@FRasterizer, @FScanline, @FRendererBase, @c);
+        finally
+          stroke.Destruct();
+        end;
+      end;
+    end;
+  finally
+    curved.Destruct();
+  end;
+end;
+
+procedure TFtCanvasAgg.DrawSVG(X, Y: Double; ADoc: TSVGDocument);
+begin
+  TFtSVGRenderer.Render(Self, ADoc, X, Y);
+end;
+
+procedure TFtCanvasAgg.DrawSVGScaled(X, Y, W, H: Double; ADoc: TSVGDocument);
+begin
+  TFtSVGRenderer.Render(Self, ADoc, X, Y, W, H);
+end;
+
+procedure TFtCanvasAgg.DrawSVGFile(X, Y, W, H: Double; const AFileName: string);
+begin
+  TFtSVGRenderer.RenderFile(Self, AFileName, X, Y, W, H);
+end;
+
+procedure TFtCanvasAgg.DrawSVGString(X, Y, W, H: Double; const ASVGContent: string);
+begin
+  TFtSVGRenderer.RenderString(Self, ASVGContent, X, Y, W, H);
 end;
 
 end.

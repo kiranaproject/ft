@@ -442,11 +442,14 @@ int32_t ft_bitmap_get_stride(FtBitmap bmp);
 void* ft_bitmap_get_pixels(FtBitmap bmp);
 FtBitmap ft_bitmap_create_scaled(FtBitmap bmp, int32_t new_width, int32_t new_height);
 void ft_bitmap_destroy(FtBitmap bmp);
+void ft_bitmap_save_to_file(FtBitmap bmp, const char* filepath);
 
 /* Image Widget */
 FtWidget ft_image_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, const char* filepath);
 void ft_image_load_file(FtWidget image, const char* filepath);
 void ft_image_load_memory(FtWidget image, const void* data, int32_t size);
+void ft_image_load_svg_file(FtWidget image, const char* filepath);
+void ft_image_load_svg_string(FtWidget image, const char* svg_content);
 void ft_image_set_bitmap(FtWidget image, FtBitmap bmp, int32_t owns_bitmap);
 FtBitmap ft_image_get_bitmap(FtWidget image);
 void ft_image_set_scale_mode(FtWidget image, int32_t mode);
@@ -454,10 +457,16 @@ int32_t ft_image_get_scale_mode(FtWidget image);
 void ft_image_set_opacity(FtWidget image, double opacity);
 double ft_image_get_opacity(FtWidget image);
 
+/* SVG Bitmap Creation */
+FtBitmap ft_bitmap_create_from_svg(const char* svg_content, int32_t width, int32_t height);
+FtBitmap ft_bitmap_create_from_svg_file(const char* filepath, int32_t width, int32_t height);
+
 /* Direct Canvas Image Drawing */
 void ft_canvas_draw_image(void* canvas, double x, double y, FtBitmap bmp, double opacity);
 void ft_canvas_draw_image_scaled(void* canvas, double x, double y, double w, double h, FtBitmap bmp, double opacity);
 void ft_canvas_draw_image_part(void* canvas, double x, double y, double w, double h, FtBitmap bmp, int32_t src_x, int32_t src_y, int32_t src_w, int32_t src_h, double opacity);
+void ft_canvas_draw_svg(void* canvas, double x, double y, double w, double h, const char* svg_content);
+void ft_canvas_draw_svg_file(void* canvas, double x, double y, double w, double h, const char* filepath);
 
 /* Canvas Alpha Stack */
 void ft_canvas_push_alpha(void* canvas, double alpha);
