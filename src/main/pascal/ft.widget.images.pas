@@ -25,7 +25,6 @@ type
     FBitmap: TFtBitmap;
     FOwnsBitmap: Boolean;
     FScaleMode: TFtImageScaleMode;
-    FOpacity: Double;
   public
     constructor Create(AParent: TFtWidget; AX, AY, AW, AH: Integer; const AFilePath: string = ''); reintroduce;
     destructor Destroy(); override;
@@ -40,7 +39,6 @@ type
     property Bitmap: TFtBitmap read FBitmap;
     property OwnsBitmap: Boolean read FOwnsBitmap write FOwnsBitmap;
     property ScaleMode: TFtImageScaleMode read FScaleMode write FScaleMode;
-    property Opacity: Double read FOpacity write FOpacity;
   end;
 
 implementation
@@ -55,7 +53,6 @@ begin
   FBitmap := nil;
   FOwnsBitmap := False;
   FScaleMode := ftismFit;
-  FOpacity := 1.0;
 
   if AFilePath <> '' then
     LoadFromFile(AFilePath);
@@ -122,7 +119,7 @@ begin
   if st.HasBgColor then
   begin
     if r > 0.0 then
-      ACanvas.DrawRoundedRect(X, Y, Width, Height, r, st.BgColor.R, st.BgColor.G, st.BgColor.B, FOpacity)
+      ACanvas.DrawRoundedRect(X, Y, Width, Height, r, st.BgColor.R, st.BgColor.G, st.BgColor.B, 1.0)
     else
       ACanvas.DrawRect(X, Y, Width, Height, st.BgColor.R, st.BgColor.G, st.BgColor.B);
   end;
@@ -167,16 +164,16 @@ begin
     end;
 
     if (Round(drawW) = FBitmap.Width) and (Round(drawH) = FBitmap.Height) then
-      ACanvas.DrawImage(drawX, drawY, FBitmap, FOpacity)
+      ACanvas.DrawImage(drawX, drawY, FBitmap, 1.0)
     else
-      ACanvas.DrawImageScaled(drawX, drawY, drawW, drawH, FBitmap, FOpacity);
+      ACanvas.DrawImageScaled(drawX, drawY, drawW, drawH, FBitmap, 1.0);
   end;
 
   // Border outline if styled
   if (st.BorderWidth > 0.0) and st.HasBorderColor then
   begin
     if r > 0.0 then
-      ACanvas.DrawRoundedRectOutline(X, Y, Width, Height, r, st.BorderWidth, st.BorderColor.R, st.BorderColor.G, st.BorderColor.B, FOpacity)
+      ACanvas.DrawRoundedRectOutline(X, Y, Width, Height, r, st.BorderWidth, st.BorderColor.R, st.BorderColor.G, st.BorderColor.B, 1.0)
     else
       ACanvas.DrawRect(Round(X), Round(Y), Width, Round(st.BorderWidth), st.BorderColor.R, st.BorderColor.G, st.BorderColor.B);
   end;

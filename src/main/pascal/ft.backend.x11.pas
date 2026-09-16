@@ -75,6 +75,9 @@ type
     procedure SetBorderless(ABorderless: Boolean);
     procedure SetSkipTaskbar(ASkip: Boolean);
     procedure SetWindowType(AType: TFtWindowType);
+    procedure SetWindowOpacity(AOpacity: Double);
+    function GetWindowOpacity(): Double;
+    procedure SetOpacity(AValue: Double); override;
     procedure SetPosition(NewX, NewY: Integer);
     procedure GetPosition(out OutX, OutY: Integer);
     function ClientToScreen(AX, AY: Integer): TPoint;
@@ -99,6 +102,7 @@ type
     property Borderless: Boolean read FBorderless write SetBorderless;
     property SkipTaskbar: Boolean read FSkipTaskbar write SetSkipTaskbar;
     property WindowType: TFtWindowType read FWindowType write SetWindowType;
+    property WindowOpacity: Double read GetWindowOpacity write SetWindowOpacity;
     property FocusedWidget: TFtWidget read FFocusedWidget;
     property MainMenu: TFtWidget read FMainMenu write FMainMenu;
     property ActivePopup: TFtWidget read FActivePopup write SetActivePopup;
@@ -559,6 +563,39 @@ begin
     SetSkipTaskbar(True);
     SetBorderless(True);
   end;
+end;
+
+procedure TFtX11Window.SetWindowOpacity(AOpacity: Double);
+var
+  netWmWindowOpacity, atomCardinal: TAtom;
+  cardinalValue: culong;
+begin
+  if AOpacity < 0.0 then AOpacity := 0.0;
+  if AOpacity > 1.0 then AOpacity := 1.0;
+  FOpacity := AOpacity;
+  if (FDisplay = nil) or (FWindow = None) then Exit;
+
+  netWmWindowOpacity := XInternAtom(FDisplay, '_NET_WM_WINDOW_OPACITY', False);
+  if AOpacity >= 0.999 then
+    XDeleteProperty(FDisplay, FWindow, netWmWindowOpacity)
+  else
+  begin
+    atomCardinal := XInternAtom(FDisplay, 'CARDINAL', False);
+    cardinalValue := culong(Round(AOpacity * 4294967295.0));
+    XChangeProperty(FDisplay, FWindow, netWmWindowOpacity, atomCardinal, 32, PropModeReplace, PByte(@cardinalValue), 1);
+  end;
+  XFlush(FDisplay);
+end;
+
+function TFtX11Window.GetWindowOpacity(): Double;
+begin
+  Result := FOpacity;
+end;
+
+procedure TFtX11Window.SetOpacity(AValue: Double);
+begin
+  inherited SetOpacity(AValue);
+  SetWindowOpacity(AValue);
 end;
 
 procedure TFtX11Window.SetPosition(NewX, NewY: Integer);

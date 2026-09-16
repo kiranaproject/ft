@@ -212,6 +212,9 @@ begin
   if S1.HasBorderRadius <> S2.HasBorderRadius then Exit(False);
   if S1.HasBorderRadius and (Abs(S1.BorderRadius - S2.BorderRadius) > 1e-4) then Exit(False);
 
+  if S1.HasOpacity <> S2.HasOpacity then Exit(False);
+  if S1.HasOpacity and (Abs(S1.Opacity - S2.Opacity) > 1e-4) then Exit(False);
+
   Result := True;
 end;
 
@@ -246,7 +249,9 @@ begin
   else if ReqProp = 'border-width' then
     Exit((Pos('border-width', p) > 0) or (Pos(',border,', p) > 0))
   else if ReqProp = 'border-radius' then
-    Exit(Pos('border-radius', p) > 0);
+    Exit(Pos('border-radius', p) > 0)
+  else if ReqProp = 'opacity' then
+    Exit(Pos('opacity', p) > 0);
   Result := False;
 end;
 
@@ -326,6 +331,26 @@ begin
     begin
       CurrentStyle.HasBorderRadius := True;
       CurrentStyle.BorderRadius := FtLerpDouble(StartStyle.BorderRadius, TargetStyle.BorderRadius, easedProgress);
+    end;
+  end;
+
+  // 6. Opacity interpolation
+  if FtPropMatches('opacity', animProp) then
+  begin
+    if StartStyle.HasOpacity and TargetStyle.HasOpacity then
+    begin
+      CurrentStyle.HasOpacity := True;
+      CurrentStyle.Opacity := FtLerpDouble(StartStyle.Opacity, TargetStyle.Opacity, easedProgress);
+    end
+    else if StartStyle.HasOpacity and not TargetStyle.HasOpacity then
+    begin
+      CurrentStyle.HasOpacity := True;
+      CurrentStyle.Opacity := FtLerpDouble(StartStyle.Opacity, 1.0, easedProgress);
+    end
+    else if not StartStyle.HasOpacity and TargetStyle.HasOpacity then
+    begin
+      CurrentStyle.HasOpacity := True;
+      CurrentStyle.Opacity := FtLerpDouble(1.0, TargetStyle.Opacity, easedProgress);
     end;
   end;
 end;

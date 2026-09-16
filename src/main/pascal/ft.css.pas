@@ -40,6 +40,9 @@ type
     HasFontWeight: Boolean;
     FontBold: Boolean;
 
+    HasOpacity: Boolean;
+    Opacity: Double;
+
     HasTransition: Boolean;
     TransitionProp: string;
     TransitionDurationMs: Integer;
@@ -87,6 +90,7 @@ type
 function FtRgba(R, G, B: Double; A: Double = 1.0): TFtRgbaColor;
 function FtParseColor(const S: string; out Col: TFtRgbaColor): Boolean;
 function FtParseLength(const S: string; out Val: Double): Boolean;
+function FtParseOpacity(const S: string; out Val: Double): Boolean;
 function FtParseTimeMs(const S: string; out Ms: Integer): Boolean;
 function FtParseTransition(const S: string; out Prop: string; out DurationMs: Integer; out Timing: string): Boolean;
 
@@ -133,6 +137,9 @@ begin
 
   HasFontWeight := False;
   FontBold := False;
+
+  HasOpacity := False;
+  Opacity := 1.0;
 
   HasTransition := False;
   TransitionProp := '';
@@ -181,6 +188,11 @@ begin
   begin
     HasFontWeight := True;
     FontBold := Other.FontBold;
+  end;
+  if Other.HasOpacity then
+  begin
+    HasOpacity := True;
+    Opacity := Other.Opacity;
   end;
   if Other.HasTransition then
   begin
@@ -372,6 +384,38 @@ begin
   Val := StrToFloatDef(clean, -99999.0);
   if Val <> -99999.0 then
     Result := True;
+end;
+
+function FtParseOpacity(const S: string; out Val: Double): Boolean;
+var
+  clean: string;
+  fs: TFormatSettings;
+  num: Double;
+  isPercent: Boolean;
+begin
+  Result := False;
+  Val := 1.0;
+  clean := Trim(S);
+  if Length(clean) = 0 then Exit;
+
+  isPercent := False;
+  if clean[Length(clean)] = '%' then
+  begin
+    isPercent := True;
+    clean := Trim(Copy(clean, 1, Length(clean) - 1));
+  end;
+
+  fs := DefaultFormatSettings;
+  fs.DecimalSeparator := '.';
+  if TryStrToFloat(clean, num, fs) then
+  begin
+    if isPercent then
+      num := num / 100.0;
+    if num < 0.0 then num := 0.0;
+    if num > 1.0 then num := 1.0;
+    Val := num;
+    Result := True;
+  end;
 end;
 
 function FtParseTimeMs(const S: string; out Ms: Integer): Boolean;
@@ -877,6 +921,15 @@ begin
     Style.HasFontWeight := True;
     Style.FontBold := (valStr = 'bold') or (valStr = '700') or (valStr = '800') or (valStr = '900');
     Result := True;
+  end
+  else if key = 'opacity' then
+  begin
+    if FtParseOpacity(valStr, lenVal) then
+    begin
+      Style.HasOpacity := True;
+      Style.Opacity := lenVal;
+      Result := True;
+    end;
   end
   else if key = 'transition' then
   begin

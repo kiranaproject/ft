@@ -42,6 +42,9 @@ type
     FScanline: scanline_u8;
     FClipStack: array[0..63] of TFtClipRect;
     FClipStackCount: Integer;
+    FAlphaStack: array[0..63] of Double;
+    FAlphaStackCount: Integer;
+    FCurrentAlpha: Double;
     procedure DrawTextHershey(X, Y: Double; const AText: string; ASize: Double; R, G, B: Double);
     procedure DrawTextCenteredHershey(X, Y, W, H: Integer; const AText: string; ASize: Double; R, G, B: Double);
   public
@@ -60,6 +63,11 @@ type
     procedure ResetAllClipping();
     function GetClipRect(out X, Y, W, H: Integer): Boolean;
     function IntersectsClip(X, Y, W, H: Integer): Boolean;
+
+    procedure PushAlpha(AAlpha: Double);
+    procedure PopAlpha();
+    procedure ResetAlpha();
+    property CurrentAlpha: Double read FCurrentAlpha;
 
     procedure DrawText(X, Y: Double; const AText: string; AFont: TFtFont; R, G, B: Double);
     procedure DrawTextCentered(X, Y, W, H: Integer; const AText: string; AFont: TFtFont; R, G, B: Double);
@@ -97,6 +105,8 @@ begin
   FRasterizer.Construct();
   FScanline.Construct();
   FClipStackCount := 0;
+  FAlphaStackCount := 0;
+  FCurrentAlpha := 1.0;
 end;
 
 destructor TFtCanvasAgg.Destroy();
@@ -117,6 +127,8 @@ begin
   pixfmt_bgra32(FPixFormat, @FRenderingBuf);
   FRendererBase.Construct(@FPixFormat);
   FClipStackCount := 0;
+  FAlphaStackCount := 0;
+  FCurrentAlpha := 1.0;
 end;
 
 procedure TFtCanvasAgg.PushClipRect(X, Y, W, H: Integer);
@@ -197,6 +209,35 @@ begin
   FRendererBase.reset_clipping(True);
 end;
 
+procedure TFtCanvasAgg.PushAlpha(AAlpha: Double);
+begin
+  if AAlpha < 0.0 then AAlpha := 0.0;
+  if AAlpha > 1.0 then AAlpha := 1.0;
+  if FAlphaStackCount <= High(FAlphaStack) then
+  begin
+    FAlphaStack[FAlphaStackCount] := FCurrentAlpha;
+    Inc(FAlphaStackCount);
+  end;
+  FCurrentAlpha := FCurrentAlpha * AAlpha;
+end;
+
+procedure TFtCanvasAgg.PopAlpha();
+begin
+  if FAlphaStackCount > 0 then
+  begin
+    Dec(FAlphaStackCount);
+    FCurrentAlpha := FAlphaStack[FAlphaStackCount];
+  end
+  else
+    FCurrentAlpha := 1.0;
+end;
+
+procedure TFtCanvasAgg.ResetAlpha();
+begin
+  FAlphaStackCount := 0;
+  FCurrentAlpha := 1.0;
+end;
+
 function TFtCanvasAgg.GetClipRect(out X, Y, W, H: Integer): Boolean;
 var
   cr: TFtClipRect;
@@ -253,7 +294,8 @@ procedure TFtCanvasAgg.DrawRect(X, Y, W, H: Integer; R, G, B: Double);
 var
   C: aggclr;
 begin
-  C.ConstrDbl(R, G, B);
+  if (W <= 0) or (H <= 0) or (FCurrentAlpha <= 0.0) then Exit;
+  C.ConstrDbl(R, G, B, FCurrentAlpha);
   FRasterizer.reset();
   FRasterizer.move_to_d(X, Y);
   FRasterizer.line_to_d(X + W, Y);
@@ -267,9 +309,12 @@ procedure TFtCanvasAgg.DrawRoundedRect(X, Y, W, H: Double; Radius: Double; R, G,
 var
   C: aggclr;
   RR: rounded_rect;
+  effA: Double;
 begin
   if (W <= 0) or (H <= 0) then Exit;
-  C.ConstrDbl(R, G, B, A);
+  effA := A * FCurrentAlpha;
+  if effA <= 0.0 then Exit;
+  C.ConstrDbl(R, G, B, effA);
   if Radius <= 0.5 then
   begin
     FRasterizer.reset();
@@ -294,10 +339,12 @@ var
   C: aggclr;
   RR: rounded_rect;
   Stroke: conv_stroke;
-  halfW: Double;
+  halfW, effA: Double;
 begin
   if (W <= 0) or (H <= 0) or (BorderWidth <= 0) then Exit;
-  C.ConstrDbl(R, G, B, A);
+  effA := A * FCurrentAlpha;
+  if effA <= 0.0 then Exit;
+  C.ConstrDbl(R, G, B, effA);
   halfW := BorderWidth / 2.0;
 
   if Radius <= 0.5 then
@@ -324,13 +371,14 @@ procedure TFtCanvasAgg.DrawShadow(X, Y, W, H: Double; Radius: Double; OffsetX, O
 var
   steps: Integer;
   i: Integer;
-  stepAlpha: Double;
+  stepAlpha, effOpacity: Double;
   expand: Double;
   C: aggclr;
   RR: rounded_rect;
   curR: Double;
 begin
-  if (W <= 0) or (H <= 0) or (BlurRadius <= 0) or (ShadowOpacity <= 0) then Exit;
+  effOpacity := ShadowOpacity * FCurrentAlpha;
+  if (W <= 0) or (H <= 0) or (BlurRadius <= 0) or (effOpacity <= 0) then Exit;
   steps := Round(BlurRadius);
   if steps < 1 then steps := 1;
   if steps > 6 then steps := 6;
@@ -339,7 +387,7 @@ begin
   begin
     expand := i * (BlurRadius / steps);
     curR := Radius + expand;
-    stepAlpha := (ShadowOpacity / steps) * (1.0 - (i - 1) / (steps + 1));
+    stepAlpha := (effOpacity / steps) * (1.0 - (i - 1) / (steps + 1));
     if stepAlpha <= 0 then Continue;
 
     C.ConstrDbl(ShadowR, ShadowG, ShadowB, stepAlpha);
@@ -357,7 +405,10 @@ var
   Path: path_storage;
   Stroke: conv_stroke;
   C: aggclr;
+  effA: Double;
 begin
+  effA := A * FCurrentAlpha;
+  if effA <= 0.0 then Exit;
   Path.Construct();
   Path.move_to(CX - 4.5, CY + 0.0);
   Path.line_to(CX - 1.5, CY + 3.2);
@@ -366,7 +417,7 @@ begin
   Stroke.width_(1.8);
   Stroke.line_cap_(round_cap);
   Stroke.line_join_(round_join);
-  C.ConstrDbl(R, G, B, A);
+  C.ConstrDbl(R, G, B, effA);
   FRasterizer.reset();
   FRasterizer.add_path(@Stroke);
   render_scanlines_aa_solid(@FRasterizer, @FScanline, @FRendererBase, @C);
@@ -377,8 +428,11 @@ end;
 procedure TFtCanvasAgg.DrawSubMenuArrow(CX, CY: Double; R, G, B: Double; A: Double = 1.0);
 var
   C: aggclr;
+  effA: Double;
 begin
-  C.ConstrDbl(R, G, B, A);
+  effA := A * FCurrentAlpha;
+  if effA <= 0.0 then Exit;
+  C.ConstrDbl(R, G, B, effA);
   FRasterizer.reset();
   FRasterizer.move_to_d(CX - 2.5, CY - 4.0);
   FRasterizer.line_to_d(CX + 2.5, CY);
@@ -401,14 +455,17 @@ var
   Path: path_storage;
   Stroke: conv_stroke;
   C: aggclr;
+  effA: Double;
 begin
+  effA := A * FCurrentAlpha;
+  if effA <= 0.0 then Exit;
   Path.Construct();
   Path.move_to(X1, Y1);
   Path.line_to(X2, Y2);
   Stroke.Construct(@Path);
   Stroke.width_(Width);
   Stroke.line_cap_(round_cap);
-  C.ConstrDbl(R, G, B, A);
+  C.ConstrDbl(R, G, B, effA);
   FRasterizer.reset();
   FRasterizer.add_path(@Stroke);
   render_scanlines_aa_solid(@FRasterizer, @FScanline, @FRendererBase, @C);
@@ -478,7 +535,7 @@ begin
   else
     T.start_point_(X + 10, Y + H / 2.0);
 
-  C.ConstrDbl(R, G, B);
+  C.ConstrDbl(R, G, B, FCurrentAlpha);
   FRasterizer.reset();
   FRasterizer.add_path(@ST);
   render_scanlines_aa_solid(@FRasterizer, @FScanline, @FRendererBase, @C);
@@ -499,7 +556,7 @@ var
   cm, curCM: font_cache_manager_ptr;
   fb: TFtFont;
 begin
-  if AText = '' then Exit;
+  if (AText = '') or (FCurrentAlpha <= 0.0) then Exit;
   if not Assigned(AFont) then AFont := FtGetSystemFont();
 
   if not AFont.Loaded then
@@ -509,7 +566,7 @@ begin
   end;
 
   cm := AFont.CacheManagerPtr();
-  C.ConstrDbl(R, G, B);
+  C.ConstrDbl(R, G, B, FCurrentAlpha);
   renSolid.Construct(@FRendererBase);
   renSolid.color_(@C);
 
@@ -596,17 +653,19 @@ procedure TFtCanvasAgg.DrawImage(X, Y: Double; AImage: TFtBitmap; AOpacity: Doub
 var
   cover: int8u;
   dstX, dstY: Integer;
+  effOpacity: Double;
 begin
   if not Assigned(AImage) or (AImage.Width <= 0) or (AImage.Height <= 0) or (AImage.PixelBuffer = nil) then Exit;
-  if AOpacity <= 0.0 then Exit;
+  effOpacity := AOpacity * FCurrentAlpha;
+  if effOpacity <= 0.0 then Exit;
 
   dstX := Round(X);
   dstY := Round(Y);
 
-  if AOpacity >= 1.0 then
+  if effOpacity >= 1.0 then
     cover := 255
   else
-    cover := Round(AOpacity * 255.0);
+    cover := Round(effOpacity * 255.0);
 
   FRendererBase.blend_from(AImage.PixFormatPtr, nil, dstX, dstY, cover);
 end;
@@ -628,9 +687,11 @@ var
   invA, dstB, dstG, dstR, dstA, finalA: Integer;
   globalAlpha: Integer;
   srcX0_fp, srcY0_fp: Int64;
+  effOpacity: Double;
 begin
   if not Assigned(AImage) or (AImage.Width <= 0) or (AImage.Height <= 0) or (AImage.PixelBuffer = nil) then Exit;
-  if (W <= 0) or (H <= 0) or (SrcW <= 0) or (SrcH <= 0) or (AOpacity <= 0.0) then Exit;
+  effOpacity := AOpacity * FCurrentAlpha;
+  if (W <= 0) or (H <= 0) or (SrcW <= 0) or (SrcH <= 0) or (effOpacity <= 0.0) then Exit;
 
   dstX := Round(X);
   dstY := Round(Y);
@@ -659,10 +720,10 @@ begin
 
   if (minX > maxX) or (minY > maxY) then Exit;
 
-  if AOpacity >= 1.0 then
+  if effOpacity >= 1.0 then
     globalAlpha := 255
   else
-    globalAlpha := Round(AOpacity * 255.0);
+    globalAlpha := Round(effOpacity * 255.0);
 
   stepX_fp := (Int64(SrcW) shl 16) div dstW;
   stepY_fp := (Int64(SrcH) shl 16) div dstH;

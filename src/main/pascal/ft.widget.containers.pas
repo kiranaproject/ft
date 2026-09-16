@@ -506,13 +506,28 @@ procedure TFtContainer.DrawChildren(Canvas: TFtCanvasAgg);
 var
   i: Integer;
   child: TFtWidget;
+  chOpac: Double;
 begin
   for i := 0 to Children.Count - 1 do
   begin
     child := TFtWidget(Children[i]);
     if (child <> FVScrollBar) and (child <> FHScrollBar) and child.Visible then
       if Canvas.IntersectsClip(child.X - 4, child.Y - 4, child.Width + 8, child.Height + 8) then
-        child.Draw(Canvas);
+      begin
+        chOpac := child.Opacity;
+        if chOpac <= 0.0 then Continue;
+        if chOpac < 0.999 then
+        begin
+          Canvas.PushAlpha(chOpac);
+          try
+            child.Draw(Canvas);
+          finally
+            Canvas.PopAlpha();
+          end;
+        end
+        else
+          child.Draw(Canvas);
+      end;
   end;
 end;
 

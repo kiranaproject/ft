@@ -48,6 +48,8 @@ void ft_window_set_window_type(FtWidget window, int32_t window_type);
 int32_t ft_window_get_window_type(FtWidget window);
 void ft_window_set_position(FtWidget window, int32_t x, int32_t y);
 void ft_window_get_position(FtWidget window, int32_t* x, int32_t* y);
+void ft_window_set_opacity(FtWidget window, double opacity);
+double ft_window_get_opacity(FtWidget window);
 
 void ft_widget_show(FtWidget widget);
 void ft_widget_hide(FtWidget widget);
@@ -55,6 +57,8 @@ void ft_widget_set_focus(FtWidget widget);
 int32_t ft_widget_has_focus(FtWidget widget);
 void ft_widget_set_focusable(FtWidget widget, int32_t focusable);
 int32_t ft_widget_get_focusable(FtWidget widget);
+void ft_widget_set_opacity(FtWidget widget, double opacity);
+double ft_widget_get_opacity(FtWidget widget);
 
 /* Widgets: Buttons */
 FtWidget ft_button_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, const char* caption);
@@ -448,6 +452,12 @@ double ft_image_get_opacity(FtWidget image);
 void ft_canvas_draw_image(void* canvas, double x, double y, FtBitmap bmp, double opacity);
 void ft_canvas_draw_image_scaled(void* canvas, double x, double y, double w, double h, FtBitmap bmp, double opacity);
 void ft_canvas_draw_image_part(void* canvas, double x, double y, double w, double h, FtBitmap bmp, int32_t src_x, int32_t src_y, int32_t src_w, int32_t src_h, double opacity);
+
+/* Canvas Alpha Stack */
+void ft_canvas_push_alpha(void* canvas, double alpha);
+void ft_canvas_pop_alpha(void* canvas);
+void ft_canvas_reset_alpha(void* canvas);
+double ft_canvas_get_alpha(void* canvas);
 
 #ifdef __cplusplus
 }

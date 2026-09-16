@@ -22,6 +22,7 @@ type
     FResolvedStyle: TFtWidgetStyle;
     FHasResolvedStyle: Boolean;
     FStyleInitialized: Boolean;
+    FOpacity: Double;
     function GetFont(): TFtFont; virtual;
     procedure SetFont(AValue: TFtFont); virtual;
     function GetFontDesc(): string; virtual;
@@ -32,6 +33,8 @@ type
     procedure SetStyleClass(const AValue: string); virtual;
     procedure SetStyleId(const AValue: string); virtual;
     procedure SetInlineStyle(const AValue: string); virtual;
+    function GetOpacity(): Double; virtual;
+    procedure SetOpacity(AValue: Double); virtual;
   public
     X, Y, Width, Height: Integer;
     Visible: Boolean;
@@ -79,6 +82,7 @@ type
     property StyleClass: string read FStyleClass write SetStyleClass;
     property StyleId: string read FStyleId write SetStyleId;
     property InlineStyle: string read FInlineStyle write SetInlineStyle;
+    property Opacity: Double read GetOpacity write SetOpacity;
   end;
 
 implementation
@@ -102,6 +106,7 @@ begin
   FHasResolvedStyle := False;
   FStyleInitialized := False;
   FResolvedStyle.Init();
+  FOpacity := 1.0;
   if Assigned(Parent) then
     Parent.Children.Add(Self);
 end;
@@ -122,6 +127,28 @@ begin
   inherited Destroy();
 end;
 
+function TFtWidget.GetOpacity(): Double;
+var
+  st: TFtWidgetStyle;
+begin
+  st := GetResolvedStyle();
+  if st.HasOpacity then
+    Result := st.Opacity * FOpacity
+  else
+    Result := FOpacity;
+end;
+
+procedure TFtWidget.SetOpacity(AValue: Double);
+begin
+  if AValue < 0.0 then AValue := 0.0;
+  if AValue > 1.0 then AValue := 1.0;
+  if Abs(FOpacity - AValue) > 1e-4 then
+  begin
+    FOpacity := AValue;
+    Invalidate();
+  end;
+end;
+
 function TFtWidget.GetFont(): TFtFont;
 begin
   if Assigned(FFont) then
@@ -138,14 +165,8 @@ begin
 end;
 
 function TFtWidget.GetFontDesc(): string;
-var
-  F: TFtFont;
 begin
-  F := GetFont();
-  if Assigned(F) then
-    Result := F.FontDesc
-  else
-    Result := '';
+  Result := GetFont().FontDesc;
 end;
 
 procedure TFtWidget.SetFontDesc(const AValue: string);
@@ -153,7 +174,7 @@ begin
   if AValue = '' then
     FFont := nil
   else
-    FFont := FtFontManager.GetFont(AValue);
+    FFont := FtFontManager().GetFont(AValue);
 end;
 
 function TFtWidget.GetContextMenu(): TFtWidget;
@@ -170,13 +191,28 @@ procedure TFtWidget.Draw(Canvas: TFtCanvasAgg);
 var
   I: Integer;
   child: TFtWidget;
+  chOpac: Double;
 begin
   if not Visible then Exit;
   for I := 0 to Children.Count - 1 do
   begin
     child := TFtWidget(Children[I]);
     if child.Visible and Canvas.IntersectsClip(child.X - 4, child.Y - 4, child.Width + 8, child.Height + 8) then
-      child.Draw(Canvas);
+    begin
+      chOpac := child.Opacity;
+      if chOpac <= 0.0 then Continue;
+      if chOpac < 0.999 then
+      begin
+        Canvas.PushAlpha(chOpac);
+        try
+          child.Draw(Canvas);
+        finally
+          Canvas.PopAlpha();
+        end;
+      end
+      else
+        child.Draw(Canvas);
+    end;
   end;
 end;
 

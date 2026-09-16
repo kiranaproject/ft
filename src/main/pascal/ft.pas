@@ -168,6 +168,20 @@ begin
     out_y^ := wy;
 end;
 
+procedure ft_window_set_opacity(window: Pointer; opacity: cdouble); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtX11Window) then
+    TFtX11Window(window).SetWindowOpacity(opacity);
+end;
+
+function ft_window_get_opacity(window: Pointer): cdouble; cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtX11Window) then
+    Result := TFtX11Window(window).GetWindowOpacity()
+  else
+    Result := 1.0;
+end;
+
 procedure ft_widget_set_focus(widget: Pointer); cdecl; export;
 begin
   if Assigned(widget) and (TObject(widget) is TFtWidget) then
@@ -1655,6 +1669,20 @@ begin
     Result := '';
 end;
 
+procedure ft_widget_set_opacity(widget: Pointer; opacity: cdouble); cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    TFtWidget(widget).Opacity := opacity;
+end;
+
+function ft_widget_get_opacity(widget: Pointer): cdouble; cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    Result := TFtWidget(widget).Opacity
+  else
+    Result := 1.0;
+end;
+
 function ft_style_load_css_file(filepath: PChar): cint32; cdecl; export;
 begin
   if Assigned(filepath) and FtLoadStyleSheet(StrPas(filepath)) then
@@ -2436,6 +2464,32 @@ begin
     TFtCanvasAgg(ACanvas).DrawImagePart(AX, AY, AW, AH, TFtBitmap(ABitmap), ASrcX, ASrcY, ASrcW, ASrcH, AOpacity);
 end;
 
+procedure ft_canvas_push_alpha(ACanvas: Pointer; AAlpha: cdouble); cdecl; export;
+begin
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvasAgg) then
+    TFtCanvasAgg(ACanvas).PushAlpha(AAlpha);
+end;
+
+procedure ft_canvas_pop_alpha(ACanvas: Pointer); cdecl; export;
+begin
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvasAgg) then
+    TFtCanvasAgg(ACanvas).PopAlpha();
+end;
+
+procedure ft_canvas_reset_alpha(ACanvas: Pointer); cdecl; export;
+begin
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvasAgg) then
+    TFtCanvasAgg(ACanvas).ResetAlpha();
+end;
+
+function ft_canvas_get_alpha(ACanvas: Pointer): cdouble; cdecl; export;
+begin
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvasAgg) then
+    Result := TFtCanvasAgg(ACanvas).CurrentAlpha
+  else
+    Result := 1.0;
+end;
+
 exports
   ft_init,
   ft_main_loop,
@@ -2450,6 +2504,8 @@ exports
   ft_window_get_window_type,
   ft_window_set_position,
   ft_window_get_position,
+  ft_window_set_opacity,
+  ft_window_get_opacity,
   ft_widget_show,
   ft_widget_hide,
   ft_widget_set_focus,
@@ -2688,6 +2744,8 @@ exports
   ft_widget_get_style_id,
   ft_widget_set_style,
   ft_widget_get_style,
+  ft_widget_set_opacity,
+  ft_widget_get_opacity,
   ft_style_load_css_file,
   ft_style_load_css_string,
   ft_animation_is_running,
@@ -2713,7 +2771,11 @@ exports
   ft_image_get_opacity,
   ft_canvas_draw_image,
   ft_canvas_draw_image_scaled,
-  ft_canvas_draw_image_part;
+  ft_canvas_draw_image_part,
+  ft_canvas_push_alpha,
+  ft_canvas_pop_alpha,
+  ft_canvas_reset_alpha,
+  ft_canvas_get_alpha;
 
 begin
 end.
