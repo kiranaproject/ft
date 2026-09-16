@@ -121,6 +121,11 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="Ft.Blur"/>
       </Unit>
+      <Unit>
+        <Filename Value="ft.css.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Css"/>
+      </Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -130,7 +135,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="../../../3rdparty/fcl-css/src;../../../florialib/src/main/pascal"/>
+      <OtherUnitFiles Value="../../../florialib/src/main/pascal"/>
       <UnitOutputDirectory Value="../../../target/units/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <CodeGeneration>

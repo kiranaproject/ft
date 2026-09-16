@@ -138,7 +138,7 @@ int main(int argc, char* argv[]) {
     FtWidget win = ft_window_create(640, 480, "Floria Toolkit - CSS Button Styling Demo");
 
     /* 1. Header description */
-    ft_text_create(win, 30, 20, 580, 26, "CSS Styling Engine (backed by fcl-css)");
+    ft_text_create(win, 30, 20, 580, 26, "CSS Styling Engine (backed by Floria.CSS)");
 
     /* 2. Load the initial CSS rules into global stylesheet */
     int load_res = ft_style_load_css_string(custom_css);

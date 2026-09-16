@@ -14,7 +14,6 @@
     <manualUnitPaths>true</manualUnitPaths>
     <unitPaths>
       <path>src/main/pascal</path>
-      <path>3rdparty/fcl-css/src</path>
       <path>../florialib/src/main/pascal</path>
     </unitPaths>
   </build>

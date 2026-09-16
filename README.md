@@ -15,7 +15,7 @@ A lightweight, high-performance native GUI toolkit engineered with Free Pascal, 
   - True 2D Gaussian drop shadows with configurable offsets, blur, and opacity.
   - Subpixel gamma-corrected font rendering and native display DPI scaling.
 - **Pure CSS Theming Engine**:
-  - Standards-based `.css` stylesheets powered by Free Pascal's `fcl-css` parser.
+  - Standards-based `.css` stylesheets powered by `Floria.CSS` from `florialib`.
   - Bundled themes: **Default** (Breeze/Fusion), **Nord**, **Dracula**, **Gruvbox**, **GTK2**, and **Classic**.
   - First-class **Light & Dark mode** with runtime hot-swapping and multi-window broadcasting.
   - Full support for element selectors, class selectors (`.dark`), ID selectors (`#id`), and pseudo-classes (`:hover`, `:active`, `:focus`, `:checked`).

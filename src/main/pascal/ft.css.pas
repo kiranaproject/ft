@@ -6,7 +6,9 @@ unit Ft.Css;
 interface
 
 uses
-  SysUtils, Classes, Math, fpcsstree, fpcssscanner, fpcssparser;
+  SysUtils, Classes, Math,
+  Floria.CSS.Types, Floria.CSS.AST, Floria.CSS.Parser,
+  Floria.CSS.Values, Floria.CSS.Properties, Floria.CSS.Cascade;
 
 type
   { RGBA Color representation (0.0 .. 1.0) }
@@ -55,26 +57,15 @@ type
     procedure Merge(const Other: TFtWidgetStyle);
   end;
 
-  { Parsed CSS rule item }
-  TFtCssRule = record
-    Specificity: Integer;
-    Order: Integer;
-    RuleElement: TCSSRuleElement;
-  end;
-
 type
   TFtStyleSheetChangeNotify = procedure() of object;
 
-  { Stylesheet manager backed by fcl-css }
+  { Stylesheet manager backed by Floria.CSS }
   TFtStyleSheet = class
   private
-    FRoot: TCSSElement;
-    FRules: array of TFtCssRule;
-    FRuleCount: Integer;
+    FResolver: TCSSStyleResolver;
     FOnChange: TFtStyleSheetChangeNotify;
-    procedure RebuildRuleCache();
-    function MatchSelector(Sel: TCSSElement; const AElementType, AId, AClasses, APseudo: string; out Spec: Integer): Boolean;
-    function ApplyDeclarationToStyle(Decl: TCSSDeclarationElement; var Style: TFtWidgetStyle): Boolean;
+    procedure ApplyStyleBlock(ABlock: TCSSStyleBlock; var AStyle: TFtWidgetStyle);
   public
     constructor Create();
     destructor Destroy(); override;
@@ -227,6 +218,7 @@ end;
 
 function FtParseColor(const S: string; out Col: TFtRgbaColor): Boolean;
 var
+  cssCol: TCSSColor;
   clean: string;
   n1, n2, n3, n4, n5, n6, n7, n8: Integer;
   p1, p2: Integer;
@@ -235,57 +227,18 @@ var
   v1, v2, v3, v4: Double;
 begin
   Result := False;
-  clean := LowerCase(Trim(S));
+  clean := Trim(S);
   if Length(clean) = 0 then Exit;
 
-  // Named colors
-  if clean = 'transparent' then
+  // 1. Try Floria.CSS color parser
+  if TCSSColor.TryParse(clean, cssCol) then
   begin
-    Col := FtRgba(0.0, 0.0, 0.0, 0.0);
-    Exit(True);
-  end
-  else if clean = 'black' then
-  begin
-    Col := FtRgba(0.0, 0.0, 0.0, 1.0);
-    Exit(True);
-  end
-  else if clean = 'white' then
-  begin
-    Col := FtRgba(1.0, 1.0, 1.0, 1.0);
-    Exit(True);
-  end
-  else if clean = 'red' then
-  begin
-    Col := FtRgba(0.9, 0.1, 0.1, 1.0);
-    Exit(True);
-  end
-  else if clean = 'green' then
-  begin
-    Col := FtRgba(0.1, 0.7, 0.2, 1.0);
-    Exit(True);
-  end
-  else if clean = 'blue' then
-  begin
-    Col := FtRgba(0.1, 0.4, 0.9, 1.0);
-    Exit(True);
-  end
-  else if (clean = 'gray') or (clean = 'grey') then
-  begin
-    Col := FtRgba(0.5, 0.5, 0.5, 1.0);
-    Exit(True);
-  end
-  else if (clean = 'lightgray') or (clean = 'lightgrey') then
-  begin
-    Col := FtRgba(0.8, 0.8, 0.8, 1.0);
-    Exit(True);
-  end
-  else if (clean = 'darkgray') or (clean = 'darkgrey') then
-  begin
-    Col := FtRgba(0.25, 0.25, 0.25, 1.0);
+    Col := FtRgba(cssCol.R / 255.0, cssCol.G / 255.0, cssCol.B / 255.0, cssCol.A / 255.0);
     Exit(True);
   end;
 
-  // Hex colors: #rgb, #rgba, #rrggbb, #rrggbbaa
+  // 2. Fallback parsers for robustness
+  clean := LowerCase(clean);
   if clean[1] = '#' then
   begin
     Delete(clean, 1, 1);
@@ -345,7 +298,6 @@ begin
     end;
   end;
 
-  // rgb(...) or rgba(...)
   if (Copy(clean, 1, 4) = 'rgb(') or (Copy(clean, 1, 5) = 'rgba(') then
   begin
     p1 := Pos('(', clean);
@@ -381,12 +333,22 @@ end;
 
 function FtParseLength(const S: string; out Val: Double): Boolean;
 var
+  len: TCSSLength;
   clean: string;
 begin
   Result := False;
-  clean := LowerCase(Trim(S));
+  clean := Trim(S);
   if Length(clean) = 0 then Exit;
 
+  // 1. Try Floria.CSS length parser
+  if TCSSLength.TryParse(clean, len) then
+  begin
+    Val := len.ToPixels();
+    Exit(True);
+  end;
+
+  // 2. Direct numeric fallback
+  clean := LowerCase(clean);
   if (Length(clean) > 2) and (Copy(clean, Length(clean) - 1, 2) = 'px') then
     clean := Trim(Copy(clean, 1, Length(clean) - 2))
   else if (Length(clean) > 2) and (Copy(clean, Length(clean) - 1, 2) = 'pt') then
@@ -615,527 +577,485 @@ begin
   Prop := collectedProps;
 end;
 
+type
+  { Adapter implementing ICSSElement for Floria.CSS cascade matching }
+  TFtCSSElementAdapter = class(TInterfacedObject, ICSSElement)
+  private
+    FTagName: AnsiString;
+    FId: AnsiString;
+    FClasses: TStringList;
+    FHovered: Boolean;
+    FFocused: Boolean;
+    FActive: Boolean;
+    FDisabled: Boolean;
+    FChecked: Boolean;
+    FParent: ICSSElement;
+  public
+    constructor Create(const AElementType, AId, AClasses, APseudo: string; const AParent: ICSSElement = nil);
+    destructor Destroy(); override;
+
+    function GetTagName(): AnsiString;
+    function GetId(): AnsiString;
+    function HasClass(const AClass: AnsiString): Boolean;
+    function HasAttribute(const AName: AnsiString): Boolean;
+    function GetAttribute(const AName: AnsiString): AnsiString;
+    function GetParent(): ICSSElement;
+    function GetPreviousSibling(): ICSSElement;
+    function GetChildIndex(): Integer;
+    function GetSiblingCount(): Integer;
+    function IsHovered(): Boolean;
+    function IsFocused(): Boolean;
+    function IsActive(): Boolean;
+    function IsDisabled(): Boolean;
+    function IsChecked(): Boolean;
+  end;
+
+constructor TFtCSSElementAdapter.Create(const AElementType, AId, AClasses, APseudo: string; const AParent: ICSSElement);
+var
+  cleanPseudo: string;
+  sl: TStringList;
+  i: Integer;
+begin
+  inherited Create();
+  FTagName := AElementType;
+  FId := AId;
+  FClasses := TStringList.Create();
+  FParent := AParent;
+
+  if AClasses <> '' then
+  begin
+    sl := TStringList.Create();
+    try
+      sl.Delimiter := ' ';
+      sl.StrictDelimiter := False;
+      sl.DelimitedText := AClasses;
+      for i := 0 to sl.Count - 1 do
+        if Trim(sl[i]) <> '' then
+          FClasses.Add(Trim(sl[i]));
+    finally
+      sl.Free();
+    end;
+  end;
+
+  cleanPseudo := LowerCase(Trim(APseudo));
+  if (cleanPseudo <> '') and (cleanPseudo[1] = ':') then
+    Delete(cleanPseudo, 1, 1);
+
+  FHovered  := cleanPseudo = 'hover';
+  FFocused  := cleanPseudo = 'focus';
+  FActive   := cleanPseudo = 'active';
+  FDisabled := cleanPseudo = 'disabled';
+  FChecked  := cleanPseudo = 'checked';
+
+  // If element is styled in dark mode, provide a virtual window.dark parent
+  // so descendant rules like ".dark button" or "window.dark button" match as well as compound "button.dark"
+  if (FParent = nil) and (HasClass('dark')) and (not SameText(FTagName, 'window')) then
+    FParent := TFtCSSElementAdapter.Create('window', '', 'dark', '', nil);
+end;
+
+destructor TFtCSSElementAdapter.Destroy();
+begin
+  FClasses.Free();
+  inherited Destroy();
+end;
+
+function TFtCSSElementAdapter.GetTagName(): AnsiString;
+begin
+  Result := FTagName;
+end;
+
+function TFtCSSElementAdapter.GetId(): AnsiString;
+begin
+  Result := FId;
+end;
+
+function TFtCSSElementAdapter.HasClass(const AClass: AnsiString): Boolean;
+var
+  i: Integer;
+begin
+  for i := 0 to FClasses.Count - 1 do
+    if SameText(FClasses[i], AClass) then
+      Exit(True);
+  Result := False;
+end;
+
+function TFtCSSElementAdapter.HasAttribute(const AName: AnsiString): Boolean;
+begin
+  Result := False;
+end;
+
+function TFtCSSElementAdapter.GetAttribute(const AName: AnsiString): AnsiString;
+begin
+  Result := '';
+end;
+
+function TFtCSSElementAdapter.GetParent(): ICSSElement;
+begin
+  Result := FParent;
+end;
+
+function TFtCSSElementAdapter.GetPreviousSibling(): ICSSElement;
+begin
+  Result := nil;
+end;
+
+function TFtCSSElementAdapter.GetChildIndex(): Integer;
+begin
+  Result := 1;
+end;
+
+function TFtCSSElementAdapter.GetSiblingCount(): Integer;
+begin
+  Result := 1;
+end;
+
+function TFtCSSElementAdapter.IsHovered(): Boolean;
+begin
+  Result := FHovered;
+end;
+
+function TFtCSSElementAdapter.IsFocused(): Boolean;
+begin
+  Result := FFocused;
+end;
+
+function TFtCSSElementAdapter.IsActive(): Boolean;
+begin
+  Result := FActive;
+end;
+
+function TFtCSSElementAdapter.IsDisabled(): Boolean;
+begin
+  Result := FDisabled;
+end;
+
+function TFtCSSElementAdapter.IsChecked(): Boolean;
+begin
+  Result := FChecked;
+end;
+
 { TFtStyleSheet }
 
 constructor TFtStyleSheet.Create();
 begin
   inherited Create();
-  FRoot := nil;
-  SetLength(FRules, 0);
-  FRuleCount := 0;
+  FResolver := TCSSStyleResolver.Create();
 end;
 
 destructor TFtStyleSheet.Destroy();
 begin
   Clear();
+  FResolver.Free();
   inherited Destroy();
 end;
 
 procedure TFtStyleSheet.Clear();
 begin
-  if Assigned(FRoot) then
-  begin
-    FRoot.Free();
-    FRoot := nil;
-  end;
-  SetLength(FRules, 0);
-  FRuleCount := 0;
-end;
-
-procedure TFtStyleSheet.RebuildRuleCache();
-var
-  i, j: Integer;
-  children: TCSSChildrenElement;
-  ruleEl: TCSSRuleElement;
-  orderCounter: Integer;
-begin
-  SetLength(FRules, 0);
-  FRuleCount := 0;
-  if not Assigned(FRoot) or not (FRoot is TCSSChildrenElement) then Exit;
-
-  children := TCSSChildrenElement(FRoot);
-  orderCounter := 0;
-
-  for i := 0 to children.ChildCount - 1 do
-  begin
-    if children.Children[i] is TCSSRuleElement then
-    begin
-      ruleEl := TCSSRuleElement(children.Children[i]);
-      for j := 0 to ruleEl.SelectorCount - 1 do
-      begin
-        Inc(orderCounter);
-        if FRuleCount = Length(FRules) then
-          SetLength(FRules, Max(16, FRuleCount * 2));
-
-        FRules[FRuleCount].Specificity := 0; // calculated during match
-        FRules[FRuleCount].Order := orderCounter;
-        FRules[FRuleCount].RuleElement := ruleEl;
-        Inc(FRuleCount);
-      end;
-    end;
-  end;
+  if Assigned(FResolver) then
+    FResolver.Clear();
 end;
 
 function TFtStyleSheet.LoadFromFile(const APath: string): Boolean;
 var
   fs: TFileStream;
-  parser: TCSSParser;
+  ss: TStringStream;
 begin
   Result := False;
   if not FileExists(APath) then Exit;
 
-  Clear();
   try
     fs := TFileStream.Create(APath, fmOpenRead or fmShareDenyNone);
     try
-      parser := TCSSParser.Create(fs);
+      ss := TStringStream.Create('');
       try
-        FRoot := parser.Parse();
-        RebuildRuleCache();
-        Result := True;
-        if Assigned(FOnChange) then
-          FOnChange();
+        ss.CopyFrom(fs, fs.Size);
+        Result := LoadFromString(ss.DataString);
       finally
-        parser.Free();
+        ss.Free();
       end;
     finally
       fs.Free();
     end;
   except
-    Clear();
     Result := False;
   end;
 end;
 
 function TFtStyleSheet.LoadFromString(const ACss: string): Boolean;
-var
-  ss: TStringStream;
-  parser: TCSSParser;
 begin
   Result := False;
   Clear();
   try
-    ss := TStringStream.Create(ACss);
-    try
-      parser := TCSSParser.Create(ss);
-      try
-        FRoot := parser.Parse();
-        RebuildRuleCache();
-        Result := True;
-        if Assigned(FOnChange) then
-          FOnChange();
-      finally
-        parser.Free();
-      end;
-    finally
-      ss.Free();
-    end;
+    FResolver.AddCSS(ACss);
+    Result := True;
+    if Assigned(FOnChange) then
+      FOnChange();
   except
     Clear();
     Result := False;
   end;
 end;
 
-function HasWord(const Text, Word: string): Boolean;
+procedure TFtStyleSheet.ApplyStyleBlock(ABlock: TCSSStyleBlock; var AStyle: TFtWidgetStyle);
 var
-  list: TStringList;
-  i: Integer;
-begin
-  Result := False;
-  list := TStringList.Create();
-  try
-    list.Delimiter := ' ';
-    list.DelimitedText := Text;
-    for i := 0 to list.Count - 1 do
-    begin
-      if SameText(list[i], Word) then
-        Exit(True);
-    end;
-  finally
-    list.Free();
-  end;
-end;
-
-function TFtStyleSheet.MatchSelector(Sel: TCSSElement; const AElementType, AId, AClasses, APseudo: string; out Spec: Integer): Boolean;
-var
-  list: TCSSListElement;
-  sub: TCSSElement;
-  i: Integer;
-  partSpec: Integer;
-  s: string;
-begin
-  Result := False;
-  Spec := 0;
-
-  if Sel is TCSSClassNameElement then
-  begin
-    s := Trim(Sel.AsString);
-    if (Length(s) > 0) and (s[1] = '.') then Delete(s, 1, 1);
-    if HasWord(AClasses, s) then
-    begin
-      Spec := 10;
-      Exit(True);
-    end;
-  end
-  else if Sel is TCSSHashIdentifierElement then
-  begin
-    s := Trim(Sel.AsString);
-    if (Length(s) > 0) and (s[1] = '#') then Delete(s, 1, 1);
-    if SameText(s, AId) then
-    begin
-      Spec := 100;
-      Exit(True);
-    end;
-  end
-  else if Sel is TCSSPseudoClassElement then
-  begin
-    s := LowerCase(Trim(Sel.AsString));
-    if SameText(s, APseudo) then
-    begin
-      Spec := 10;
-      Exit(True);
-    end;
-  end
-  else if Sel is TCSSIdentifierElement then
-  begin
-    s := LowerCase(Trim(Sel.AsString));
-    if (s = '*') or (s = LowerCase(AElementType)) then
-    begin
-      if s = '*' then Spec := 0 else Spec := 1;
-      Exit(True);
-    end;
-  end
-  else if Sel is TCSSListElement then
-  begin
-    list := TCSSListElement(Sel);
-    partSpec := 0;
-    for i := 0 to list.ChildCount - 1 do
-    begin
-      sub := list.Children[i];
-      if sub is TCSSClassNameElement then
-      begin
-        s := Trim(sub.AsString);
-        if (Length(s) > 0) and (s[1] = '.') then Delete(s, 1, 1);
-        if not HasWord(AClasses, s) then Exit(False);
-        Inc(partSpec, 10);
-      end
-      else if sub is TCSSHashIdentifierElement then
-      begin
-        s := Trim(sub.AsString);
-        if (Length(s) > 0) and (s[1] = '#') then Delete(s, 1, 1);
-        if not SameText(s, AId) then Exit(False);
-        Inc(partSpec, 100);
-      end
-      else if sub is TCSSPseudoClassElement then
-      begin
-        s := LowerCase(Trim(sub.AsString));
-        if not SameText(s, APseudo) then Exit(False);
-        Inc(partSpec, 10);
-      end
-      else if sub is TCSSIdentifierElement then
-      begin
-        s := LowerCase(Trim(sub.AsString));
-        if (s <> '*') and not SameText(s, AElementType) then Exit(False);
-        if s <> '*' then Inc(partSpec, 1);
-      end;
-    end;
-    Spec := partSpec;
-    Exit(True);
-  end;
-end;
-
-function TFtStyleSheet.ApplyDeclarationToStyle(Decl: TCSSDeclarationElement; var Style: TFtWidgetStyle): Boolean;
-var
-  key, valStr: string;
+  decl: TCSSStyleDeclaration;
   col: TFtRgbaColor;
-  lenVal: Double;
-  parts: TStringList;
-  i: Integer;
+  s, subStr: string;
   pIdx: Integer;
-  subStr: string;
+  lenVal, opacVal: Double;
 begin
-  Result := False;
-  if (Decl.KeyCount = 0) or (Decl.ChildCount = 0) then Exit;
+  if ABlock = nil then Exit;
 
-  key := LowerCase(Trim(Decl.Keys[0].AsString));
-  valStr := Trim(Decl.Children[0].AsString);
+  // Background Color
+  decl := ABlock.GetDeclaration(cpiBackgroundColor);
+  if (decl <> nil) and (decl.Value.Kind = cvkColor) then
+  begin
+    AStyle.HasBgColor := True;
+    AStyle.BgColor := FtRgba(decl.Value.Color.R / 255.0,
+                             decl.Value.Color.G / 255.0,
+                             decl.Value.Color.B / 255.0,
+                             decl.Value.Color.A / 255.0);
+  end
+  else
+  begin
+    decl := ABlock.GetCustom('background');
+    if (decl <> nil) and FtParseColor(decl.Value.Str, col) then
+    begin
+      AStyle.HasBgColor := True;
+      AStyle.BgColor := col;
+    end;
+  end;
 
-  if (key = 'background-color') or (key = 'background') then
+  // Text Color
+  decl := ABlock.GetDeclaration(cpiColor);
+  if (decl <> nil) and (decl.Value.Kind = cvkColor) then
   begin
-    if FtParseColor(valStr, col) then
-    begin
-      Style.HasBgColor := True;
-      Style.BgColor := col;
-      Result := True;
-    end;
-  end
-  else if key = 'color' then
+    AStyle.HasTextColor := True;
+    AStyle.TextColor := FtRgba(decl.Value.Color.R / 255.0,
+                              decl.Value.Color.G / 255.0,
+                              decl.Value.Color.B / 255.0,
+                              decl.Value.Color.A / 255.0);
+  end;
+
+  // Border Color
+  decl := ABlock.GetDeclaration(cpiBorderColor);
+  if decl = nil then decl := ABlock.GetDeclaration(cpiBorderTopColor);
+  if (decl <> nil) and (decl.Value.Kind = cvkColor) then
   begin
-    if FtParseColor(valStr, col) then
-    begin
-      Style.HasTextColor := True;
-      Style.TextColor := col;
-      Result := True;
-    end;
-  end
-  else if key = 'border-color' then
+    AStyle.HasBorderColor := True;
+    AStyle.BorderColor := FtRgba(decl.Value.Color.R / 255.0,
+                                decl.Value.Color.G / 255.0,
+                                decl.Value.Color.B / 255.0,
+                                decl.Value.Color.A / 255.0);
+  end;
+
+  // Border Width
+  decl := ABlock.GetDeclaration(cpiBorderWidth);
+  if decl = nil then decl := ABlock.GetDeclaration(cpiBorderTopWidth);
+  if decl <> nil then
   begin
-    if FtParseColor(valStr, col) then
+    if decl.Value.Kind = cvkLength then
     begin
-      Style.HasBorderColor := True;
-      Style.BorderColor := col;
-      Result := True;
-    end;
-  end
-  else if key = 'border-width' then
-  begin
-    if FtParseLength(valStr, lenVal) then
-    begin
-      Style.HasBorderWidth := True;
-      Style.BorderWidth := lenVal;
-      Result := True;
-    end;
-  end
-  else if (key = 'border-radius') or (key = 'border-top-left-radius') then
-  begin
-    if FtParseLength(valStr, lenVal) then
-    begin
-      Style.HasBorderRadius := True;
-      Style.BorderRadius := lenVal;
-      Result := True;
-    end;
-  end
-  else if (key = 'box-shadow') or (key = 'shadow') then
-  begin
-    if (valStr = 'none') or (valStr = '0') or (valStr = 'false') then
-    begin
-      Style.HasShadow := True;
-      Style.EnableShadow := False;
-      Result := True;
+      AStyle.HasBorderWidth := True;
+      AStyle.BorderWidth := decl.Value.Length.ToPixels();
     end
-    else
+    else if decl.Value.Kind = cvkBox then
     begin
-      Style.HasShadow := True;
-      Style.EnableShadow := True;
-      Result := True;
-    end;
-  end
-  else if key = 'font-size' then
-  begin
-    if FtParseLength(valStr, lenVal) then
+      AStyle.HasBorderWidth := True;
+      AStyle.BorderWidth := decl.Value.Box.Top.ToPixels();
+    end
+    else if decl.Value.Kind = cvkNumber then
     begin
-      Style.HasFontSize := True;
-      Style.FontSize := lenVal;
-      Result := True;
+      AStyle.HasBorderWidth := True;
+      AStyle.BorderWidth := decl.Value.Number;
     end;
-  end
-  else if key = 'font-weight' then
+  end;
+
+  // Border Radius
+  decl := ABlock.GetDeclaration(cpiBorderRadius);
+  if decl = nil then decl := ABlock.GetDeclaration(cpiBorderTopLeftRadius);
+  if decl <> nil then
   begin
-    Style.HasFontWeight := True;
-    Style.FontBold := (valStr = 'bold') or (valStr = '700') or (valStr = '800') or (valStr = '900');
-    Result := True;
-  end
-  else if key = 'opacity' then
-  begin
-    if FtParseOpacity(valStr, lenVal) then
+    if decl.Value.Kind = cvkLength then
     begin
-      Style.HasOpacity := True;
-      Style.Opacity := lenVal;
-      Result := True;
+      AStyle.HasBorderRadius := True;
+      AStyle.BorderRadius := decl.Value.Length.ToPixels();
+    end
+    else if decl.Value.Kind = cvkBox then
+    begin
+      AStyle.HasBorderRadius := True;
+      AStyle.BorderRadius := decl.Value.Box.Top.ToPixels();
+    end
+    else if decl.Value.Kind = cvkNumber then
+    begin
+      AStyle.HasBorderRadius := True;
+      AStyle.BorderRadius := decl.Value.Number;
     end;
-  end
-  else if (key = 'backdrop-filter') or (key = '-webkit-backdrop-filter') then
+  end;
+
+  // Shadow
+  decl := ABlock.GetCustom('box-shadow');
+  if decl = nil then decl := ABlock.GetCustom('shadow');
+  if decl <> nil then
   begin
-    valStr := '';
-    for i := 0 to Decl.ChildCount - 1 do
-      valStr := valStr + Decl.Children[i].AsString;
-    pIdx := Pos('blur(', LowerCase(valStr));
+    s := LowerCase(Trim(decl.Value.Str));
+    if (s = 'none') or (s = '0') or (s = 'false') then
+    begin
+      AStyle.HasShadow := True;
+      AStyle.EnableShadow := False;
+    end
+    else if s <> '' then
+    begin
+      AStyle.HasShadow := True;
+      AStyle.EnableShadow := True;
+    end;
+  end;
+
+  // Font Size
+  decl := ABlock.GetDeclaration(cpiFontSize);
+  if decl <> nil then
+  begin
+    if decl.Value.Kind = cvkLength then
+    begin
+      AStyle.HasFontSize := True;
+      AStyle.FontSize := decl.Value.Length.ToPixels();
+    end
+    else if decl.Value.Kind = cvkNumber then
+    begin
+      AStyle.HasFontSize := True;
+      AStyle.FontSize := decl.Value.Number;
+    end;
+  end;
+
+  // Font Weight
+  decl := ABlock.GetDeclaration(cpiFontWeight);
+  if decl <> nil then
+  begin
+    AStyle.HasFontWeight := True;
+    if decl.Value.Kind = cvkKeyword then
+      AStyle.FontBold := (decl.Value.Keyword = 'bold') or (decl.Value.Keyword = 'bolder')
+    else if decl.Value.Kind = cvkNumber then
+      AStyle.FontBold := decl.Value.Number >= 700.0
+    else if decl.Value.Kind = cvkCustom then
+    begin
+      s := LowerCase(Trim(decl.Value.Str));
+      AStyle.FontBold := (s = 'bold') or (s = '700') or (s = '800') or (s = '900');
+    end;
+  end;
+
+  // Opacity
+  decl := ABlock.GetDeclaration(cpiOpacity);
+  if decl <> nil then
+  begin
+    if decl.Value.Kind = cvkNumber then
+    begin
+      AStyle.HasOpacity := True;
+      AStyle.Opacity := Max(0.0, Min(1.0, decl.Value.Number));
+    end
+    else if decl.Value.Kind = cvkLength then
+    begin
+      AStyle.HasOpacity := True;
+      if decl.Value.Length.Unit_ = cuPercent then
+        AStyle.Opacity := Max(0.0, Min(1.0, decl.Value.Length.Value / 100.0))
+      else
+        AStyle.Opacity := Max(0.0, Min(1.0, decl.Value.Length.Value));
+    end
+    else if FtParseOpacity(decl.Value.ToString(), opacVal) then
+    begin
+      AStyle.HasOpacity := True;
+      AStyle.Opacity := opacVal;
+    end;
+  end;
+
+  // Backdrop Filter (Blur)
+  decl := ABlock.GetCustom('backdrop-filter');
+  if decl = nil then decl := ABlock.GetCustom('-webkit-backdrop-filter');
+  if decl <> nil then
+  begin
+    s := decl.Value.Str;
+    pIdx := Pos('blur(', LowerCase(s));
     if pIdx > 0 then
     begin
-      subStr := Copy(valStr, pIdx + 5, Length(valStr));
+      subStr := Copy(s, pIdx + 5, Length(s));
       pIdx := Pos(')', subStr);
       if pIdx > 0 then
         subStr := Trim(Copy(subStr, 1, pIdx - 1));
       if FtParseLength(subStr, lenVal) then
       begin
-        Style.HasBackdropBlur := True;
-        Style.BackdropBlur := lenVal;
-        Result := True;
+        AStyle.HasBackdropBlur := True;
+        AStyle.BackdropBlur := lenVal;
       end;
     end;
-  end
-  else if key = 'transition' then
+  end;
+
+  // Transitions
+  decl := ABlock.GetCustom('transition');
+  if decl <> nil then
   begin
-    valStr := '';
-    for i := 0 to Decl.ChildCount - 1 do
-    begin
-      if valStr <> '' then valStr := valStr + ', ';
-      valStr := valStr + Decl.Children[i].AsString;
-    end;
-    if FtParseTransition(valStr, Style.TransitionProp, Style.TransitionDurationMs, Style.TransitionTiming) then
-    begin
-      Style.HasTransition := True;
-      Result := True;
-    end;
-  end
-  else if key = 'transition-duration' then
+    if FtParseTransition(decl.Value.Str, AStyle.TransitionProp, AStyle.TransitionDurationMs, AStyle.TransitionTiming) then
+      AStyle.HasTransition := True;
+  end;
+
+  decl := ABlock.GetCustom('transition-duration');
+  if decl <> nil then
   begin
-    if FtParseTimeMs(valStr, Style.TransitionDurationMs) then
-    begin
-      Style.HasTransition := True;
-      Result := True;
-    end;
-  end
-  else if key = 'transition-property' then
+    if FtParseTimeMs(decl.Value.Str, AStyle.TransitionDurationMs) then
+      AStyle.HasTransition := True;
+  end;
+
+  decl := ABlock.GetCustom('transition-property');
+  if decl <> nil then
   begin
-    valStr := '';
-    for i := 0 to Decl.ChildCount - 1 do
-    begin
-      if valStr <> '' then valStr := valStr + ', ';
-      valStr := valStr + Decl.Children[i].AsString;
-    end;
-    Style.HasTransition := True;
-    Style.TransitionProp := LowerCase(Trim(valStr));
-    Result := True;
-  end
-  else if key = 'transition-timing-function' then
+    AStyle.HasTransition := True;
+    AStyle.TransitionProp := LowerCase(Trim(decl.Value.Str));
+  end;
+
+  decl := ABlock.GetCustom('transition-timing-function');
+  if decl <> nil then
   begin
-    Style.HasTransition := True;
-    Style.TransitionTiming := LowerCase(Trim(valStr));
-    Result := True;
+    AStyle.HasTransition := True;
+    AStyle.TransitionTiming := LowerCase(Trim(decl.Value.Str));
+  end;
+end;
+
+function TFtStyleSheet.ResolveStyle(const AElementType, AId, AClasses, APseudo: string; const AInlineCss: string): TFtWidgetStyle;
+var
+  adapter: ICSSElement;
+  resolvedBlock: TCSSStyleBlock;
+  inlineStyle: TFtWidgetStyle;
+begin
+  Result.Init();
+  adapter := TFtCSSElementAdapter.Create(AElementType, AId, AClasses, APseudo);
+  resolvedBlock := FResolver.ResolveStyle(adapter);
+  try
+    ApplyStyleBlock(resolvedBlock, Result);
+  finally
+    resolvedBlock.Free();
+  end;
+
+  if Trim(AInlineCss) <> '' then
+  begin
+    inlineStyle := ParseInlineStyle(AInlineCss);
+    Result.Merge(inlineStyle);
   end;
 end;
 
 function TFtStyleSheet.ParseInlineStyle(const AInlineCss: string): TFtWidgetStyle;
 var
-  ss: TStringStream;
-  parser: TCSSParser;
-  rootEl: TCSSElement;
-  decl: TCSSDeclarationElement;
-  i: Integer;
+  block: TCSSStyleBlock;
 begin
   Result.Init();
   if Trim(AInlineCss) = '' then Exit;
 
   try
-    ss := TStringStream.Create(AInlineCss);
+    block := TCSSStyleBlock.FromCSS(AInlineCss);
     try
-      parser := TCSSParser.Create(ss);
-      try
-        rootEl := parser.ParseInline();
-        try
-          if Assigned(rootEl) and (rootEl is TCSSChildrenElement) then
-          begin
-            for i := 0 to (rootEl as TCSSChildrenElement).ChildCount - 1 do
-            begin
-              if (rootEl as TCSSChildrenElement).Children[i] is TCSSDeclarationElement then
-              begin
-                decl := TCSSDeclarationElement((rootEl as TCSSChildrenElement).Children[i]);
-                ApplyDeclarationToStyle(decl, Result);
-              end;
-            end;
-          end;
-        finally
-          if Assigned(rootEl) then rootEl.Free();
-        end;
-      finally
-        parser.Free();
-      end;
+      ApplyStyleBlock(block, Result);
     finally
-      ss.Free();
+      block.Free();
     end;
   except
     // ignore parse errors in inline CSS
-  end;
-end;
-
-type
-  TMatchEntry = record
-    Specificity: Integer;
-    Order: Integer;
-    RuleEl: TCSSRuleElement;
-  end;
-
-function TFtStyleSheet.ResolveStyle(const AElementType, AId, AClasses, APseudo: string; const AInlineCss: string): TFtWidgetStyle;
-var
-  i, j, k: Integer;
-  matches: array of TMatchEntry;
-  matchCount: Integer;
-  spec: Integer;
-  ruleEl: TCSSRuleElement;
-  matched: Boolean;
-  decl: TCSSDeclarationElement;
-  temp: TMatchEntry;
-  inlineStyle: TFtWidgetStyle;
-begin
-  Result.Init();
-  SetLength(matches, 0);
-  matchCount := 0;
-
-  if Assigned(FRoot) and (FRoot is TCSSChildrenElement) then
-  begin
-    for i := 0 to (FRoot as TCSSChildrenElement).ChildCount - 1 do
-    begin
-      if (FRoot as TCSSChildrenElement).Children[i] is TCSSRuleElement then
-      begin
-        ruleEl := TCSSRuleElement((FRoot as TCSSChildrenElement).Children[i]);
-        matched := False;
-        spec := 0;
-
-        for j := 0 to ruleEl.SelectorCount - 1 do
-        begin
-          if MatchSelector(ruleEl.Selectors[j], AElementType, AId, AClasses, APseudo, spec) then
-          begin
-            matched := True;
-            Break;
-          end;
-        end;
-
-        if matched then
-        begin
-          if matchCount = Length(matches) then
-            SetLength(matches, Max(8, matchCount * 2));
-          matches[matchCount].Specificity := spec;
-          matches[matchCount].Order := i;
-          matches[matchCount].RuleEl := ruleEl;
-          Inc(matchCount);
-        end;
-      end;
-    end;
-  end;
-
-  // Sort matching rules by specificity, then order (cascade precedence)
-  for i := 0 to matchCount - 2 do
-    for j := i + 1 to matchCount - 1 do
-    begin
-      if (matches[i].Specificity > matches[j].Specificity) or
-         ((matches[i].Specificity = matches[j].Specificity) and (matches[i].Order > matches[j].Order)) then
-      begin
-        temp := matches[i];
-        matches[i] := matches[j];
-        matches[j] := temp;
-      end;
-    end;
-
-  // Apply matched rules in cascade order
-  for i := 0 to matchCount - 1 do
-  begin
-    ruleEl := matches[i].RuleEl;
-    for k := 0 to ruleEl.ChildCount - 1 do
-    begin
-      if ruleEl.Children[k] is TCSSDeclarationElement then
-      begin
-        decl := TCSSDeclarationElement(ruleEl.Children[k]);
-        ApplyDeclarationToStyle(decl, Result);
-      end;
-    end;
-  end;
-
-  // Finally apply inline style (highest specificity: 1000)
-  if Trim(AInlineCss) <> '' then
-  begin
-    inlineStyle := ParseInlineStyle(AInlineCss);
-    Result.Merge(inlineStyle);
   end;
 end;
 

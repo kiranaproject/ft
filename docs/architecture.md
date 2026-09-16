@@ -16,7 +16,7 @@ Floria Toolkit (`Ft`) is engineered as a lightweight, modular desktop GUI framew
 │                    Floria C FFI (ft.pas)                    │
 ├──────────────────────────────┬──────────────────────────────┤
 │    Widget Engine             │    CSS & Theming Engine      │
-│    - ft.widget.pas           │    - ft.css.pas (fcl-css)    │
+│    - ft.widget.pas           │    - ft.css.pas (Floria.CSS) │
 │    - ft.widget.buttons.pas   │    - ft.theme.pas            │
 │    - ft.widget.containers.pas│    - ft.animation.pas        │
 │    - ft.widget.menus.pas     │                              │
@@ -50,7 +50,7 @@ Floria Toolkit bypasses traditional rasterization libraries in favor of Anti-Gra
 - **Multi-Window Broadcaster**: Uses `TFtX11Broadcaster` to propagate global stylesheet updates, theme changes, and dark-mode toggles across all active main windows and popup menus simultaneously.
 
 ### 3. CSS & Theming Engine (`Ft.Css`, `Ft.Theme`)
-- **Standards-Compliant Parser**: Uses Free Pascal's `fcl-css` parser to parse standard `.css` stylesheets into syntax trees.
+- **Standards-Compliant Parser**: Uses the Floria standard library's `Floria.CSS` engine (`florialib`) to parse standard `.css` stylesheets into syntax trees.
 - **Style Resolution & Specificity**: Evaluates element selectors, class selectors (`.dark`, `.danger`), ID selectors (`#name`), and state pseudo-classes (`:hover`, `:active`, `:focus`, `:checked`).
 - **Dirty-Flag Invalidation**: Widgets cache their resolved styles in `FResolvedStyle` and only recompute when `InvalidateStyle()` is called (e.g. on state or theme change).
 

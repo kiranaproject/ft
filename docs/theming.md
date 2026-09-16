@@ -1,6 +1,6 @@
 # Theming & CSS Guide
 
-Floria Toolkit (`Ft`) features a native CSS theming and styling engine powered by Free Pascal's `fcl-css` parser. All themes are defined as standard `.css` stylesheets with full support for element selectors, class selectors, ID selectors, state pseudo-classes, and CSS transitions.
+Floria Toolkit (`Ft`) features a native CSS theming and styling engine powered by the `Floria.CSS` engine in `florialib`. All themes are defined as standard `.css` stylesheets with full support for element selectors, class selectors, ID selectors, state pseudo-classes, and CSS transitions.
 
 ---
 
@@ -19,7 +19,7 @@ Floria Toolkit (`Ft`) features a native CSS theming and styling engine powered b
 ## Theme Architecture
 
 Floria Toolkit's theming pipeline separates styling from widget logic:
-- **Parser (`fcl-css`)**: Parses standards-compliant CSS grammar directly into a syntax tree (`TCSSDocument`).
+- **Parser (`Floria.CSS`)**: Parses standards-compliant CSS grammar directly into a syntax tree (`TCSSStylesheet`).
 - **Resolver (`Ft.Css`)**: Resolves widget styles by querying the document hierarchy with specific specificity rules (inline style > `#id` > `.class` > element type).
 - **Renderer (`Ft.Canvas.Agg`)**: Converts resolved color tuples, borders, shadows, and radii into vector primitives rendered by Anti-Grain Geometry.
 - **Animator (`Ft.Animation`)**: Intercepts style changes with active `transition` properties and animates them at 60 FPS.
