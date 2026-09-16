@@ -407,6 +407,48 @@ int32_t ft_style_load_css_string(const char* css_string);
 /* Animation Engine */
 int32_t ft_animation_is_running(void);
 
+/* ========================================================================= */
+/* Bitmaps, Images & Direct Canvas Drawing                                   */
+/* ========================================================================= */
+
+typedef void* FtBitmap;
+
+typedef enum {
+    FT_IMAGE_SCALE_FIT = 0,     /* Aspect ratio preserved, centered */
+    FT_IMAGE_SCALE_STRETCH = 1, /* Stretched to fill entire widget bounds */
+    FT_IMAGE_SCALE_CENTER = 2,  /* 1:1 original size, centered */
+    FT_IMAGE_SCALE_NONE = 3     /* 1:1 original size at top-left */
+} FtImageScaleMode;
+
+/* Bitmap Operations */
+FtBitmap ft_bitmap_create(int32_t width, int32_t height);
+FtBitmap ft_bitmap_load_file(const char* filepath);
+FtBitmap ft_bitmap_load_memory(const void* data, int32_t size);
+FtBitmap ft_bitmap_create_from_rgba(const void* pixels, int32_t width, int32_t height);
+FtBitmap ft_bitmap_create_from_bgra(const void* pixels, int32_t width, int32_t height);
+int32_t ft_bitmap_get_width(FtBitmap bmp);
+int32_t ft_bitmap_get_height(FtBitmap bmp);
+int32_t ft_bitmap_get_stride(FtBitmap bmp);
+void* ft_bitmap_get_pixels(FtBitmap bmp);
+FtBitmap ft_bitmap_create_scaled(FtBitmap bmp, int32_t new_width, int32_t new_height);
+void ft_bitmap_destroy(FtBitmap bmp);
+
+/* Image Widget */
+FtWidget ft_image_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, const char* filepath);
+void ft_image_load_file(FtWidget image, const char* filepath);
+void ft_image_load_memory(FtWidget image, const void* data, int32_t size);
+void ft_image_set_bitmap(FtWidget image, FtBitmap bmp, int32_t owns_bitmap);
+FtBitmap ft_image_get_bitmap(FtWidget image);
+void ft_image_set_scale_mode(FtWidget image, int32_t mode);
+int32_t ft_image_get_scale_mode(FtWidget image);
+void ft_image_set_opacity(FtWidget image, double opacity);
+double ft_image_get_opacity(FtWidget image);
+
+/* Direct Canvas Image Drawing */
+void ft_canvas_draw_image(void* canvas, double x, double y, FtBitmap bmp, double opacity);
+void ft_canvas_draw_image_scaled(void* canvas, double x, double y, double w, double h, FtBitmap bmp, double opacity);
+void ft_canvas_draw_image_part(void* canvas, double x, double y, double w, double h, FtBitmap bmp, int32_t src_x, int32_t src_y, int32_t src_w, int32_t src_h, double opacity);
+
 #ifdef __cplusplus
 }
 #endif

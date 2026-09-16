@@ -22,7 +22,9 @@ uses
   agg_rounded_rect,
   agg_path_storage,
   agg_math_stroke,
-  Ft.Font;
+  agg_basics,
+  Ft.Font,
+  Ft.Bitmap;
 
 type
   TFtClipRect = record
@@ -68,6 +70,11 @@ type
     procedure DrawCircleOutline(CX, CY, Radius, BorderWidth: Double; R, G, B: Double; A: Double = 1.0);
     procedure DrawLine(X1, Y1, X2, Y2, Width: Double; R, G, B: Double; A: Double = 1.0);
     procedure DrawTextLeft(X, Y, W, H: Double; const AText: string; AFont: TFtFont; R, G, B: Double);
+
+    { Image & Bitmap Drawing }
+    procedure DrawImage(X, Y: Double; AImage: TFtBitmap; AOpacity: Double = 1.0);
+    procedure DrawImageScaled(X, Y, W, H: Double; AImage: TFtBitmap; AOpacity: Double = 1.0);
+    procedure DrawImagePart(X, Y, W, H: Double; AImage: TFtBitmap; SrcX, SrcY, SrcW, SrcH: Integer; AOpacity: Double = 1.0);
 
     { Legacy overloads }
     procedure DrawText(X, Y: Double; const AText: string; ASize: Double; R, G, B: Double);
@@ -583,6 +590,165 @@ begin
   if Assigned(F) and (Abs(F.Size - ASize) > 0.5) then
     F := FtFontManager().GetFont(Format('%s-%.1f', [F.FamilyName, ASize]));
   DrawTextCentered(X, Y, W, H, AText, F, R, G, B);
+end;
+
+procedure TFtCanvasAgg.DrawImage(X, Y: Double; AImage: TFtBitmap; AOpacity: Double = 1.0);
+var
+  cover: int8u;
+  dstX, dstY: Integer;
+begin
+  if not Assigned(AImage) or (AImage.Width <= 0) or (AImage.Height <= 0) or (AImage.PixelBuffer = nil) then Exit;
+  if AOpacity <= 0.0 then Exit;
+
+  dstX := Round(X);
+  dstY := Round(Y);
+
+  if AOpacity >= 1.0 then
+    cover := 255
+  else
+    cover := Round(AOpacity * 255.0);
+
+  FRendererBase.blend_from(AImage.PixFormatPtr, nil, dstX, dstY, cover);
+end;
+
+procedure TFtCanvasAgg.DrawImagePart(X, Y, W, H: Double; AImage: TFtBitmap; SrcX, SrcY, SrcW, SrcH: Integer; AOpacity: Double = 1.0);
+var
+  dstX, dstY, dstW, dstH: Integer;
+  clip: rect_ptr;
+  minX, maxX, minY, maxY: Integer;
+  dx, dy: Integer;
+  stepX_fp, stepY_fp: Int64;
+  curSrcY_fp, curSrcX_fp: Int64;
+  sx, sy: Integer;
+  fx, fy, invFx, invFy: Integer;
+  srcStride, dstStride: Integer;
+  srcPixels, dstPixels, dstRow: PByte;
+  p00, p10, p01, p11: PByte;
+  b, g, r, a: Integer;
+  invA, dstB, dstG, dstR, dstA, finalA: Integer;
+  globalAlpha: Integer;
+  srcX0_fp, srcY0_fp: Int64;
+begin
+  if not Assigned(AImage) or (AImage.Width <= 0) or (AImage.Height <= 0) or (AImage.PixelBuffer = nil) then Exit;
+  if (W <= 0) or (H <= 0) or (SrcW <= 0) or (SrcH <= 0) or (AOpacity <= 0.0) then Exit;
+
+  dstX := Round(X);
+  dstY := Round(Y);
+  dstW := Round(W);
+  dstH := Round(H);
+
+  if (dstW <= 0) or (dstH <= 0) then Exit;
+
+  // Clip destination to active clip rect
+  clip := FRendererBase._clip_box;
+  minX := dstX;
+  if minX < clip^.x1 then minX := clip^.x1;
+  if minX < 0 then minX := 0;
+
+  maxX := dstX + dstW - 1;
+  if maxX > clip^.x2 then maxX := clip^.x2;
+  if maxX >= FWidth then maxX := FWidth - 1;
+
+  minY := dstY;
+  if minY < clip^.y1 then minY := clip^.y1;
+  if minY < 0 then minY := 0;
+
+  maxY := dstY + dstH - 1;
+  if maxY > clip^.y2 then maxY := clip^.y2;
+  if maxY >= FHeight then maxY := FHeight - 1;
+
+  if (minX > maxX) or (minY > maxY) then Exit;
+
+  if AOpacity >= 1.0 then
+    globalAlpha := 255
+  else
+    globalAlpha := Round(AOpacity * 255.0);
+
+  stepX_fp := (Int64(SrcW) shl 16) div dstW;
+  stepY_fp := (Int64(SrcH) shl 16) div dstH;
+  srcX0_fp := Int64(SrcX) shl 16;
+  srcY0_fp := Int64(SrcY) shl 16;
+
+  srcStride := AImage.Stride;
+  dstStride := FWidth * 4;
+  srcPixels := PByte(AImage.PixelBuffer);
+  dstPixels := PByte(FBuffer);
+
+  for dy := minY to maxY do
+  begin
+    curSrcY_fp := srcY0_fp + Int64(dy - dstY) * stepY_fp;
+    sy := curSrcY_fp shr 16;
+    fy := (curSrcY_fp shr 8) and $FF;
+    invFy := 255 - fy;
+
+    if sy < 0 then sy := 0;
+    if sy >= AImage.Height - 1 then sy := AImage.Height - 2;
+    if sy < 0 then sy := 0;
+
+    dstRow := dstPixels + dy * dstStride + minX * 4;
+
+    for dx := minX to maxX do
+    begin
+      curSrcX_fp := srcX0_fp + Int64(dx - dstX) * stepX_fp;
+      sx := curSrcX_fp shr 16;
+      fx := (curSrcX_fp shr 8) and $FF;
+      invFx := 255 - fx;
+
+      if sx < 0 then sx := 0;
+      if sx >= AImage.Width - 1 then sx := AImage.Width - 2;
+      if sx < 0 then sx := 0;
+
+      p00 := srcPixels + sy * srcStride + sx * 4;
+      p10 := p00 + 4;
+      p01 := p00 + srcStride;
+      p11 := p01 + 4;
+
+      b := (p00[0] * invFx * invFy + p10[0] * fx * invFy + p01[0] * invFx * fy + p11[0] * fx * fy) shr 16;
+      g := (p00[1] * invFx * invFy + p10[1] * fx * invFy + p01[1] * invFx * fy + p11[1] * fx * fy) shr 16;
+      r := (p00[2] * invFx * invFy + p10[2] * fx * invFy + p01[2] * invFx * fy + p11[2] * fx * fy) shr 16;
+      a := (p00[3] * invFx * invFy + p10[3] * fx * invFy + p01[3] * invFx * fy + p11[3] * fx * fy) shr 16;
+
+      if globalAlpha < 255 then
+        a := (a * globalAlpha) shr 8;
+
+      if a > 0 then
+      begin
+        if a >= 255 then
+        begin
+          dstRow[0] := b;
+          dstRow[1] := g;
+          dstRow[2] := r;
+          dstRow[3] := 255;
+        end
+        else
+        begin
+          invA := 255 - a;
+          dstB := dstRow[0];
+          dstG := dstRow[1];
+          dstR := dstRow[2];
+          dstA := dstRow[3];
+
+          dstRow[0] := (b * a + dstB * invA) shr 8;
+          dstRow[1] := (g * a + dstG * invA) shr 8;
+          dstRow[2] := (r * a + dstR * invA) shr 8;
+          finalA := a + ((dstA * invA) shr 8);
+          if finalA > 255 then finalA := 255;
+          dstRow[3] := finalA;
+        end;
+      end;
+
+      Inc(dstRow, 4);
+    end;
+  end;
+end;
+
+procedure TFtCanvasAgg.DrawImageScaled(X, Y, W, H: Double; AImage: TFtBitmap; AOpacity: Double = 1.0);
+begin
+  if not Assigned(AImage) then Exit;
+  if (Round(W) = AImage.Width) and (Round(H) = AImage.Height) then
+    DrawImage(X, Y, AImage, AOpacity)
+  else
+    DrawImagePart(X, Y, W, H, AImage, 0, 0, AImage.Width, AImage.Height, AOpacity);
 end;
 
 end.

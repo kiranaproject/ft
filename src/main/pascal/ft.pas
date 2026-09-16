@@ -19,7 +19,10 @@ uses
   Ft.Widget.Meters,
   Ft.Theme,
   Ft.Css,
-  Ft.Animation;
+  Ft.Animation,
+  Ft.Canvas.Agg,
+  Ft.Bitmap,
+  Ft.Widget.Images;
 
 var
   gLastSystemFontDesc: AnsiString;
@@ -2251,6 +2254,188 @@ begin
     Result := 0.0;
 end;
 
+{ --- Bitmap & Image API --- }
+
+function ft_bitmap_create(AWidth, AHeight: cint32): Pointer; cdecl; export;
+begin
+  Result := TFtBitmap.Create(AWidth, AHeight);
+end;
+
+function ft_bitmap_load_file(AFilePath: PAnsiChar): Pointer; cdecl; export;
+begin
+  if (AFilePath = nil) or (AFilePath^ = #0) then
+    Result := TFtBitmap.Create(0, 0)
+  else
+    Result := TFtBitmap.CreateFromFile(string(AFilePath));
+end;
+
+function ft_bitmap_load_memory(AData: Pointer; ASize: cint32): Pointer; cdecl; export;
+begin
+  if (AData = nil) or (ASize <= 0) then
+    Result := TFtBitmap.Create(0, 0)
+  else
+    Result := TFtBitmap.CreateFromMemory(AData, ASize);
+end;
+
+function ft_bitmap_create_from_rgba(APixels: Pointer; AWidth, AHeight: cint32): Pointer; cdecl; export;
+begin
+  Result := TFtBitmap.CreateFromRGBA(APixels, AWidth, AHeight);
+end;
+
+function ft_bitmap_create_from_bgra(APixels: Pointer; AWidth, AHeight: cint32): Pointer; cdecl; export;
+begin
+  Result := TFtBitmap.CreateFromBGRA(APixels, AWidth, AHeight);
+end;
+
+function ft_bitmap_get_width(ABitmap: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(ABitmap) and (TObject(ABitmap) is TFtBitmap) then
+    Result := TFtBitmap(ABitmap).Width
+  else
+    Result := 0;
+end;
+
+function ft_bitmap_get_height(ABitmap: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(ABitmap) and (TObject(ABitmap) is TFtBitmap) then
+    Result := TFtBitmap(ABitmap).Height
+  else
+    Result := 0;
+end;
+
+function ft_bitmap_get_stride(ABitmap: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(ABitmap) and (TObject(ABitmap) is TFtBitmap) then
+    Result := TFtBitmap(ABitmap).Stride
+  else
+    Result := 0;
+end;
+
+function ft_bitmap_get_pixels(ABitmap: Pointer): Pointer; cdecl; export;
+begin
+  if Assigned(ABitmap) and (TObject(ABitmap) is TFtBitmap) then
+    Result := TFtBitmap(ABitmap).PixelBuffer
+  else
+    Result := nil;
+end;
+
+function ft_bitmap_create_scaled(ABitmap: Pointer; ANewW, ANewH: cint32): Pointer; cdecl; export;
+begin
+  if Assigned(ABitmap) and (TObject(ABitmap) is TFtBitmap) then
+    Result := TFtBitmap(ABitmap).CreateScaled(ANewW, ANewH)
+  else
+    Result := TFtBitmap.Create(0, 0);
+end;
+
+procedure ft_bitmap_destroy(ABitmap: Pointer); cdecl; export;
+begin
+  if Assigned(ABitmap) and (TObject(ABitmap) is TFtBitmap) then
+    TFtBitmap(ABitmap).Free();
+end;
+
+{ --- Image Widget API --- }
+
+function ft_image_create(AParent: Pointer; AX, AY, AW, AH: cint32; AFilePath: PAnsiChar): Pointer; cdecl; export;
+var
+  p: TFtWidget;
+  pathStr: string;
+begin
+  AdjustChildCoordinates(AParent, AX, AY);
+  p := TFtWidget(AParent);
+  if AFilePath <> nil then
+    pathStr := string(AFilePath)
+  else
+    pathStr := '';
+  Result := TFtImage.Create(p, AX, AY, AW, AH, pathStr);
+  if Assigned(AParent) and (TObject(AParent) is TFtContainer) then
+    TFtContainer(AParent).UpdateScrollBars();
+end;
+
+procedure ft_image_load_file(AWidget: Pointer; AFilePath: PAnsiChar); cdecl; export;
+begin
+  if Assigned(AWidget) and (TObject(AWidget) is TFtImage) and (AFilePath <> nil) then
+    TFtImage(AWidget).LoadFromFile(string(AFilePath));
+end;
+
+procedure ft_image_load_memory(AWidget: Pointer; AData: Pointer; ASize: cint32); cdecl; export;
+begin
+  if Assigned(AWidget) and (TObject(AWidget) is TFtImage) then
+    TFtImage(AWidget).LoadFromMemory(AData, ASize);
+end;
+
+procedure ft_image_set_bitmap(AWidget: Pointer; ABitmap: Pointer; AOwnsBitmap: cint32); cdecl; export;
+begin
+  if Assigned(AWidget) and (TObject(AWidget) is TFtImage) then
+    TFtImage(AWidget).SetBitmap(TFtBitmap(ABitmap), AOwnsBitmap <> 0);
+end;
+
+function ft_image_get_bitmap(AWidget: Pointer): Pointer; cdecl; export;
+begin
+  if Assigned(AWidget) and (TObject(AWidget) is TFtImage) then
+    Result := TFtImage(AWidget).Bitmap
+  else
+    Result := nil;
+end;
+
+procedure ft_image_set_scale_mode(AWidget: Pointer; AMode: cint32); cdecl; export;
+begin
+  if Assigned(AWidget) and (TObject(AWidget) is TFtImage) then
+  begin
+    case AMode of
+      1: TFtImage(AWidget).ScaleMode := ftismStretch;
+      2: TFtImage(AWidget).ScaleMode := ftismCenter;
+      3: TFtImage(AWidget).ScaleMode := ftismNone;
+      else TFtImage(AWidget).ScaleMode := ftismFit;
+    end;
+    TFtWidget(AWidget).Invalidate();
+  end;
+end;
+
+function ft_image_get_scale_mode(AWidget: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(AWidget) and (TObject(AWidget) is TFtImage) then
+    Result := Ord(TFtImage(AWidget).ScaleMode)
+  else
+    Result := 0;
+end;
+
+procedure ft_image_set_opacity(AWidget: Pointer; AOpacity: cdouble); cdecl; export;
+begin
+  if Assigned(AWidget) and (TObject(AWidget) is TFtImage) then
+  begin
+    TFtImage(AWidget).Opacity := AOpacity;
+    TFtWidget(AWidget).Invalidate();
+  end;
+end;
+
+function ft_image_get_opacity(AWidget: Pointer): cdouble; cdecl; export;
+begin
+  if Assigned(AWidget) and (TObject(AWidget) is TFtImage) then
+    Result := TFtImage(AWidget).Opacity
+  else
+    Result := 1.0;
+end;
+
+{ --- Canvas Direct Image Drawing API --- }
+
+procedure ft_canvas_draw_image(ACanvas: Pointer; AX, AY: cdouble; ABitmap: Pointer; AOpacity: cdouble); cdecl; export;
+begin
+  if Assigned(ACanvas) and Assigned(ABitmap) and (TObject(ACanvas) is TFtCanvasAgg) and (TObject(ABitmap) is TFtBitmap) then
+    TFtCanvasAgg(ACanvas).DrawImage(AX, AY, TFtBitmap(ABitmap), AOpacity);
+end;
+
+procedure ft_canvas_draw_image_scaled(ACanvas: Pointer; AX, AY, AW, AH: cdouble; ABitmap: Pointer; AOpacity: cdouble); cdecl; export;
+begin
+  if Assigned(ACanvas) and Assigned(ABitmap) and (TObject(ACanvas) is TFtCanvasAgg) and (TObject(ABitmap) is TFtBitmap) then
+    TFtCanvasAgg(ACanvas).DrawImageScaled(AX, AY, AW, AH, TFtBitmap(ABitmap), AOpacity);
+end;
+
+procedure ft_canvas_draw_image_part(ACanvas: Pointer; AX, AY, AW, AH: cdouble; ABitmap: Pointer; ASrcX, ASrcY, ASrcW, ASrcH: cint32; AOpacity: cdouble); cdecl; export;
+begin
+  if Assigned(ACanvas) and Assigned(ABitmap) and (TObject(ACanvas) is TFtCanvasAgg) and (TObject(ABitmap) is TFtBitmap) then
+    TFtCanvasAgg(ACanvas).DrawImagePart(AX, AY, AW, AH, TFtBitmap(ABitmap), ASrcX, ASrcY, ASrcW, ASrcH, AOpacity);
+end;
+
 exports
   ft_init,
   ft_main_loop,
@@ -2505,7 +2690,30 @@ exports
   ft_widget_get_style,
   ft_style_load_css_file,
   ft_style_load_css_string,
-  ft_animation_is_running;
+  ft_animation_is_running,
+  ft_bitmap_create,
+  ft_bitmap_load_file,
+  ft_bitmap_load_memory,
+  ft_bitmap_create_from_rgba,
+  ft_bitmap_create_from_bgra,
+  ft_bitmap_get_width,
+  ft_bitmap_get_height,
+  ft_bitmap_get_stride,
+  ft_bitmap_get_pixels,
+  ft_bitmap_create_scaled,
+  ft_bitmap_destroy,
+  ft_image_create,
+  ft_image_load_file,
+  ft_image_load_memory,
+  ft_image_set_bitmap,
+  ft_image_get_bitmap,
+  ft_image_set_scale_mode,
+  ft_image_get_scale_mode,
+  ft_image_set_opacity,
+  ft_image_get_opacity,
+  ft_canvas_draw_image,
+  ft_canvas_draw_image_scaled,
+  ft_canvas_draw_image_part;
 
 begin
 end.

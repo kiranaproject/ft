@@ -98,6 +98,16 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="Ft.Widget.Menus"/>
       </Unit>
+      <Unit>
+        <Filename Value="ft.bitmap.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Bitmap"/>
+      </Unit>
+      <Unit>
+        <Filename Value="ft.widget.images.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Widget.Images"/>
+      </Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
