@@ -122,7 +122,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="../../../3rdparty/fcl-css/src"/>
+      <OtherUnitFiles Value="../../../3rdparty/fcl-css/src;../../../florialib/src/main/pascal"/>
       <UnitOutputDirectory Value="../../../target/bin/lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <CodeGeneration>
