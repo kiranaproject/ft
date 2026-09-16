@@ -55,6 +55,12 @@ type
     FDirtyBottom: Integer;
     FHasDirtyRect: Boolean;
     FFullRepaint: Boolean;
+    FHasPendingResize: Boolean;
+    FPendingResizeW: Integer;
+    FPendingResizeH: Integer;
+    FLastResizeTime: QWord;
+    FLastConfigureTime: QWord;
+    FLastResizeRenderTime: QWord;
     FBorderless: Boolean;
     FSkipTaskbar: Boolean;
     FWindowType: TFtWindowType;
@@ -197,6 +203,8 @@ var
   Event: TXEvent;
   win: TFtX11Window;
   i: Integer;
+  nowMs: QWord;
+  shouldResize: Boolean;
 begin
   while Assigned(GDisplay) and (XPending(GDisplay) > 0) do
   begin
@@ -216,11 +224,37 @@ begin
 
   if Assigned(GWindows) then
   begin
+    nowMs := GetTickCount64();
     for i := GWindows.Count - 1 downto 0 do
     begin
       if i < GWindows.Count then
       begin
         win := TFtX11Window(GWindows[i]);
+        if win.FHasPendingResize then
+        begin
+          if (win.FPendingResizeW = win.Width) and (win.FPendingResizeH = win.Height) then
+            win.FHasPendingResize := False
+          else
+          begin
+            // Frame skipping during resize bursts:
+            // 1) Drag has paused/ended (>= 25ms since last configure event), OR
+            // 2) At least 30ms passed since previous resize render completed (~30 FPS rate)
+            shouldResize := ((nowMs - win.FLastConfigureTime) >= 25) or
+                            ((nowMs - win.FLastResizeRenderTime) >= 30);
+            if shouldResize then
+            begin
+              win.FHasPendingResize := False;
+              win.FNeedsRepaint := False;
+
+              // Discard any queued Expose events for this window since Resize does a full redraw
+              while XCheckTypedWindowEvent(win.FDisplay, win.FWindow, Expose, @Event) do
+                ;
+
+              win.Resize(win.FPendingResizeW, win.FPendingResizeH, False);
+            end;
+          end;
+        end;
+
         if win.FNeedsRepaint then
         begin
           win.FNeedsRepaint := False;
@@ -228,6 +262,21 @@ begin
         end;
       end;
     end;
+  end;
+end;
+
+function IsAnyWindowResizing(ANowMs: QWord): Boolean;
+var
+  i: Integer;
+  w: TFtX11Window;
+begin
+  Result := False;
+  if not Assigned(GWindows) then Exit;
+  for i := 0 to GWindows.Count - 1 do
+  begin
+    w := TFtX11Window(GWindows[i]);
+    if w.FHasPendingResize or ((ANowMs >= w.FLastConfigureTime) and ((ANowMs - w.FLastConfigureTime) < 150)) then
+      Exit(True);
   end;
 end;
 
@@ -251,7 +300,7 @@ begin
     begin
       nowMs := GetTickCount64();
       elapsedMs := Integer(nowMs - frameStartMs);
-      if animator.HasActiveTransitions() then
+      if animator.HasActiveTransitions() or IsAnyWindowResizing(nowMs) then
       begin
         if elapsedMs < 16 then
           Sleep(16 - elapsedMs)
@@ -269,7 +318,13 @@ begin
     else
     begin
       if Assigned(GDisplay) and (XPending(GDisplay) = 0) then
-        Sleep(10);
+      begin
+        nowMs := GetTickCount64();
+        if IsAnyWindowResizing(nowMs) then
+          Sleep(8)
+        else
+          Sleep(10);
+      end;
     end;
   end;
   if Assigned(GDisplay) then
@@ -364,6 +419,12 @@ begin
   FDirtyBottom := 0;
   FHasDirtyRect := False;
   FFullRepaint := True;
+  FHasPendingResize := False;
+  FPendingResizeW := 0;
+  FPendingResizeH := 0;
+  FLastResizeTime := 0;
+  FLastConfigureTime := 0;
+  FLastResizeRenderTime := 0;
   XSelectInput(FDisplay, FWindow, ExposureMask or ButtonPressMask or ButtonReleaseMask or PointerMotionMask or LeaveWindowMask or StructureNotifyMask or KeyPressMask or KeyReleaseMask);
 
   FWMDeleteWindow := XInternAtom(FDisplay, 'WM_DELETE_WINDOW', False);
@@ -612,6 +673,8 @@ begin
 
   Width := NewW;
   Height := NewH;
+  FHasPendingResize := False;
+  FLastResizeTime := GetTickCount64();
   if Assigned(FMainMenu) then
     FMainMenu.Width := Width;
 
@@ -640,6 +703,7 @@ begin
 
   FFullRepaint := True;
   Repaint();
+  FLastResizeRenderTime := GetTickCount64();
 end;
 
 procedure TFtX11Window.Show();
@@ -1185,7 +1249,6 @@ var
   Target: TFtWidget;
   focusTarget: TFtWidget;
   ctxWidget: TFtWidget;
-  newW, newH: Integer;
   keysym: TKeySym;
   strBuf: array[0..31] of AnsiChar;
   charCount: Integer;
@@ -1207,12 +1270,14 @@ begin
 
     ConfigureNotify:
     begin
-      newW := Event.xconfigure.width;
-      newH := Event.xconfigure.height;
-      if (newW <> Width) or (newH <> Height) then
-        Resize(newW, newH, False);
+      while XCheckTypedWindowEvent(FDisplay, FWindow, ConfigureNotify, @Event) do
+        ;
+      FPendingResizeW := Event.xconfigure.width;
+      FPendingResizeH := Event.xconfigure.height;
+      FHasPendingResize := True;
       X := Event.xconfigure.x;
       Y := Event.xconfigure.y;
+      FLastConfigureTime := GetTickCount64();
     end;
 
     MotionNotify:
