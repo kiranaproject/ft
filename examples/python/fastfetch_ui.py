@@ -4,7 +4,7 @@ Floria Toolkit (Ft) - Fastfetch Desktop Inspector (Python Example)
 A modern desktop system information dashboard inspired by fastfetch / neofetch.
 Demonstrates:
   - System hardware & OS discovery (CPU, GPU, RAM, Disk, Uptime, DE, WM, Shell)
-  - Distro ASCII art logo with custom colors
+  - Distro logo image rendering (Ubuntu badge / logo) with native AggPas alpha compositing
   - Progress bars for live RAM, Swap, and Disk utilization
   - Indeterminate activity bar powered by the optimized partial blit engine
   - Live Refresh, Dark Mode toggle, and Theme switching (Default, Nord, Dracula, Gruvbox)
@@ -97,6 +97,9 @@ ft.ft_text_set_text.restype = None
 ft.ft_text_set_color.argtypes = [ctypes.c_void_p, ctypes.c_double, ctypes.c_double, ctypes.c_double]
 ft.ft_text_set_color.restype = None
 
+ft.ft_text_set_alignment.argtypes = [ctypes.c_void_p, ctypes.c_int32]
+ft.ft_text_set_alignment.restype = None
+
 ft.ft_widget_set_font.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 ft.ft_widget_set_font.restype = None
 
@@ -157,6 +160,28 @@ ft.ft_theme_set_dark_mode.restype = None
 
 ft.ft_theme_get_dark_mode.argtypes = []
 ft.ft_theme_get_dark_mode.restype = ctypes.c_int32
+
+# Image Widget API
+ft.ft_image_create.argtypes = [ctypes.c_void_p, ctypes.c_int32, ctypes.c_int32, ctypes.c_int32, ctypes.c_int32, ctypes.c_char_p]
+ft.ft_image_create.restype = ctypes.c_void_p
+
+ft.ft_image_load_file.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+ft.ft_image_load_file.restype = None
+
+ft.ft_image_set_scale_mode.argtypes = [ctypes.c_void_p, ctypes.c_int32]
+ft.ft_image_set_scale_mode.restype = None
+
+ft.ft_image_set_opacity.argtypes = [ctypes.c_void_p, ctypes.c_double]
+ft.ft_image_set_opacity.restype = None
+
+ft.ft_widget_set_style.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+ft.ft_widget_set_style.restype = None
+
+# Scale modes
+FT_IMAGE_SCALE_FIT = 0
+FT_IMAGE_SCALE_STRETCH = 1
+FT_IMAGE_SCALE_CENTER = 2
+FT_IMAGE_SCALE_NONE = 3
 
 
 # ---------------------------------------------------------------------------
@@ -380,20 +405,53 @@ LINUX_ASCII = [
     r"     \___)=(___/    ",
 ]
 
-def pick_distro_ascii_and_color(distro_id):
+def get_distro_logo_path(distro_id):
+    """Return path to distro logo image (prioritizing high-res assets)."""
+    assets_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../assets"))
+    ubuntu_png = os.path.join(assets_dir, "ubuntu_logo.png")
+    if os.path.exists(ubuntu_png):
+        return ubuntu_png
+
+    # Fallback to system locations if present
+    for p in [
+        "/usr/share/pixmaps/ubuntu-logo-text-dark.png",
+        "/usr/share/pixmaps/ubuntu-logo-text.png",
+        "/usr/share/icons/Yaru/256x256/places/start-here.png",
+    ]:
+        if os.path.exists(p):
+            return p
+    return None
+
+def pick_distro_color(distro_id):
     d = distro_id.lower()
     if "ubuntu" in d:
-        return UBUNTU_ASCII, (0.95, 0.45, 0.12)  # Ubuntu Orange
+        return (0.95, 0.45, 0.12)  # Ubuntu Orange
     elif "debian" in d:
-        return DEBIAN_ASCII, (0.85, 0.15, 0.30)  # Debian Red
+        return (0.85, 0.15, 0.30)  # Debian Red
     elif "arch" in d:
-        return ARCH_ASCII, (0.18, 0.65, 0.88)    # Arch Cyan
+        return (0.18, 0.65, 0.88)  # Arch Cyan
     elif "fedora" in d:
-        return FEDORA_ASCII, (0.20, 0.45, 0.85)  # Fedora Blue
+        return (0.20, 0.45, 0.85)  # Fedora Blue
     elif "mint" in d:
-        return UBUNTU_ASCII, (0.40, 0.80, 0.45)  # Mint Green
+        return (0.40, 0.80, 0.45)  # Mint Green
     else:
-        return LINUX_ASCII, (0.92, 0.75, 0.20)   # Tux Gold
+        return (0.92, 0.75, 0.20)  # Tux Gold
+
+def pick_distro_ascii_and_color(distro_id):
+    d = distro_id.lower()
+    c = pick_distro_color(distro_id)
+    if "ubuntu" in d:
+        return UBUNTU_ASCII, c
+    elif "debian" in d:
+        return DEBIAN_ASCII, c
+    elif "arch" in d:
+        return ARCH_ASCII, c
+    elif "fedora" in d:
+        return FEDORA_ASCII, c
+    elif "mint" in d:
+        return UBUNTU_ASCII, c
+    else:
+        return LINUX_ASCII, c
 
 
 # ---------------------------------------------------------------------------
@@ -464,44 +522,58 @@ def main():
     ft.ft_container_set_corner_radius(card_distro, 8.0)
     ft.ft_container_set_padding(card_distro, 16.0, 16.0)
 
-    # ASCII Logo
-    ascii_lines, (logo_r, logo_g, logo_b) = pick_distro_ascii_and_color(distro_id)
+    # Distro Image Logo & Identity
+    logo_r, logo_g, logo_b = pick_distro_color(distro_id)
+    logo_path = get_distro_logo_path(distro_id)
+    inner_w = col_left_w - 32
+    logo_size = 80
+    logo_x = (inner_w - logo_size) // 2
     cur_y = 0
-    for line in ascii_lines:
-        lbl_line = ft.ft_text_create(card_distro, 0, cur_y, col_left_w - 32, 16, line.encode("utf-8"))
-        ft.ft_widget_set_font(lbl_line, b"Monospace-Bold-11")
-        ft.ft_text_set_color(lbl_line, logo_r, logo_g, logo_b)
-        cur_y += 16
 
-    cur_y += 6
+    if logo_path and os.path.exists(logo_path):
+        img_logo = ft.ft_image_create(card_distro, logo_x, cur_y, logo_size, logo_size, to_bytes(logo_path))
+        ft.ft_image_set_scale_mode(img_logo, FT_IMAGE_SCALE_FIT)
+        cur_y += logo_size + 10
+    else:
+        # Fallback if image not found
+        ascii_lines, _ = pick_distro_ascii_and_color(distro_id)
+        for line in ascii_lines:
+            lbl_line = ft.ft_text_create(card_distro, 0, cur_y, inner_w, 16, line.encode("utf-8"))
+            ft.ft_widget_set_font(lbl_line, b"Monospace-Bold-11")
+            ft.ft_text_set_color(lbl_line, logo_r, logo_g, logo_b)
+            cur_y += 16
+        cur_y += 6
+
     # User@Host banner
-    lbl_user_host = ft.ft_text_create(card_distro, 0, cur_y, col_left_w - 32, 20, user_at_host.encode("utf-8"))
+    lbl_user_host = ft.ft_text_create(card_distro, 0, cur_y, inner_w, 20, user_at_host.encode("utf-8"))
+    ft.ft_text_set_alignment(lbl_user_host, 1)
     ft.ft_widget_set_font(lbl_user_host, b"Inter-Bold-13")
     ft.ft_text_set_color(lbl_user_host, logo_r, logo_g, logo_b)
     cur_y += 20
 
-    lbl_sep = ft.ft_text_create(card_distro, 0, cur_y, col_left_w - 32, 12, b"----------------------------------------")
+    lbl_sep = ft.ft_text_create(card_distro, 0, cur_y, inner_w, 12, b"--------------------------------")
+    ft.ft_text_set_alignment(lbl_sep, 1)
     ft.ft_widget_set_font(lbl_sep, b"Monospace-Regular-10")
     cur_y += 14
 
     # Distro summary fields
-    lbl_d_os = ft.ft_text_create(card_distro, 0, cur_y, col_left_w - 32, 18, f"OS: {distro_name}".encode("utf-8"))
+    lbl_d_os = ft.ft_text_create(card_distro, 0, cur_y, inner_w, 18, f"OS: {distro_name}".encode("utf-8"))
     ft.ft_widget_set_font(lbl_d_os, b"Inter-Medium-11")
     cur_y += 18
 
-    lbl_d_host = ft.ft_text_create(card_distro, 0, cur_y, col_left_w - 32, 18, f"Host: {hardware_model}".encode("utf-8"))
+    lbl_d_host = ft.ft_text_create(card_distro, 0, cur_y, inner_w, 18, f"Host: {hardware_model}".encode("utf-8"))
     ft.ft_widget_set_font(lbl_d_host, b"Inter-Regular-11")
     cur_y += 18
 
-    lbl_d_kernel = ft.ft_text_create(card_distro, 0, cur_y, col_left_w - 32, 18, f"Kernel: {kernel_str}".encode("utf-8"))
+    lbl_d_kernel = ft.ft_text_create(card_distro, 0, cur_y, inner_w, 18, f"Kernel: {kernel_str}".encode("utf-8"))
     ft.ft_widget_set_font(lbl_d_kernel, b"Inter-Regular-11")
     cur_y += 18
 
-    lbl_d_uptime = ft.ft_text_create(card_distro, 0, cur_y, col_left_w - 32, 18, f"Uptime: {get_uptime_str()}".encode("utf-8"))
+    lbl_d_uptime = ft.ft_text_create(card_distro, 0, cur_y, inner_w, 18, f"Uptime: {get_uptime_str()}".encode("utf-8"))
     ft.ft_widget_set_font(lbl_d_uptime, b"Inter-Regular-11")
     cur_y += 18
 
-    lbl_d_pkgs = ft.ft_text_create(card_distro, 0, cur_y, col_left_w - 32, 18, f"Packages: {packages_str}".encode("utf-8"))
+    lbl_d_pkgs = ft.ft_text_create(card_distro, 0, cur_y, inner_w, 18, f"Packages: {packages_str}".encode("utf-8"))
     ft.ft_widget_set_font(lbl_d_pkgs, b"Inter-Regular-11")
 
     # Card 2: Terminal Color Palette Swatches (Classic fastfetch signature)
