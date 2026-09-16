@@ -231,13 +231,14 @@ pkg-config --exists x11 || (echo "Error: libx11-dev missing" && exit 1)
 
 ### Step 2: Compile Shared Library
 ```bash
-lazbuild -B src/main/pascal/ft.lpi
+pasbuild compile
+# or: lazbuild -B src/main/pascal/ft.lpi
 ```
 
 ### Step 3: Compile and Run C Example
 ```bash
-gcc -Iinclude examples/c/main.c target/bin/libft.so -Wl,-rpath,'$ORIGIN/.' -o target/bin/c_example
-./target/bin/c_example
+gcc -Iinclude examples/c/main.c target/libft.so -Wl,-rpath,'$ORIGIN/.' -o target/c_example
+./target/c_example
 ```
 
 ### Step 4: Run Python Host Test

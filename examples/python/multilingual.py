@@ -11,8 +11,8 @@ import sys
 
 # Locate and load libft.so
 LIB_SEARCH_PATHS = [
-    os.path.abspath(os.path.join(os.path.dirname(__file__), "../../target/bin/libft.so")),
     os.path.abspath(os.path.join(os.path.dirname(__file__), "../../target/libft.so")),
+    "/usr/local/lib/libft.so",
 ]
 
 lib_path = None

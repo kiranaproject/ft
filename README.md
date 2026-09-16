@@ -114,7 +114,7 @@ int main(void) {
 ```python
 import ctypes
 
-ft = ctypes.CDLL("./target/bin/libft.so")
+ft = ctypes.CDLL("./target/libft.so")
 ft.ft_init()
 
 win = ft.ft_window_create(400, 250, b"Python Floria App")
@@ -134,7 +134,7 @@ ft.ft_quit()
 ## Building & Compiling
 
 ### Prerequisites
-- **Free Pascal Compiler** (`fpc` 3.2.0+)
+- **Free Pascal Compiler** (`fpc` 3.2.0+) or **PasBuild** / **Lazarus**
 - **GCC** or **Clang** (for C examples)
 - **Python 3** (for Python examples)
 - **X11 Development Headers** (`libX11`, `libXext`)
@@ -142,17 +142,13 @@ ft.ft_quit()
 
 ### 1. Build the Shared Library (`libft.so`)
 
+Using **PasBuild**:
 ```bash
-mkdir -p target/bin/lib/x86_64-linux
-
-fpc -Mobjfpc -Scghi -Cg -O1 -g -gl -vewnhibq \
-  -Fi./target/bin/lib/x86_64-linux \
-  -Fu./src/main/pascal/ \
-  -Fu./3rdparty/fcl-css/src/ \
-  -Fu$HOME/.pasbuild/repository/fpgui-framework/2.2.0-SNAPSHOT/x86_64-linux-3.2.3/units \
-  -FU./target/bin/lib/x86_64-linux/ \
-  -FE./target/bin/ \
-  -otarget/bin/libft.so src/main/pascal/ft.pas
+pasbuild compile
+```
+Or using **LazBuild**:
+```bash
+lazbuild src/main/pascal/ft.lpi
 ```
 
 ### 2. Build & Run C Examples
@@ -161,11 +157,11 @@ fpc -Mobjfpc -Scghi -Cg -O1 -g -gl -vewnhibq \
 ./build_examples.sh
 
 # Run any example
-./target/bin/c_example
-./target/bin/example_menus
-./target/bin/example_containers
-./target/bin/css_button_demo
-./target/bin/css_animation_demo
+./target/c_example
+./target/example_menus
+./target/example_containers
+./target/css_button_demo
+./target/css_animation_demo
 ```
 
 ### 3. Run Python Examples

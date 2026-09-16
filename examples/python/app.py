@@ -2,7 +2,7 @@ import ctypes
 import os
 
 lib_path = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "../../target/bin/libft.so")
+    os.path.join(os.path.dirname(__file__), "../../target/libft.so")
 )
 ft = ctypes.CDLL(lib_path)
 

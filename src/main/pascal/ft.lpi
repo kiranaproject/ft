@@ -118,12 +118,12 @@
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="../../../target/bin/libft"/>
+      <Filename Value="../../../target/libft"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
       <OtherUnitFiles Value="../../../3rdparty/fcl-css/src;../../../florialib/src/main/pascal"/>
-      <UnitOutputDirectory Value="../../../target/bin/lib/$(TargetCPU)-$(TargetOS)"/>
+      <UnitOutputDirectory Value="../../../target/units/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <CodeGeneration>
       <RelocatableUnit Value="True"/>
