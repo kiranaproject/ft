@@ -64,7 +64,7 @@ type
   public
     constructor Create(W, H: Integer; Title: string); reintroduce;
     destructor Destroy(); override;
-    procedure Resize(NewW, NewH: Integer);
+    procedure Resize(NewW, NewH: Integer; AApplyToX11: Boolean = True);
     procedure SetTitle(const ATitle: string);
     procedure SetBorderless(ABorderless: Boolean);
     procedure SetSkipTaskbar(ASkip: Boolean);
@@ -603,7 +603,7 @@ begin
   inherited Destroy();
 end;
 
-procedure TFtX11Window.Resize(NewW, NewH: Integer);
+procedure TFtX11Window.Resize(NewW, NewH: Integer; AApplyToX11: Boolean = True);
 var
   Visual: PVisual;
   ScreenNum: cint;
@@ -615,7 +615,7 @@ begin
   if Assigned(FMainMenu) then
     FMainMenu.Width := Width;
 
-  if (FWindow <> None) and Assigned(FDisplay) then
+  if AApplyToX11 and (FWindow <> None) and Assigned(FDisplay) then
     XResizeWindow(FDisplay, FWindow, Width, Height);
 
   if Assigned(FXImage) then
@@ -1210,7 +1210,7 @@ begin
       newW := Event.xconfigure.width;
       newH := Event.xconfigure.height;
       if (newW <> Width) or (newH <> Height) then
-        Resize(newW, newH);
+        Resize(newW, newH, False);
       X := Event.xconfigure.x;
       Y := Event.xconfigure.y;
     end;
