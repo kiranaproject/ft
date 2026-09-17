@@ -28,6 +28,10 @@ type
     FOwnsBitmap: Boolean;
     FScaleMode: TFtImageScaleMode;
     FSVGDoc: TSVGDocument;
+    FCachedSVG: TFtBitmap;
+    FCachedSVGWidth: Integer;
+    FCachedSVGHeight: Integer;
+    procedure SetScaleMode(AValue: TFtImageScaleMode);
     function GetBitmap(): TFtBitmap;
     procedure ClearImage();
   public
@@ -39,6 +43,7 @@ type
     procedure LoadSVGFromFile(const AFilePath: string);
     procedure LoadSVGFromString(const ASVGContent: string);
     procedure SetBitmap(ABitmap: TFtBitmap; AOwnsBitmap: Boolean = False);
+    procedure InvalidateSVGCache();
 
     procedure Draw(ACanvas: TFtCanvasAgg); override;
     function GetElementType(): string; override;
@@ -46,7 +51,7 @@ type
     property Bitmap: TFtBitmap read GetBitmap;
     property SVGDocument: TSVGDocument read FSVGDoc;
     property OwnsBitmap: Boolean read FOwnsBitmap write FOwnsBitmap;
-    property ScaleMode: TFtImageScaleMode read FScaleMode write FScaleMode;
+    property ScaleMode: TFtImageScaleMode read FScaleMode write SetScaleMode;
   end;
 
 implementation
@@ -54,8 +59,30 @@ implementation
 uses
   Ft.Svg;
 
+procedure TFtImage.InvalidateSVGCache();
+begin
+  if Assigned(FCachedSVG) then
+  begin
+    FCachedSVG.Free();
+    FCachedSVG := nil;
+  end;
+  FCachedSVGWidth := 0;
+  FCachedSVGHeight := 0;
+end;
+
+procedure TFtImage.SetScaleMode(AValue: TFtImageScaleMode);
+begin
+  if FScaleMode <> AValue then
+  begin
+    FScaleMode := AValue;
+    InvalidateSVGCache();
+    Invalidate();
+  end;
+end;
+
 procedure TFtImage.ClearImage();
 begin
+  InvalidateSVGCache();
   if FOwnsBitmap and Assigned(FBitmap) then
   begin
     FBitmap.Free();
@@ -75,6 +102,8 @@ function TFtImage.GetBitmap(): TFtBitmap;
 begin
   if (FBitmap = nil) and Assigned(FSVGDoc) then
   begin
+    if Assigned(FCachedSVG) then
+      Exit(FCachedSVG);
     FBitmap := TFtSVGRenderer.RenderToBitmap(FSVGDoc, Width, Height);
     FOwnsBitmap := True;
   end;
@@ -91,6 +120,9 @@ begin
   FBitmap := nil;
   FOwnsBitmap := False;
   FSVGDoc := nil;
+  FCachedSVG := nil;
+  FCachedSVGWidth := 0;
+  FCachedSVGHeight := 0;
   FScaleMode := ftismFit;
 
   if AFilePath <> '' then
@@ -166,6 +198,7 @@ var
   drawX, drawY, drawW, drawH: Double;
   scale, scaleX, scaleY: Double;
   r: Double;
+  targetW, targetH: Integer;
 begin
   if not Visible then Exit;
 
@@ -228,11 +261,27 @@ begin
       end;
     end;
 
-    ACanvas.PushClipRect(Round(X), Round(Y), Round(Width), Round(Height));
-    try
-      TFtSVGRenderer.Render(ACanvas, FSVGDoc, drawX, drawY, drawW, drawH);
-    finally
-      ACanvas.PopClipRect();
+    targetW := Round(drawW);
+    targetH := Round(drawH);
+    if (targetW > 0) and (targetH > 0) then
+    begin
+      if (FCachedSVG = nil) or (FCachedSVGWidth <> targetW) or (FCachedSVGHeight <> targetH) then
+      begin
+        InvalidateSVGCache();
+        FCachedSVG := TFtSVGRenderer.RenderToBitmap(FSVGDoc, targetW, targetH);
+        FCachedSVGWidth := targetW;
+        FCachedSVGHeight := targetH;
+      end;
+
+      if Assigned(FCachedSVG) and (FCachedSVG.Width > 0) and (FCachedSVG.Height > 0) then
+      begin
+        ACanvas.PushClipRect(Round(X), Round(Y), Round(Width), Round(Height));
+        try
+          ACanvas.DrawImage(drawX, drawY, FCachedSVG, 1.0);
+        finally
+          ACanvas.PopClipRect();
+        end;
+      end;
     end;
   end
   else if Assigned(FBitmap) and (FBitmap.Width > 0) and (FBitmap.Height > 0) then

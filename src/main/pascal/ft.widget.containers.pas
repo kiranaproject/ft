@@ -427,7 +427,8 @@ begin
     SetScrollX(0.0);
 
   // Configure VScrollBar
-  FVScrollBar.Visible := vNeeded;
+  if FVScrollBar.Visible <> vNeeded then
+    FVScrollBar.Visible := vNeeded;
   if vNeeded then
   begin
     FVScrollBar.X := X + Width - Round(barThickness) - 3;
@@ -438,12 +439,14 @@ begin
     else
       FVScrollBar.Height := Height - 6;
     FVScrollBar.SetRange(0.0, Math.Max(0.0, FContentHeight - viewH), viewH);
-    FVScrollBar.Value := FScrollY;
+    if Abs(FVScrollBar.Value - FScrollY) > 1e-4 then
+      FVScrollBar.Value := FScrollY;
     FVScrollBar.Step := 25.0;
   end;
 
   // Configure HScrollBar
-  FHScrollBar.Visible := hNeeded;
+  if FHScrollBar.Visible <> hNeeded then
+    FHScrollBar.Visible := hNeeded;
   if hNeeded then
   begin
     FHScrollBar.X := X + 3;
@@ -454,7 +457,8 @@ begin
       FHScrollBar.Width := Width - 6;
     FHScrollBar.Height := Round(barThickness);
     FHScrollBar.SetRange(0.0, Math.Max(0.0, FContentWidth - viewW), viewW);
-    FHScrollBar.Value := FScrollX;
+    if Abs(FHScrollBar.Value - FScrollX) > 1e-4 then
+      FHScrollBar.Value := FScrollX;
     FHScrollBar.Step := 25.0;
   end;
 end;

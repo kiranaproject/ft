@@ -450,6 +450,7 @@ void ft_image_load_file(FtWidget image, const char* filepath);
 void ft_image_load_memory(FtWidget image, const void* data, int32_t size);
 void ft_image_load_svg_file(FtWidget image, const char* filepath);
 void ft_image_load_svg_string(FtWidget image, const char* svg_content);
+void ft_image_invalidate_cache(FtWidget image);
 void ft_image_set_bitmap(FtWidget image, FtBitmap bmp, int32_t owns_bitmap);
 FtBitmap ft_image_get_bitmap(FtWidget image);
 void ft_image_set_scale_mode(FtWidget image, int32_t mode);

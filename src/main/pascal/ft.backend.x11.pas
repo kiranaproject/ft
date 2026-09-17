@@ -43,6 +43,14 @@ type
   Pxcb_client_message_event_t = ^xcb_client_message_event_t;
   Pxcb_destroy_notify_event_t = ^xcb_destroy_notify_event_t;
 
+  TFT_pollfd = record
+    fd: cint;
+    events: cshort;
+    revents: cshort;
+  end;
+
+function libc_poll(fds: Pointer; nfds: culong; timeout: cint): cint; cdecl; external 'c' name 'poll';
+
 const
   MWM_HINTS_DECORATIONS = 1 shl 1;
 
@@ -486,6 +494,7 @@ var
   frameStartMs, nowMs: QWord;
   elapsedMs: Integer;
   animator: TFtAnimator;
+  pfd: TFT_pollfd;
 begin
   animator := FtGetAnimator();
   while GRunning and HasMainWindows() do
@@ -521,6 +530,14 @@ begin
       nowMs := GetTickCount64();
       if IsAnyWindowResizing(nowMs) then
         Sleep(8)
+      else if Assigned(GConnection) then
+      begin
+        xcb_flush(GConnection);
+        pfd.fd := xcb_get_file_descriptor(GConnection);
+        pfd.events := 1; // POLLIN
+        pfd.revents := 0;
+        libc_poll(@pfd, 1, 50);
+      end
       else
         Sleep(10);
     end;

@@ -2507,6 +2507,15 @@ begin
     TFtImage(AWidget).LoadSVGFromString(string(ASVGContent));
 end;
 
+procedure ft_image_invalidate_cache(AWidget: Pointer); cdecl; export;
+begin
+  if Assigned(AWidget) and (TObject(AWidget) is TFtImage) then
+  begin
+    TFtImage(AWidget).InvalidateSVGCache();
+    TFtImage(AWidget).Invalidate();
+  end;
+end;
+
 function ft_bitmap_create_from_svg(ASVGContent: PAnsiChar; AWidth, AHeight: cint32): Pointer; cdecl; export;
 begin
   if ASVGContent <> nil then
@@ -2863,6 +2872,7 @@ exports
   ft_image_load_memory,
   ft_image_load_svg_file,
   ft_image_load_svg_string,
+  ft_image_invalidate_cache,
   ft_image_set_bitmap,
   ft_image_get_bitmap,
   ft_image_set_scale_mode,

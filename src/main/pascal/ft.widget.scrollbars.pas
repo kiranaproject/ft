@@ -183,13 +183,25 @@ begin
 end;
 
 procedure TFtScrollBar.SetRange(AMin, AMax, APageSize: Double);
+var
+  newMax, newPage: Double;
+  changed: Boolean;
 begin
-  FMin := AMin;
   if AMax < AMin then
-    FMax := AMin
+    newMax := AMin
   else
-    FMax := AMax;
-  FPageSize := Math.Max(0.0, APageSize);
+    newMax := AMax;
+  newPage := Math.Max(0.0, APageSize);
+
+  changed := (Abs(FMin - AMin) > 1e-6) or
+             (Abs(FMax - newMax) > 1e-6) or
+             (Abs(FPageSize - newPage) > 1e-6);
+
+  if not changed then Exit;
+
+  FMin := AMin;
+  FMax := newMax;
+  FPageSize := newPage;
   SetValue(FValue);
   Invalidate();
 end;
