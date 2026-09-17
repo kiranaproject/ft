@@ -8,8 +8,18 @@
       <stop offset="0%" stop-color="#f6d365" />
       <stop offset="100%" stop-color="#fda085" />
     </linearGradient>
+    <radialGradient id="sphereGrad" cx="35%" cy="35%" r="65%" fx="30%" fy="30%">
+      <stop offset="0%" stop-color="#ff79c6" />
+      <stop offset="60%" stop-color="#bd93f9" />
+      <stop offset="100%" stop-color="#44475a" />
+    </radialGradient>
+    <radialGradient id="sunburstGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#50fa7b" stop-opacity="0.8" />
+      <stop offset="70%" stop-color="#00f2fe" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#282a36" stop-opacity="0" />
+    </radialGradient>
     <g id="star">
-      <polygon points="0,-25 7,-8 24,-7 11,5 15,22 0,13 -15,22 -11,5 -24,-7 -7,-8" fill="#ffb703" stroke="#fb8500" stroke-width="1.5" />
+      <polygon points="0,-25 7,-8 24,-7 11,5 15,22 0,13 -15,22 -11,5 -24,-7 -7,-8" fill="url(#goldGrad)" stroke="#fb8500" stroke-width="1.5" />
     </g>
   </defs>
 
@@ -23,10 +33,11 @@
   <!-- Background Rounded Panel -->
   <rect class="glow-card" x="15" y="15" width="370" height="370" rx="20" ry="20" />
 
-  <!-- Central Circular Aura -->
+  <!-- Central Circular Aura & Gradients -->
+  <circle cx="200" cy="180" r="140" fill="url(#sunburstGrad)" />
   <circle cx="200" cy="180" r="110" fill="none" stroke="#313244" stroke-width="4" stroke-dasharray="6,6" />
   <circle cx="200" cy="180" r="90" fill="url(#cyberGrad)" opacity="0.85" />
-  <circle cx="200" cy="180" r="70" class="accent-circle" opacity="0.9" />
+  <circle cx="200" cy="180" r="70" fill="url(#sphereGrad)" opacity="0.95" stroke="#fab387" stroke-width="2" />
 
   <!-- Smooth Cubic Wave Path -->
   <path class="neon-path" d="M 50 310 C 100 250, 150 370, 200 310 C 250 250, 300 370, 350 310" />

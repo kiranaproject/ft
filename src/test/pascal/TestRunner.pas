@@ -16,6 +16,8 @@ type
     procedure TestSVGRasterizeUseAndGroup();
     procedure TestBitmapCreateFromSVG();
     procedure TestImageWidgetLoadSVG();
+    procedure TestSVGRasterizeLinearGradient();
+    procedure TestSVGRasterizeRadialGradient();
   end;
   TFtCssTest = class(TTestCase)
   published
@@ -375,6 +377,77 @@ begin
     AssertEquals('Intrinsic Width', 50.0, img.SVGDocument.GetIntrinsicWidth());
   finally
     img.Free();
+  end;
+end;
+
+procedure TFtSvgTest.TestSVGRasterizeLinearGradient();
+var
+  svg: string;
+  bmp: TFtBitmap;
+  pLeft, pRight: PByte;
+begin
+  svg := '<svg width="100" height="100">' +
+         '  <defs>' +
+         '    <linearGradient id="lg1" x1="0%" y1="0%" x2="100%" y2="0%">' +
+         '      <stop offset="0%" stop-color="#ff0000" />' +
+         '      <stop offset="100%" stop-color="#0000ff" />' +
+         '    </linearGradient>' +
+         '  </defs>' +
+         '  <rect width="100" height="100" fill="url(#lg1)" />' +
+         '</svg>';
+
+  bmp := TFtSVGRenderer.RenderStringToBitmap(svg, 100, 100);
+  try
+    AssertNotNull('Bitmap rendered', bmp);
+    // Near left (10, 50): Red dominant (BGRA: p[0]=B, p[1]=G, p[2]=R, p[3]=A)
+    pLeft := PByte(bmp.PixelBuffer) + (50 * bmp.Stride + 10 * 4);
+    AssertTrue('Left pixel Red >= 200', pLeft[2] >= 200);
+    AssertTrue('Left pixel Blue <= 60', pLeft[0] <= 60);
+    AssertTrue('Left pixel Alpha >= 240', pLeft[3] >= 240);
+
+    // Near right (90, 50): Blue dominant
+    pRight := PByte(bmp.PixelBuffer) + (50 * bmp.Stride + 90 * 4);
+    AssertTrue('Right pixel Blue >= 200', pRight[0] >= 200);
+    AssertTrue('Right pixel Red <= 60', pRight[2] <= 60);
+    AssertTrue('Right pixel Alpha >= 240', pRight[3] >= 240);
+  finally
+    bmp.Free();
+  end;
+end;
+
+procedure TFtSvgTest.TestSVGRasterizeRadialGradient();
+var
+  svg: string;
+  bmp: TFtBitmap;
+  pCenter, pEdge: PByte;
+begin
+  svg := '<svg width="100" height="100">' +
+         '  <defs>' +
+         '    <radialGradient id="rg1" cx="50%" cy="50%" r="50%">' +
+         '      <stop offset="0%" stop-color="#ffff00" />' +
+         '      <stop offset="100%" stop-color="#000000" />' +
+         '    </radialGradient>' +
+         '  </defs>' +
+         '  <rect width="100" height="100" fill="url(#rg1)" />' +
+         '</svg>';
+
+  bmp := TFtSVGRenderer.RenderStringToBitmap(svg, 100, 100);
+  try
+    AssertNotNull('Bitmap rendered', bmp);
+    // Center (50, 50): Yellow (R=255, G=255, B=0, A=255)
+    pCenter := PByte(bmp.PixelBuffer) + (50 * bmp.Stride + 50 * 4);
+    AssertTrue('Center Red >= 240', pCenter[2] >= 240);
+    AssertTrue('Center Green >= 240', pCenter[1] >= 240);
+    AssertTrue('Center Blue <= 20', pCenter[0] <= 20);
+    AssertTrue('Center Alpha >= 240', pCenter[3] >= 240);
+
+    // Near edge (95, 50): Black (R <= 60, G <= 60, B <= 60)
+    pEdge := PByte(bmp.PixelBuffer) + (50 * bmp.Stride + 95 * 4);
+    AssertTrue('Edge Red <= 60', pEdge[2] <= 60);
+    AssertTrue('Edge Green <= 60', pEdge[1] <= 60);
+    AssertTrue('Edge Blue <= 60', pEdge[0] <= 60);
+  finally
+    bmp.Free();
   end;
 end;
 

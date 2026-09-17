@@ -24,6 +24,13 @@ uses
   agg_path_storage,
   agg_math_stroke,
   agg_basics,
+  agg_span_gradient,
+  agg_gradient_lut,
+  agg_span_interpolator_linear,
+  agg_span_allocator,
+  agg_trans_affine,
+  Math,
+  Contnrs,
   Floria.SVG.Types,
   Floria.SVG.DOM,
   Ft.Font,
@@ -92,6 +99,9 @@ type
 
     { Vector & Path Drawing }
     procedure RenderPath(var APath: path_storage; const AStyle: TSVGStyleRecord; Scale: Double = 1.0);
+    procedure RenderPathGradient(var APath: path_storage; const AStyle: TSVGStyleRecord;
+      AGradient: TSVGGradientElement; const ABounds: TSVGRect; const AMatrix: TSVGMatrix;
+      IsStroke: Boolean = False; Scale: Double = 1.0);
     procedure DrawSVG(X, Y: Double; ADoc: TSVGDocument);
     procedure DrawSVGScaled(X, Y, W, H: Double; ADoc: TSVGDocument);
     procedure DrawSVGFile(X, Y, W, H: Double; const AFileName: string);
@@ -908,6 +918,284 @@ begin
     end;
   finally
     curved.Destruct();
+  end;
+end;
+
+procedure TFtCanvasAgg.RenderPathGradient(var APath: path_storage; const AStyle: TSVGStyleRecord;
+  AGradient: TSVGGradientElement; const ABounds: TSVGRect; const AMatrix: TSVGMatrix;
+  IsStroke: Boolean = False; Scale: Double = 1.0);
+var
+  effStops: TObjectList;
+  effAlpha, stopA, off, lastOffset: Double;
+  i: Integer;
+  stop: TSVGStopElement;
+  c: aggclr;
+  glut: gradient_lut;
+  alloc: span_allocator;
+  inter: span_interpolator_linear;
+  span: span_gradient;
+  ren: renderer_scanline_aa;
+  curved: conv_curve;
+  stroke: conv_stroke;
+  gradM: trans_affine;
+  tar: trans_affine_rotation;
+  tat: trans_affine_translation;
+  gradTrans: trans_affine;
+  elemTrans: trans_affine;
+  repAdaptor: gradient_repeat_adaptor;
+  refAdaptor: gradient_reflect_adaptor;
+  activeGradPtr: gradient_ptr;
+  linGradFunc: gradient_x;
+  radGradFunc: gradient_radial;
+  focusGradFunc: gradient_radial_focus;
+  linElem: TSVGLinearGradientElement;
+  radElem: TSVGRadialGradientElement;
+  units: TSVGGradientUnits;
+  spread: TSVGGradientSpread;
+  x1, y1, x2, y2, dx, dy, len, angle: Double;
+  cx, cy, r, fx, fy, diag: Double;
+  d1, d2: Double;
+  miterLim: Double;
+  bboxW, bboxH: Double;
+begin
+  if (APath.total_vertices() = 0) or not Assigned(AGradient) then Exit;
+
+  effStops := AGradient.GetEffectiveStops();
+  if not Assigned(effStops) or (effStops.Count = 0) then Exit;
+
+  if IsStroke then
+    effAlpha := AStyle.StrokeOpacity * FCurrentAlpha
+  else
+    effAlpha := AStyle.FillOpacity * FCurrentAlpha;
+
+  if effAlpha <= 0.0 then Exit;
+
+  bboxW := ABounds.Width;
+  if bboxW < 0.0001 then bboxW := 1.0;
+  bboxH := ABounds.Height;
+  if bboxH < 0.0001 then bboxH := 1.0;
+
+  glut.Construct(256);
+  try
+    glut.remove_all();
+    if effStops.Count = 1 then
+    begin
+      stop := TSVGStopElement(effStops[0]);
+      stopA := (stop.Color.A / 255.0) * effAlpha;
+      c.ConstrDbl(stop.Color.R / 255.0, stop.Color.G / 255.0, stop.Color.B / 255.0, stopA);
+      glut.add_color(0.0, @c);
+      glut.add_color(1.0, @c);
+    end
+    else
+    begin
+      lastOffset := -1.0;
+      for i := 0 to effStops.Count - 1 do
+      begin
+        stop := TSVGStopElement(effStops[i]);
+        stopA := (stop.Color.A / 255.0) * effAlpha;
+        c.ConstrDbl(stop.Color.R / 255.0, stop.Color.G / 255.0, stop.Color.B / 255.0, stopA);
+        off := stop.Offset;
+        if off < 0.0 then off := 0.0;
+        if off > 1.0 then off := 1.0;
+        if off <= lastOffset then
+          off := lastOffset + 0.00001;
+        if off > 1.0 then off := 1.0;
+        lastOffset := off;
+        glut.add_color(off, @c);
+      end;
+    end;
+    glut.build_lut();
+
+    if AGradient is TSVGLinearGradientElement then
+    begin
+      linElem := TSVGLinearGradientElement(AGradient);
+      units := linElem.GradientUnits;
+      spread := linElem.SpreadMethod;
+
+      if units = sguObjectBoundingBox then
+      begin
+        if linElem.X1.UnitType = suPercent then x1 := ABounds.X + (linElem.X1.Value * 0.01) * bboxW
+        else x1 := ABounds.X + linElem.X1.Value * bboxW;
+
+        if linElem.Y1.UnitType = suPercent then y1 := ABounds.Y + (linElem.Y1.Value * 0.01) * bboxH
+        else y1 := ABounds.Y + linElem.Y1.Value * bboxH;
+
+        if linElem.X2.UnitType = suPercent then x2 := ABounds.X + (linElem.X2.Value * 0.01) * bboxW
+        else x2 := ABounds.X + linElem.X2.Value * bboxW;
+
+        if linElem.Y2.UnitType = suPercent then y2 := ABounds.Y + (linElem.Y2.Value * 0.01) * bboxH
+        else y2 := ABounds.Y + linElem.Y2.Value * bboxH;
+      end
+      else
+      begin
+        x1 := SVGLengthToPixels(linElem.X1);
+        y1 := SVGLengthToPixels(linElem.Y1);
+        x2 := SVGLengthToPixels(linElem.X2);
+        y2 := SVGLengthToPixels(linElem.Y2);
+      end;
+
+      dx := x2 - x1;
+      dy := y2 - y1;
+      len := Sqrt(dx * dx + dy * dy);
+      if len < 0.0001 then len := 0.0001;
+      angle := ArcTan2(dy, dx);
+
+      tar.Construct(angle);
+      tat.Construct(x1, y1);
+      gradTrans.Construct(AGradient.GradientTransform.A, AGradient.GradientTransform.B,
+                          AGradient.GradientTransform.C, AGradient.GradientTransform.D,
+                          AGradient.GradientTransform.E, AGradient.GradientTransform.F);
+      elemTrans.Construct(AMatrix.A, AMatrix.B, AMatrix.C, AMatrix.D, AMatrix.E, AMatrix.F);
+      gradM.Construct;
+      gradM.multiply(@tar);
+      gradM.multiply(@tat);
+      gradM.multiply(@gradTrans);
+      gradM.multiply(@elemTrans);
+      gradM.invert;
+
+      linGradFunc.Construct();
+      activeGradPtr := @linGradFunc;
+      if spread = sgsRepeat then
+      begin
+        repAdaptor.Construct(activeGradPtr);
+        activeGradPtr := @repAdaptor;
+      end
+      else if spread = sgsReflect then
+      begin
+        refAdaptor.Construct(activeGradPtr);
+        activeGradPtr := @refAdaptor;
+      end;
+
+      d1 := 0.0;
+      d2 := len;
+    end
+    else if AGradient is TSVGRadialGradientElement then
+    begin
+      radElem := TSVGRadialGradientElement(AGradient);
+      units := radElem.GradientUnits;
+      spread := radElem.SpreadMethod;
+
+      if units = sguObjectBoundingBox then
+      begin
+        if radElem.Cx.UnitType = suPercent then cx := ABounds.X + (radElem.Cx.Value * 0.01) * bboxW
+        else cx := ABounds.X + radElem.Cx.Value * bboxW;
+
+        if radElem.Cy.UnitType = suPercent then cy := ABounds.Y + (radElem.Cy.Value * 0.01) * bboxH
+        else cy := ABounds.Y + radElem.Cy.Value * bboxH;
+
+        diag := Sqrt((bboxW * bboxW + bboxH * bboxH) * 0.5);
+        if radElem.R.UnitType = suPercent then r := (radElem.R.Value * 0.01) * diag
+        else r := radElem.R.Value * diag;
+
+        if radElem.Fx.UnitType = suPercent then fx := ABounds.X + (radElem.Fx.Value * 0.01) * bboxW
+        else fx := ABounds.X + radElem.Fx.Value * bboxW;
+
+        if radElem.Fy.UnitType = suPercent then fy := ABounds.Y + (radElem.Fy.Value * 0.01) * bboxH
+        else fy := ABounds.Y + radElem.Fy.Value * bboxH;
+      end
+      else
+      begin
+        cx := SVGLengthToPixels(radElem.Cx);
+        cy := SVGLengthToPixels(radElem.Cy);
+        r  := SVGLengthToPixels(radElem.R);
+        fx := SVGLengthToPixels(radElem.Fx);
+        fy := SVGLengthToPixels(radElem.Fy);
+      end;
+
+      if r < 0.0001 then r := 0.0001;
+
+      tat.Construct(cx, cy);
+      gradTrans.Construct(AGradient.GradientTransform.A, AGradient.GradientTransform.B,
+                          AGradient.GradientTransform.C, AGradient.GradientTransform.D,
+                          AGradient.GradientTransform.E, AGradient.GradientTransform.F);
+      elemTrans.Construct(AMatrix.A, AMatrix.B, AMatrix.C, AMatrix.D, AMatrix.E, AMatrix.F);
+
+      gradM.Construct;
+      gradM.multiply(@tat);
+      gradM.multiply(@gradTrans);
+      gradM.multiply(@elemTrans);
+      gradM.invert;
+
+      if (Abs(fx - cx) < 0.001) and (Abs(fy - cy) < 0.001) then
+      begin
+        radGradFunc.Construct();
+        activeGradPtr := @radGradFunc;
+      end
+      else
+      begin
+        focusGradFunc.Construct(r, fx - cx, fy - cy);
+        activeGradPtr := @focusGradFunc;
+      end;
+
+      if spread = sgsRepeat then
+      begin
+        repAdaptor.Construct(activeGradPtr);
+        activeGradPtr := @repAdaptor;
+      end
+      else if spread = sgsReflect then
+      begin
+        refAdaptor.Construct(activeGradPtr);
+        activeGradPtr := @refAdaptor;
+      end;
+
+      d1 := 0.0;
+      d2 := r;
+    end
+    else
+      Exit;
+
+    alloc.Construct();
+    try
+      inter.Construct(@gradM);
+      span.Construct(@alloc, @inter, activeGradPtr, @glut, d1, d2);
+      ren.Construct(@FRendererBase, @span);
+
+      curved.Construct(@APath);
+      try
+        FRasterizer.reset();
+        if IsStroke then
+        begin
+          stroke.Construct(@curved);
+          try
+            stroke.width_(AStyle.StrokeWidth * Scale);
+            case AStyle.StrokeLineCap of
+              slcRound: stroke.line_cap_(round_cap);
+              slcSquare: stroke.line_cap_(square_cap);
+              else stroke.line_cap_(butt_cap);
+            end;
+            case AStyle.StrokeLineJoin of
+              sljRound: stroke.line_join_(round_join);
+              sljBevel: stroke.line_join_(bevel_join);
+              else stroke.line_join_(miter_join);
+            end;
+            miterLim := AStyle.StrokeMiterLimit;
+            if miterLim <= 0.0 then miterLim := 4.0;
+            stroke.miter_limit_(miterLim);
+
+            FRasterizer.filling_rule(fill_non_zero);
+            FRasterizer.add_path(@stroke);
+            render_scanlines(@FRasterizer, @FScanline, @ren);
+          finally
+            stroke.Destruct();
+          end;
+        end
+        else
+        begin
+          if AStyle.FillRule = sfrEvenOdd then
+            FRasterizer.filling_rule(fill_even_odd)
+          else
+            FRasterizer.filling_rule(fill_non_zero);
+          FRasterizer.add_path(@curved);
+          render_scanlines(@FRasterizer, @FScanline, @ren);
+        end;
+      finally
+        curved.Destruct();
+      end;
+    finally
+      alloc.Destruct();
+    end;
+  finally
+    glut.Destruct();
   end;
 end;
 

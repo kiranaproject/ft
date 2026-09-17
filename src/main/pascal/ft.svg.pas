@@ -270,10 +270,11 @@ var
   pt, pt1, pt2: TSVGPoint;
   i: Integer;
   scaleX, scaleY, avgScale: Double;
-  style: TSVGStyleRecord;
+  style, fillStyle, strokeStyle: TSVGStyleRecord;
   serverId: string;
   gradElem: TSVGElement;
-  grad: TSVGGradientElement;
+  fillGrad, strokeGrad: TSVGGradientElement;
+  localBBox: TSVGRect;
 begin
   pathData := AShape.GetPath();
   if not Assigned(pathData) then Exit;
@@ -321,7 +322,10 @@ begin
     scaleY := Sqrt(AMatrix.C * AMatrix.C + AMatrix.D * AMatrix.D);
     avgScale := (scaleX + scaleY) * 0.5;
 
+    localBBox := AShape.GetLocalBoundingBox();
     style := AShape.ComputedStyle;
+    fillGrad := nil;
+    strokeGrad := nil;
 
     if (style.Fill.Kind = pkUri) and Assigned(ADoc) then
     begin
@@ -330,14 +334,7 @@ begin
         Delete(serverId, 1, 1);
       gradElem := ADoc.FindElementById(serverId);
       if Assigned(gradElem) and (gradElem is TSVGGradientElement) then
-      begin
-        grad := TSVGGradientElement(gradElem);
-        if grad.Stops.Count > 0 then
-        begin
-          style.Fill.Kind := pkColor;
-          style.Fill.Color := TSVGStopElement(grad.Stops[0]).Color;
-        end;
-      end;
+        fillGrad := TSVGGradientElement(gradElem);
     end;
 
     if (style.Stroke.Kind = pkUri) and Assigned(ADoc) then
@@ -347,17 +344,32 @@ begin
         Delete(serverId, 1, 1);
       gradElem := ADoc.FindElementById(serverId);
       if Assigned(gradElem) and (gradElem is TSVGGradientElement) then
-      begin
-        grad := TSVGGradientElement(gradElem);
-        if grad.Stops.Count > 0 then
-        begin
-          style.Stroke.Kind := pkColor;
-          style.Stroke.Color := TSVGStopElement(grad.Stops[0]).Color;
-        end;
-      end;
+        strokeGrad := TSVGGradientElement(gradElem);
     end;
 
-    ACanvas.RenderPath(pathStorage, style, avgScale);
+    // 1. Fill pass
+    if Assigned(fillGrad) then
+    begin
+      ACanvas.RenderPathGradient(pathStorage, style, fillGrad, localBBox, AMatrix, False, avgScale);
+    end
+    else if (style.Fill.Kind <> pkNone) and (style.FillOpacity > 0.0) then
+    begin
+      fillStyle := style;
+      fillStyle.Stroke.Kind := pkNone;
+      ACanvas.RenderPath(pathStorage, fillStyle, avgScale);
+    end;
+
+    // 2. Stroke pass
+    if Assigned(strokeGrad) and (style.StrokeWidth > 0.0) and (style.StrokeOpacity > 0.0) then
+    begin
+      ACanvas.RenderPathGradient(pathStorage, style, strokeGrad, localBBox, AMatrix, True, avgScale);
+    end
+    else if (style.Stroke.Kind <> pkNone) and (style.StrokeWidth > 0.0) and (style.StrokeOpacity > 0.0) then
+    begin
+      strokeStyle := style;
+      strokeStyle.Fill.Kind := pkNone;
+      ACanvas.RenderPath(pathStorage, strokeStyle, avgScale);
+    end;
   finally
     pathStorage.Destruct();
   end;
