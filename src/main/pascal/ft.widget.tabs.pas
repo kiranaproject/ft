@@ -451,9 +451,19 @@ begin
       end
       else
       begin
-        // Normal subtle close badge (from design legend)
-        Canvas.DrawCircle(cenX, cenY, btnRad, 0.88, 0.08, 0.12, 1.0); // #E00A15 Normal
-        xR := 0.67; xG := 0.02; xB := 0.05; xA := 1.0; // #AC030B Normal
+        // Normal state: button-like styling
+        if theme.DarkMode then
+        begin
+          Canvas.DrawCircle(cenX, cenY, btnRad, 0.22, 0.24, 0.26, 1.0);
+          Canvas.DrawCircleOutline(cenX, cenY, btnRad, 1.0, 0.32, 0.35, 0.38, 1.0);
+          xR := 0.85; xG := 0.87; xB := 0.90; xA := 1.0;
+        end
+        else
+        begin
+          Canvas.DrawCircle(cenX, cenY, btnRad, 0.96, 0.97, 0.98, 1.0);
+          Canvas.DrawCircleOutline(cenX, cenY, btnRad, 1.0, 0.80, 0.82, 0.85, 1.0);
+          xR := 0.32; xG := 0.38; xB := 0.46; xA := 1.0;
+        end;
       end;
 
       // Anti-aliased 'x' cross lines
@@ -527,9 +537,19 @@ begin
         end
         else
         begin
-          // Normal subtle close badge
-          Canvas.DrawCircle(cenX, cenY, btnRad, 0.88, 0.08, 0.12, 1.0); // #E00A15 Normal
-          xR := 0.67; xG := 0.02; xB := 0.05; xA := 1.0; // #AC030B Normal
+          // Normal state: button-like styling
+          if theme.DarkMode then
+          begin
+            Canvas.DrawCircle(cenX, cenY, btnRad, 0.22, 0.24, 0.26, 1.0);
+            Canvas.DrawCircleOutline(cenX, cenY, btnRad, 1.0, 0.32, 0.35, 0.38, 1.0);
+            xR := 0.85; xG := 0.87; xB := 0.90; xA := 1.0;
+          end
+          else
+          begin
+            Canvas.DrawCircle(cenX, cenY, btnRad, 0.96, 0.97, 0.98, 1.0);
+            Canvas.DrawCircleOutline(cenX, cenY, btnRad, 1.0, 0.80, 0.82, 0.85, 1.0);
+            xR := 0.32; xG := 0.38; xB := 0.46; xA := 1.0;
+          end;
         end;
 
         // Anti-aliased 'x' cross lines
