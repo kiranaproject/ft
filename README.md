@@ -56,17 +56,21 @@ Comprehensive documentation is available in the [`docs/`](docs/) directory:
 
 ## Visual Showcase
 
+### Advanced Desktop Widgets
+![Advanced Desktop Widgets Showcase](docs/screenshots/floria_desktop_widgets.gif)
+*Multi-tab Notebook with close buttons and glowing halos, dual-pane Splitters with live dragging, hierarchical TreeView with expander arrows, and multi-column Data Table with selection and zebra striping.*
+
 ### Form Controls & Meters
 ![Form Controls & Meters Showcase](docs/screenshots/floria_form_controls.gif)
 *Interactive CheckBoxes, RadioButtons, ComboBox dropdowns, live Slider dragging, and smooth 60 FPS indeterminate progress bar.*
 
 ### Window Main Menu & Pop-up Context Menus
 ![Window Main Menu & Pop-up Menu Showcase](docs/screenshots/floria_menus.gif)
-*Window Main Menu bar with hover sweep tracking, cascading submenus, checkmarks, dynamic theming, and floating context menus.*
+*Window Main Menu bar with hover sweep tracking, cascading submenus with subtle vector chevrons, checkmarks, dynamic theming, and floating context menus.*
 
 ### Reusable Containers & Scrolled Viewports
 ![Reusable Container Showcase](docs/screenshots/floria_containers.gif)
-*`TFtContainer` hosting heterogeneous child widgets with relative layout, auto scrollbars, and AGG viewport clipping.*
+*`TFtContainer` hosting heterogeneous child widgets with relative layout, dynamic render area conformance, auto scrollbars, and AGG viewport clipping.*
 
 ### Themes & Dynamic CSS Transitions
 ![Themes & CSS Transitions Showcase](docs/screenshots/floria_themes.gif)
