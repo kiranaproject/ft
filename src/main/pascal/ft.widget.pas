@@ -7,6 +7,13 @@ interface
 uses
   SysUtils, Classes, Ft.Canvas.Agg, Ft.Font, Ft.Css, Ft.Animation;
 
+const
+  FT_CURSOR_DEFAULT = 0;
+  FT_CURSOR_IBEAM   = 1;
+  FT_CURSOR_SIZE_H  = 2;
+  FT_CURSOR_SIZE_V  = 3;
+  FT_CURSOR_HAND    = 4;
+
 type
   TFtWidget = class
   private

@@ -90,6 +90,7 @@ type
     FWindowType: TFtWindowType;
     FBackgroundOpacity: Double;
     FBackgroundBlur: Boolean;
+    FCurrentCursor: xcb_cursor_t;
 
     procedure OnThemeChanged();
     procedure OnStyleSheetChanged();
@@ -161,6 +162,9 @@ var
   GKeySymbols: Pxcb_key_symbols_t = nil;
   GCursorContext: Pxcb_cursor_context_t = nil;
   GCursorIBeam: xcb_cursor_t = 0;
+  GCursorSizeH: xcb_cursor_t = 0;
+  GCursorSizeV: xcb_cursor_t = 0;
+  GCursorHand:  xcb_cursor_t = 0;
   GRunning: Boolean = False;
   GActiveWindow: TFtX11Window = nil;
   GWindows: TFPList = nil;
@@ -309,7 +313,25 @@ begin
 
   GKeySymbols := xcb_key_symbols_alloc(GConnection);
   if xcb_cursor_context_new(GConnection, GScreen, @GCursorContext) >= 0 then
+  begin
     GCursorIBeam := xcb_cursor_load_cursor(GCursorContext, 'xterm');
+
+    GCursorSizeH := xcb_cursor_load_cursor(GCursorContext, 'col-resize');
+    if GCursorSizeH = 0 then
+      GCursorSizeH := xcb_cursor_load_cursor(GCursorContext, 'ew-resize');
+    if GCursorSizeH = 0 then
+      GCursorSizeH := xcb_cursor_load_cursor(GCursorContext, 'sb_h_double_arrow');
+
+    GCursorSizeV := xcb_cursor_load_cursor(GCursorContext, 'row-resize');
+    if GCursorSizeV = 0 then
+      GCursorSizeV := xcb_cursor_load_cursor(GCursorContext, 'ns-resize');
+    if GCursorSizeV = 0 then
+      GCursorSizeV := xcb_cursor_load_cursor(GCursorContext, 'sb_v_double_arrow');
+
+    GCursorHand := xcb_cursor_load_cursor(GCursorContext, 'pointer');
+    if GCursorHand = 0 then
+      GCursorHand := xcb_cursor_load_cursor(GCursorContext, 'hand2');
+  end;
 
   GRunning := True;
 end;
@@ -744,6 +766,7 @@ begin
   FFocusedWidget := nil;
   FMainMenu := nil;
   FActivePopup := nil;
+  FCurrentCursor := High(xcb_cursor_t);
   FNeedsRepaint := False;
   FDirtyLeft := 0;
   FDirtyTop := 0;
@@ -1565,6 +1588,7 @@ var
   target: TFtWidget;
   valList: xcb_change_window_attributes_value_list_t;
   targetCursor: xcb_cursor_t;
+  cType: Integer;
 begin
   if (FWindow = 0) or (FConnection = nil) then Exit;
 
@@ -1573,10 +1597,22 @@ begin
   else
     target := FHoverWidget;
 
-  if Assigned(target) and (target.GetCursor() = 1) then
-    targetCursor := GCursorIBeam
-  else
-    targetCursor := 0;
+  targetCursor := 0;
+  if Assigned(target) then
+  begin
+    cType := target.GetCursor();
+    case cType of
+      FT_CURSOR_IBEAM:  targetCursor := GCursorIBeam;
+      FT_CURSOR_SIZE_H: targetCursor := GCursorSizeH;
+      FT_CURSOR_SIZE_V: targetCursor := GCursorSizeV;
+      FT_CURSOR_HAND:   targetCursor := GCursorHand;
+    else
+      targetCursor := 0;
+    end;
+  end;
+
+  if targetCursor = FCurrentCursor then Exit;
+  FCurrentCursor := targetCursor;
 
   FillChar(valList, SizeOf(valList), 0);
   valList.cursor := targetCursor;
@@ -1788,6 +1824,7 @@ begin
       else if Assigned(FPressedWidget) then
       begin
         FPressedWidget.MouseMove(mp^.event_x, mp^.event_y);
+        UpdateCursor();
       end
       else
       begin
@@ -1805,7 +1842,10 @@ begin
           UpdateCursor();
         end;
         if Assigned(Target) then
+        begin
           Target.MouseMove(mp^.event_x, mp^.event_y);
+          UpdateCursor();
+        end;
       end;
     end;
 

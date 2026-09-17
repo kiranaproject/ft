@@ -299,60 +299,45 @@ procedure TFtSplitter.DrawSplitterBar(Canvas: TFtCanvasAgg);
 var
   bx, by, bw, bh: Double;
   theme: TFtTheme;
-  barR, barG, barB: Double;
   accent: TFtRgbColor;
+  dotR, dotG, dotB, dotA: Double;
   cx, cy: Double;
 begin
   if not GetSplitterBarRect(bx, by, bw, bh) then Exit;
   theme := FtGetTheme();
   accent := theme.GetAccentColor();
 
+  // Splitter background is transparent!
+  // During active dragging, draw a subtle accent-tinted indicator line
   if FDragging then
   begin
-    barR := accent.R; barG := accent.G; barB := accent.B;
-  end
-  else if FHovered then
-  begin
-    if theme.DarkMode then
-    begin
-      barR := 0.35; barG := 0.37; barB := 0.45;
-    end
-    else
-    begin
-      barR := 0.70; barG := 0.72; barB := 0.78;
-    end;
-  end
-  else
-  begin
-    if theme.DarkMode then
-    begin
-      barR := 0.22; barG := 0.23; barB := 0.28;
-    end
-    else
-    begin
-      barR := 0.82; barG := 0.84; barB := 0.88;
-    end;
+    Canvas.DrawRect(Round(bx), Round(by), Round(bw), Round(bh), accent.R, accent.G, accent.B, 0.65);
   end;
 
-  Canvas.DrawRect(Round(bx), Round(by), Round(bw), Round(bh), barR, barG, barB, 1.0);
-
-  // Draw subtle center grip handle
+  // Subtle center grip dots (transparent background preserved; low-opacity dots)
   cx := bx + bw * 0.5;
   cy := by + bh * 0.5;
 
-  if FOrientation = soHorizontal then
+  if theme.DarkMode then
   begin
-    // 3 subtle dots vertically
-    Canvas.DrawCircle(cx, cy - 8.0, 1.5, barR * 1.5, barG * 1.5, barB * 1.5, 0.8);
-    Canvas.DrawCircle(cx, cy,       1.5, barR * 1.5, barG * 1.5, barB * 1.5, 0.8);
-    Canvas.DrawCircle(cx, cy + 8.0, 1.5, barR * 1.5, barG * 1.5, barB * 1.5, 0.8);
+    dotR := 0.7; dotG := 0.7; dotB := 0.7; dotA := 0.25;
   end
   else
   begin
-    // 3 subtle dots horizontally
-    Canvas.DrawCircle(cx - 8.0, cy, 1.5, barR * 1.5, barG * 1.5, barB * 1.5, 0.8);
-    Canvas.DrawCircle(cx,       cy, 1.5, barR * 1.5, barG * 1.5, barB * 1.5, 0.8);
-    Canvas.DrawCircle(cx + 8.0, cy, 1.5, barR * 1.5, barG * 1.5, barB * 1.5, 0.8);
+    dotR := 0.3; dotG := 0.3; dotB := 0.3; dotA := 0.25;
+  end;
+
+  if FOrientation = soHorizontal then
+  begin
+    Canvas.DrawCircle(cx, cy - 8.0, 1.2, dotR, dotG, dotB, dotA);
+    Canvas.DrawCircle(cx, cy,       1.2, dotR, dotG, dotB, dotA);
+    Canvas.DrawCircle(cx, cy + 8.0, 1.2, dotR, dotG, dotB, dotA);
+  end
+  else
+  begin
+    Canvas.DrawCircle(cx - 8.0, cy, 1.2, dotR, dotG, dotB, dotA);
+    Canvas.DrawCircle(cx,       cy, 1.2, dotR, dotG, dotB, dotA);
+    Canvas.DrawCircle(cx + 8.0, cy, 1.2, dotR, dotG, dotB, dotA);
   end;
 end;
 
@@ -460,11 +445,10 @@ function TFtSplitter.GetCursor(): Integer;
 begin
   if FHovered or FDragging then
   begin
-    // X11 cursor constants: 108 = XC_sb_h_double_arrow, 116 = XC_sb_v_double_arrow
     if FOrientation = soHorizontal then
-      Result := 108
+      Result := FT_CURSOR_SIZE_H
     else
-      Result := 116;
+      Result := FT_CURSOR_SIZE_V;
   end
   else
     Result := inherited GetCursor();

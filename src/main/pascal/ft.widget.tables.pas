@@ -129,6 +129,8 @@ end;
 constructor TFtTable.Create(AParent: TFtWidget);
 begin
   inherited Create(AParent);
+  FPaddingX := 0.0;
+  FPaddingY := 0.0;
   FColumns := TFPList.Create();
   FRows := TFPList.Create();
   FSelectedRow := -1;
@@ -353,6 +355,8 @@ var
   theme: TFtTheme;
   headR, headG, headB: Double;
   textR, textG, textB: Double;
+  bd: TFtRgbColor;
+  rad, hx, hy, hw, hh: Double;
   i: Integer;
   col: TFtTableColumn;
   colX: Double;
@@ -370,50 +374,66 @@ begin
     textR := 0.25; textG := 0.28; textB := 0.35;
   end;
 
-  // Header background
-  Canvas.DrawRect(X, Y, Width, Round(FHeaderHeight), headR, headG, headB, 1.0);
+  if FCornerRadius >= 0.0 then
+    rad := FCornerRadius
+  else
+    rad := 5.0;
+
+  hx := X + 1.0;
+  hy := Y + 1.0;
+  hw := Width - 2.0;
+  hh := FHeaderHeight - 1.0;
+
+  Canvas.PushClipRect(Round(hx), Round(hy), Round(hw), Round(hh));
+  try
+    // Header background with top corners rounded to match container
+    Canvas.DrawRoundedRect(hx, hy, hw, hh + rad, Max(0.0, rad - 1.0), headR, headG, headB, 1.0);
+
+    colX := hx - FScrollX;
+    for i := 0 to FColumns.Count - 1 do
+    begin
+      col := TFtTableColumn(FColumns[i]);
+
+      // Column title text
+      case col.Alignment of
+        taCenter:
+          Canvas.DrawTextCentered(Round(colX), Round(hy), Round(col.Width), Round(hh), col.Title, Font, textR, textG, textB);
+        taRight:
+          Canvas.DrawTextLeft(colX + 8.0, hy + 4.0, col.Width - 16.0, hh - 8.0, col.Title, Font, textR, textG, textB);
+        else
+          Canvas.DrawTextLeft(colX + 8.0, hy + 4.0, col.Width - 16.0, hh - 8.0, col.Title, Font, textR, textG, textB);
+      end;
+
+      // Sort order indicator
+      if col.SortOrder <> soNone then
+      begin
+        arrowX := colX + col.Width - 14.0;
+        arrowY := hy + hh * 0.5;
+        if col.SortOrder = soAscending then
+        begin
+          Canvas.DrawLine(arrowX - 4.0, arrowY + 2.0, arrowX, arrowY - 3.0, 1.5, textR, textG, textB, 0.9);
+          Canvas.DrawLine(arrowX, arrowY - 3.0, arrowX + 4.0, arrowY + 2.0, 1.5, textR, textG, textB, 0.9);
+        end
+        else
+        begin
+          Canvas.DrawLine(arrowX - 4.0, arrowY - 2.0, arrowX, arrowY + 3.0, 1.5, textR, textG, textB, 0.9);
+          Canvas.DrawLine(arrowX, arrowY + 3.0, arrowX + 4.0, arrowY - 2.0, 1.5, textR, textG, textB, 0.9);
+        end;
+      end;
+
+      // Vertical column separator line
+      if FShowGridLines and (i < FColumns.Count - 1) then
+        Canvas.DrawLine(colX + col.Width, hy + 2.0, colX + col.Width, hy + hh - 2.0, 1.0, headR * 0.8, headG * 0.8, headB * 0.8, 0.8);
+
+      colX := colX + col.Width;
+    end;
+  finally
+    Canvas.PopClipRect();
+  end;
 
   // Bottom dividing line
-  Canvas.DrawLine(X, Y + FHeaderHeight - 1.0, X + Width, Y + FHeaderHeight - 1.0, 1.0, headR * 0.7, headG * 0.7, headB * 0.7, 1.0);
-
-  colX := X - FScrollX;
-  for i := 0 to FColumns.Count - 1 do
-  begin
-    col := TFtTableColumn(FColumns[i]);
-
-    // Column title text
-    case col.Alignment of
-      taCenter:
-        Canvas.DrawTextCentered(Round(colX), Round(Y), Round(col.Width), Round(FHeaderHeight), col.Title, Font, textR, textG, textB);
-      taRight:
-        Canvas.DrawTextLeft(colX + 8.0, Y + 4.0, col.Width - 16.0, FHeaderHeight - 8.0, col.Title, Font, textR, textG, textB);
-      else
-        Canvas.DrawTextLeft(colX + 8.0, Y + 4.0, col.Width - 16.0, FHeaderHeight - 8.0, col.Title, Font, textR, textG, textB);
-    end;
-
-    // Sort order indicator
-    if col.SortOrder <> soNone then
-    begin
-      arrowX := colX + col.Width - 14.0;
-      arrowY := Y + FHeaderHeight * 0.5;
-      if col.SortOrder = soAscending then
-      begin
-        Canvas.DrawLine(arrowX - 4.0, arrowY + 2.0, arrowX, arrowY - 3.0, 1.5, textR, textG, textB, 0.9);
-        Canvas.DrawLine(arrowX, arrowY - 3.0, arrowX + 4.0, arrowY + 2.0, 1.5, textR, textG, textB, 0.9);
-      end
-      else
-      begin
-        Canvas.DrawLine(arrowX - 4.0, arrowY - 2.0, arrowX, arrowY + 3.0, 1.5, textR, textG, textB, 0.9);
-        Canvas.DrawLine(arrowX, arrowY + 3.0, arrowX + 4.0, arrowY - 2.0, 1.5, textR, textG, textB, 0.9);
-      end;
-    end;
-
-    // Vertical column separator line
-    if FShowGridLines and (i < FColumns.Count - 1) then
-      Canvas.DrawLine(colX + col.Width, Y + 3.0, colX + col.Width, Y + FHeaderHeight - 3.0, 1.0, headR * 0.8, headG * 0.8, headB * 0.8, 0.8);
-
-    colX := colX + col.Width;
-  end;
+  bd := theme.GetInputBorder();
+  Canvas.DrawLine(hx, Y + FHeaderHeight, hx + hw, Y + FHeaderHeight, 1.0, bd.R, bd.G, bd.B, 0.9);
 end;
 
 procedure TFtTable.DrawContent(Canvas: TFtCanvasAgg);
@@ -435,7 +455,7 @@ begin
   bodyY := Y + FHeaderHeight;
 
   // Clip content to table body area below header
-  Canvas.PushClipRect(X, Round(bodyY), Width, Height - Round(FHeaderHeight));
+  Canvas.PushClipRect(Round(X + 1.0), Round(bodyY), Round(Width - 2.0), Round(Height - FHeaderHeight - 1.0));
   try
     for r := 0 to FRows.Count - 1 do
     begin
@@ -482,7 +502,7 @@ begin
       end;
 
       // Draw Cells
-      colX := X - FScrollX;
+      colX := X + 1.0 - FScrollX;
       for c := 0 to FColumns.Count - 1 do
       begin
         col := TFtTableColumn(FColumns[c]);
@@ -519,9 +539,9 @@ begin
       if FShowGridLines and not isSelected then
       begin
         if theme.DarkMode then
-          Canvas.DrawLine(X, rowY + FRowHeight - 1.0, X + Width, rowY + FRowHeight - 1.0, 1.0, 0.22, 0.23, 0.28, 0.4)
+          Canvas.DrawLine(X + 1, rowY + FRowHeight - 1.0, X + Width - 1, rowY + FRowHeight - 1.0, 1.0, 0.22, 0.23, 0.28, 0.4)
         else
-          Canvas.DrawLine(X, rowY + FRowHeight - 1.0, X + Width, rowY + FRowHeight - 1.0, 1.0, 0.85, 0.86, 0.89, 0.4);
+          Canvas.DrawLine(X + 1, rowY + FRowHeight - 1.0, X + Width - 1, rowY + FRowHeight - 1.0, 1.0, 0.85, 0.86, 0.89, 0.4);
       end;
     end;
   finally
@@ -530,6 +550,10 @@ begin
 end;
 
 procedure TFtTable.Draw(Canvas: TFtCanvasAgg);
+var
+  theme: TFtTheme;
+  rad: Double;
+  bd: TFtRgbColor;
 begin
   if not Visible then Exit;
 
@@ -538,6 +562,25 @@ begin
 
   // Draw fixed Header row over content
   DrawHeader(Canvas);
+
+  // Re-stroke container border outline over header and rows
+  if FDrawFrame then
+  begin
+    theme := FtGetTheme();
+    if FCornerRadius >= 0.0 then
+      rad := FCornerRadius
+    else
+      rad := 5.0;
+
+    if FFocused and FDrawFocusRing then
+      bd := theme.GetAccentColor()
+    else
+      bd := theme.GetInputBorder();
+
+    Canvas.DrawRoundedRectOutline(X, Y, Width, Height, rad, 1.0, bd.R, bd.G, bd.B);
+    if FFocused and FDrawFocusRing then
+      theme.DrawFocusRing(Canvas, X, Y, Width, Height, rad);
+  end;
 end;
 
 procedure TFtTable.MouseDown(AX, AY: Integer; AButton: Integer);
