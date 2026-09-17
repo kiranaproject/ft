@@ -468,6 +468,9 @@ procedure TFtDesktopWidgetsTest.TestNotebook();
 var
   nb: TFtNotebook;
   p1, p2: TFtTabPage;
+  cx, cy, cw, ch: Double;
+  inClose: Boolean;
+  tabIdx: Integer;
 begin
   nb := TFtNotebook.Create(nil);
   try
@@ -488,9 +491,17 @@ begin
     AssertEquals('Tab 2 title', 'Settings', nb.Pages[1].Title);
     AssertTrue('Tab 2 is closeable', nb.Pages[1].Closeable);
 
-    nb.RemoveTab(0, True);
-    AssertEquals('Page count after remove is 2', 2, nb.PageCount);
-    AssertEquals('First tab is now Settings', 'Settings', nb.Pages[0].Title);
+    // Test close button hit testing and click closing
+    AssertTrue('GetCloseButtonRect for Settings tab', nb.GetCloseButtonRect(1, cx, cy, cw, ch));
+    tabIdx := nb.TabIndexAt(Round(cx + cw * 0.5), Round(cy + ch * 0.5), inClose);
+    AssertEquals('Hit tab index is 1', 1, tabIdx);
+    AssertTrue('Hit inClose is True', inClose);
+
+    nb.MouseDown(Round(cx + cw * 0.5), Round(cy + ch * 0.5), 1);
+    nb.MouseUp(Round(cx + cw * 0.5), Round(cy + ch * 0.5), 1);
+    AssertEquals('Page count after close click is 2', 2, nb.PageCount);
+    AssertEquals('Tab 0 is still General', 'General', nb.Pages[0].Title);
+    AssertEquals('Tab 1 is now About', 'About', nb.Pages[1].Title);
 
     nb.ClearTabs();
     AssertEquals('Page count after clear is 0', 0, nb.PageCount);

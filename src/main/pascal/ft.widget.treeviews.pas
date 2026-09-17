@@ -56,6 +56,7 @@ type
     FHoveredNode: TFtTreeNode;
     FItemHeight: Double;
     FIndentWidth: Double;
+    FDestroying: Boolean;
     FOnSelect: TFtNodeSelectEvent;
     FOnSelectCb: TFtNodeSelectCallback;
 
@@ -84,6 +85,7 @@ type
     property SelectedNode: TFtTreeNode read FSelectedNode write SetSelectedNode;
     property ItemHeight: Double read FItemHeight write SetItemHeight;
     property IndentWidth: Double read FIndentWidth write SetIndentWidth;
+    property Destroying: Boolean read FDestroying;
     property OnSelect: TFtNodeSelectEvent read FOnSelect write FOnSelect;
     property OnSelectCb: TFtNodeSelectCallback read FOnSelectCb write FOnSelectCb;
   end;
@@ -105,9 +107,13 @@ begin
 end;
 
 destructor TFtTreeNode.Destroy();
+var
+  i: Integer;
 begin
-  Clear();
-  FChildren.Free();
+  for i := 0 to FChildren.Count - 1 do
+    TFtTreeNode(FChildren[i]).Free();
+  FChildren.Clear();
+  FreeAndNil(FChildren);
   inherited Destroy();
 end;
 
@@ -142,7 +148,7 @@ begin
   Result := TFtTreeNode.Create(FTreeView, Self);
   Result.Text := AText;
   FChildren.Add(Result);
-  if Assigned(FTreeView) then
+  if Assigned(FTreeView) and not FTreeView.Destroying then
     FTreeView.RebuildVisibleNodes();
 end;
 
@@ -155,7 +161,7 @@ begin
     node := TFtTreeNode(FChildren[AIndex]);
     FChildren.Delete(AIndex);
     node.Free();
-    if Assigned(FTreeView) then
+    if Assigned(FTreeView) and not FTreeView.Destroying then
       FTreeView.RebuildVisibleNodes();
   end;
 end;
@@ -167,7 +173,7 @@ begin
   for i := 0 to FChildren.Count - 1 do
     TFtTreeNode(FChildren[i]).Free();
   FChildren.Clear();
-  if Assigned(FTreeView) then
+  if Assigned(FTreeView) and not FTreeView.Destroying then
     FTreeView.RebuildVisibleNodes();
 end;
 
@@ -189,6 +195,7 @@ end;
 constructor TFtTreeView.Create(AParent: TFtWidget);
 begin
   inherited Create(AParent);
+  FDestroying := False;
   FRoot := TFtTreeNode.Create(Self, nil);
   FRoot.Expanded := True;
   FVisibleNodes := TFPList.Create();
@@ -203,8 +210,11 @@ end;
 
 destructor TFtTreeView.Destroy();
 begin
-  FVisibleNodes.Free();
-  FRoot.Free();
+  FDestroying := True;
+  FSelectedNode := nil;
+  FHoveredNode := nil;
+  FreeAndNil(FRoot);
+  FreeAndNil(FVisibleNodes);
   inherited Destroy();
 end;
 
@@ -249,6 +259,7 @@ end;
 
 procedure TFtTreeView.RebuildVisibleNodes();
 begin
+  if FDestroying or (FVisibleNodes = nil) or (FRoot = nil) then Exit;
   FVisibleNodes.Clear();
   CollectVisibleNodes(FRoot);
   ContentHeight := FVisibleNodes.Count * FItemHeight;

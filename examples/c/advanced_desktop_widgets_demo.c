@@ -129,7 +129,7 @@ int main(int argc, char* argv[]) {
     /* ===================================================================== */
     /* TAB 1: Project Explorer (Splitter + TreeView + Table)                  */
     /* ===================================================================== */
-    FtTabPage tab1 = ft_notebook_add_tab(notebook, "Project Explorer", 0);
+    FtTabPage tab1 = ft_notebook_add_tab(notebook, "Project Explorer", 1);
 
     FtSplitter split1 = ft_splitter_create(tab1, 10, 10, 900, 535, FT_SPLITTER_HORIZONTAL);
     ft_splitter_on_position_change(split1, on_splitter_moved, NULL);

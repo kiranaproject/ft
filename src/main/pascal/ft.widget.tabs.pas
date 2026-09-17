@@ -39,6 +39,7 @@ type
     FTabHeight: Double;
     FHoveredIndex: Integer;
     FHoveredClose: Boolean;
+    FPressedCloseIndex: Integer;
     FOnTabChange: TFtTabChangeEvent;
     FOnTabClose: TFtTabCloseEvent;
     FOnTabChangeCb: TFtTabClickCallback;
@@ -47,15 +48,16 @@ type
     procedure SetActiveIndex(AValue: Integer);
     procedure SetTabHeight(AValue: Double);
     function GetPageCount(): Integer;
-    function GetTabRect(AIndex: Integer; out RX, RY, RW, RH: Double): Boolean;
-    function GetCloseButtonRect(AIndex: Integer; out CX, CY, CW, CH: Double): Boolean;
-    function TabIndexAt(AX, AY: Integer; out InCloseBtn: Boolean): Integer;
   protected
     procedure DrawTabStrip(Canvas: TFtCanvasAgg); virtual;
   public
     constructor Create(AParent: TFtWidget); override;
     destructor Destroy(); override;
     function GetElementType(): string; override;
+
+    function GetTabRect(AIndex: Integer; out RX, RY, RW, RH: Double): Boolean;
+    function GetCloseButtonRect(AIndex: Integer; out CX, CY, CW, CH: Double): Boolean;
+    function TabIndexAt(AX, AY: Integer; out InCloseBtn: Boolean): Integer;
 
     procedure UpdateLayout();
     function GetPage(AIndex: Integer): TFtTabPage;
@@ -66,6 +68,7 @@ type
     procedure Draw(Canvas: TFtCanvasAgg); override;
     function HitTest(AX, AY: Integer): TFtWidget; override;
     procedure MouseDown(AX, AY: Integer; AButton: Integer); override;
+    procedure MouseUp(AX, AY: Integer; AButton: Integer); override;
     procedure MouseMove(AX, AY: Integer); override;
     procedure MouseLeave(); override;
     procedure KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string); override;
@@ -130,6 +133,7 @@ begin
   FTabHeight := 36.0;
   FHoveredIndex := -1;
   FHoveredClose := False;
+  FPressedCloseIndex := -1;
   FFocusable := True;
 end;
 
@@ -188,20 +192,27 @@ var
   i: Integer;
   curX: Double;
   page: TFtTabPage;
-  titleLen: Integer;
+  fnt: TFtFont;
+  twText: Double;
   tabW: Double;
 begin
   Result := False;
   if (AIndex < 0) or (AIndex >= FPages.Count) then Exit;
 
-  curX := X;
+  if Assigned(Font) then fnt := Font else fnt := FtGetSystemFont();
+
+  curX := X + 4.0;
   for i := 0 to FPages.Count - 1 do
   begin
     page := TFtTabPage(FPages[i]);
-    titleLen := Length(page.Title);
-    tabW := Max(80.0, Min(220.0, titleLen * 9.0 + 32.0));
+    if Assigned(fnt) then
+      twText := fnt.GetTextWidth(page.Title)
+    else
+      twText := Length(page.Title) * 8.5;
+
+    tabW := Math.Max(70.0, twText + 28.0);
     if page.Closeable then
-      tabW := tabW + 20.0;
+      tabW := tabW + 22.0;
 
     if i = AIndex then
     begin
@@ -211,7 +222,7 @@ begin
       RH := FTabHeight;
       Exit(True);
     end;
-    curX := curX + tabW + 2.0;
+    curX := curX + tabW + 4.0;
   end;
 end;
 
@@ -225,9 +236,9 @@ begin
   page := GetPage(AIndex);
   if not Assigned(page) or not page.Closeable then Exit;
 
-  CW := 16.0;
-  CH := 16.0;
-  CX := tx + tw - 22.0;
+  CW := 18.0;
+  CH := 18.0;
+  CX := tx + tw - 24.0;
   CY := ty + (th - CH) * 0.5;
   Result := True;
 end;
@@ -337,104 +348,193 @@ var
   i: Integer;
   page: TFtTabPage;
   tx, ty, tw, th, cx, cy, cw, ch: Double;
-  isActive, isHovered, isCloseHover: Boolean;
+  isHovered, isCloseHover, isClosePressed: Boolean;
   tabR, tabG, tabB: Double;
   textR, textG, textB: Double;
-  stripR, stripG, stripB: Double;
-  accent: TFtRgbColor;
-  barH: Double;
+  borderR, borderG, borderB: Double;
+  baseY, rad: Double;
+  cenX, cenY, btnRad, arm: Double;
+  xR, xG, xB, xA: Double;
 begin
   theme := FtGetTheme();
-  accent := theme.GetAccentColor();
+  rad := 6.0;
+  baseY := Y + FTabHeight - 1.0;
 
-  // Draw tab strip backdrop
+  // Resolve border palette
   if theme.DarkMode then
   begin
-    stripR := 0.12; stripG := 0.12; stripB := 0.16;
+    borderR := 0.20; borderG := 0.25; borderB := 0.33; // #334155
   end
   else
   begin
-    stripR := 0.90; stripG := 0.90; stripB := 0.92;
+    borderR := 0.80; borderG := 0.84; borderB := 0.88; // #CBD5E1
   end;
-  Canvas.DrawRect(X, Y, Width, Round(FTabHeight), stripR, stripG, stripB, 1.0);
 
-  // Bottom dividing line
-  Canvas.DrawLine(X, Y + FTabHeight - 1.0, X + Width, Y + FTabHeight - 1.0, 1.0, stripR * 0.7, stripG * 0.7, stripB * 0.7, 1.0);
+  // 1. Draw continuous baseline divider line across the entire tab strip
+  Canvas.DrawLine(X, baseY, X + Width, baseY, 1.0, borderR, borderG, borderB, 1.0);
 
-  // Draw individual tabs
+  // 2. Pass 1: Draw Inactive Tabs (sits flush on top of the baseline)
   for i := 0 to FPages.Count - 1 do
   begin
+    if i = FActiveIndex then Continue;
     page := TFtTabPage(FPages[i]);
     if not GetTabRect(i, tx, ty, tw, th) then Continue;
 
-    isActive := (i = FActiveIndex);
-    isHovered := (i = FHoveredIndex);
+    isHovered := (i = FHoveredIndex) and not FHoveredClose;
 
-    if isActive then
+    // Inactive tab geometry: sits on baseline
+    ty := Y + 2.0;
+    th := FTabHeight - 3.0;
+
+    if theme.DarkMode then
     begin
-      if theme.DarkMode then
+      if isHovered then
       begin
-        tabR := 0.18; tabG := 0.19; tabB := 0.24;
+        tabR := 0.18; tabG := 0.20; tabB := 0.26;
+        textR := 0.95; textG := 0.96; textB := 0.98;
       end
       else
       begin
-        tabR := 1.0; tabG := 1.0; tabB := 1.0;
+        tabR := 0.13; tabG := 0.14; tabB := 0.18;
+        textR := 0.58; textG := 0.64; textB := 0.72;
       end;
-      textR := accent.R; textG := accent.G; textB := accent.B;
-    end
-    else if isHovered then
-    begin
-      if theme.DarkMode then
-      begin
-        tabR := 0.15; tabG := 0.15; tabB := 0.20;
-      end
-      else
-      begin
-        tabR := 0.94; tabG := 0.94; tabB := 0.96;
-      end;
-      textR := 0.8; textG := 0.8; textB := 0.8;
     end
     else
     begin
-      tabR := stripR; tabG := stripG; tabB := stripB;
-      if theme.DarkMode then
+      if isHovered then
       begin
-        textR := 0.6; textG := 0.6; textB := 0.6;
+        tabR := 0.93; tabG := 0.95; tabB := 0.97; // #EDF2F7
+        textR := 0.10; textG := 0.15; textB := 0.25; // #1E293B
       end
       else
       begin
-        textR := 0.4; textG := 0.4; textB := 0.4;
+        tabR := 0.89; tabG := 0.91; tabB := 0.94; // #E2E8F0
+        textR := 0.28; textG := 0.35; textB := 0.44; // #475569
       end;
     end;
 
-    // Tab body with rounded top corners
-    Canvas.DrawRoundedRect(tx, ty + 3.0, tw, th - 3.0, 6.0, tabR, tabG, tabB, 1.0);
+    // Top-rounded tab body clipped at the bottom
+    Canvas.PushClipRect(Round(tx - 1), Round(ty - 1), Round(tw + 2), Round(th + 1));
+    Canvas.DrawRoundedRect(tx, ty, tw, th + rad, rad, tabR, tabG, tabB, 1.0);
+    Canvas.DrawRoundedRectOutline(tx, ty, tw, th + rad, rad, 1.0, borderR, borderG, borderB, 1.0);
+    Canvas.PopClipRect();
 
-    // Active indicator top bar
-    if isActive then
-    begin
-      barH := 3.0;
-      Canvas.DrawRoundedRect(tx + 2.0, ty + 1.0, tw - 4.0, barH, 2.0, accent.R, accent.G, accent.B, 1.0);
-    end;
-
-    // Title Text
+    // Inactive Tab Title Text
     if page.Closeable then
-      Canvas.DrawTextLeft(tx + 12.0, ty + 6.0, tw - 36.0, th - 8.0, page.Title, Font, textR, textG, textB)
+      Canvas.DrawTextLeft(tx + 12.0, ty + 1.0, tw - 38.0, th, page.Title, Font, textR, textG, textB)
     else
-      Canvas.DrawTextCentered(Round(tx), Round(ty), Round(tw), Round(th), page.Title, Font, textR, textG, textB);
+      Canvas.DrawTextCentered(Round(tx), Round(ty + 1.0), Round(tw), Round(th), page.Title, Font, textR, textG, textB);
 
-    // Close button ('X')
+    // Inactive Tab Close Button
     if page.Closeable and GetCloseButtonRect(i, cx, cy, cw, ch) then
     begin
       isCloseHover := (i = FHoveredIndex) and FHoveredClose;
-      if isCloseHover then
+      isClosePressed := isCloseHover and (i = FPressedCloseIndex);
+      cenX := cx + cw * 0.5;
+      cenY := cy + ch * 0.5;
+      btnRad := 7.0;
+      arm := 2.5;
+
+      if isClosePressed then
       begin
-        Canvas.DrawRoundedRect(cx, cy, cw, ch, 4.0, 0.9, 0.2, 0.2, 0.8);
-        Canvas.DrawTextCentered(Round(cx), Round(cy) - 1, Round(cw), Round(ch), 'x', Font, 1.0, 1.0, 1.0);
+        Canvas.DrawCircle(cenX, cenY + 0.5, btnRad - 0.5, 0.70, 0.02, 0.05, 1.0); // #B2060C Click
+        xR := 1.0; xG := 1.0; xB := 1.0; xA := 1.0;
+        cenY := cenY + 0.5;
+      end
+      else if isCloseHover then
+      begin
+        // Dual-layer glowing halo (from design legend)
+        Canvas.DrawCircle(cenX, cenY, btnRad + 2.5, 0.98, 0.06, 0.11, 0.20);
+        Canvas.DrawCircle(cenX, cenY, btnRad + 1.2, 0.98, 0.06, 0.11, 0.40);
+        Canvas.DrawCircle(cenX, cenY, btnRad, 0.98, 0.06, 0.11, 1.0); // #FA0F1B Hover
+        xR := 1.0; xG := 1.0; xB := 1.0; xA := 1.0;
       end
       else
       begin
-        Canvas.DrawTextCentered(Round(cx), Round(cy) - 1, Round(cw), Round(ch), 'x', Font, textR, textG, textB);
+        // Normal subtle close badge (from design legend)
+        Canvas.DrawCircle(cenX, cenY, btnRad, 0.88, 0.08, 0.12, 1.0); // #E00A15 Normal
+        xR := 0.67; xG := 0.02; xB := 0.05; xA := 1.0; // #AC030B Normal
+      end;
+
+      // Anti-aliased 'x' cross lines
+      Canvas.DrawLine(cenX - arm, cenY - arm, cenX + arm, cenY + arm, 1.4, xR, xG, xB, xA);
+      Canvas.DrawLine(cenX + arm, cenY - arm, cenX - arm, cenY + arm, 1.4, xR, xG, xB, xA);
+    end;
+  end;
+
+  // 3. Pass 2: Draw Active Tab (covers baseline divider, open bottom merges into page)
+  if (FActiveIndex >= 0) and (FActiveIndex < FPages.Count) then
+  begin
+    i := FActiveIndex;
+    page := TFtTabPage(FPages[i]);
+    if GetTabRect(i, tx, ty, tw, th) then
+    begin
+      // Active tab extends down 1px over baseline
+      ty := Y + 1.0;
+      th := FTabHeight - 1.0;
+
+      if theme.DarkMode then
+      begin
+        tabR := 0.10; tabG := 0.11; tabB := 0.15;
+        textR := 0.97; textG := 0.98; textB := 0.99;
+      end
+      else
+      begin
+        tabR := 1.0; tabG := 1.0; tabB := 1.0; // Pure white
+        textR := 0.06; textG := 0.09; textB := 0.16; // #0F172A
+      end;
+
+      // Active tab body fill (covers the baseline)
+      Canvas.PushClipRect(Round(tx - 1), Round(ty - 1), Round(tw + 2), Round(th + 2));
+      Canvas.DrawRoundedRect(tx, ty, tw, th + rad, rad, tabR, tabG, tabB, 1.0);
+
+      // Active tab outline (bottom border clipped away -> open bottom!)
+      Canvas.DrawRoundedRectOutline(tx, ty, tw, th + rad, rad, 1.0, borderR, borderG, borderB, 1.0);
+      Canvas.PopClipRect();
+
+      // Clear any remaining baseline line across active tab span to guarantee seamless merge
+      Canvas.DrawLine(tx + 1.0, baseY, tx + tw - 1.0, baseY, 1.5, tabR, tabG, tabB, 1.0);
+
+      // Active Tab Title Text
+      if page.Closeable then
+        Canvas.DrawTextLeft(tx + 12.0, ty + 1.0, tw - 38.0, th, page.Title, Font, textR, textG, textB)
+      else
+        Canvas.DrawTextCentered(Round(tx), Round(ty + 1.0), Round(tw), Round(th), page.Title, Font, textR, textG, textB);
+
+      // Active Tab Close Button
+      if page.Closeable and GetCloseButtonRect(i, cx, cy, cw, ch) then
+      begin
+        isCloseHover := (i = FHoveredIndex) and FHoveredClose;
+        isClosePressed := isCloseHover and (i = FPressedCloseIndex);
+        cenX := cx + cw * 0.5;
+        cenY := cy + ch * 0.5;
+        btnRad := 7.0;
+        arm := 2.5;
+
+        if isClosePressed then
+        begin
+          Canvas.DrawCircle(cenX, cenY + 0.5, btnRad - 0.5, 0.70, 0.02, 0.05, 1.0); // #B2060C Click
+          xR := 1.0; xG := 1.0; xB := 1.0; xA := 1.0;
+          cenY := cenY + 0.5;
+        end
+        else if isCloseHover then
+        begin
+          // Glowing halo
+          Canvas.DrawCircle(cenX, cenY, btnRad + 2.5, 0.98, 0.06, 0.11, 0.20);
+          Canvas.DrawCircle(cenX, cenY, btnRad + 1.2, 0.98, 0.06, 0.11, 0.40);
+          Canvas.DrawCircle(cenX, cenY, btnRad, 0.98, 0.06, 0.11, 1.0); // #FA0F1B Hover
+          xR := 1.0; xG := 1.0; xB := 1.0; xA := 1.0;
+        end
+        else
+        begin
+          // Normal subtle close badge
+          Canvas.DrawCircle(cenX, cenY, btnRad, 0.88, 0.08, 0.12, 1.0); // #E00A15 Normal
+          xR := 0.67; xG := 0.02; xB := 0.05; xA := 1.0; // #AC030B Normal
+        end;
+
+        // Anti-aliased 'x' cross lines
+        Canvas.DrawLine(cenX - arm, cenY - arm, cenX + arm, cenY + arm, 1.4, xR, xG, xB, xA);
+        Canvas.DrawLine(cenX + arm, cenY - arm, cenX - arm, cenY + arm, 1.4, xR, xG, xB, xA);
       end;
     end;
   end;
@@ -479,7 +579,6 @@ procedure TFtNotebook.MouseDown(AX, AY: Integer; AButton: Integer);
 var
   idx: Integer;
   inClose: Boolean;
-  canClose: Boolean;
 begin
   inherited MouseDown(AX, AY, AButton);
 
@@ -490,17 +589,41 @@ begin
     begin
       if inClose then
       begin
-        canClose := True;
-        if Assigned(FOnTabClose) then
-          FOnTabClose(Self, idx, canClose);
-        if canClose then
-          RemoveTab(idx, True);
+        FPressedCloseIndex := idx;
+        Invalidate();
       end
       else
       begin
+        FPressedCloseIndex := -1;
         ActiveIndex := idx;
       end;
+    end
+    else
+      FPressedCloseIndex := -1;
+  end;
+end;
+
+procedure TFtNotebook.MouseUp(AX, AY: Integer; AButton: Integer);
+var
+  idx: Integer;
+  inClose: Boolean;
+  canClose: Boolean;
+begin
+  inherited MouseUp(AX, AY, AButton);
+
+  if (AButton = 1) and (FPressedCloseIndex >= 0) then
+  begin
+    idx := TabIndexAt(AX, AY, inClose);
+    if (idx = FPressedCloseIndex) and inClose then
+    begin
+      canClose := True;
+      if Assigned(FOnTabClose) then
+        FOnTabClose(Self, idx, canClose);
+      if canClose then
+        RemoveTab(idx, True);
     end;
+    FPressedCloseIndex := -1;
+    Invalidate();
   end;
 end;
 
@@ -526,10 +649,11 @@ end;
 procedure TFtNotebook.MouseLeave();
 begin
   inherited MouseLeave();
-  if (FHoveredIndex >= 0) or FHoveredClose then
+  if (FHoveredIndex >= 0) or FHoveredClose or (FPressedCloseIndex >= 0) then
   begin
     FHoveredIndex := -1;
     FHoveredClose := False;
+    FPressedCloseIndex := -1;
     Invalidate();
   end;
 end;
