@@ -7,3 +7,5 @@
 /target/
 /src/main/pascal/backup/
 /scratch/
+__pycache__/
+*.pyc
