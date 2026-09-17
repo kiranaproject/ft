@@ -393,6 +393,96 @@ begin
     Result := -1;
 end;
 
+function ft_window_button_create(parent: Pointer; x, y, w, h: cint32; kind: cint32; style: cint32): Pointer; cdecl; export;
+var
+  Btn: TFtWindowButton;
+begin
+  AdjustChildCoordinates(parent, x, y);
+  Btn := TFtWindowButton.Create(TFtWidget(parent));
+  Btn.X := x;
+  Btn.Y := y;
+  Btn.Width := w;
+  Btn.Height := h;
+  if (kind >= 0) and (kind <= Ord(High(TFtWindowButtonKind))) then
+    Btn.Kind := TFtWindowButtonKind(kind);
+  if (style >= 0) and (style <= Ord(High(TFtWindowButtonStyle))) then
+    Btn.Style := TFtWindowButtonStyle(style);
+  if Assigned(parent) and (TObject(parent) is TFtContainer) then
+    TFtContainer(parent).UpdateScrollBars();
+  Result := Pointer(Btn);
+end;
+
+procedure ft_window_button_set_kind(button: Pointer; kind: cint32); cdecl; export;
+begin
+  if Assigned(button) and (TObject(button) is TFtWindowButton) then
+    if (kind >= 0) and (kind <= Ord(High(TFtWindowButtonKind))) then
+      TFtWindowButton(button).Kind := TFtWindowButtonKind(kind);
+end;
+
+function ft_window_button_get_kind(button: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(button) and (TObject(button) is TFtWindowButton) then
+    Result := Ord(TFtWindowButton(button).Kind)
+  else
+    Result := 0;
+end;
+
+procedure ft_window_button_set_style(button: Pointer; style: cint32); cdecl; export;
+begin
+  if Assigned(button) and (TObject(button) is TFtWindowButton) then
+    if (style >= 0) and (style <= Ord(High(TFtWindowButtonStyle))) then
+      TFtWindowButton(button).Style := TFtWindowButtonStyle(style);
+end;
+
+function ft_window_button_get_style(button: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(button) and (TObject(button) is TFtWindowButton) then
+    Result := Ord(TFtWindowButton(button).Style)
+  else
+    Result := 0;
+end;
+
+procedure ft_window_button_set_glyph_arm(button: Pointer; arm: Double); cdecl; export;
+begin
+  if Assigned(button) and (TObject(button) is TFtWindowButton) then
+    TFtWindowButton(button).GlyphArm := arm;
+end;
+
+function ft_window_button_get_glyph_arm(button: Pointer): Double; cdecl; export;
+begin
+  if Assigned(button) and (TObject(button) is TFtWindowButton) then
+    Result := TFtWindowButton(button).GlyphArm
+  else
+    Result := 0.0;
+end;
+
+procedure ft_window_button_on_click(button: Pointer; callback: TFtClickCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(button) and (TObject(button) is TFtWindowButton) then
+  begin
+    TFtWindowButton(button).OnClick := callback;
+    TFtWindowButton(button).UserData := user_data;
+  end;
+end;
+
+procedure ft_window_button_on_hover(button: Pointer; callback: TFtHoverCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(button) and (TObject(button) is TFtWindowButton) then
+  begin
+    TFtWindowButton(button).OnHover := callback;
+    TFtWindowButton(button).UserData := user_data;
+  end;
+end;
+
+procedure ft_window_button_on_press(button: Pointer; callback: TFtPressCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(button) and (TObject(button) is TFtWindowButton) then
+  begin
+    TFtWindowButton(button).OnPress := callback;
+    TFtWindowButton(button).UserData := user_data;
+  end;
+end;
+
 function ft_switch_create(parent: Pointer; x, y, w, h: cint32; caption: PChar): Pointer; cdecl; export;
 var
   Sw: TFtSwitch;
@@ -3596,6 +3686,16 @@ exports
   ft_button_get_corner_radius,
   ft_button_set_shadow,
   ft_button_get_shadow,
+  ft_window_button_create,
+  ft_window_button_set_kind,
+  ft_window_button_get_kind,
+  ft_window_button_set_style,
+  ft_window_button_get_style,
+  ft_window_button_set_glyph_arm,
+  ft_window_button_get_glyph_arm,
+  ft_window_button_on_click,
+  ft_window_button_on_hover,
+  ft_window_button_on_press,
   ft_switch_create,
   ft_switch_set_checked,
   ft_switch_get_checked,

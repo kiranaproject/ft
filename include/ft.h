@@ -86,6 +86,35 @@ double ft_button_get_corner_radius(FtWidget button);
 void ft_button_set_shadow(FtWidget button, int32_t enabled);
 int32_t ft_button_get_shadow(FtWidget button);
 
+/* Widgets: Window Button (Titlebar, Tabs, Panels) */
+typedef enum {
+    FT_WINDOW_BUTTON_CLOSE = 0,     /* 'x' cross with scarlet glowing halo */
+    FT_WINDOW_BUTTON_MINIMIZE,      /* '—' dash with amber halo */
+    FT_WINDOW_BUTTON_MAXIMIZE,      /* Mac-style outward chevrons with emerald halo */
+    FT_WINDOW_BUTTON_RESTORE,       /* Mac-style inward chevrons with emerald halo */
+    FT_WINDOW_BUTTON_SHADE,         /* '▴' rollup chevron */
+    FT_WINDOW_BUTTON_PIN,           /* '•' pin / stick indicator */
+    FT_WINDOW_BUTTON_MENU,          /* '☰' hamburger menu */
+    FT_WINDOW_BUTTON_ADD            /* '+' new tab / add button */
+} FtWindowButtonKind;
+
+typedef enum {
+    FT_WINDOW_BUTTON_CIRCLE = 0,    /* Circular pill/halo (macOS traffic lights, modern tabs) */
+    FT_WINDOW_BUTTON_SQUIRCLE,      /* Rounded rectangle (modern GTK / GNOME header bar) */
+    FT_WINDOW_BUTTON_SQUARE         /* Flat rectangle (traditional Windows caption button) */
+} FtWindowButtonStyle;
+
+FtWidget ft_window_button_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, int32_t kind, int32_t style);
+void ft_window_button_set_kind(FtWidget button, int32_t kind);
+int32_t ft_window_button_get_kind(FtWidget button);
+void ft_window_button_set_style(FtWidget button, int32_t style);
+int32_t ft_window_button_get_style(FtWidget button);
+void ft_window_button_set_glyph_arm(FtWidget button, double arm);
+double ft_window_button_get_glyph_arm(FtWidget button);
+void ft_window_button_on_click(FtWidget button, FtClickCallback callback, void* user_data);
+void ft_window_button_on_hover(FtWidget button, FtHoverCallback callback, void* user_data);
+void ft_window_button_on_press(FtWidget button, FtPressCallback callback, void* user_data);
+
 /* Widgets: Switch */
 FtWidget ft_switch_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, const char* caption);
 void ft_switch_set_checked(FtWidget switch_widget, int32_t checked);

@@ -6,7 +6,7 @@ interface
 
 uses
   SysUtils, Classes, Math,
-  Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Widget.Containers, Ft.Theme, Ft.Css;
+  Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Widget.Containers, Ft.Widget.Buttons, Ft.Theme, Ft.Css;
 
 type
   TFtTabPage = class;
@@ -353,8 +353,7 @@ var
   textR, textG, textB: Double;
   borderR, borderG, borderB: Double;
   baseY, rad: Double;
-  cenX, cenY, btnRad, arm: Double;
-  xR, xG, xB, xA: Double;
+  btnState: TFtButtonState;
 begin
   theme := FtGetTheme();
   rad := 6.0;
@@ -430,45 +429,21 @@ begin
     begin
       isCloseHover := (i = FHoveredIndex) and FHoveredClose;
       isClosePressed := isCloseHover and (i = FPressedCloseIndex);
-      cenX := cx + cw * 0.5;
-      cenY := cy + ch * 0.5;
-      btnRad := 7.0;
-      arm := 2.5;
-
+      btnState := bsNormal;
       if isClosePressed then
-      begin
-        Canvas.DrawCircle(cenX, cenY + 0.5, btnRad - 0.5, 0.70, 0.02, 0.05, 1.0); // #B2060C Click
-        xR := 1.0; xG := 1.0; xB := 1.0; xA := 1.0;
-        cenY := cenY + 0.5;
-      end
+        btnState := bsPressed
       else if isCloseHover then
-      begin
-        // Dual-layer glowing halo (from design legend)
-        Canvas.DrawCircle(cenX, cenY, btnRad + 2.5, 0.98, 0.06, 0.11, 0.20);
-        Canvas.DrawCircle(cenX, cenY, btnRad + 1.2, 0.98, 0.06, 0.11, 0.40);
-        Canvas.DrawCircle(cenX, cenY, btnRad, 0.98, 0.06, 0.11, 1.0); // #FA0F1B Hover
-        xR := 1.0; xG := 1.0; xB := 1.0; xA := 1.0;
-      end
-      else
-      begin
-        // Normal state: button-like styling
-        if theme.DarkMode then
-        begin
-          Canvas.DrawCircle(cenX, cenY, btnRad, 0.22, 0.24, 0.26, 1.0);
-          Canvas.DrawCircleOutline(cenX, cenY, btnRad, 1.0, 0.32, 0.35, 0.38, 1.0);
-          xR := 0.85; xG := 0.87; xB := 0.90; xA := 1.0;
-        end
-        else
-        begin
-          Canvas.DrawCircle(cenX, cenY, btnRad, 0.96, 0.97, 0.98, 1.0);
-          Canvas.DrawCircleOutline(cenX, cenY, btnRad, 1.0, 0.80, 0.82, 0.85, 1.0);
-          xR := 0.32; xG := 0.38; xB := 0.46; xA := 1.0;
-        end;
-      end;
+        btnState := bsHovered;
 
-      // Anti-aliased 'x' cross lines
-      Canvas.DrawLine(cenX - arm, cenY - arm, cenX + arm, cenY + arm, 1.4, xR, xG, xB, xA);
-      Canvas.DrawLine(cenX + arm, cenY - arm, cenX - arm, cenY + arm, 1.4, xR, xG, xB, xA);
+      TFtWindowButton.DrawWindowButton(
+        Canvas,
+        cx, cy, cw, ch,
+        wbkClose,
+        wbsCircle,
+        btnState,
+        theme.DarkMode,
+        2.5
+      );
     end;
   end;
 
@@ -516,45 +491,21 @@ begin
       begin
         isCloseHover := (i = FHoveredIndex) and FHoveredClose;
         isClosePressed := isCloseHover and (i = FPressedCloseIndex);
-        cenX := cx + cw * 0.5;
-        cenY := cy + ch * 0.5;
-        btnRad := 7.0;
-        arm := 2.5;
-
+        btnState := bsNormal;
         if isClosePressed then
-        begin
-          Canvas.DrawCircle(cenX, cenY + 0.5, btnRad - 0.5, 0.70, 0.02, 0.05, 1.0); // #B2060C Click
-          xR := 1.0; xG := 1.0; xB := 1.0; xA := 1.0;
-          cenY := cenY + 0.5;
-        end
+          btnState := bsPressed
         else if isCloseHover then
-        begin
-          // Glowing halo
-          Canvas.DrawCircle(cenX, cenY, btnRad + 2.5, 0.98, 0.06, 0.11, 0.20);
-          Canvas.DrawCircle(cenX, cenY, btnRad + 1.2, 0.98, 0.06, 0.11, 0.40);
-          Canvas.DrawCircle(cenX, cenY, btnRad, 0.98, 0.06, 0.11, 1.0); // #FA0F1B Hover
-          xR := 1.0; xG := 1.0; xB := 1.0; xA := 1.0;
-        end
-        else
-        begin
-          // Normal state: button-like styling
-          if theme.DarkMode then
-          begin
-            Canvas.DrawCircle(cenX, cenY, btnRad, 0.22, 0.24, 0.26, 1.0);
-            Canvas.DrawCircleOutline(cenX, cenY, btnRad, 1.0, 0.32, 0.35, 0.38, 1.0);
-            xR := 0.85; xG := 0.87; xB := 0.90; xA := 1.0;
-          end
-          else
-          begin
-            Canvas.DrawCircle(cenX, cenY, btnRad, 0.96, 0.97, 0.98, 1.0);
-            Canvas.DrawCircleOutline(cenX, cenY, btnRad, 1.0, 0.80, 0.82, 0.85, 1.0);
-            xR := 0.32; xG := 0.38; xB := 0.46; xA := 1.0;
-          end;
-        end;
+          btnState := bsHovered;
 
-        // Anti-aliased 'x' cross lines
-        Canvas.DrawLine(cenX - arm, cenY - arm, cenX + arm, cenY + arm, 1.4, xR, xG, xB, xA);
-        Canvas.DrawLine(cenX + arm, cenY - arm, cenX - arm, cenY + arm, 1.4, xR, xG, xB, xA);
+        TFtWindowButton.DrawWindowButton(
+          Canvas,
+          cx, cy, cw, ch,
+          wbkClose,
+          wbsCircle,
+          btnState,
+          theme.DarkMode,
+          2.5
+        );
       end;
     end;
   end;

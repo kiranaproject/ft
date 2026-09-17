@@ -6,7 +6,7 @@ uses
   Classes, SysUtils, Math, fpcunit, testregistry, consoletestrunner,
   Floria.SVG.DOM, Floria.SVG.Parser,
   Ft.Css, Ft.Bitmap, Ft.Blur, Ft.Canvas.Agg, Ft.Svg, Ft.Widget, Ft.Widget.Containers, Ft.Widget.Images,
-  Ft.Widget.Tabs, Ft.Widget.Splitters, Ft.Widget.TreeViews, Ft.Widget.Tables, Ft.Widget.Texts;
+  Ft.Widget.Tabs, Ft.Widget.Splitters, Ft.Widget.TreeViews, Ft.Widget.Tables, Ft.Widget.Texts, Ft.Widget.Buttons, Ft.Theme;
 
 type
   TFtDesktopWidgetsTest = class(TTestCase)
@@ -17,6 +17,7 @@ type
     procedure TestTable();
     procedure TestDynamicContainerRenderArea();
     procedure TestCanvasRoundedRectClipping();
+    procedure TestWindowButton();
   end;
 
   TFtSvgTest = class(TTestCase)
@@ -709,6 +710,98 @@ begin
     AssertEquals('Outside rect pixel R is white (255)', 255, buf[5, 5].R);
   finally
     canvas.Free();
+  end;
+end;
+
+var
+  gWindowButtonClicked: Boolean = False;
+
+procedure OnTestWindowButtonClick(Sender: Pointer; UserData: Pointer); cdecl;
+begin
+  gWindowButtonClicked := True;
+end;
+
+procedure TFtDesktopWidgetsTest.TestWindowButton();
+var
+  btn: TFtWindowButton;
+  canvas: TFtCanvasAgg;
+  k: TFtWindowButtonKind;
+  s: TFtWindowButtonStyle;
+  rawBuf: array of Byte;
+begin
+  btn := TFtWindowButton.Create(nil);
+  try
+    AssertEquals('Element type', 'windowbutton', btn.GetElementType());
+    AssertEquals('Default kind is close', Ord(wbkClose), Ord(btn.Kind));
+    AssertEquals('Default style is circle', Ord(wbsCircle), Ord(btn.Style));
+    AssertEquals('Default width 16', 16, btn.Width);
+    AssertEquals('Default height 16', 16, btn.Height);
+    AssertEquals('Normal pseudo-class', '', btn.GetStatePseudoClass());
+
+    // Kinds
+    btn.Kind := wbkMinimize;
+    AssertEquals('Kind minimize', Ord(wbkMinimize), Ord(btn.Kind));
+    btn.Kind := wbkMaximize;
+    AssertEquals('Kind maximize (Mac chevron)', Ord(wbkMaximize), Ord(btn.Kind));
+    btn.Kind := wbkRestore;
+    AssertEquals('Kind restore (Mac chevron)', Ord(wbkRestore), Ord(btn.Kind));
+    btn.Kind := wbkAdd;
+    AssertEquals('Kind add', Ord(wbkAdd), Ord(btn.Kind));
+
+    // Styles
+    btn.Style := wbsSquircle;
+    AssertEquals('Style squircle', Ord(wbsSquircle), Ord(btn.Style));
+    btn.Style := wbsSquare;
+    AssertEquals('Style square', Ord(wbsSquare), Ord(btn.Style));
+    btn.Style := wbsCircle;
+
+    // Mouse events
+    gWindowButtonClicked := False;
+    btn.OnClick := @OnTestWindowButtonClick;
+    btn.X := 10;
+    btn.Y := 10;
+    btn.Width := 20;
+    btn.Height := 20;
+
+    btn.MouseEnter();
+    AssertEquals('State hover', Ord(bsHovered), Ord(btn.State));
+    AssertEquals('Hover pseudo-class', ':hover', btn.GetStatePseudoClass());
+
+    btn.MouseDown(15, 15, 1);
+    AssertEquals('State pressed', Ord(bsPressed), Ord(btn.State));
+    AssertEquals('Active pseudo-class', ':active', btn.GetStatePseudoClass());
+
+    btn.MouseUp(15, 15, 1);
+    AssertTrue('Click callback invoked', gWindowButtonClicked);
+    AssertEquals('State back to hover', Ord(bsHovered), Ord(btn.State));
+
+    btn.MouseLeave();
+    AssertEquals('State normal after leave', Ord(bsNormal), Ord(btn.State));
+
+    // Disabled state
+    btn.Enabled := False;
+    AssertEquals('Disabled pseudo-class', ':disabled', btn.GetStatePseudoClass());
+    btn.Enabled := True;
+
+    // Direct rendering test for all kinds and styles in Canvas
+    SetLength(rawBuf, 64 * 64 * 4);
+    canvas := TFtCanvasAgg.Create(@rawBuf[0], 64, 64);
+    try
+      for s := Low(TFtWindowButtonStyle) to High(TFtWindowButtonStyle) do
+        for k := Low(TFtWindowButtonKind) to High(TFtWindowButtonKind) do
+        begin
+          TFtWindowButton.DrawWindowButton(canvas, 4, 4, 24, 24, k, s, bsNormal, False);
+          TFtWindowButton.DrawWindowButton(canvas, 4, 4, 24, 24, k, s, bsHovered, False);
+          TFtWindowButton.DrawWindowButton(canvas, 4, 4, 24, 24, k, s, bsPressed, False);
+          TFtWindowButton.DrawWindowButton(canvas, 4, 4, 24, 24, k, s, bsNormal, True);
+          TFtWindowButton.DrawWindowButton(canvas, 4, 4, 24, 24, k, s, bsHovered, True);
+          TFtWindowButton.DrawWindowButton(canvas, 4, 4, 24, 24, k, s, bsPressed, True);
+        end;
+    finally
+      canvas.Free();
+    end;
+  finally
+    btn.Free();
   end;
 end;
 
