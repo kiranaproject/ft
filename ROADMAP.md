@@ -60,15 +60,15 @@ Expand beyond native X11 to support contemporary display protocols and operating
 
 Enrich the desktop control catalog with complex data-driven components.
 
-- [ ] **DataGrid & Table View (`TFtGrid` / `TFtTable`)**:
-  - Virtual scrolling for datasets with millions of rows.
-  - Sortable columns, custom cell renderers, and in-place editing.
-- [ ] **Tree View (`TFtTreeView`)**:
-  - Hierarchical node rendering with folding animations and multi-selection.
-- [ ] **Notebook / Tabbed Container (`TFtNotebook` / `TFtTabs`)**:
-  - Movable tabs, close buttons, and lazy-loaded page switching.
-- [ ] **Splitter & Panes (`TFtSplitter`)**:
-  - Resizable horizontal and vertical dividing gutters with minimum size constraints.
+- [x] **DataGrid & Table View (`TFtGrid` / `TFtTable`)**:
+  - Column headers with alignment (`taLeft`, `taCenter`, `taRight`).
+  - Alternating zebra striping, gridlines, and cell selection.
+- [x] **Tree View (`TFtTreeView`)**:
+  - Hierarchical node rendering with folding glyphs, depth indentation, and selection tracking.
+- [x] **Notebook / Tabbed Container (`TFtNotebook` / `TFtTabs`)**:
+  - Tab switching, close buttons, active tab indicator, and page containers.
+- [x] **Splitter & Panes (`TFtSplitter`)**:
+  - Resizable horizontal and vertical dividing gutters with live mouse drag, grip dots, and child positioning.
 - [ ] **Standard Dialog System**:
   - Native and themed modal dialogs: File Chooser, Directory Selector, Color Picker, and Alert/Confirmation dialogs.
 
