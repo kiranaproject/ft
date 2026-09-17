@@ -42,6 +42,18 @@ type
     X1, Y1, X2, Y2: Integer;
   end;
 
+  TFtCornerSnapshot = record
+    X, Y, W, H: Integer;
+    Pixels: array of TBgraPixel;
+  end;
+
+  TFtRoundedClip = record
+    OrigX, OrigY, OrigW, OrigH: Double;
+    Radius: Double;
+    HasCorners: Boolean;
+    Corners: array[0..3] of TFtCornerSnapshot;
+  end;
+
   TFtCanvasAgg = class
   private
     FBuffer: Pointer;
@@ -53,6 +65,8 @@ type
     FScanline: scanline_u8;
     FClipStack: array[0..63] of TFtClipRect;
     FClipStackCount: Integer;
+    FRoundedClipStack: array[0..31] of TFtRoundedClip;
+    FRoundedClipStackCount: Integer;
     FAlphaStack: array[0..63] of Double;
     FAlphaStackCount: Integer;
     FCurrentAlpha: Double;
@@ -71,6 +85,8 @@ type
     procedure BlurRect(X, Y, W, H: Double; BlurRadius: Double);
     procedure PushClipRect(X, Y, W, H: Integer);
     procedure PopClipRect();
+    procedure PushClipRoundedRect(X, Y, W, H: Double; Radius: Double);
+    procedure PopClipRoundedRect();
     procedure SetClipRect(X, Y, W, H: Integer);
     procedure ResetClipRect();
     procedure ResetAllClipping();
@@ -131,12 +147,14 @@ begin
   FRasterizer.Construct();
   FScanline.Construct();
   FClipStackCount := 0;
+  FRoundedClipStackCount := 0;
   FAlphaStackCount := 0;
   FCurrentAlpha := 1.0;
 end;
 
 destructor TFtCanvasAgg.Destroy();
 begin
+  ResetAllClipping();
   FScanline.Destruct();
   FRasterizer.Destruct();
   FRenderingBuf.Destruct();
@@ -152,7 +170,7 @@ begin
   FRenderingBuf.attach(FBuffer, FWidth, FHeight, FWidth * 4);
   pixfmt_bgra32(FPixFormat, @FRenderingBuf);
   FRendererBase.Construct(@FPixFormat);
-  FClipStackCount := 0;
+  ResetAllClipping();
   FAlphaStackCount := 0;
   FCurrentAlpha := 1.0;
 end;
@@ -219,6 +237,177 @@ begin
   end;
 end;
 
+procedure TFtCanvasAgg.PushClipRoundedRect(X, Y, W, H: Double; Radius: Double);
+var
+  rc: TFtRoundedClip;
+  intX, intY, intW, intH: Integer;
+  rad: Double;
+  radInt: Integer;
+  cIdx: Integer;
+  cx, cy, cw, ch: Integer;
+  pSrc: PBgraPixel;
+  px, py, idx: Integer;
+begin
+  intX := Round(X);
+  intY := Round(Y);
+  intW := Round(W);
+  intH := Round(H);
+
+  // Apply standard rectangular clip to AGG renderer base
+  PushClipRect(intX, intY, intW, intH);
+
+  rad := Radius;
+  if rad < 0.0 then rad := 0.0;
+  if (intW > 0) and (rad * 2.0 > intW) then rad := intW * 0.5;
+  if (intH > 0) and (rad * 2.0 > intH) then rad := intH * 0.5;
+
+  rc.OrigX := X;
+  rc.OrigY := Y;
+  rc.OrigW := W;
+  rc.OrigH := H;
+  rc.Radius := rad;
+  rc.HasCorners := False;
+
+  if (rad > 0.5) and (intW > 2) and (intH > 2) and Assigned(FBuffer) then
+  begin
+    radInt := Ceil(rad);
+    if radInt < 1 then radInt := 1;
+    rc.HasCorners := True;
+
+    for cIdx := 0 to 3 do
+    begin
+      case cIdx of
+        0: begin cx := intX; cy := intY; end;
+        1: begin cx := intX + intW - radInt; cy := intY; end;
+        2: begin cx := intX; cy := intY + intH - radInt; end;
+        3: begin cx := intX + intW - radInt; cy := intY + intH - radInt; end;
+      end;
+      cw := radInt;
+      ch := radInt;
+
+      // Clamp to buffer boundaries
+      if cx < 0 then begin cw := cw + cx; cx := 0; end;
+      if cy < 0 then begin ch := ch + cy; cy := 0; end;
+      if cx + cw > FWidth then cw := FWidth - cx;
+      if cy + ch > FHeight then ch := FHeight - cy;
+
+      rc.Corners[cIdx].X := cx;
+      rc.Corners[cIdx].Y := cy;
+      rc.Corners[cIdx].W := cw;
+      rc.Corners[cIdx].H := ch;
+
+      if (cw > 0) and (ch > 0) then
+      begin
+        SetLength(rc.Corners[cIdx].Pixels, cw * ch);
+        pSrc := PBgraPixel(FBuffer);
+        idx := 0;
+        for py := cy to cy + ch - 1 do
+        begin
+          for px := cx to cx + cw - 1 do
+          begin
+            rc.Corners[cIdx].Pixels[idx] := pSrc[py * FWidth + px];
+            Inc(idx);
+          end;
+        end;
+      end
+      else
+        SetLength(rc.Corners[cIdx].Pixels, 0);
+    end;
+  end;
+
+  if FRoundedClipStackCount <= High(FRoundedClipStack) then
+  begin
+    FRoundedClipStack[FRoundedClipStackCount] := rc;
+    Inc(FRoundedClipStackCount);
+  end;
+end;
+
+procedure TFtCanvasAgg.PopClipRoundedRect();
+var
+  rc: TFtRoundedClip;
+  rad, maxDistSq, minDistSq: Double;
+  arcX, arcY: Double;
+  cIdx: Integer;
+  cx, cy, cw, ch: Integer;
+  px, py, idx: Integer;
+  dx, dy, distSq, dist, cov: Double;
+  pDst: PBgraPixel;
+  savedPix: TBgraPixel;
+  curPix: TBgraPixel;
+begin
+  if FRoundedClipStackCount <= 0 then Exit;
+  Dec(FRoundedClipStackCount);
+  rc := FRoundedClipStack[FRoundedClipStackCount];
+
+  // Pop rectangular clip from AGG renderer base
+  PopClipRect();
+
+  // If corner masking is active, restore/anti-alias the 4 corners
+  if rc.HasCorners and Assigned(FBuffer) and (rc.Radius > 0.5) then
+  begin
+    rad := rc.Radius;
+    maxDistSq := (rad + 0.5) * (rad + 0.5);
+    minDistSq := (rad - 0.5) * (rad - 0.5);
+    pDst := PBgraPixel(FBuffer);
+
+    for cIdx := 0 to 3 do
+    begin
+      cx := rc.Corners[cIdx].X;
+      cy := rc.Corners[cIdx].Y;
+      cw := rc.Corners[cIdx].W;
+      ch := rc.Corners[cIdx].H;
+      if (cw <= 0) or (ch <= 0) or (Length(rc.Corners[cIdx].Pixels) = 0) then
+        Continue;
+
+      case cIdx of
+        0: begin arcX := rc.OrigX + rad; arcY := rc.OrigY + rad; end;
+        1: begin arcX := rc.OrigX + rc.OrigW - rad; arcY := rc.OrigY + rad; end;
+        2: begin arcX := rc.OrigX + rad; arcY := rc.OrigY + rc.OrigH - rad; end;
+        3: begin arcX := rc.OrigX + rc.OrigW - rad; arcY := rc.OrigY + rc.OrigH - rad; end;
+      end;
+
+      idx := 0;
+      for py := cy to cy + ch - 1 do
+      begin
+        for px := cx to cx + cw - 1 do
+        begin
+          savedPix := rc.Corners[cIdx].Pixels[idx];
+          Inc(idx);
+
+          dx := (px + 0.5) - arcX;
+          dy := (py + 0.5) - arcY;
+
+          case cIdx of
+            0: if (dx > 0.0) or (dy > 0.0) then Continue;
+            1: if (dx < 0.0) or (dy > 0.0) then Continue;
+            2: if (dx > 0.0) or (dy < 0.0) then Continue;
+            3: if (dx < 0.0) or (dy < 0.0) then Continue;
+          end;
+
+          distSq := dx * dx + dy * dy;
+          if distSq > maxDistSq then
+          begin
+            pDst[py * FWidth + px] := savedPix;
+          end
+          else if distSq > minDistSq then
+          begin
+            dist := Sqrt(distSq);
+            cov := rad + 0.5 - dist;
+            if cov < 0.0 then cov := 0.0 else if cov > 1.0 then cov := 1.0;
+
+            curPix := pDst[py * FWidth + px];
+            pDst[py * FWidth + px].B := Round(curPix.B * cov + savedPix.B * (1.0 - cov));
+            pDst[py * FWidth + px].G := Round(curPix.G * cov + savedPix.G * (1.0 - cov));
+            pDst[py * FWidth + px].R := Round(curPix.R * cov + savedPix.R * (1.0 - cov));
+            pDst[py * FWidth + px].A := Round(curPix.A * cov + savedPix.A * (1.0 - cov));
+          end;
+        end;
+      end;
+      SetLength(rc.Corners[cIdx].Pixels, 0);
+    end;
+  end;
+end;
+
 procedure TFtCanvasAgg.SetClipRect(X, Y, W, H: Integer);
 begin
   PushClipRect(X, Y, W, H);
@@ -230,7 +419,13 @@ begin
 end;
 
 procedure TFtCanvasAgg.ResetAllClipping();
+var
+  i, c: Integer;
 begin
+  for i := 0 to FRoundedClipStackCount - 1 do
+    for c := 0 to 3 do
+      SetLength(FRoundedClipStack[i].Corners[c].Pixels, 0);
+  FRoundedClipStackCount := 0;
   FClipStackCount := 0;
   FRendererBase.reset_clipping(True);
 end;

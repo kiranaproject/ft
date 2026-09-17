@@ -5,7 +5,7 @@ program TestRunner;
 uses
   Classes, SysUtils, Math, fpcunit, testregistry, consoletestrunner,
   Floria.SVG.DOM, Floria.SVG.Parser,
-  Ft.Css, Ft.Bitmap, Ft.Canvas.Agg, Ft.Svg, Ft.Widget, Ft.Widget.Containers, Ft.Widget.Images,
+  Ft.Css, Ft.Bitmap, Ft.Blur, Ft.Canvas.Agg, Ft.Svg, Ft.Widget, Ft.Widget.Containers, Ft.Widget.Images,
   Ft.Widget.Tabs, Ft.Widget.Splitters, Ft.Widget.TreeViews, Ft.Widget.Tables, Ft.Widget.Texts;
 
 type
@@ -15,6 +15,8 @@ type
     procedure TestSplitter();
     procedure TestTreeView();
     procedure TestTable();
+    procedure TestDynamicContainerRenderArea();
+    procedure TestCanvasRoundedRectClipping();
   end;
 
   TFtSvgTest = class(TTestCase)
@@ -600,6 +602,102 @@ begin
     AssertEquals('Row count after clear is 0', 0, tbl.RowCount);
   finally
     tbl.Free();
+  end;
+end;
+
+procedure TFtDesktopWidgetsTest.TestDynamicContainerRenderArea();
+var
+  cont: TFtContainer;
+  child: TFtWidget;
+  rx, ry, rw, rh, rrad: Double;
+  px, py, pw, ph, prad: Double;
+begin
+  cont := TFtContainer.Create(nil);
+  try
+    cont.X := 50;
+    cont.Y := 60;
+    cont.Width := 300;
+    cont.Height := 200;
+    cont.DrawFrame := True;
+    cont.SetPadding(0.0, 0.0);
+    cont.CornerRadius := 10.0;
+
+    // Test render area calculation
+    cont.GetRenderArea(rx, ry, rw, rh, rrad);
+    AssertEquals('Render area X', 51.0, rx);
+    AssertEquals('Render area Y', 61.0, ry);
+    AssertEquals('Render area W', 298.0, rw);
+    AssertEquals('Render area H', 198.0, rh);
+    AssertEquals('Inner Radius (10 - 1 bw)', 9.0, rrad);
+
+    // Test child querying parent render area
+    child := TFtWidget.Create(cont);
+    AssertTrue('Child queries parent render area', child.GetParentRenderArea(px, py, pw, ph, prad));
+    AssertEquals('Child parent X', rx, px);
+    AssertEquals('Child parent Y', ry, py);
+    AssertEquals('Child parent Radius', 9.0, prad);
+
+    // Test with 0 radius (sharp corners)
+    cont.CornerRadius := 0.0;
+    AssertEquals('Inner radius is 0 when corner radius is 0', 0.0, cont.GetInnerRadius());
+    cont.GetRenderArea(rx, ry, rw, rh, rrad);
+    AssertEquals('Render area radius is 0', 0.0, rrad);
+  finally
+    cont.Free();
+  end;
+end;
+
+procedure TFtDesktopWidgetsTest.TestCanvasRoundedRectClipping();
+var
+  buf: array[0..99, 0..99] of TBgraPixel;
+  canvas: TFtCanvasAgg;
+  pBuf: PBgraPixel;
+  x, y: Integer;
+  centerPix, cornerPix: TBgraPixel;
+begin
+  pBuf := @buf[0, 0];
+  // Fill buffer with solid white
+  for y := 0 to 99 do
+    for x := 0 to 99 do
+    begin
+      buf[y, x].R := 255;
+      buf[y, x].G := 255;
+      buf[y, x].B := 255;
+      buf[y, x].A := 255;
+    end;
+
+  canvas := TFtCanvasAgg.Create(pBuf, 100, 100);
+  try
+    // Clip to rounded rect at (10, 10, 80, 80) with radius 20.0
+    canvas.PushClipRoundedRect(10.0, 10.0, 80.0, 80.0, 20.0);
+    try
+      // Draw a solid black rect covering the entire 100x100 area
+      canvas.DrawRect(0, 0, 100, 100, 0.0, 0.0, 0.0, 1.0);
+    finally
+      canvas.PopClipRoundedRect();
+    end;
+
+    // Center pixel (50, 50) is inside: must be black!
+    centerPix := buf[50, 50];
+    AssertEquals('Center pixel R is black (0)', 0, centerPix.R);
+    AssertEquals('Center pixel G is black (0)', 0, centerPix.G);
+    AssertEquals('Center pixel B is black (0)', 0, centerPix.B);
+
+    // Corner pixel (11, 11) is in the top-left corner wedge outside the curve:
+    // Distance from arc center (30, 30) is sqrt((30-11.5)^2 + (30-11.5)^2) = 26.16 > 20.0
+    // So pixel (11, 11) MUST remain white!
+    cornerPix := buf[11, 11];
+    AssertEquals('Corner pixel R is preserved white (255)', 255, cornerPix.R);
+    AssertEquals('Corner pixel G is preserved white (255)', 255, cornerPix.G);
+    AssertEquals('Corner pixel B is preserved white (255)', 255, cornerPix.B);
+
+    // Pixel at (50, 10) (top edge straight section) is inside: must be black!
+    AssertEquals('Top edge pixel R is black (0)', 0, buf[10, 50].R);
+
+    // Pixel outside the 80x80 box at (5, 5) must be white (clipped by rect clip)
+    AssertEquals('Outside rect pixel R is white (255)', 255, buf[5, 5].R);
+  finally
+    canvas.Free();
   end;
 end;
 

@@ -374,11 +374,6 @@ begin
     textR := 0.25; textG := 0.28; textB := 0.35;
   end;
 
-  if FCornerRadius >= 0.0 then
-    rad := FCornerRadius
-  else
-    rad := 5.0;
-
   hx := X + 1.0;
   hy := Y + 1.0;
   hw := Width - 2.0;
@@ -386,8 +381,8 @@ begin
 
   Canvas.PushClipRect(Round(hx), Round(hy), Round(hw), Round(hh));
   try
-    // Header background with top corners rounded to match container
-    Canvas.DrawRoundedRect(hx, hy, hw, hh + rad, Max(0.0, rad - 1.0), headR, headG, headB, 1.0);
+    // Header background (container's dynamic clip automatically rounds the top corners if container is rounded!)
+    Canvas.DrawRect(Round(hx), Round(hy), Round(hw), Round(hh), headR, headG, headB, 1.0);
 
     colX := hx - FScrollX;
     for i := 0 to FColumns.Count - 1 do
@@ -551,26 +546,30 @@ end;
 
 procedure TFtTable.Draw(Canvas: TFtCanvasAgg);
 var
+  clipX, clipY, clipW, clipH, innerRad: Double;
   theme: TFtTheme;
   rad: Double;
   bd: TFtRgbColor;
 begin
   if not Visible then Exit;
 
-  // Background and content
+  // Background and content (table rows) - dynamically clipped by container
   inherited Draw(Canvas);
 
-  // Draw fixed Header row over content
-  DrawHeader(Canvas);
+  // Draw fixed Header row over content, dynamically clipped to container render area
+  GetRenderArea(clipX, clipY, clipW, clipH, innerRad);
+  Canvas.PushClipRoundedRect(clipX, clipY, clipW, Height - (clipY - Y) * 2.0, innerRad);
+  try
+    DrawHeader(Canvas);
+  finally
+    Canvas.PopClipRoundedRect();
+  end;
 
   // Re-stroke container border outline over header and rows
   if FDrawFrame then
   begin
     theme := FtGetTheme();
-    if FCornerRadius >= 0.0 then
-      rad := FCornerRadius
-    else
-      rad := 5.0;
+    rad := GetEffectiveCornerRadius();
 
     if FFocused and FDrawFocusRing then
       bd := theme.GetAccentColor()

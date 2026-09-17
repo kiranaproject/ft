@@ -1210,6 +1210,35 @@ begin
   end;
 end;
 
+procedure ft_container_get_render_area(container: Pointer; x, y, w, h, radius: PDouble); cdecl; export;
+var
+  rx, ry, rw, rh, rrad: Double;
+begin
+  if Assigned(container) and (TObject(container) is TFtContainer) then
+  begin
+    TFtContainer(container).GetRenderArea(rx, ry, rw, rh, rrad);
+    if Assigned(x) then x^ := rx;
+    if Assigned(y) then y^ := ry;
+    if Assigned(w) then w^ := rw;
+    if Assigned(h) then h^ := rh;
+    if Assigned(radius) then radius^ := rrad;
+  end;
+end;
+
+function ft_container_get_inner_radius(container: Pointer): cdouble; cdecl; export;
+begin
+  Result := 0.0;
+  if Assigned(container) and (TObject(container) is TFtContainer) then
+    Result := TFtContainer(container).GetInnerRadius();
+end;
+
+function ft_container_get_effective_corner_radius(container: Pointer): cdouble; cdecl; export;
+begin
+  Result := 0.0;
+  if Assigned(container) and (TObject(container) is TFtContainer) then
+    Result := TFtContainer(container).GetEffectiveCornerRadius();
+end;
+
 procedure ft_container_update_scrollbars(container: Pointer); cdecl; export;
 begin
   if Assigned(container) and (TObject(container) is TFtContainer) then
@@ -1734,6 +1763,25 @@ begin
     Result := TFtWidget(widget).Opacity
   else
     Result := 1.0;
+end;
+
+function ft_widget_get_parent_render_area(widget: Pointer; x, y, w, h, radius: PDouble): cint32; cdecl; export;
+var
+  rx, ry, rw, rh, rrad: Double;
+begin
+  Result := 0;
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+  begin
+    if TFtWidget(widget).GetParentRenderArea(rx, ry, rw, rh, rrad) then
+    begin
+      if Assigned(x) then x^ := rx;
+      if Assigned(y) then y^ := ry;
+      if Assigned(w) then w^ := rw;
+      if Assigned(h) then h^ := rh;
+      if Assigned(radius) then radius^ := rrad;
+      Result := 1;
+    end;
+  end;
 end;
 
 function ft_style_load_css_file(filepath: PChar): cint32; cdecl; export;
@@ -3658,6 +3706,9 @@ exports
   ft_container_get_hscrollbar,
   ft_container_on_scroll,
   ft_container_get_client_rect,
+  ft_container_get_render_area,
+  ft_container_get_inner_radius,
+  ft_container_get_effective_corner_radius,
   ft_container_update_scrollbars,
   ft_checkbox_create,
   ft_checkbox_set_checked,
@@ -3769,6 +3820,7 @@ exports
   ft_widget_get_style,
   ft_widget_set_opacity,
   ft_widget_get_opacity,
+  ft_widget_get_parent_render_area,
   ft_style_load_css_file,
   ft_style_load_css_string,
   ft_animation_is_running,

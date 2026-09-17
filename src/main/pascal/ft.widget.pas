@@ -80,6 +80,9 @@ type
     function GetResolvedStyle(): TFtWidgetStyle; virtual;
     procedure InvalidateStyle(); virtual;
 
+    function GetChildRenderArea(out AX, AY, AW, AH, ARadius: Double): Boolean; virtual;
+    function GetParentRenderArea(out AX, AY, AW, AH, ARadius: Double): Boolean; virtual;
+
     property Font: TFtFont read GetFont write SetFont;
     property FontDesc: string read GetFontDesc write SetFontDesc;
     property Focusable: Boolean read FFocusable write SetFocusable;
@@ -491,6 +494,23 @@ begin
     Result := animStyle
   else
     Result := FResolvedStyle;
+end;
+
+function TFtWidget.GetChildRenderArea(out AX, AY, AW, AH, ARadius: Double): Boolean;
+begin
+  AX := 0.0; AY := 0.0; AW := 0.0; AH := 0.0; ARadius := 0.0;
+  Result := False;
+end;
+
+function TFtWidget.GetParentRenderArea(out AX, AY, AW, AH, ARadius: Double): Boolean;
+begin
+  if Assigned(Parent) then
+    Result := Parent.GetChildRenderArea(AX, AY, AW, AH, ARadius)
+  else
+  begin
+    AX := 0.0; AY := 0.0; AW := 0.0; AH := 0.0; ARadius := 0.0;
+    Result := False;
+  end;
 end;
 
 procedure InvalidateWidgetAnim(AWidget: Pointer);

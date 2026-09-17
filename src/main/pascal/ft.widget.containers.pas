@@ -58,6 +58,11 @@ type
     procedure MouseDown(AX, AY: Integer; AButton: Integer); override;
     procedure InvalidateRect(AX, AY, AW, AH: Integer); override;
 
+    function GetEffectiveCornerRadius(): Double; virtual;
+    function GetInnerRadius(): Double; virtual;
+    procedure GetRenderArea(out AX, AY, AW, AH, ARadius: Double); virtual;
+    function GetChildRenderArea(out AX, AY, AW, AH, ARadius: Double): Boolean; override;
+
     procedure GetClientRect(out AX, AY, AW, AH: Double); virtual;
     procedure SetContentSize(AWidth, AHeight: Double);
     procedure SetPadding(APaddingX, APaddingY: Double);
@@ -360,6 +365,77 @@ begin
   AH := Math.Max(0.0, Height - (FPaddingY * 2.0) - hBarH);
 end;
 
+function TFtContainer.GetEffectiveCornerRadius(): Double;
+var
+  st: TFtWidgetStyle;
+begin
+  if FCornerRadius >= 0.0 then
+    Result := FCornerRadius
+  else
+  begin
+    st := GetResolvedStyle();
+    if st.HasBorderRadius then
+      Result := st.BorderRadius
+    else
+      Result := FtGetTheme().CornerRadius;
+  end;
+end;
+
+function TFtContainer.GetInnerRadius(): Double;
+var
+  outerRad, pad: Double;
+  bw: Double;
+  st: TFtWidgetStyle;
+begin
+  outerRad := GetEffectiveCornerRadius();
+  if outerRad <= 0.5 then Exit(0.0);
+
+  bw := 0.0;
+  if FDrawFrame then
+  begin
+    st := GetResolvedStyle();
+    bw := 1.0;
+    if st.HasBorderWidth then bw := st.BorderWidth;
+  end;
+
+  pad := Math.Max(bw, Math.Max(FPaddingX, FPaddingY));
+  Result := Math.Max(0.0, outerRad - pad);
+end;
+
+procedure TFtContainer.GetRenderArea(out AX, AY, AW, AH, ARadius: Double);
+var
+  bw: Double;
+  st: TFtWidgetStyle;
+  vBarW, hBarH: Double;
+begin
+  vBarW := 0.0;
+  hBarH := 0.0;
+  if Assigned(FVScrollBar) and FVScrollBar.Visible then
+    vBarW := FVScrollBar.Width + 2.0;
+  if Assigned(FHScrollBar) and FHScrollBar.Visible then
+    hBarH := FHScrollBar.Height + 2.0;
+
+  bw := 0.0;
+  if FDrawFrame then
+  begin
+    st := GetResolvedStyle();
+    bw := 1.0;
+    if st.HasBorderWidth then bw := st.BorderWidth;
+  end;
+
+  AX := Math.Max(X + bw, X + FPaddingX);
+  AY := Math.Max(Y + bw, Y + FPaddingY);
+  AW := Math.Max(0.0, Width - (AX - X) - Math.Max(bw, FPaddingX) - vBarW);
+  AH := Math.Max(0.0, Height - (AY - Y) - Math.Max(bw, FPaddingY) - hBarH);
+  ARadius := GetInnerRadius();
+end;
+
+function TFtContainer.GetChildRenderArea(out AX, AY, AW, AH, ARadius: Double): Boolean;
+begin
+  GetRenderArea(AX, AY, AW, AH, ARadius);
+  Result := True;
+end;
+
 procedure TFtContainer.UpdateScrollBars();
 var
   barThickness: Double;
@@ -506,7 +582,7 @@ begin
     // Background
     if st.HasBgColor then
       Canvas.DrawRoundedRect(X, Y, Width, Height, rad, st.BgColor.R, st.BgColor.G, st.BgColor.B, st.BgColor.A)
-    else if not ((FBackdropBlur > 0.5) or st.HasBackdropBlur) then
+    else if FDrawFrame and not ((FBackdropBlur > 0.5) or st.HasBackdropBlur) then
     begin
       bg := FtGetTheme().GetInputBackground();
       Canvas.DrawRoundedRect(X, Y, Width, Height, rad, bg.R, bg.G, bg.B, 1.0);
@@ -522,7 +598,7 @@ begin
     if FFocused and FDrawFocusRing then
       FtGetTheme().DrawFocusRing(Canvas, X, Y, Width, Height, rad);
   end
-  else
+  else if FDrawFrame then
     FtGetTheme().DrawInputPlate(Canvas, X, Y, Width, Height, FFocused and FDrawFocusRing, FCornerRadius);
 end;
 
@@ -562,29 +638,80 @@ end;
 
 procedure TFtContainer.Draw(Canvas: TFtCanvasAgg);
 var
-  cx, cy, cw, ch: Double;
+  clipX, clipY, clipW, clipH, innerRad: Double;
+  st: TFtWidgetStyle;
+  rad, bw: Double;
+  bd: TFtRgbColor;
+  borderR, borderG, borderB, borderAlpha: Double;
+  hasBorder: Boolean;
 begin
   if not Visible then Exit;
   if not Canvas.IntersectsClip(X - 4, Y - 4, Width + 8, Height + 8) then Exit;
 
   UpdateScrollBars();
 
-  if FDrawFrame then
-    DrawBackground(Canvas);
+  DrawBackground(Canvas);
 
-  GetClientRect(cx, cy, cw, ch);
-  Canvas.SetClipRect(Round(cx), Round(cy), Round(cw), Round(ch));
+  GetRenderArea(clipX, clipY, clipW, clipH, innerRad);
+
+  // Dynamic container clipping: all content & children automatically conform to the container's render area
+  Canvas.PushClipRoundedRect(clipX, clipY, clipW, clipH, innerRad);
   try
     DrawContent(Canvas);
     DrawChildren(Canvas);
   finally
-    Canvas.ResetClipRect();
+    Canvas.PopClipRoundedRect();
   end;
 
   if Assigned(FVScrollBar) and FVScrollBar.Visible and Canvas.IntersectsClip(FVScrollBar.X - 4, FVScrollBar.Y - 4, FVScrollBar.Width + 8, FVScrollBar.Height + 8) then
     FVScrollBar.Draw(Canvas);
   if Assigned(FHScrollBar) and FHScrollBar.Visible and Canvas.IntersectsClip(FHScrollBar.X - 4, FHScrollBar.Y - 4, FHScrollBar.Width + 8, FHScrollBar.Height + 8) then
     FHScrollBar.Draw(Canvas);
+
+  // Re-stroke container border outline over children/scrollbars to guarantee a clean, unbroken frame
+  if FDrawFrame then
+  begin
+    st := GetResolvedStyle();
+    rad := GetEffectiveCornerRadius();
+    bw := 1.0;
+    if st.HasBorderWidth then bw := st.BorderWidth;
+
+    hasBorder := False;
+    borderAlpha := 1.0;
+    if st.HasBorderColor then
+    begin
+      borderR := st.BorderColor.R;
+      borderG := st.BorderColor.G;
+      borderB := st.BorderColor.B;
+      borderAlpha := st.BorderColor.A;
+      hasBorder := (bw > 0.0);
+    end
+    else
+    begin
+      bd := FtGetTheme().GetInputBorder();
+      borderR := bd.R;
+      borderG := bd.G;
+      borderB := bd.B;
+      borderAlpha := 1.0;
+      hasBorder := True;
+    end;
+
+    if FFocused and FDrawFocusRing then
+    begin
+      bd := FtGetTheme().GetAccentColor();
+      borderR := bd.R;
+      borderG := bd.G;
+      borderB := bd.B;
+      borderAlpha := 1.0;
+      hasBorder := True;
+    end;
+
+    if hasBorder and (bw > 0.0) then
+      Canvas.DrawRoundedRectOutline(X, Y, Width, Height, rad, bw, borderR, borderG, borderB, borderAlpha);
+
+    if FFocused and FDrawFocusRing then
+      FtGetTheme().DrawFocusRing(Canvas, X, Y, Width, Height, rad);
+  end;
 end;
 
 procedure TFtContainer.InvalidateRect(AX, AY, AW, AH: Integer);
@@ -612,7 +739,10 @@ function TFtContainer.HitTest(AX, AY: Integer): TFtWidget;
 var
   i: Integer;
   child, target: TFtWidget;
-  cx, cy, cw, ch: Double;
+  cx, cy, cw, ch, innerRad: Double;
+  dx, dy: Double;
+  arcX, arcY: Double;
+  inCorner: Boolean;
 begin
   Result := nil;
   if not Visible then Exit;
@@ -631,18 +761,50 @@ begin
     if Assigned(target) then Exit(target);
   end;
 
-  // Test children within client area
-  GetClientRect(cx, cy, cw, ch);
+  // Test children within dynamic render area
+  GetRenderArea(cx, cy, cw, ch, innerRad);
   if (AX >= cx) and (AX <= cx + cw) and (AY >= cy) and (AY <= cy + ch) then
   begin
-    for i := Children.Count - 1 downto 0 do
+    inCorner := False;
+    if innerRad > 0.5 then
     begin
-      child := TFtWidget(Children[i]);
-      if (child <> FVScrollBar) and (child <> FHScrollBar) and child.Visible then
+      if (AX < cx + innerRad) and (AY < cy + innerRad) then
       begin
-        target := child.HitTest(AX, AY);
-        if Assigned(target) then
-          Exit(target);
+        arcX := cx + innerRad; arcY := cy + innerRad;
+        dx := (AX + 0.5) - arcX; dy := (AY + 0.5) - arcY;
+        if dx * dx + dy * dy > innerRad * innerRad then inCorner := True;
+      end
+      else if (AX > cx + cw - innerRad) and (AY < cy + innerRad) then
+      begin
+        arcX := cx + cw - innerRad; arcY := cy + innerRad;
+        dx := (AX + 0.5) - arcX; dy := (AY + 0.5) - arcY;
+        if dx * dx + dy * dy > innerRad * innerRad then inCorner := True;
+      end
+      else if (AX < cx + innerRad) and (AY > cy + ch - innerRad) then
+      begin
+        arcX := cx + innerRad; arcY := cy + ch - innerRad;
+        dx := (AX + 0.5) - arcX; dy := (AY + 0.5) - arcY;
+        if dx * dx + dy * dy > innerRad * innerRad then inCorner := True;
+      end
+      else if (AX > cx + cw - innerRad) and (AY > cy + ch - innerRad) then
+      begin
+        arcX := cx + cw - innerRad; arcY := cy + ch - innerRad;
+        dx := (AX + 0.5) - arcX; dy := (AY + 0.5) - arcY;
+        if dx * dx + dy * dy > innerRad * innerRad then inCorner := True;
+      end;
+    end;
+
+    if not inCorner then
+    begin
+      for i := Children.Count - 1 downto 0 do
+      begin
+        child := TFtWidget(Children[i]);
+        if (child <> FVScrollBar) and (child <> FHScrollBar) and child.Visible then
+        begin
+          target := child.HitTest(AX, AY);
+          if Assigned(target) then
+            Exit(target);
+        end;
       end;
     end;
   end;
