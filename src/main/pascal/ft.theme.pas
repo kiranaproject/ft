@@ -959,7 +959,12 @@ begin
     Canvas.DrawText(X + W - Round(actualFont.GetTextWidth(Shortcut)) - 16, txtY, Shortcut, actualFont, txt.R * 0.8, txt.G * 0.8, txt.B * 0.8);
 
   if HasSubMenu then
-    Canvas.DrawText(X + W - 14, txtY, #$E2#$96#$B6, actualFont, txt.R, txt.G, txt.B);
+  begin
+    if Hovered and Enabled then
+      Canvas.DrawSubMenuArrow(X + W - 14.0, Y + H * 0.5, txt.R, txt.G, txt.B, 1.0)
+    else
+      Canvas.DrawSubMenuArrow(X + W - 14.0, Y + H * 0.5, txt.R, txt.G, txt.B, 0.75);
+  end;
 end;
 
 procedure TFtTheme.DrawMenuSeparator(Canvas: TFtCanvasAgg; X, Y, W: Integer);

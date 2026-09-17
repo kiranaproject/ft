@@ -661,17 +661,27 @@ end;
 
 procedure TFtCanvasAgg.DrawSubMenuArrow(CX, CY: Double; R, G, B: Double; A: Double = 1.0);
 var
+  Path: path_storage;
+  Stroke: conv_stroke;
   C: aggclr;
   effA: Double;
 begin
   effA := A * FCurrentAlpha;
   if effA <= 0.0 then Exit;
+  Path.Construct();
+  Path.move_to(CX - 1.8, CY - 3.5);
+  Path.line_to(CX + 1.8, CY);
+  Path.line_to(CX - 1.8, CY + 3.5);
+  Stroke.Construct(@Path);
+  Stroke.width_(1.3);
+  Stroke.line_cap_(round_cap);
+  Stroke.line_join_(round_join);
   C.ConstrDbl(R, G, B, effA);
   FRasterizer.reset();
-  FRasterizer.move_to_d(CX - 2.5, CY - 4.0);
-  FRasterizer.line_to_d(CX + 2.5, CY);
-  FRasterizer.line_to_d(CX - 2.5, CY + 4.0);
+  FRasterizer.add_path(@Stroke);
   render_scanlines_aa_solid(@FRasterizer, @FScanline, @FRendererBase, @C);
+  Stroke.Destruct();
+  Path.Destruct();
 end;
 
 procedure TFtCanvasAgg.DrawCircle(CX, CY, Radius: Double; R, G, B: Double; A: Double = 1.0);
