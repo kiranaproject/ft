@@ -25,7 +25,11 @@ uses
   Ft.Widget.Images,
   Ft.Svg,
   Floria.SVG.DOM,
-  Floria.SVG.Parser;
+  Floria.SVG.Parser,
+  Ft.Widget.Tabs,
+  Ft.Widget.Splitters,
+  Ft.Widget.TreeViews,
+  Ft.Widget.Tables;
 
 var
   gLastSystemFontDesc: AnsiString;
@@ -51,6 +55,10 @@ var
   gLastStyleClass: AnsiString;
   gLastStyleId: AnsiString;
   gLastInlineStyle: AnsiString;
+  gLastTabTitle: AnsiString;
+  gLastTreeNodeText: AnsiString;
+  gLastTableCellText: AnsiString;
+  gLastTableColTitle: AnsiString;
 
 procedure ft_init(); cdecl; export;
 begin
@@ -2590,6 +2598,915 @@ begin
     Result := 1.0;
 end;
 
+{ ========================================================================= }
+{ Tabs & Notebook Container                                                 }
+{ ========================================================================= }
+
+function ft_notebook_create(parent: Pointer; x, y, w, h: cint32): Pointer; cdecl; export;
+var
+  nb: TFtNotebook;
+begin
+  AdjustChildCoordinates(parent, x, y);
+  nb := TFtNotebook.Create(TFtWidget(parent));
+  nb.X := x;
+  nb.Y := y;
+  nb.Width := w;
+  nb.Height := h;
+  if Assigned(parent) and (TObject(parent) is TFtContainer) then
+    TFtContainer(parent).UpdateScrollBars();
+  Result := Pointer(nb);
+end;
+
+function ft_notebook_add_tab(notebook: Pointer; title: PAnsiChar; closeable: cint32): Pointer; cdecl; export;
+var
+  nb: TFtNotebook;
+  sTitle: string;
+  isCloseable: Boolean;
+begin
+  Result := nil;
+  if not Assigned(notebook) or not (TObject(notebook) is TFtNotebook) then Exit;
+  nb := TFtNotebook(notebook);
+  if Assigned(title) then sTitle := string(title) else sTitle := 'Tab';
+  isCloseable := (closeable <> 0);
+  Result := Pointer(nb.AddTab(sTitle, isCloseable));
+end;
+
+procedure ft_notebook_remove_tab(notebook: Pointer; index: cint32); cdecl; export;
+var
+  nb: TFtNotebook;
+begin
+  if not Assigned(notebook) or not (TObject(notebook) is TFtNotebook) then Exit;
+  nb := TFtNotebook(notebook);
+  nb.RemoveTab(index, True);
+end;
+
+procedure ft_notebook_clear_tabs(notebook: Pointer); cdecl; export;
+var
+  nb: TFtNotebook;
+begin
+  if not Assigned(notebook) or not (TObject(notebook) is TFtNotebook) then Exit;
+  nb := TFtNotebook(notebook);
+  nb.ClearTabs();
+end;
+
+function ft_notebook_get_page_count(notebook: Pointer): cint32; cdecl; export;
+var
+  nb: TFtNotebook;
+begin
+  Result := 0;
+  if not Assigned(notebook) or not (TObject(notebook) is TFtNotebook) then Exit;
+  nb := TFtNotebook(notebook);
+  Result := nb.PageCount;
+end;
+
+function ft_notebook_get_page(notebook: Pointer; index: cint32): Pointer; cdecl; export;
+var
+  nb: TFtNotebook;
+begin
+  Result := nil;
+  if not Assigned(notebook) or not (TObject(notebook) is TFtNotebook) then Exit;
+  nb := TFtNotebook(notebook);
+  Result := Pointer(nb.Pages[index]);
+end;
+
+procedure ft_notebook_set_active_index(notebook: Pointer; index: cint32); cdecl; export;
+var
+  nb: TFtNotebook;
+begin
+  if not Assigned(notebook) or not (TObject(notebook) is TFtNotebook) then Exit;
+  nb := TFtNotebook(notebook);
+  nb.ActiveIndex := index;
+end;
+
+function ft_notebook_get_active_index(notebook: Pointer): cint32; cdecl; export;
+var
+  nb: TFtNotebook;
+begin
+  Result := -1;
+  if not Assigned(notebook) or not (TObject(notebook) is TFtNotebook) then Exit;
+  nb := TFtNotebook(notebook);
+  Result := nb.ActiveIndex;
+end;
+
+procedure ft_notebook_set_tab_height(notebook: Pointer; height: Double); cdecl; export;
+var
+  nb: TFtNotebook;
+begin
+  if not Assigned(notebook) or not (TObject(notebook) is TFtNotebook) then Exit;
+  nb := TFtNotebook(notebook);
+  nb.TabHeight := height;
+end;
+
+function ft_notebook_get_tab_height(notebook: Pointer): Double; cdecl; export;
+var
+  nb: TFtNotebook;
+begin
+  Result := 0.0;
+  if not Assigned(notebook) or not (TObject(notebook) is TFtNotebook) then Exit;
+  nb := TFtNotebook(notebook);
+  Result := nb.TabHeight;
+end;
+
+procedure ft_notebook_on_tab_change(notebook: Pointer; callback: TFtTabClickCallback; user_data: Pointer); cdecl; export;
+var
+  nb: TFtNotebook;
+begin
+  if not Assigned(notebook) or not (TObject(notebook) is TFtNotebook) then Exit;
+  nb := TFtNotebook(notebook);
+  nb.OnTabChangeCb := callback;
+  nb.UserData := user_data;
+end;
+
+procedure ft_tab_page_set_title(page: Pointer; title: PAnsiChar); cdecl; export;
+var
+  p: TFtTabPage;
+begin
+  if not Assigned(page) or not (TObject(page) is TFtTabPage) then Exit;
+  p := TFtTabPage(page);
+  if Assigned(title) then
+    p.Title := string(title)
+  else
+    p.Title := '';
+end;
+
+function ft_tab_page_get_title(page: Pointer): PAnsiChar; cdecl; export;
+var
+  p: TFtTabPage;
+begin
+  Result := nil;
+  if not Assigned(page) or not (TObject(page) is TFtTabPage) then Exit;
+  p := TFtTabPage(page);
+  gLastTabTitle := AnsiString(p.Title);
+  Result := PAnsiChar(gLastTabTitle);
+end;
+
+procedure ft_tab_page_set_closeable(page: Pointer; closeable: cint32); cdecl; export;
+var
+  p: TFtTabPage;
+begin
+  if not Assigned(page) or not (TObject(page) is TFtTabPage) then Exit;
+  p := TFtTabPage(page);
+  p.Closeable := (closeable <> 0);
+end;
+
+function ft_tab_page_get_closeable(page: Pointer): cint32; cdecl; export;
+var
+  p: TFtTabPage;
+begin
+  Result := 0;
+  if not Assigned(page) or not (TObject(page) is TFtTabPage) then Exit;
+  p := TFtTabPage(page);
+  if p.Closeable then Result := 1 else Result := 0;
+end;
+
+{ ========================================================================= }
+{ Splitter Container                                                        }
+{ ========================================================================= }
+
+function ft_splitter_create(parent: Pointer; x, y, w, h: cint32; orientation: cint32): Pointer; cdecl; export;
+var
+  spl: TFtSplitter;
+begin
+  AdjustChildCoordinates(parent, x, y);
+  spl := TFtSplitter.Create(TFtWidget(parent));
+  spl.X := x;
+  spl.Y := y;
+  spl.Width := w;
+  spl.Height := h;
+  if orientation = 1 then
+    spl.Orientation := soVertical
+  else
+    spl.Orientation := soHorizontal;
+  if Assigned(parent) and (TObject(parent) is TFtContainer) then
+    TFtContainer(parent).UpdateScrollBars();
+  Result := Pointer(spl);
+end;
+
+procedure ft_splitter_set_panes(splitter: Pointer; pane1, pane2: Pointer); cdecl; export;
+var
+  spl: TFtSplitter;
+begin
+  if not Assigned(splitter) or not (TObject(splitter) is TFtSplitter) then Exit;
+  spl := TFtSplitter(splitter);
+  spl.SetPanes(TFtWidget(pane1), TFtWidget(pane2));
+end;
+
+function ft_splitter_get_pane1(splitter: Pointer): Pointer; cdecl; export;
+var
+  spl: TFtSplitter;
+begin
+  Result := nil;
+  if not Assigned(splitter) or not (TObject(splitter) is TFtSplitter) then Exit;
+  spl := TFtSplitter(splitter);
+  Result := Pointer(spl.Pane1);
+end;
+
+function ft_splitter_get_pane2(splitter: Pointer): Pointer; cdecl; export;
+var
+  spl: TFtSplitter;
+begin
+  Result := nil;
+  if not Assigned(splitter) or not (TObject(splitter) is TFtSplitter) then Exit;
+  spl := TFtSplitter(splitter);
+  Result := Pointer(spl.Pane2);
+end;
+
+procedure ft_splitter_set_orientation(splitter: Pointer; orientation: cint32); cdecl; export;
+var
+  spl: TFtSplitter;
+begin
+  if not Assigned(splitter) or not (TObject(splitter) is TFtSplitter) then Exit;
+  spl := TFtSplitter(splitter);
+  if orientation = 1 then
+    spl.Orientation := soVertical
+  else
+    spl.Orientation := soHorizontal;
+end;
+
+function ft_splitter_get_orientation(splitter: Pointer): cint32; cdecl; export;
+var
+  spl: TFtSplitter;
+begin
+  Result := 0;
+  if not Assigned(splitter) or not (TObject(splitter) is TFtSplitter) then Exit;
+  spl := TFtSplitter(splitter);
+  if spl.Orientation = soVertical then Result := 1 else Result := 0;
+end;
+
+procedure ft_splitter_set_pos(splitter: Pointer; pos: Double); cdecl; export;
+var
+  spl: TFtSplitter;
+begin
+  if not Assigned(splitter) or not (TObject(splitter) is TFtSplitter) then Exit;
+  spl := TFtSplitter(splitter);
+  spl.SplitterPos := pos;
+end;
+
+function ft_splitter_get_pos(splitter: Pointer): Double; cdecl; export;
+var
+  spl: TFtSplitter;
+begin
+  Result := 0.0;
+  if not Assigned(splitter) or not (TObject(splitter) is TFtSplitter) then Exit;
+  spl := TFtSplitter(splitter);
+  Result := spl.SplitterPos;
+end;
+
+procedure ft_splitter_set_ratio(splitter: Pointer; ratio: Double); cdecl; export;
+var
+  spl: TFtSplitter;
+begin
+  if not Assigned(splitter) or not (TObject(splitter) is TFtSplitter) then Exit;
+  spl := TFtSplitter(splitter);
+  spl.SetSplitterRatio(ratio);
+end;
+
+procedure ft_splitter_set_splitter_size(splitter: Pointer; size: Double); cdecl; export;
+var
+  spl: TFtSplitter;
+begin
+  if not Assigned(splitter) or not (TObject(splitter) is TFtSplitter) then Exit;
+  spl := TFtSplitter(splitter);
+  spl.SplitterSize := size;
+end;
+
+function ft_splitter_get_splitter_size(splitter: Pointer): Double; cdecl; export;
+var
+  spl: TFtSplitter;
+begin
+  Result := 6.0;
+  if not Assigned(splitter) or not (TObject(splitter) is TFtSplitter) then Exit;
+  spl := TFtSplitter(splitter);
+  Result := spl.SplitterSize;
+end;
+
+procedure ft_splitter_set_min_sizes(splitter: Pointer; min_pane1, min_pane2: Double); cdecl; export;
+var
+  spl: TFtSplitter;
+begin
+  if not Assigned(splitter) or not (TObject(splitter) is TFtSplitter) then Exit;
+  spl := TFtSplitter(splitter);
+  spl.MinPane1Size := min_pane1;
+  spl.MinPane2Size := min_pane2;
+end;
+
+function ft_splitter_get_min_pane1_size(splitter: Pointer): Double; cdecl; export;
+var
+  spl: TFtSplitter;
+begin
+  Result := 0.0;
+  if not Assigned(splitter) or not (TObject(splitter) is TFtSplitter) then Exit;
+  spl := TFtSplitter(splitter);
+  Result := spl.MinPane1Size;
+end;
+
+function ft_splitter_get_min_pane2_size(splitter: Pointer): Double; cdecl; export;
+var
+  spl: TFtSplitter;
+begin
+  Result := 0.0;
+  if not Assigned(splitter) or not (TObject(splitter) is TFtSplitter) then Exit;
+  spl := TFtSplitter(splitter);
+  Result := spl.MinPane2Size;
+end;
+
+procedure ft_splitter_on_position_change(splitter: Pointer; callback: TFtSplitterPositionCallback; user_data: Pointer); cdecl; export;
+var
+  spl: TFtSplitter;
+begin
+  if not Assigned(splitter) or not (TObject(splitter) is TFtSplitter) then Exit;
+  spl := TFtSplitter(splitter);
+  spl.OnPositionChangeCb := callback;
+  spl.UserData := user_data;
+end;
+
+{ ========================================================================= }
+{ TreeView                                                                  }
+{ ========================================================================= }
+
+function ft_treeview_create(parent: Pointer; x, y, w, h: cint32): Pointer; cdecl; export;
+var
+  tv: TFtTreeView;
+begin
+  AdjustChildCoordinates(parent, x, y);
+  tv := TFtTreeView.Create(TFtWidget(parent));
+  tv.X := x;
+  tv.Y := y;
+  tv.Width := w;
+  tv.Height := h;
+  if Assigned(parent) and (TObject(parent) is TFtContainer) then
+    TFtContainer(parent).UpdateScrollBars();
+  Result := Pointer(tv);
+end;
+
+function ft_treeview_add_node(treeview: Pointer; text: PAnsiChar; parent_node: Pointer): Pointer; cdecl; export;
+var
+  tv: TFtTreeView;
+  pNode: TFtTreeNode;
+  sText: string;
+begin
+  Result := nil;
+  if not Assigned(treeview) or not (TObject(treeview) is TFtTreeView) then Exit;
+  tv := TFtTreeView(treeview);
+  if Assigned(parent_node) and (TObject(parent_node) is TFtTreeNode) then
+    pNode := TFtTreeNode(parent_node)
+  else
+    pNode := nil;
+  if Assigned(text) then sText := string(text) else sText := '';
+  Result := Pointer(tv.AddNode(sText, pNode));
+end;
+
+procedure ft_treeview_clear(treeview: Pointer); cdecl; export;
+var
+  tv: TFtTreeView;
+begin
+  if not Assigned(treeview) or not (TObject(treeview) is TFtTreeView) then Exit;
+  tv := TFtTreeView(treeview);
+  tv.Clear();
+end;
+
+function ft_treeview_get_root(treeview: Pointer): Pointer; cdecl; export;
+var
+  tv: TFtTreeView;
+begin
+  Result := nil;
+  if not Assigned(treeview) or not (TObject(treeview) is TFtTreeView) then Exit;
+  tv := TFtTreeView(treeview);
+  Result := Pointer(tv.Root);
+end;
+
+function ft_treeview_get_selected_node(treeview: Pointer): Pointer; cdecl; export;
+var
+  tv: TFtTreeView;
+begin
+  Result := nil;
+  if not Assigned(treeview) or not (TObject(treeview) is TFtTreeView) then Exit;
+  tv := TFtTreeView(treeview);
+  Result := Pointer(tv.SelectedNode);
+end;
+
+procedure ft_treeview_set_selected_node(treeview: Pointer; node: Pointer); cdecl; export;
+var
+  tv: TFtTreeView;
+begin
+  if not Assigned(treeview) or not (TObject(treeview) is TFtTreeView) then Exit;
+  tv := TFtTreeView(treeview);
+  if Assigned(node) and (TObject(node) is TFtTreeNode) then
+    tv.SelectedNode := TFtTreeNode(node)
+  else
+    tv.SelectedNode := nil;
+end;
+
+procedure ft_treeview_set_item_height(treeview: Pointer; height: Double); cdecl; export;
+var
+  tv: TFtTreeView;
+begin
+  if not Assigned(treeview) or not (TObject(treeview) is TFtTreeView) then Exit;
+  tv := TFtTreeView(treeview);
+  tv.ItemHeight := height;
+end;
+
+function ft_treeview_get_item_height(treeview: Pointer): Double; cdecl; export;
+var
+  tv: TFtTreeView;
+begin
+  Result := 0.0;
+  if not Assigned(treeview) or not (TObject(treeview) is TFtTreeView) then Exit;
+  tv := TFtTreeView(treeview);
+  Result := tv.ItemHeight;
+end;
+
+procedure ft_treeview_set_indent_width(treeview: Pointer; width: Double); cdecl; export;
+var
+  tv: TFtTreeView;
+begin
+  if not Assigned(treeview) or not (TObject(treeview) is TFtTreeView) then Exit;
+  tv := TFtTreeView(treeview);
+  tv.IndentWidth := width;
+end;
+
+function ft_treeview_get_indent_width(treeview: Pointer): Double; cdecl; export;
+var
+  tv: TFtTreeView;
+begin
+  Result := 0.0;
+  if not Assigned(treeview) or not (TObject(treeview) is TFtTreeView) then Exit;
+  tv := TFtTreeView(treeview);
+  Result := tv.IndentWidth;
+end;
+
+procedure ft_treeview_on_select(treeview: Pointer; callback: TFtNodeSelectCallback; user_data: Pointer); cdecl; export;
+var
+  tv: TFtTreeView;
+begin
+  if not Assigned(treeview) or not (TObject(treeview) is TFtTreeView) then Exit;
+  tv := TFtTreeView(treeview);
+  tv.OnSelectCb := callback;
+  tv.UserData := user_data;
+end;
+
+function ft_treenode_add_child(node: Pointer; text: PAnsiChar): Pointer; cdecl; export;
+var
+  n: TFtTreeNode;
+  sText: string;
+begin
+  Result := nil;
+  if not Assigned(node) or not (TObject(node) is TFtTreeNode) then Exit;
+  n := TFtTreeNode(node);
+  if Assigned(text) then sText := string(text) else sText := '';
+  Result := Pointer(n.AddChild(sText));
+end;
+
+procedure ft_treenode_delete_child(node: Pointer; index: cint32); cdecl; export;
+var
+  n: TFtTreeNode;
+begin
+  if not Assigned(node) or not (TObject(node) is TFtTreeNode) then Exit;
+  n := TFtTreeNode(node);
+  n.DeleteChild(index);
+end;
+
+function ft_treenode_get_child_count(node: Pointer): cint32; cdecl; export;
+var
+  n: TFtTreeNode;
+begin
+  Result := 0;
+  if not Assigned(node) or not (TObject(node) is TFtTreeNode) then Exit;
+  n := TFtTreeNode(node);
+  Result := n.ChildCount;
+end;
+
+function ft_treenode_get_child(node: Pointer; index: cint32): Pointer; cdecl; export;
+var
+  n: TFtTreeNode;
+begin
+  Result := nil;
+  if not Assigned(node) or not (TObject(node) is TFtTreeNode) then Exit;
+  n := TFtTreeNode(node);
+  Result := Pointer(n.Children[index]);
+end;
+
+function ft_treenode_get_parent(node: Pointer): Pointer; cdecl; export;
+var
+  n: TFtTreeNode;
+begin
+  Result := nil;
+  if not Assigned(node) or not (TObject(node) is TFtTreeNode) then Exit;
+  n := TFtTreeNode(node);
+  Result := Pointer(n.Parent);
+end;
+
+procedure ft_treenode_set_text(node: Pointer; text: PAnsiChar); cdecl; export;
+var
+  n: TFtTreeNode;
+begin
+  if not Assigned(node) or not (TObject(node) is TFtTreeNode) then Exit;
+  n := TFtTreeNode(node);
+  if Assigned(text) then
+    n.Text := string(text)
+  else
+    n.Text := '';
+  if Assigned(n.TreeView) then
+    n.TreeView.Invalidate();
+end;
+
+function ft_treenode_get_text(node: Pointer): PAnsiChar; cdecl; export;
+var
+  n: TFtTreeNode;
+begin
+  Result := nil;
+  if not Assigned(node) or not (TObject(node) is TFtTreeNode) then Exit;
+  n := TFtTreeNode(node);
+  gLastTreeNodeText := AnsiString(n.Text);
+  Result := PAnsiChar(gLastTreeNodeText);
+end;
+
+procedure ft_treenode_set_expanded(node: Pointer; expanded: cint32); cdecl; export;
+var
+  n: TFtTreeNode;
+begin
+  if not Assigned(node) or not (TObject(node) is TFtTreeNode) then Exit;
+  n := TFtTreeNode(node);
+  n.Expanded := (expanded <> 0);
+  if Assigned(n.TreeView) then
+  begin
+    n.TreeView.RebuildVisibleNodes();
+    n.TreeView.Invalidate();
+  end;
+end;
+
+function ft_treenode_get_expanded(node: Pointer): cint32; cdecl; export;
+var
+  n: TFtTreeNode;
+begin
+  Result := 0;
+  if not Assigned(node) or not (TObject(node) is TFtTreeNode) then Exit;
+  n := TFtTreeNode(node);
+  if n.Expanded then Result := 1 else Result := 0;
+end;
+
+procedure ft_treenode_set_data(node: Pointer; data: Pointer); cdecl; export;
+var
+  n: TFtTreeNode;
+begin
+  if not Assigned(node) or not (TObject(node) is TFtTreeNode) then Exit;
+  n := TFtTreeNode(node);
+  n.Data := data;
+end;
+
+function ft_treenode_get_data(node: Pointer): Pointer; cdecl; export;
+var
+  n: TFtTreeNode;
+begin
+  Result := nil;
+  if not Assigned(node) or not (TObject(node) is TFtTreeNode) then Exit;
+  n := TFtTreeNode(node);
+  Result := n.Data;
+end;
+
+procedure ft_treenode_set_tag(node: Pointer; tag: cint32); cdecl; export;
+var
+  n: TFtTreeNode;
+begin
+  if not Assigned(node) or not (TObject(node) is TFtTreeNode) then Exit;
+  n := TFtTreeNode(node);
+  n.Tag := tag;
+end;
+
+function ft_treenode_get_tag(node: Pointer): cint32; cdecl; export;
+var
+  n: TFtTreeNode;
+begin
+  Result := 0;
+  if not Assigned(node) or not (TObject(node) is TFtTreeNode) then Exit;
+  n := TFtTreeNode(node);
+  Result := n.Tag;
+end;
+
+{ ========================================================================= }
+{ Table / DataGrid                                                          }
+{ ========================================================================= }
+
+function ft_table_create(parent: Pointer; x, y, w, h: cint32): Pointer; cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  AdjustChildCoordinates(parent, x, y);
+  tbl := TFtTable.Create(TFtWidget(parent));
+  tbl.X := x;
+  tbl.Y := y;
+  tbl.Width := w;
+  tbl.Height := h;
+  if Assigned(parent) and (TObject(parent) is TFtContainer) then
+    TFtContainer(parent).UpdateScrollBars();
+  Result := Pointer(tbl);
+end;
+
+function ft_table_add_column(table: Pointer; title: PAnsiChar; width: Double; alignment: cint32): cint32; cdecl; export;
+var
+  tbl: TFtTable;
+  sTitle: string;
+  align: TFtTextAlign;
+begin
+  Result := -1;
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  if Assigned(title) then sTitle := string(title) else sTitle := '';
+  case alignment of
+    1: align := taCenter;
+    2: align := taRight;
+  else
+    align := taLeft;
+  end;
+  Result := tbl.AddColumn(sTitle, width, align);
+end;
+
+function ft_table_get_column_count(table: Pointer): cint32; cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  Result := 0;
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  Result := tbl.ColumnCount;
+end;
+
+procedure ft_table_set_column_title(table: Pointer; col_idx: cint32; title: PAnsiChar); cdecl; export;
+var
+  tbl: TFtTable;
+  col: TFtTableColumn;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  col := tbl.Columns[col_idx];
+  if Assigned(col) then
+  begin
+    if Assigned(title) then
+      col.Title := string(title)
+    else
+      col.Title := '';
+    tbl.Invalidate();
+  end;
+end;
+
+function ft_table_get_column_title(table: Pointer; col_idx: cint32): PAnsiChar; cdecl; export;
+var
+  tbl: TFtTable;
+  col: TFtTableColumn;
+begin
+  Result := nil;
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  col := tbl.Columns[col_idx];
+  if Assigned(col) then
+  begin
+    gLastTableColTitle := AnsiString(col.Title);
+    Result := PAnsiChar(gLastTableColTitle);
+  end;
+end;
+
+procedure ft_table_set_column_width(table: Pointer; col_idx: cint32; width: Double); cdecl; export;
+var
+  tbl: TFtTable;
+  col: TFtTableColumn;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  col := tbl.Columns[col_idx];
+  if Assigned(col) then
+  begin
+    col.Width := width;
+    tbl.RecalculateMetrics();
+  end;
+end;
+
+function ft_table_get_column_width(table: Pointer; col_idx: cint32): Double; cdecl; export;
+var
+  tbl: TFtTable;
+  col: TFtTableColumn;
+begin
+  Result := 0.0;
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  col := tbl.Columns[col_idx];
+  if Assigned(col) then
+    Result := col.Width;
+end;
+
+procedure ft_table_set_column_align(table: Pointer; col_idx: cint32; alignment: cint32); cdecl; export;
+var
+  tbl: TFtTable;
+  col: TFtTableColumn;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  col := tbl.Columns[col_idx];
+  if Assigned(col) then
+  begin
+    case alignment of
+      1: col.Alignment := taCenter;
+      2: col.Alignment := taRight;
+    else
+      col.Alignment := taLeft;
+    end;
+    tbl.Invalidate();
+  end;
+end;
+
+function ft_table_get_column_align(table: Pointer; col_idx: cint32): cint32; cdecl; export;
+var
+  tbl: TFtTable;
+  col: TFtTableColumn;
+begin
+  Result := 0;
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  col := tbl.Columns[col_idx];
+  if Assigned(col) then
+  begin
+    case col.Alignment of
+      taCenter: Result := 1;
+      taRight:  Result := 2;
+    else
+      Result := 0;
+    end;
+  end;
+end;
+
+function ft_table_add_row(table: Pointer): cint32; cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  Result := -1;
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  Result := tbl.AddRow([]);
+end;
+
+procedure ft_table_delete_row(table: Pointer; row_idx: cint32); cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  tbl.DeleteRow(row_idx);
+end;
+
+procedure ft_table_clear_rows(table: Pointer); cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  tbl.ClearRows();
+end;
+
+procedure ft_table_clear_all(table: Pointer); cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  tbl.ClearAll();
+end;
+
+function ft_table_get_row_count(table: Pointer): cint32; cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  Result := 0;
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  Result := tbl.RowCount;
+end;
+
+procedure ft_table_set_cell(table: Pointer; row, col: cint32; value: PAnsiChar); cdecl; export;
+var
+  tbl: TFtTable;
+  sVal: string;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  if Assigned(value) then sVal := string(value) else sVal := '';
+  tbl.SetCell(row, col, sVal);
+end;
+
+function ft_table_get_cell(table: Pointer; row, col: cint32): PAnsiChar; cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  Result := nil;
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  gLastTableCellText := AnsiString(tbl.GetCell(row, col));
+  Result := PAnsiChar(gLastTableCellText);
+end;
+
+procedure ft_table_set_selected_row(table: Pointer; row: cint32); cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  tbl.SelectedRow := row;
+end;
+
+function ft_table_get_selected_row(table: Pointer): cint32; cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  Result := -1;
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  Result := tbl.SelectedRow;
+end;
+
+procedure ft_table_set_header_height(table: Pointer; height: Double); cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  tbl.HeaderHeight := height;
+end;
+
+function ft_table_get_header_height(table: Pointer): Double; cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  Result := 0.0;
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  Result := tbl.HeaderHeight;
+end;
+
+procedure ft_table_set_row_height(table: Pointer; height: Double); cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  tbl.RowHeight := height;
+end;
+
+function ft_table_get_row_height(table: Pointer): Double; cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  Result := 0.0;
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  Result := tbl.RowHeight;
+end;
+
+procedure ft_table_set_show_gridlines(table: Pointer; show: cint32); cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  tbl.ShowGridLines := (show <> 0);
+end;
+
+function ft_table_get_show_gridlines(table: Pointer): cint32; cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  Result := 0;
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  if tbl.ShowGridLines then Result := 1 else Result := 0;
+end;
+
+procedure ft_table_set_zebra_striping(table: Pointer; enabled: cint32); cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  tbl.ZebraStriping := (enabled <> 0);
+end;
+
+function ft_table_get_zebra_striping(table: Pointer): cint32; cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  Result := 0;
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  if tbl.ZebraStriping then Result := 1 else Result := 0;
+end;
+
+procedure ft_table_on_select_row(table: Pointer; callback: TFtTableRowSelectCallback; user_data: Pointer); cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  tbl.OnSelectRowCb := callback;
+  tbl.UserData := user_data;
+end;
+
 exports
   ft_init,
   ft_main_loop,
@@ -2889,7 +3806,96 @@ exports
   ft_canvas_push_alpha,
   ft_canvas_pop_alpha,
   ft_canvas_reset_alpha,
-  ft_canvas_get_alpha;
+  ft_canvas_get_alpha,
+
+  // Notebook
+  ft_notebook_create,
+  ft_notebook_add_tab,
+  ft_notebook_remove_tab,
+  ft_notebook_clear_tabs,
+  ft_notebook_get_page_count,
+  ft_notebook_get_page,
+  ft_notebook_set_active_index,
+  ft_notebook_get_active_index,
+  ft_notebook_set_tab_height,
+  ft_notebook_get_tab_height,
+  ft_notebook_on_tab_change,
+  ft_tab_page_set_title,
+  ft_tab_page_get_title,
+  ft_tab_page_set_closeable,
+  ft_tab_page_get_closeable,
+
+  // Splitter
+  ft_splitter_create,
+  ft_splitter_set_panes,
+  ft_splitter_get_pane1,
+  ft_splitter_get_pane2,
+  ft_splitter_set_orientation,
+  ft_splitter_get_orientation,
+  ft_splitter_set_pos,
+  ft_splitter_get_pos,
+  ft_splitter_set_ratio,
+  ft_splitter_set_splitter_size,
+  ft_splitter_get_splitter_size,
+  ft_splitter_set_min_sizes,
+  ft_splitter_get_min_pane1_size,
+  ft_splitter_get_min_pane2_size,
+  ft_splitter_on_position_change,
+
+  // TreeView
+  ft_treeview_create,
+  ft_treeview_add_node,
+  ft_treeview_clear,
+  ft_treeview_get_root,
+  ft_treeview_get_selected_node,
+  ft_treeview_set_selected_node,
+  ft_treeview_set_item_height,
+  ft_treeview_get_item_height,
+  ft_treeview_set_indent_width,
+  ft_treeview_get_indent_width,
+  ft_treeview_on_select,
+  ft_treenode_add_child,
+  ft_treenode_delete_child,
+  ft_treenode_get_child_count,
+  ft_treenode_get_child,
+  ft_treenode_get_parent,
+  ft_treenode_set_text,
+  ft_treenode_get_text,
+  ft_treenode_set_expanded,
+  ft_treenode_get_expanded,
+  ft_treenode_set_data,
+  ft_treenode_get_data,
+  ft_treenode_set_tag,
+  ft_treenode_get_tag,
+
+  // Table
+  ft_table_create,
+  ft_table_add_column,
+  ft_table_get_column_count,
+  ft_table_set_column_title,
+  ft_table_get_column_title,
+  ft_table_set_column_width,
+  ft_table_get_column_width,
+  ft_table_set_column_align,
+  ft_table_get_column_align,
+  ft_table_add_row,
+  ft_table_delete_row,
+  ft_table_clear_rows,
+  ft_table_clear_all,
+  ft_table_get_row_count,
+  ft_table_set_cell,
+  ft_table_get_cell,
+  ft_table_set_selected_row,
+  ft_table_get_selected_row,
+  ft_table_set_header_height,
+  ft_table_get_header_height,
+  ft_table_set_row_height,
+  ft_table_get_row_height,
+  ft_table_set_show_gridlines,
+  ft_table_get_show_gridlines,
+  ft_table_set_zebra_striping,
+  ft_table_get_zebra_striping,
+  ft_table_on_select_row;
 
 begin
 end.

@@ -475,6 +475,138 @@ void ft_canvas_pop_alpha(void* canvas);
 void ft_canvas_reset_alpha(void* canvas);
 double ft_canvas_get_alpha(void* canvas);
 
+/* ========================================================================= */
+/* Tabs & Notebook Container                                                 */
+/* ========================================================================= */
+
+typedef void* FtNotebook;
+typedef void* FtTabPage;
+
+typedef void (*FtTabChangeCallback)(FtNotebook notebook, int32_t new_index, int32_t old_index, void* user_data);
+
+FtNotebook ft_notebook_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h);
+FtTabPage ft_notebook_add_tab(FtNotebook notebook, const char* title, int32_t closeable);
+void ft_notebook_remove_tab(FtNotebook notebook, int32_t index);
+void ft_notebook_clear_tabs(FtNotebook notebook);
+int32_t ft_notebook_get_page_count(FtNotebook notebook);
+FtTabPage ft_notebook_get_page(FtNotebook notebook, int32_t index);
+void ft_notebook_set_active_index(FtNotebook notebook, int32_t index);
+int32_t ft_notebook_get_active_index(FtNotebook notebook);
+void ft_notebook_set_tab_height(FtNotebook notebook, double height);
+double ft_notebook_get_tab_height(FtNotebook notebook);
+void ft_notebook_on_tab_change(FtNotebook notebook, FtTabChangeCallback callback, void* user_data);
+
+void ft_tab_page_set_title(FtTabPage page, const char* title);
+const char* ft_tab_page_get_title(FtTabPage page);
+void ft_tab_page_set_closeable(FtTabPage page, int32_t closeable);
+int32_t ft_tab_page_get_closeable(FtTabPage page);
+
+/* ========================================================================= */
+/* Splitter Container                                                        */
+/* ========================================================================= */
+
+typedef void* FtSplitter;
+
+typedef enum {
+    FT_SPLITTER_HORIZONTAL = 0, /* Left and right panes */
+    FT_SPLITTER_VERTICAL = 1    /* Top and bottom panes */
+} FtSplitterOrientation;
+
+typedef void (*FtSplitterPositionCallback)(FtSplitter splitter, double position, void* user_data);
+
+FtSplitter ft_splitter_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, int32_t orientation);
+void ft_splitter_set_panes(FtSplitter splitter, FtWidget pane1, FtWidget pane2);
+FtWidget ft_splitter_get_pane1(FtSplitter splitter);
+FtWidget ft_splitter_get_pane2(FtSplitter splitter);
+void ft_splitter_set_orientation(FtSplitter splitter, int32_t orientation);
+int32_t ft_splitter_get_orientation(FtSplitter splitter);
+void ft_splitter_set_pos(FtSplitter splitter, double pos);
+double ft_splitter_get_pos(FtSplitter splitter);
+void ft_splitter_set_ratio(FtSplitter splitter, double ratio);
+void ft_splitter_set_splitter_size(FtSplitter splitter, double size);
+double ft_splitter_get_splitter_size(FtSplitter splitter);
+void ft_splitter_set_min_sizes(FtSplitter splitter, double min_pane1, double min_pane2);
+double ft_splitter_get_min_pane1_size(FtSplitter splitter);
+double ft_splitter_get_min_pane2_size(FtSplitter splitter);
+void ft_splitter_on_position_change(FtSplitter splitter, FtSplitterPositionCallback callback, void* user_data);
+
+/* ========================================================================= */
+/* TreeView                                                                  */
+/* ========================================================================= */
+
+typedef void* FtTreeView;
+typedef void* FtTreeNode;
+
+typedef void (*FtTreeNodeSelectCallback)(FtTreeView treeview, FtTreeNode node, void* user_data);
+
+FtTreeView ft_treeview_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h);
+FtTreeNode ft_treeview_add_node(FtTreeView treeview, const char* text, FtTreeNode parent_node);
+void ft_treeview_clear(FtTreeView treeview);
+FtTreeNode ft_treeview_get_root(FtTreeView treeview);
+FtTreeNode ft_treeview_get_selected_node(FtTreeView treeview);
+void ft_treeview_set_selected_node(FtTreeView treeview, FtTreeNode node);
+void ft_treeview_set_item_height(FtTreeView treeview, double height);
+double ft_treeview_get_item_height(FtTreeView treeview);
+void ft_treeview_set_indent_width(FtTreeView treeview, double width);
+double ft_treeview_get_indent_width(FtTreeView treeview);
+void ft_treeview_on_select(FtTreeView treeview, FtTreeNodeSelectCallback callback, void* user_data);
+
+FtTreeNode ft_treenode_add_child(FtTreeNode node, const char* text);
+void ft_treenode_delete_child(FtTreeNode node, int32_t index);
+int32_t ft_treenode_get_child_count(FtTreeNode node);
+FtTreeNode ft_treenode_get_child(FtTreeNode node, int32_t index);
+FtTreeNode ft_treenode_get_parent(FtTreeNode node);
+void ft_treenode_set_text(FtTreeNode node, const char* text);
+const char* ft_treenode_get_text(FtTreeNode node);
+void ft_treenode_set_expanded(FtTreeNode node, int32_t expanded);
+int32_t ft_treenode_get_expanded(FtTreeNode node);
+void ft_treenode_set_data(FtTreeNode node, void* data);
+void* ft_treenode_get_data(FtTreeNode node);
+void ft_treenode_set_tag(FtTreeNode node, int32_t tag);
+int32_t ft_treenode_get_tag(FtTreeNode node);
+
+/* ========================================================================= */
+/* Table / DataGrid                                                          */
+/* ========================================================================= */
+
+typedef void* FtTable;
+
+typedef void (*FtTableRowSelectCallback)(FtTable table, int32_t row_index, void* user_data);
+
+FtTable ft_table_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h);
+int32_t ft_table_add_column(FtTable table, const char* title, double width, int32_t alignment);
+int32_t ft_table_get_column_count(FtTable table);
+void ft_table_set_column_title(FtTable table, int32_t col_idx, const char* title);
+const char* ft_table_get_column_title(FtTable table, int32_t col_idx);
+void ft_table_set_column_width(FtTable table, int32_t col_idx, double width);
+double ft_table_get_column_width(FtTable table, int32_t col_idx);
+void ft_table_set_column_align(FtTable table, int32_t col_idx, int32_t alignment);
+int32_t ft_table_get_column_align(FtTable table, int32_t col_idx);
+
+int32_t ft_table_add_row(FtTable table);
+void ft_table_delete_row(FtTable table, int32_t row_idx);
+void ft_table_clear_rows(FtTable table);
+void ft_table_clear_all(FtTable table);
+int32_t ft_table_get_row_count(FtTable table);
+
+void ft_table_set_cell(FtTable table, int32_t row, int32_t col, const char* value);
+const char* ft_table_get_cell(FtTable table, int32_t row, int32_t col);
+
+void ft_table_set_selected_row(FtTable table, int32_t row);
+int32_t ft_table_get_selected_row(FtTable table);
+
+void ft_table_set_header_height(FtTable table, double height);
+double ft_table_get_header_height(FtTable table);
+void ft_table_set_row_height(FtTable table, double height);
+double ft_table_get_row_height(FtTable table);
+
+void ft_table_set_show_gridlines(FtTable table, int32_t show);
+int32_t ft_table_get_show_gridlines(FtTable table);
+void ft_table_set_zebra_striping(FtTable table, int32_t enabled);
+int32_t ft_table_get_zebra_striping(FtTable table);
+
+void ft_table_on_select_row(FtTable table, FtTableRowSelectCallback callback, void* user_data);
+
 #ifdef __cplusplus
 }
 #endif

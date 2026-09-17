@@ -113,17 +113,30 @@ end;
 
 destructor TFtWidget.Destroy();
 var
-  I: Integer;
+  w: TFtWidget;
 begin
   FtGetAnimator().StopTransitions(Self);
   FtGetAnimator().UnregisterContinuous(Self);
   if Assigned(Parent) then
+  begin
+    if Assigned(Parent.Children) then
+      Parent.Children.Remove(Self);
     Parent.WidgetDestroyed(Self);
+    Parent := nil;
+  end;
   FContextMenu := nil;
   FFont := nil;
-  for I := 0 to Children.Count - 1 do
-    TFtWidget(Children[I]).Free();
-  Children.Free();
+  if Assigned(Children) then
+  begin
+    while Children.Count > 0 do
+    begin
+      w := TFtWidget(Children[Children.Count - 1]);
+      w.Parent := nil;
+      Children.Delete(Children.Count - 1);
+      w.Free();
+    end;
+    FreeAndNil(Children);
+  end;
   inherited Destroy();
 end;
 

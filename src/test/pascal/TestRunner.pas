@@ -5,9 +5,18 @@ program TestRunner;
 uses
   Classes, SysUtils, Math, fpcunit, testregistry, consoletestrunner,
   Floria.SVG.DOM, Floria.SVG.Parser,
-  Ft.Css, Ft.Bitmap, Ft.Canvas.Agg, Ft.Svg, Ft.Widget.Images;
+  Ft.Css, Ft.Bitmap, Ft.Canvas.Agg, Ft.Svg, Ft.Widget, Ft.Widget.Containers, Ft.Widget.Images,
+  Ft.Widget.Tabs, Ft.Widget.Splitters, Ft.Widget.TreeViews, Ft.Widget.Tables, Ft.Widget.Texts;
 
 type
+  TFtDesktopWidgetsTest = class(TTestCase)
+  published
+    procedure TestNotebook();
+    procedure TestSplitter();
+    procedure TestTreeView();
+    procedure TestTable();
+  end;
+
   TFtSvgTest = class(TTestCase)
   published
     procedure TestSVGRasterizeRect();
@@ -451,6 +460,149 @@ begin
   end;
 end;
 
+{ TFtDesktopWidgetsTest }
+
+procedure TFtDesktopWidgetsTest.TestNotebook();
+var
+  nb: TFtNotebook;
+  p1, p2: TFtTabPage;
+begin
+  nb := TFtNotebook.Create(nil);
+  try
+    nb.X := 10; nb.Y := 10; nb.Width := 400; nb.Height := 300;
+    p1 := nb.AddTab('General', False);
+    p2 := nb.AddTab('Settings', True);
+    nb.AddTab('About', False);
+
+    AssertEquals('Page count is 3', 3, nb.PageCount);
+    AssertEquals('Active index defaults to 0', 0, nb.ActiveIndex);
+    AssertTrue('First page is visible', p1.Visible);
+    AssertFalse('Second page is not visible', p2.Visible);
+
+    nb.ActiveIndex := 1;
+    AssertEquals('Active index is 1', 1, nb.ActiveIndex);
+    AssertFalse('First page is now hidden', p1.Visible);
+    AssertTrue('Second page is now visible', p2.Visible);
+    AssertEquals('Tab 2 title', 'Settings', nb.Pages[1].Title);
+    AssertTrue('Tab 2 is closeable', nb.Pages[1].Closeable);
+
+    nb.RemoveTab(0, True);
+    AssertEquals('Page count after remove is 2', 2, nb.PageCount);
+    AssertEquals('First tab is now Settings', 'Settings', nb.Pages[0].Title);
+
+    nb.ClearTabs();
+    AssertEquals('Page count after clear is 0', 0, nb.PageCount);
+    AssertEquals('Active index after clear is -1', -1, nb.ActiveIndex);
+  finally
+    nb.Free();
+  end;
+end;
+
+procedure TFtDesktopWidgetsTest.TestSplitter();
+var
+  spl: TFtSplitter;
+  pane1, pane2: TFtContainer;
+begin
+  spl := TFtSplitter.Create(nil);
+  pane1 := TFtContainer.Create(spl);
+  pane2 := TFtContainer.Create(spl);
+  try
+    spl.X := 0; spl.Y := 0; spl.Width := 600; spl.Height := 400;
+    spl.Orientation := soHorizontal;
+    spl.SetPanes(pane1, pane2);
+
+    AssertEquals('Splitter orientation is horizontal', Ord(soHorizontal), Ord(spl.Orientation));
+    AssertNotNull('Pane1 assigned', spl.Pane1);
+    AssertNotNull('Pane2 assigned', spl.Pane2);
+
+    spl.SetSplitterRatio(0.4);
+    AssertTrue('SplitterPos is ~240 (40% of 600)', Abs(spl.SplitterPos - 237.6) < 5.0);
+
+    spl.Orientation := soVertical;
+    AssertEquals('Splitter orientation changed to vertical', Ord(soVertical), Ord(spl.Orientation));
+  finally
+    spl.Free();
+  end;
+end;
+
+procedure TFtDesktopWidgetsTest.TestTreeView();
+var
+  tv: TFtTreeView;
+  docs, pics, work: TFtTreeNode;
+begin
+  tv := TFtTreeView.Create(nil);
+  try
+    tv.X := 0; tv.Y := 0; tv.Width := 250; tv.Height := 400;
+    docs := tv.AddNode('Documents');
+    pics := tv.AddNode('Pictures');
+
+    AssertEquals('Root has 2 children', 2, tv.Root.ChildCount);
+    AssertEquals('First node text', 'Documents', docs.Text);
+    AssertEquals('Second node text', 'Pictures', pics.Text);
+    AssertEquals('Docs level is 0', 0, docs.Level);
+
+    work := docs.AddChild('Work');
+    docs.AddChild('Personal');
+
+    AssertEquals('Docs has 2 children', 2, docs.ChildCount);
+    AssertEquals('Work level is 1', 1, work.Level);
+    AssertTrue('Docs has children', docs.HasChildren());
+    AssertFalse('Work has no children', work.HasChildren());
+
+    docs.Expanded := True;
+    tv.RebuildVisibleNodes();
+
+    tv.SelectedNode := work;
+    AssertTrue('Selected node is work', tv.SelectedNode = work);
+
+    tv.Clear();
+    AssertEquals('Root has 0 children after clear', 0, tv.Root.ChildCount);
+  finally
+    tv.Free();
+  end;
+end;
+
+procedure TFtDesktopWidgetsTest.TestTable();
+var
+  tbl: TFtTable;
+begin
+  tbl := TFtTable.Create(nil);
+  try
+    tbl.X := 0; tbl.Y := 0; tbl.Width := 500; tbl.Height := 300;
+    tbl.AddColumn('ID', 60.0, taCenter);
+    tbl.AddColumn('Name', 180.0, taLeft);
+    tbl.AddColumn('Price', 100.0, taRight);
+
+    AssertEquals('Column count is 3', 3, tbl.ColumnCount);
+    AssertEquals('Column 0 title', 'ID', tbl.Columns[0].Title);
+    AssertEquals('Column 1 width', 180.0, tbl.Columns[1].Width);
+    AssertEquals('Column 2 align is taRight', Ord(taRight), Ord(tbl.Columns[2].Alignment));
+
+    tbl.AddRow(['1', 'Mechanical Keyboard', '$89.99']);
+    tbl.AddRow(['2', 'Gaming Mouse', '$49.99']);
+
+    AssertEquals('Row count is 2', 2, tbl.RowCount);
+    AssertEquals('Cell (0, 0)', '1', tbl.GetCell(0, 0));
+    AssertEquals('Cell (0, 1)', 'Mechanical Keyboard', tbl.GetCell(0, 1));
+    AssertEquals('Cell (1, 2)', '$49.99', tbl.GetCell(1, 2));
+
+    tbl.SetCell(1, 1, 'Wireless Mouse');
+    AssertEquals('Updated Cell (1, 1)', 'Wireless Mouse', tbl.GetCell(1, 1));
+
+    tbl.SelectedRow := 1;
+    AssertEquals('Selected row is 1', 1, tbl.SelectedRow);
+
+    tbl.DeleteRow(0);
+    AssertEquals('Row count after delete is 1', 1, tbl.RowCount);
+    AssertEquals('Remaining row item', 'Wireless Mouse', tbl.GetCell(0, 1));
+
+    tbl.ClearRows();
+    AssertEquals('Row count after clear is 0', 0, tbl.RowCount);
+  finally
+    tbl.Free();
+  end;
+end;
+
 var
   Application: TTestRunner;
 
@@ -459,6 +611,7 @@ begin
   try
     RegisterTest(TFtCssTest);
     RegisterTest(TFtSvgTest);
+    RegisterTest(TFtDesktopWidgetsTest);
     Application.Initialize;
     Application.Run;
   finally
