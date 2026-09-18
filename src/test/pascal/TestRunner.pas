@@ -42,6 +42,7 @@ type
     procedure TestSpecificityAndInlineStyle();
     procedure TestRootPseudoClassResolving();
     procedure TestCssVariablesAndCustomProperties();
+    procedure TestDefaultThemeWithRootVariables();
   end;
 
 procedure TFtCssTest.TestColorParsing();
@@ -378,6 +379,56 @@ begin
     AssertEquals('Query variable --accent', '#3b82f6', sheet.GetVariable('--accent'));
     AssertEquals('Query variable in dark mode', '#60a5fa', sheet.GetVariable('--accent', 'dark'));
     AssertTrue('ResolveString replaces vars', Pos('#3b82f6', sheet.ResolveString('2px solid var(--accent)')) > 0);
+  finally
+    sheet.Free();
+  end;
+end;
+
+procedure TFtCssTest.TestDefaultThemeWithRootVariables();
+var
+  sheet: TFtStyleSheet;
+  stBtnLight, stBtnDark, stBtnHoverDark, stEntryLight, stEntryDark, stWinLight, stWinDark: TFtWidgetStyle;
+  path: string;
+begin
+  sheet := TFtStyleSheet.Create();
+  try
+    path := 'themes/default.css';
+    if not FileExists(path) then path := '../themes/default.css';
+    AssertTrue('themes/default.css exists', FileExists(path));
+    AssertTrue('Load default.css', sheet.LoadFromFile(path));
+
+    // 1. Light mode button
+    stBtnLight := sheet.ResolveStyle('button', '', '', '');
+    AssertTrue('Light button has bg', stBtnLight.HasBgColor);
+    AssertTrue('Light button bg ~ #e2e8f0', Abs(stBtnLight.BgColor.R - (226.0 / 255.0)) < 0.02);
+    AssertTrue('Light button has text #0f172a', Abs(stBtnLight.TextColor.R - (15.0 / 255.0)) < 0.02);
+    AssertTrue('Light button has border #cbd5e1', Abs(stBtnLight.BorderColor.R - (203.0 / 255.0)) < 0.02);
+
+    // 2. Dark mode button (variables automatically switch via .dark)
+    stBtnDark := sheet.ResolveStyle('button', '', 'dark', '');
+    AssertTrue('Dark button has bg', stBtnDark.HasBgColor);
+    AssertTrue('Dark button bg ~ #27272a', Abs(stBtnDark.BgColor.R - (39.0 / 255.0)) < 0.02);
+    AssertTrue('Dark button text ~ #f4f4f5', Abs(stBtnDark.TextColor.R - (244.0 / 255.0)) < 0.02);
+    AssertTrue('Dark button border ~ #3f3f46', Abs(stBtnDark.BorderColor.R - (63.0 / 255.0)) < 0.02);
+
+    // 3. Dark mode button hover
+    stBtnHoverDark := sheet.ResolveStyle('button', '', 'dark', ':hover');
+    AssertTrue('Dark button hover bg ~ #3f3f46', Abs(stBtnHoverDark.BgColor.R - (63.0 / 255.0)) < 0.02);
+    AssertTrue('Dark button hover text #ffffff', Abs(stBtnHoverDark.TextColor.R - 1.0) < 0.02);
+
+    // 4. Entry surface
+    stEntryLight := sheet.ResolveStyle('entry', '', '', '');
+    AssertTrue('Entry light bg is white', Abs(stEntryLight.BgColor.R - 1.0) < 0.01);
+
+    stEntryDark := sheet.ResolveStyle('entry', '', 'dark', '');
+    AssertTrue('Entry dark bg ~ #27272a', Abs(stEntryDark.BgColor.R - (39.0 / 255.0)) < 0.02);
+
+    // 5. Window background and text
+    stWinLight := sheet.ResolveStyle('window', '', '', '');
+    AssertTrue('Window light bg ~ #f0f2f5', Abs(stWinLight.BgColor.R - (240.0 / 255.0)) < 0.02);
+
+    stWinDark := sheet.ResolveStyle('window', '', 'dark', '');
+    AssertTrue('Window dark bg ~ #18181b', Abs(stWinDark.BgColor.R - (24.0 / 255.0)) < 0.02);
   finally
     sheet.Free();
   end;

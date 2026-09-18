@@ -1,19 +1,97 @@
 /* Floria Toolkit - Modern Default (Breeze/Fusion) Theme */
 
-window {
-    background-color: #f0f2f5;
-    color: #1e293b;
+:root {
+    /* Base Window & Text */
+    --window-bg: #f0f2f5;
+    --text-color: #1e293b;
+    --text-dark: #0f172a;
+    --text-light: #ffffff;
+    --text-active: #020617;
+
+    /* Borders */
+    --border-color: #cbd5e1;
+    --border-hover: #94a3b8;
+    --border-active: #64748b;
+    --border-dark: #94a3b8;
+
+    /* Plates & Buttons */
+    --plate-bg: #e2e8f0;
+    --plate-hover: #cbd5e1;
+    --plate-active: #94a3b8;
+    --btn-hover-text: #0f172a;
+
+    /* Surfaces / Controls (Entry, Container, Menu, Combobox) */
+    --surface-bg: #ffffff;
+
+    /* Accent & Focus */
+    --accent-color: #3b82f6;
+    --accent-hover: #2563eb;
+    --accent-focus: #3b82f6;
+
+    /* Switch & Slider Track */
+    --track-bg: #cbd5e1;
+    --track-border: #94a3b8;
+
+    /* Scrollbar */
+    --scrollbar-track: #f0f2f5;
+    --scrollbar-thumb: #cbd5e1;
+    --scrollbar-hover: #94a3b8;
+    --scrollbar-active: #64748b;
+
+    /* Baseline defaults for window and inheriting widgets */
+    background-color: var(--window-bg);
+    color: var(--text-color);
+    border-color: var(--border-color);
 }
 
-window.dark {
-    background-color: #18181b;
-    color: #f1f5f9;
+:root.dark, .dark {
+    /* Dark Base Window & Text */
+    --window-bg: #18181b;
+    --text-color: #f1f5f9;
+    --text-dark: #f4f4f5;
+    --text-light: #ffffff;
+    --text-active: #e4e4e7;
+
+    /* Dark Borders */
+    --border-color: #3f3f46;
+    --border-hover: #52525b;
+    --border-active: #27272a;
+    --border-dark: #52525b;
+
+    /* Dark Plates & Buttons */
+    --plate-bg: #27272a;
+    --plate-hover: #3f3f46;
+    --plate-active: #18181b;
+    --btn-hover-text: #ffffff;
+
+    /* Dark Surfaces / Controls */
+    --surface-bg: #27272a;
+
+    /* Dark Accent & Focus */
+    --accent-color: #3b82f6;
+    --accent-hover: #60a5fa;
+    --accent-focus: #60a5fa;
+
+    /* Dark Switch & Slider Track */
+    --track-bg: #3f3f46;
+    --track-border: #52525b;
+
+    /* Dark Scrollbar */
+    --scrollbar-track: #18181b;
+    --scrollbar-thumb: #3f3f46;
+    --scrollbar-hover: #52525b;
+    --scrollbar-active: #71717a;
+}
+
+window {
+    background-color: var(--window-bg);
+    color: var(--text-color);
 }
 
 button {
-    background-color: #e2e8f0;
-    color: #0f172a;
-    border-color: #cbd5e1;
+    background-color: var(--plate-bg);
+    color: var(--text-dark);
+    border-color: var(--border-color);
     border-width: 1px;
     border-radius: 6px;
     box-shadow: 1;
@@ -21,39 +99,21 @@ button {
 }
 
 button:hover {
-    background-color: #cbd5e1;
-    border-color: #94a3b8;
-    color: #0f172a;
+    background-color: var(--plate-hover);
+    border-color: var(--border-hover);
+    color: var(--btn-hover-text);
 }
 
 button:active {
-    background-color: #94a3b8;
-    border-color: #64748b;
-    color: #020617;
-}
-
-button.dark {
-    background-color: #27272a;
-    color: #f4f4f5;
-    border-color: #3f3f46;
-}
-
-button.dark:hover {
-    background-color: #3f3f46;
-    border-color: #52525b;
-    color: #ffffff;
-}
-
-button.dark:active {
-    background-color: #18181b;
-    border-color: #27272a;
-    color: #e4e4e7;
+    background-color: var(--plate-active);
+    border-color: var(--border-active);
+    color: var(--text-active);
 }
 
 entry, textarea {
-    background-color: #ffffff;
-    color: #0f172a;
-    border-color: #cbd5e1;
+    background-color: var(--surface-bg);
+    color: var(--text-dark);
+    border-color: var(--border-color);
     border-width: 1px;
     border-radius: 5px;
     box-shadow: 0;
@@ -61,182 +121,95 @@ entry, textarea {
 }
 
 entry:focus, textarea:focus {
-    border-color: #3b82f6;
-}
-
-entry.dark, textarea.dark {
-    background-color: #27272a;
-    color: #f4f4f5;
-    border-color: #3f3f46;
-}
-
-entry.dark:focus, textarea.dark:focus {
-    border-color: #60a5fa;
+    border-color: var(--accent-focus);
 }
 
 switch {
-    background-color: #cbd5e1;
-    border-color: #94a3b8;
+    background-color: var(--track-bg);
+    border-color: var(--track-border);
     border-radius: 12px;
     transition: all 200ms ease;
 }
 
 switch:checked {
-    background-color: #3b82f6;
-    border-color: #2563eb;
-}
-
-switch.dark {
-    background-color: #3f3f46;
-    border-color: #52525b;
-}
-
-switch.dark:checked {
-    background-color: #3b82f6;
-    border-color: #60a5fa;
+    background-color: var(--accent-color);
+    border-color: var(--accent-hover);
 }
 
 label {
-    color: #1e293b;
-}
-
-label.dark {
-    color: #f1f5f9;
+    color: var(--text-color);
 }
 
 scrollbar {
-    background-color: #f0f2f5;
-    color: #cbd5e1;
+    background-color: var(--scrollbar-track);
+    color: var(--scrollbar-thumb);
     border-radius: 3px;
     transition: all 150ms ease;
 }
 
 scrollbar:hover {
-    color: #94a3b8;
+    color: var(--scrollbar-hover);
 }
 
 scrollbar:active {
-    color: #64748b;
-}
-
-scrollbar.dark {
-    background-color: #18181b;
-    color: #3f3f46;
-}
-
-scrollbar.dark:hover {
-    color: #52525b;
-}
-
-scrollbar.dark:active {
-    color: #71717a;
+    color: var(--scrollbar-active);
 }
 
 menu {
-    background-color: #ffffff;
-    border-color: #cbd5e1;
-    color: #1e293b;
+    background-color: var(--surface-bg);
+    border-color: var(--border-color);
+    color: var(--text-color);
     border-radius: 6px;
 }
 
 menu:hover {
-    background-color: #3b82f6;
-    color: #ffffff;
-}
-
-menu.dark {
-    background-color: #27272a;
-    border-color: #3f3f46;
-    color: #f4f4f5;
-}
-
-menu.dark:hover {
-    background-color: #3b82f6;
-    color: #ffffff;
+    background-color: var(--accent-color);
+    color: var(--text-light);
 }
 
 container {
-    background-color: #ffffff;
-    border-color: #cbd5e1;
+    background-color: var(--surface-bg);
+    border-color: var(--border-color);
     border-width: 1px;
     border-radius: 6px;
 }
 
-container.dark {
-    background-color: #27272a;
-    border-color: #3f3f46;
-}
-
 checkbox, radio {
-    background-color: #ffffff;
-    border-color: #94a3b8;
+    background-color: var(--surface-bg);
+    border-color: var(--border-dark);
     border-width: 1px;
-    color: #1e293b;
+    color: var(--text-color);
     transition: all 150ms ease;
 }
 
 checkbox:checked, radio:checked {
-    background-color: #3b82f6;
-    border-color: #2563eb;
-}
-
-checkbox.dark, radio.dark {
-    background-color: #27272a;
-    border-color: #52525b;
-    color: #f1f5f9;
-}
-
-checkbox.dark:checked, radio.dark:checked {
-    background-color: #3b82f6;
-    border-color: #60a5fa;
+    background-color: var(--accent-color);
+    border-color: var(--accent-hover);
 }
 
 combobox {
-    background-color: #ffffff;
-    border-color: #cbd5e1;
+    background-color: var(--surface-bg);
+    border-color: var(--border-color);
     border-width: 1px;
     border-radius: 6px;
-    color: #0f172a;
+    color: var(--text-dark);
     box-shadow: 1;
     transition: border-color 150ms ease;
 }
 
 combobox:focus {
-    border-color: #3b82f6;
-}
-
-combobox.dark {
-    background-color: #27272a;
-    border-color: #3f3f46;
-    color: #f4f4f5;
-}
-
-combobox.dark:focus {
-    border-color: #60a5fa;
+    border-color: var(--accent-focus);
 }
 
 slider {
-    background-color: #cbd5e1;
-    color: #3b82f6;
-}
-
-slider.dark {
-    background-color: #3f3f46;
-    color: #60a5fa;
+    background-color: var(--track-bg);
+    color: var(--accent-focus);
 }
 
 progressbar {
-    background-color: #e2e8f0;
-    border-color: #cbd5e1;
+    background-color: var(--plate-bg);
+    border-color: var(--border-color);
     border-width: 1px;
     border-radius: 6px;
-    color: #3b82f6;
+    color: var(--accent-focus);
 }
-
-progressbar.dark {
-    background-color: #27272a;
-    border-color: #3f3f46;
-    color: #60a5fa;
-}
-
-
