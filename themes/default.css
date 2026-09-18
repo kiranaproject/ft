@@ -7,6 +7,8 @@
     --text-dark: #0f172a;
     --text-light: #ffffff;
     --text-active: #020617;
+    --text-disabled: #94a3b8;
+    --disabled-text-color: #94a3b8;
 
     /* Borders */
     --border-color: #cbd5e1;
@@ -41,7 +43,6 @@
     /* Baseline defaults for window and inheriting widgets */
     background-color: var(--window-bg);
     color: var(--text-color);
-    border-color: var(--border-color);
 }
 
 :root.dark, .dark {
@@ -51,6 +52,8 @@
     --text-dark: #f4f4f5;
     --text-light: #ffffff;
     --text-active: #e4e4e7;
+    --text-disabled: #71717a;
+    --disabled-text-color: #71717a;
 
     /* Dark Borders */
     --border-color: #3f3f46;
@@ -110,6 +113,11 @@ button:active {
     color: var(--text-active);
 }
 
+button:disabled {
+    color: var(--text-disabled);
+    opacity: 0.6;
+}
+
 entry, textarea {
     background-color: var(--surface-bg);
     color: var(--text-dark);
@@ -165,6 +173,10 @@ menu {
 menu:hover {
     background-color: var(--accent-color);
     color: var(--text-light);
+}
+
+menu:disabled {
+    color: var(--text-disabled);
 }
 
 container {

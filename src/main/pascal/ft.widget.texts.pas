@@ -587,15 +587,13 @@ begin
   curTheme := FtGetTheme();
 
   // Background and border if styled via CSS
-  if st.HasBgColor or st.HasBorderColor then
+  if st.HasBgColor or (st.HasBorderWidth and (st.BorderWidth > 0.0) and st.HasBorderColor) then
   begin
     if st.HasBorderRadius then rad := st.BorderRadius else rad := 0.0;
     if st.HasBgColor then
       Canvas.DrawRoundedRect(X, Y, Width, Height, rad, st.BgColor.R, st.BgColor.G, st.BgColor.B, st.BgColor.A);
-    bw := 1.0;
-    if st.HasBorderWidth then bw := st.BorderWidth;
-    if (bw > 0.0) and st.HasBorderColor then
-      Canvas.DrawRoundedRectOutline(X, Y, Width, Height, rad, bw, st.BorderColor.R, st.BorderColor.G, st.BorderColor.B, st.BorderColor.A);
+    if st.HasBorderWidth and (st.BorderWidth > 0.0) and st.HasBorderColor then
+      Canvas.DrawRoundedRectOutline(X, Y, Width, Height, rad, st.BorderWidth, st.BorderColor.R, st.BorderColor.G, st.BorderColor.B, st.BorderColor.A);
   end;
 
   AFont := GetFont();

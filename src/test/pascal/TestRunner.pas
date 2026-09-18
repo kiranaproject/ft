@@ -388,6 +388,8 @@ procedure TFtCssTest.TestDefaultThemeWithRootVariables();
 var
   sheet: TFtStyleSheet;
   stBtnLight, stBtnDark, stBtnHoverDark, stEntryLight, stEntryDark, stWinLight, stWinDark: TFtWidgetStyle;
+  stLabelLight, stLabelDark, stMenuDisLight, stMenuDisDark: TFtWidgetStyle;
+  disCol: TFtRgbColor;
   path: string;
 begin
   sheet := TFtStyleSheet.Create();
@@ -429,6 +431,34 @@ begin
 
     stWinDark := sheet.ResolveStyle('window', '', 'dark', '');
     AssertTrue('Window dark bg ~ #18181b', Abs(stWinDark.BgColor.R - (24.0 / 255.0)) < 0.02);
+
+    // 6. Label (TFtText) must NOT have border in light or dark mode
+    stLabelLight := sheet.ResolveStyle('label', '', '', '');
+    AssertFalse('Label light has no border color', stLabelLight.HasBorderColor);
+    AssertFalse('Label light has no border width', stLabelLight.HasBorderWidth);
+
+    stLabelDark := sheet.ResolveStyle('label', '', 'dark', '');
+    AssertFalse('Label dark has no border color', stLabelDark.HasBorderColor);
+    AssertFalse('Label dark has no border width', stLabelDark.HasBorderWidth);
+
+    // 7. Menu disabled text color
+    stMenuDisLight := sheet.ResolveStyle('menu', '', '', ':disabled');
+    AssertTrue('Menu disabled light has text color', stMenuDisLight.HasTextColor);
+    AssertTrue('Menu disabled light is slate-400 (#94a3b8)', Abs(stMenuDisLight.TextColor.R - (148.0 / 255.0)) < 0.03);
+
+    stMenuDisDark := sheet.ResolveStyle('menu', '', 'dark', ':disabled');
+    AssertTrue('Menu disabled dark has text color', stMenuDisDark.HasTextColor);
+    AssertTrue('Menu disabled dark is zinc-500 (#71717a)', Abs(stMenuDisDark.TextColor.R - (113.0 / 255.0)) < 0.03);
+
+    // 8. Theme manager menu disabled text color
+    FtSetDarkMode(False);
+    disCol := FtGetTheme().GetMenuDisabledTextColor();
+    AssertTrue('Theme light disabled menu text ~ #94a3b8', Abs(disCol.R - (148.0 / 255.0)) < 0.03);
+
+    FtSetDarkMode(True);
+    disCol := FtGetTheme().GetMenuDisabledTextColor();
+    AssertTrue('Theme dark disabled menu text ~ #71717a', Abs(disCol.R - (113.0 / 255.0)) < 0.03);
+    FtSetDarkMode(False);
   finally
     sheet.Free();
   end;

@@ -83,6 +83,7 @@ type
     function GetMenuBorder(): TFtRgbColor; virtual;
     function GetMenuHoverBackground(): TFtRgbColor; virtual;
     function GetMenuHoverTextColor(): TFtRgbColor; virtual;
+    function GetMenuDisabledTextColor(): TFtRgbColor; virtual;
     function GetMenuSeparatorColor(): TFtRgbColor; virtual;
     procedure DrawMenuBar(Canvas: TFtCanvasAgg; X, Y, W, H: Integer); virtual;
     procedure DrawMenuBarItem(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
@@ -870,6 +871,21 @@ begin
     Result := MakeRgb(1.0, 1.0, 1.0);
 end;
 
+function TFtTheme.GetMenuDisabledTextColor(): TFtRgbColor;
+var
+  st: TFtWidgetStyle;
+  cls: string;
+begin
+  if FDarkMode then cls := 'dark' else cls := '';
+  st := FtGetStyleSheet().ResolveStyle('menu', '', cls, ':disabled', '');
+  if st.HasTextColor then
+    Result := MakeRgb(st.TextColor.R, st.TextColor.G, st.TextColor.B)
+  else if FDarkMode then
+    Result := MakeRgb(0.44, 0.44, 0.48) // zinc-500 #71717a
+  else
+    Result := MakeRgb(0.58, 0.64, 0.72); // slate-400 #94a3b8
+end;
+
 function TFtTheme.GetMenuSeparatorColor(): TFtRgbColor;
 begin
   if FDarkMode then
@@ -938,15 +954,13 @@ begin
     txt := GetMenuHoverTextColor();
     Canvas.DrawRoundedRect(X + 3, Y + 1, W - 6, H - 2, 4.0, bg.R, bg.G, bg.B);
   end
+  else if not Enabled then
+  begin
+    txt := GetMenuDisabledTextColor();
+  end
   else
   begin
     txt := GetTextColor();
-    if not Enabled then
-    begin
-      txt.R := txt.R * 0.6;
-      txt.G := txt.G * 0.6;
-      txt.B := txt.B * 0.6;
-    end;
   end;
 
   if not Assigned(Font) then actualFont := FtGetSystemFont() else actualFont := Font;
@@ -959,12 +973,19 @@ begin
     Canvas.DrawText(X + 24, txtY, Caption, actualFont, txt.R, txt.G, txt.B);
 
   if Shortcut <> '' then
-    Canvas.DrawText(X + W - Round(actualFont.GetTextWidth(Shortcut)) - 16, txtY, Shortcut, actualFont, txt.R * 0.8, txt.G * 0.8, txt.B * 0.8);
+  begin
+    if not Enabled then
+      Canvas.DrawText(X + W - Round(actualFont.GetTextWidth(Shortcut)) - 16, txtY, Shortcut, actualFont, txt.R, txt.G, txt.B)
+    else
+      Canvas.DrawText(X + W - Round(actualFont.GetTextWidth(Shortcut)) - 16, txtY, Shortcut, actualFont, txt.R * 0.8, txt.G * 0.8, txt.B * 0.8);
+  end;
 
   if HasSubMenu then
   begin
     if Hovered and Enabled then
       Canvas.DrawSubMenuArrow(X + W - 14.0, Y + H * 0.5, txt.R, txt.G, txt.B, 1.0)
+    else if not Enabled then
+      Canvas.DrawSubMenuArrow(X + W - 14.0, Y + H * 0.5, txt.R, txt.G, txt.B, 0.5)
     else
       Canvas.DrawSubMenuArrow(X + W - 14.0, Y + H * 0.5, txt.R, txt.G, txt.B, 0.75);
   end;

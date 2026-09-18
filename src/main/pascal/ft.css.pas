@@ -1454,6 +1454,7 @@ begin
       else
       begin
         varVal := GetCustomVarValue('--disabled-text-color', nil, AClasses, APseudo);
+        if varVal = '' then varVal := GetCustomVarValue('--text-disabled', nil, AClasses, APseudo);
         if varVal = '' then varVal := GetCustomVarValue('--color-disabled-text', nil, AClasses, APseudo);
         if varVal = '' then varVal := GetCustomVarValue('--disabled-color', nil, AClasses, APseudo);
         if (varVal <> '') and FtParseColor(varVal, col) then
@@ -1488,8 +1489,8 @@ begin
     end;
   end;
 
-  // 2. Border Color baseline
-  if not AStyle.HasBorderColor then
+  // 2. Border Color baseline (only for elements that specify a border width > 0)
+  if (AStyle.HasBorderWidth and (AStyle.BorderWidth > 0.0)) and (not AStyle.HasBorderColor) then
   begin
     if isHover and rootStateStyle.HasBorderColor then
     begin
@@ -1501,22 +1502,19 @@ begin
       AStyle.HasBorderColor := True;
       AStyle.BorderColor := rootStateStyle.BorderColor;
     end
-    else if (AStyle.HasBorderWidth and (AStyle.BorderWidth > 0.0)) or rootNormalStyle.HasBorderColor then
+    else if rootNormalStyle.HasBorderColor then
     begin
-      if rootNormalStyle.HasBorderColor then
+      AStyle.HasBorderColor := True;
+      AStyle.BorderColor := rootNormalStyle.BorderColor;
+    end
+    else
+    begin
+      varVal := GetCustomVarValue('--border-color', nil, AClasses, APseudo);
+      if varVal = '' then varVal := GetCustomVarValue('--color-border', nil, AClasses, APseudo);
+      if (varVal <> '') and FtParseColor(varVal, col) then
       begin
         AStyle.HasBorderColor := True;
-        AStyle.BorderColor := rootNormalStyle.BorderColor;
-      end
-      else
-      begin
-        varVal := GetCustomVarValue('--border-color', nil, AClasses, APseudo);
-        if varVal = '' then varVal := GetCustomVarValue('--color-border', nil, AClasses, APseudo);
-        if (varVal <> '') and FtParseColor(varVal, col) then
-        begin
-          AStyle.HasBorderColor := True;
-          AStyle.BorderColor := col;
-        end;
+        AStyle.BorderColor := col;
       end;
     end;
   end;
