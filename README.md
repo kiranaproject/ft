@@ -225,8 +225,9 @@ Floria Toolkit is continuously evolving. High-priority initiatives include:
 
 - **Pluggable Graphics Architecture (`TFtCanvas`)**:
   - Abstracting the vector canvas to support **Hardware-Accelerated GPU backends** (OpenGL / Vulkan) alongside **AggPas as the premier Software Fallback & Reference Engine** (ensuring zero-driver reliability in VMs, headless CI, and remote sessions).
-  - Dynamic runtime backend negotiation (`ft_init`) with transparent fallback.
-- **Display Protocols**: Native Wayland (`xdg-shell`) backend, Windows (Win32), and macOS (Cocoa).
+- **X11 Desktop Environment & Window Manager (DE/WM)**:
+  - First-class infrastructure for building an X11 Desktop Environment and Window Manager (comparable to KDE and GNOME): ICCCM/EWMH window reparenting, styled titlebars with `TFtWindowButton`, panels, docks, taskbars, application launchers, system tray, and compositing.
+  - Cross-platform standalone app backends for Windows (Win32) and macOS (Cocoa).
 - **Advanced Controls**: DataGrids with virtual scrolling, TreeViews, Tabbed notebooks, and Splitter panes.
 - **Typography & i18n**: HarfBuzz complex text shaping, BiDi support, and IME integration.
 

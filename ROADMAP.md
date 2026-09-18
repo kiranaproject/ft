@@ -2,6 +2,8 @@
 
 This document outlines the architectural vision, technical milestones, and future development priorities for the **Floria Toolkit**.
 
+The primary mission of Floria Toolkit is to serve as a fast, modular, and beautiful foundation for building an **X11 Desktop Environment and Window Manager (comparable to KDE/KWin and GNOME/Mutter)**, alongside powering rich standalone desktop applications.
+
 ---
 
 ## 1. Pluggable Graphics Engine & GPU Acceleration
@@ -16,7 +18,7 @@ flowchart TD
     Canvas --> Agg["TFtCanvasAgg (Software Engine via AggPas)"]
     Canvas --> GPU["TFtCanvasGL / TFtCanvasVulkan (Hardware Accelerated)"]
     Agg --> CPUOut["XPutImage / Software Pixmap / DRM Dumb Buffer"]
-    GPU --> GPUOut["EGL / GLX SwapBuffers / Wayland EGL Surface"]
+    GPU --> GPUOut["GLX / EGL SwapBuffers"]
 ```
 
 ### Key Milestones
@@ -39,16 +41,37 @@ flowchart TD
 
 ---
 
-## 2. Multi-Platform & Display Server Backends
+## 2. X11 Desktop Environment & Window Manager (DE/WM) Infrastructure
 
-Expand beyond native X11 to support contemporary display protocols and operating systems.
+The primary objective of Floria Toolkit is providing complete, first-class infrastructure to build a modern X11 Desktop Environment and Window Manager (comparable to KDE and GNOME).
 
-- [ ] **Wayland Native Backend**:
-  - Direct integration via `libwayland-client` and `xdg-shell`.
-  - Wayland subsurfaces for high-performance popups, tooltips, and dropdown menus.
-  - Support for `wl_shm` (AggPas software buffer) and EGL (GPU).
+### Core DE/WM Milestones:
+
+- [ ] **Window Manager Core (WM)**:
+  - **Substructure Redirection**: Acquiring `SubstructureRedirectMask` and `SubstructureNotifyMask` on the root window to intercept client window lifecycle events.
+  - **Frame Reparenting**: Reparenting client windows into decorated Floria frames featuring titlebars, [`TFtWindowButton`](include/ft.h#L107) controls (close, minimize, maximize/restore, shade, pin), and resize gutters.
+  - **ICCCM & EWMH/NetWM Compliance**: Full compliance with standard window manager protocols (`_NET_WM_STATE`, `_NET_ACTIVE_WINDOW`, `_NET_CLIENT_LIST`, `_NET_WM_DESKTOP`, `_NET_NUMBER_OF_DESKTOPS`, `_NET_WORKAREA`).
+  - **Window State Lifecycle**: Handling Minimize/Iconify, Maximize (horizontal/vertical), Restore, Shade/Rollup, Fullscreen, and Pin/Sticky across multiple virtual desktops.
+  - **Window Geometry & Interactive Resizing**: Client aspect-ratio constraints, minimum/maximum size hints (`WM_NORMAL_HINTS`), and interactive window moving/resizing routines.
+- [ ] **Desktop Shell Components**:
+  - **Panels & Docks**: Dedicated panel windows (`_NET_WM_WINDOW_TYPE_DOCK`) with desktop edge reservations via partial struts (`_NET_WM_STRUT_PARTIAL`).
+  - **Desktop Surface**: Root desktop wallpaper rendering, desktop icon layout grid, rubberband multi-selection, and folder launch integration.
+  - **Taskbar & Window Pager**: Active window indicators, minimized window grouping, live window title updates, and virtual workspace switcher.
+  - **Application Launcher**: Searchable popup grid/list launcher reading Freedesktop `.desktop` files, categories, and icon themes.
+  - **System Tray**: XEmbed system tray specification (`_NET_SYSTEM_TRAY`) and modern D-Bus StatusNotifierItem (SNI) protocol support.
+  - **Window Switcher (Alt+Tab)**: Modal on-screen switcher overlay displaying running application icons, window titles, and live thumbnails.
+- [ ] **Compositor & Visual Effects**:
+  - **XComposite & XDamage**: Offscreen client window rendering redirection via `XCompositeRedirectSubwindows` and dirty region updates via `XDamage`.
+  - **Compositing Engine**: Real-time window drop shadows, rounded client frame corners, smooth window opening/closing animations, and backdrop blur.
+
+---
+
+## 3. Host Platform Backends (Standalone Applications)
+
+Support running standalone Floria Toolkit GUI applications across desktop operating systems:
+
 - [ ] **Windows Platform Backend**:
-  - Native Win32 window creation and message pump.
+  - Native Win32 window creation, event dispatch, and message pump.
   - Direct2D / WGL GPU surfaces alongside AggPas GDI DIB blitting.
 - [ ] **macOS Platform Backend**:
   - Cocoa window management via Objective-C runtime bridge.
@@ -56,9 +79,9 @@ Expand beyond native X11 to support contemporary display protocols and operating
 
 ---
 
-## 3. Advanced Widget Ecosystem
+## 4. Advanced Widget Ecosystem
 
-Enrich the desktop control catalog with complex data-driven components.
+Enrich the desktop control catalog with complex data-driven components:
 
 - [x] **DataGrid & Table View (`TFtGrid` / `TFtTable`)**:
   - Column headers with alignment (`taLeft`, `taCenter`, `taRight`).
@@ -70,13 +93,16 @@ Enrich the desktop control catalog with complex data-driven components.
 - [x] **Splitter & Panes (`TFtSplitter`)**:
   - Resizable horizontal and vertical dividing gutters with live mouse drag, grip dots, and child positioning.
 - [ ] **Standard Dialog System**:
-  - Native and themed modal dialogs: File Chooser, Directory Selector, Color Picker, and Alert/Confirmation dialogs.
+  - Native and themed modal dialogs: File Chooser, Directory Selector, Color Picker, and Alert/Confirmation dialogs (`ft_message_box`).
+- [ ] **Keyboard Tab Traversal & Accelerators**:
+  - Automatic Tab & Shift+Tab focus navigation between focusable widgets.
+  - Menu mnemonics (`Alt+F`) and global keyboard accelerator tables.
 
 ---
 
-## 4. Typography, Text Shaping & Internationalization (i18n)
+## 5. Typography, Text Shaping & Internationalization (i18n)
 
-Elevate text handling to meet global typography standards.
+Elevate text handling to meet global typography standards:
 
 - [ ] **HarfBuzz Text Shaping Integration**:
   - Full support for complex and connecting scripts (Arabic, Devanagari, Thai, etc.).
@@ -87,11 +113,11 @@ Elevate text handling to meet global typography standards.
 
 ---
 
-## 5. Accessibility & System Integration
+## 6. Accessibility & System Integration
 
 - [ ] **Accessibility (a11y)**:
   - AT-SPI2 bridge on Linux for screen readers (Orca) and assistive technologies.
-- [ ] **System Tray & Desktop Notifications**:
-  - StatusNotifierItem / AppIndicator support for background tray icons and system notifications.
+- [ ] **Desktop Notifications**:
+  - Freedesktop notification daemon integration for system toasts.
 - [ ] **Clipboard & Drag-and-Drop (DND)**:
-  - Rich MIME type clipboard negotiation and cross-application drag-and-drop.
+  - Rich MIME type clipboard negotiation and cross-application drag-and-drop (XDnD).
