@@ -14,15 +14,18 @@ A lightweight, high-performance native GUI toolkit engineered with Free Pascal, 
   - Subpixel-accurate antialiasing for vector curves, text, and surfaces.
   - True 2D Gaussian drop shadows with configurable offsets, blur, and opacity.
   - Subpixel gamma-corrected font rendering and native display DPI scaling.
+  - Raster bitmap decoding and scalable vector SVG asset rendering (`TFtImage`).
 - **Pure CSS Theming Engine**:
   - Standards-based `.css` stylesheets powered by `Floria.CSS` from `florialib`.
+  - First-class `:root` CSS custom properties (`var(--token)`) with automatic cascading and baseline defaults fallback.
   - Bundled themes: **Default** (Breeze/Fusion), **Nord**, **Dracula**, **Gruvbox**, **GTK2**, and **Classic**.
   - First-class **Light & Dark mode** with runtime hot-swapping and multi-window broadcasting.
-  - Full support for element selectors, class selectors (`.dark`), ID selectors (`#id`), and pseudo-classes (`:hover`, `:active`, `:focus`, `:checked`).
+  - Full support for element selectors, class selectors (`.dark`), ID selectors (`#id`), and pseudo-classes (`:hover`, `:active`, `:focus`, `:checked`, `:disabled`).
 - **CSS Transitions & Animation**:
-  - Smooth 60 FPS state transitions (e.g. hover effects, dark mode switches) with easing functions (`ease`, `ease-in`, `ease-out`, `ease-in-out`, `linear`).
+  - Smooth 60 FPS state transitions (e.g. hover effects, dark mode switches, window caption button glowing halos) with easing functions (`ease`, `ease-in`, `ease-out`, `ease-in-out`, `linear`).
 - **Modern Desktop Widgets**:
   - **Window**: Native X11 windows with double-buffered vector rendering.
+  - **Window Button (`TFtWindowButton`)**: Titlebar and tab caption buttons (Close, Minimize, Maximize/Restore, Custom) with OS styles (Mac, GTK, Windows), glowing radial hover transitions, and dark mode adaptation.
   - **Button & Toggle Button**: Interactive push and latching buttons with hover transitions.
   - **Switch**: Modern toggle switch with circular thumb slider and accent highlights.
   - **CheckBox**: Crisp vector checkboxes with checkmark glyph and keyboard toggle.
@@ -33,6 +36,11 @@ A lightweight, high-performance native GUI toolkit engineered with Free Pascal, 
   - **Text / Label**: Dual-mode text with selectable mouse-drag highlight and clipboard copy.
   - **Entry**: Single-line text input with blinking caret, selection, and clipboard support.
   - **TextArea**: Multi-line text area with line navigation and dynamic scrollbars.
+  - **Notebook & Tabs (`TFtNotebook`, `TFtTabs`)**: Tabbed multi-page containers with close buttons, active tab indicators, and page switching.
+  - **Splitter (`TFtSplitter`)**: Resizable dual-pane container with horizontal or vertical splitter bar, grip handle, and live mouse dragging.
+  - **TreeView (`TFtTreeView`)**: Hierarchical tree viewer with expand/collapse vector carets, arbitrary node nesting, and selection tracking.
+  - **Table / DataGrid (`TFtTable`, `TFtGrid`)**: Multi-column tabular data grid with column headers, text alignment, zebra striping, and cell selection.
+  - **Image (`TFtImage`)**: Raster image decoding (BMP, PNG, JPG) and scalable vector SVG rendering with scaling modes (`fit`, `fill`, `stretch`, `center`).
   - **ScrollBar**: Standalone vector scrollbars with proportional thumb sizing and drag physics.
   - **Container**: Scrolled viewport frame with automatic scrollbars and AGG scissor clipping.
   - **Menus**: Top-level Window Main Menu bar and floating popup context menus extending past window borders.
@@ -162,6 +170,9 @@ lazbuild src/main/pascal/ft.lpi
 
 # Run any example
 ./target/c_example
+./target/advanced_desktop_widgets_demo
+./target/window_button_demo
+./target/form_controls_demo
 ./target/example_menus
 ./target/example_containers
 ./target/css_button_demo
@@ -189,23 +200,33 @@ floria-toolkit/
 │   └── ft.h                  # C/C++ API header
 ├── src/main/pascal/
 │   ├── ft.pas                # Library entry point & C exports
-│   ├── ft.css.pas            # CSS stylesheet engine & cascade resolver
+│   ├── ft.css.pas            # CSS stylesheet engine, variable resolver & cascade
 │   ├── ft.animation.pas      # Transition & animation interpolation engine
 │   ├── ft.backend.x11.pas    # X11 window backend & 60 FPS event loop
 │   ├── ft.canvas.agg.pas     # AGG 2D vector drawing & shadow pipeline
+│   ├── ft.bitmap.pas         # RGBA pixel buffer & image rasterization
+│   ├── ft.svg.pas            # Vector SVG parser and geometry renderer
+│   ├── ft.blur.pas           # Gaussian blur and drop shadow computation
 │   ├── ft.widget.pas         # Base widget abstraction
-│   ├── ft.widget.buttons.pas # Button & toggle button
+│   ├── ft.widget.buttons.pas # Push, toggle, and window caption buttons (TFtWindowButton)
 │   ├── ft.widget.switches.pas# Toggle switch
+│   ├── ft.widget.selectors.pas# CheckBox, RadioButton, ComboBox
+│   ├── ft.widget.meters.pas  # Slider and ProgressBar
 │   ├── ft.widget.texts.pas   # Selectable & static text labels
 │   ├── ft.widget.entries.pas # Single-line text input
 │   ├── ft.widget.textareas.pas# Multi-line text area
 │   ├── ft.widget.scrollbars.pas# Scrollbar widget
 │   ├── ft.widget.containers.pas# Container box & viewport
+│   ├── ft.widget.tabs.pas    # Notebook & tabbed container (TFtNotebook, TFtTabs)
+│   ├── ft.widget.splitters.pas# Resizable dual-pane splitter (TFtSplitter)
+│   ├── ft.widget.treeviews.pas# Hierarchical tree view (TFtTreeView)
+│   ├── ft.widget.tables.pas  # Tabular data grid (TFtTable, TFtGrid)
+│   ├── ft.widget.images.pas  # Raster image & SVG viewer (TFtImage)
 │   ├── ft.widget.menus.pas   # Main menu bar & popup menus
 │   ├── ft.theme.pas          # Theme manager & stylesheet loader
 │   └── ft.font.pas           # Font management & subpixel DPI scaling
 ├── themes/                   # Bundled CSS theme stylesheets (*.css)
-│   ├── default.css           # Modern Breeze/Fusion theme
+│   ├── default.css           # Modern Breeze/Fusion theme (with :root variables)
 │   ├── nord.css              # Arctic frosty slate theme
 │   ├── dracula.css           # Dracula dark theme
 │   ├── gruvbox.css           # Retro warm Gruvbox theme
@@ -228,14 +249,24 @@ Floria Toolkit is continuously evolving. High-priority initiatives include:
 - **X11 Desktop Environment & Window Manager (DE/WM)**:
   - First-class infrastructure for building an X11 Desktop Environment and Window Manager (comparable to KDE and GNOME): ICCCM/EWMH window reparenting, styled titlebars with `TFtWindowButton`, panels, docks, taskbars, application launchers, system tray, and compositing.
   - Cross-platform standalone app backends for Windows (Win32) and macOS (Cocoa).
-- **Advanced Controls**: DataGrids with virtual scrolling, TreeViews, Tabbed notebooks, and Splitter panes.
-- **Typography & i18n**: HarfBuzz complex text shaping, BiDi support, and IME integration.
+- **Standard Dialogs & Modals**: Themed File Chooser, Directory Selector, Color Picker, and Alert/Confirmation dialogs (`ft_message_box`).
+- **Typography & i18n**: HarfBuzz complex text shaping, BiDi support, and IME integration (`ibus` / `fcitx5`).
+- **System Integration**: Cross-application drag-and-drop (XDnD) and desktop notification daemon integration.
 
 See the complete [ROADMAP.md](ROADMAP.md) for full architectural details and technical milestones.
 
 ---
 
-## License
+## License & Commercial Use
 
-Floria Toolkit is licensed under the [Mozilla Public License 2.0 (MPL-2.0)](LICENSE).  
+Floria Toolkit is open-source software licensed under the **[Mozilla Public License 2.0 (MPL-2.0)](LICENSE)**.  
 Copyright (c) Floria Project / Dio Affriza.
+
+### Developer & Linking Freedom (Static and Dynamic Linking)
+
+Unlike viral copyleft licenses (such as GPL) or restrictive library licenses (such as LGPL with strict static linking caveats), the **MPL 2.0 is a file-level copyleft license specifically chosen to empower application developers**:
+
+- **Static and Dynamic Linking Allowed**: You may freely link Floria Toolkit into your applications—either **statically** (e.g. bundled directly into a standalone binary) or **dynamically** (as a shared library `libft.so` / `libft.dll` / `libft.dylib`).
+- **Keep Your Application Proprietary or Open Source**: The MPL 2.0 explicitly treats your application code as a "Larger Work". You are **not required** to release or open-source your own application code, business logic, or proprietary assets.
+- **File-Level Copyleft**: The copyleft requirements apply solely to the source files of Floria Toolkit itself. If you modify any existing Floria Toolkit source files (`src/main/pascal/*`), you must make those modified Floria source files available under the MPL 2.0. Any new, separate files you author for your application remain entirely under your own license terms.
+- **Commercial & Proprietary Friendly**: Floria Toolkit is fully suited for commercial products, closed-source enterprise software, indie games, open-source projects, and desktop environments alike.
