@@ -65,7 +65,19 @@ type
   private
     FResolver: TCSSStyleResolver;
     FOnChange: TFtStyleSheetChangeNotify;
-    procedure ApplyStyleBlock(ABlock: TCSSStyleBlock; var AStyle: TFtWidgetStyle);
+    FRootNormalBlock: TCSSStyleBlock;
+    FRootDarkBlock: TCSSStyleBlock;
+    FRootHoverBlock: TCSSStyleBlock;
+    FRootDisabledBlock: TCSSStyleBlock;
+    FRootDarkHoverBlock: TCSSStyleBlock;
+    FRootDarkDisabledBlock: TCSSStyleBlock;
+
+    procedure ClearRootBlocks();
+    function GetRootBlock(const AClasses, APseudo: string): TCSSStyleBlock;
+    function GetCustomVarValue(const AVarName: string; ALocalBlock: TCSSStyleBlock; const AClasses, APseudo: string): string;
+    function ResolveVarsInString(const S: string; ALocalBlock: TCSSStyleBlock; const AClasses, APseudo: string; ADepth: Integer = 0): string;
+    procedure ApplyStyleBlock(ABlock: TCSSStyleBlock; var AStyle: TFtWidgetStyle; const AClasses: string = ''; const APseudo: string = '');
+    procedure ApplyBaselineDefaults(var AStyle: TFtWidgetStyle; const AElementType, AClasses, APseudo: string);
   public
     constructor Create();
     destructor Destroy(); override;
@@ -75,7 +87,10 @@ type
     function LoadFromString(const ACss: string): Boolean;
 
     function ResolveStyle(const AElementType, AId, AClasses, APseudo: string; const AInlineCss: string = ''): TFtWidgetStyle;
-    function ParseInlineStyle(const AInlineCss: string): TFtWidgetStyle;
+    function ParseInlineStyle(const AInlineCss: string; const AClasses: string = ''; const APseudo: string = ''): TFtWidgetStyle;
+
+    function GetVariable(const AVarName: string; const AClasses: string = ''; const APseudo: string = ''): string;
+    function ResolveString(const S: string; const AClasses: string = ''; const APseudo: string = ''): string;
 
     property OnChange: TFtStyleSheetChangeNotify read FOnChange write FOnChange;
   end;
@@ -92,11 +107,24 @@ function FtParseTransition(const S: string; out Prop: string; out DurationMs: In
 function FtGetStyleSheet(): TFtStyleSheet;
 function FtLoadStyleSheet(const APath: string): Boolean;
 function FtLoadStyleSheetString(const ACss: string): Boolean;
+procedure FtSetCssDarkMode(AValue: Boolean);
+function FtGetCssDarkMode(): Boolean;
 
 implementation
 
 var
   GStyleSheet: TFtStyleSheet = nil;
+  GCssDarkMode: Boolean = False;
+
+procedure FtSetCssDarkMode(AValue: Boolean);
+begin
+  GCssDarkMode := AValue;
+end;
+
+function FtGetCssDarkMode(): Boolean;
+begin
+  Result := GCssDarkMode;
+end;
 
 function FtRgba(R, G, B: Double; A: Double = 1.0): TFtRgbaColor;
 begin
@@ -618,6 +646,8 @@ var
 begin
   inherited Create();
   FTagName := AElementType;
+  if SameText(FTagName, ':root') or SameText(FTagName, 'root') then
+    FTagName := 'window';
   FId := AId;
   FClasses := TStringList.Create();
   FParent := AParent;
@@ -647,10 +677,15 @@ begin
   FDisabled := cleanPseudo = 'disabled';
   FChecked  := cleanPseudo = 'checked';
 
-  // If element is styled in dark mode, provide a virtual window.dark parent
-  // so descendant rules like ".dark button" or "window.dark button" match as well as compound "button.dark"
-  if (FParent = nil) and (HasClass('dark')) and (not SameText(FTagName, 'window')) then
-    FParent := TFtCSSElementAdapter.Create('window', '', 'dark', '', nil);
+  // If element is not root, provide a virtual window parent
+  // so descendant rules like "window button" or ".dark button" match as well as compound selectors
+  if (FParent = nil) and (not SameText(FTagName, 'window')) then
+  begin
+    if HasClass('dark') then
+      FParent := TFtCSSElementAdapter.Create('window', '', 'dark', '', nil)
+    else
+      FParent := TFtCSSElementAdapter.Create('window', '', '', '', nil);
+  end;
 end;
 
 destructor TFtCSSElementAdapter.Destroy();
@@ -740,6 +775,22 @@ constructor TFtStyleSheet.Create();
 begin
   inherited Create();
   FResolver := TCSSStyleResolver.Create();
+  FRootNormalBlock := nil;
+  FRootDarkBlock := nil;
+  FRootHoverBlock := nil;
+  FRootDisabledBlock := nil;
+  FRootDarkHoverBlock := nil;
+  FRootDarkDisabledBlock := nil;
+end;
+
+procedure TFtStyleSheet.ClearRootBlocks();
+begin
+  FreeAndNil(FRootNormalBlock);
+  FreeAndNil(FRootDarkBlock);
+  FreeAndNil(FRootHoverBlock);
+  FreeAndNil(FRootDisabledBlock);
+  FreeAndNil(FRootDarkHoverBlock);
+  FreeAndNil(FRootDarkDisabledBlock);
 end;
 
 destructor TFtStyleSheet.Destroy();
@@ -751,6 +802,7 @@ end;
 
 procedure TFtStyleSheet.Clear();
 begin
+  ClearRootBlocks();
   if Assigned(FResolver) then
     FResolver.Clear();
 end;
@@ -796,11 +848,276 @@ begin
   end;
 end;
 
-procedure TFtStyleSheet.ApplyStyleBlock(ABlock: TCSSStyleBlock; var AStyle: TFtWidgetStyle);
+function TFtStyleSheet.GetRootBlock(const AClasses, APseudo: string): TCSSStyleBlock;
+var
+  isDark, isHover, isDisabled: Boolean;
+  adapter: ICSSElement;
+begin
+  isDark := (Pos('dark', LowerCase(AClasses)) > 0);
+  isHover := SameText(APseudo, 'hover') or (APseudo = ':hover');
+  isDisabled := SameText(APseudo, 'disabled') or (APseudo = ':disabled');
+
+  if isDark then
+  begin
+    if isHover then
+    begin
+      if FRootDarkHoverBlock = nil then
+      begin
+        adapter := TFtCSSElementAdapter.Create('window', '', 'dark', 'hover', nil);
+        FRootDarkHoverBlock := FResolver.ResolveStyle(adapter);
+      end;
+      Result := FRootDarkHoverBlock;
+    end
+    else if isDisabled then
+    begin
+      if FRootDarkDisabledBlock = nil then
+      begin
+        adapter := TFtCSSElementAdapter.Create('window', '', 'dark', 'disabled', nil);
+        FRootDarkDisabledBlock := FResolver.ResolveStyle(adapter);
+      end;
+      Result := FRootDarkDisabledBlock;
+    end
+    else
+    begin
+      if FRootDarkBlock = nil then
+      begin
+        adapter := TFtCSSElementAdapter.Create('window', '', 'dark', '', nil);
+        FRootDarkBlock := FResolver.ResolveStyle(adapter);
+      end;
+      Result := FRootDarkBlock;
+    end;
+  end
+  else
+  begin
+    if isHover then
+    begin
+      if FRootHoverBlock = nil then
+      begin
+        adapter := TFtCSSElementAdapter.Create('window', '', '', 'hover', nil);
+        FRootHoverBlock := FResolver.ResolveStyle(adapter);
+      end;
+      Result := FRootHoverBlock;
+    end
+    else if isDisabled then
+    begin
+      if FRootDisabledBlock = nil then
+      begin
+        adapter := TFtCSSElementAdapter.Create('window', '', '', 'disabled', nil);
+        FRootDisabledBlock := FResolver.ResolveStyle(adapter);
+      end;
+      Result := FRootDisabledBlock;
+    end
+    else
+    begin
+      if FRootNormalBlock = nil then
+      begin
+        adapter := TFtCSSElementAdapter.Create('window', '', '', '', nil);
+        FRootNormalBlock := FResolver.ResolveStyle(adapter);
+      end;
+      Result := FRootNormalBlock;
+    end;
+  end;
+end;
+
+function TFtStyleSheet.GetCustomVarValue(const AVarName: string; ALocalBlock: TCSSStyleBlock; const AClasses, APseudo: string): string;
+var
+  dashName, noDashName: string;
+  blk: TCSSStyleBlock;
+  isDark: Boolean;
+
+  function LookupInBlock(ABlk: TCSSStyleBlock): string;
+  var
+    d: TCSSStyleDeclaration;
+  begin
+    Result := '';
+    if ABlk = nil then Exit;
+    d := ABlk.GetCustom(dashName);
+    if d = nil then d := ABlk.GetCustom(noDashName);
+    if d <> nil then
+      Result := Trim(d.Value.ToString());
+  end;
+
+begin
+  Result := '';
+  if AVarName = '' then Exit;
+
+  if (Length(AVarName) >= 2) and (AVarName[1] = '-') and (AVarName[2] = '-') then
+  begin
+    dashName := AVarName;
+    noDashName := Copy(AVarName, 3, Length(AVarName));
+  end
+  else
+  begin
+    dashName := '--' + AVarName;
+    noDashName := AVarName;
+  end;
+
+  // 1. Check local declaration block first (highest specificity)
+  if ALocalBlock <> nil then
+  begin
+    Result := LookupInBlock(ALocalBlock);
+    if Result <> '' then Exit;
+  end;
+
+  isDark := (Pos('dark', LowerCase(AClasses)) > 0);
+
+  // 2. If dark mode, check state root or dark base root
+  if isDark then
+  begin
+    if (APseudo <> '') and not SameText(APseudo, 'normal') then
+    begin
+      blk := GetRootBlock('dark', APseudo);
+      Result := LookupInBlock(blk);
+      if Result <> '' then Exit;
+    end;
+
+    blk := GetRootBlock('dark', '');
+    Result := LookupInBlock(blk);
+    if Result <> '' then Exit;
+  end;
+
+  // 3. Check light state root (if pseudo state specified)
+  if (APseudo <> '') and not SameText(APseudo, 'normal') then
+  begin
+    blk := GetRootBlock('', APseudo);
+    Result := LookupInBlock(blk);
+    if Result <> '' then Exit;
+  end;
+
+  // 4. Check base normal root
+  blk := GetRootBlock('', '');
+  Result := LookupInBlock(blk);
+end;
+
+function TFtStyleSheet.ResolveVarsInString(const S: string; ALocalBlock: TCSSStyleBlock; const AClasses, APseudo: string; ADepth: Integer): string;
+var
+  i, pVar, openParen, closeParen, depth, commaPos: Integer;
+  res, prefix, varName, fallbackVal, resolvedVal: string;
+  foundComma: Boolean;
+begin
+  if ADepth > 10 then Exit(S);
+  res := S;
+  while True do
+  begin
+    pVar := Pos('var(', LowerCase(res));
+    if pVar = 0 then Break;
+
+    openParen := pVar + 3; // points to '('
+    depth := 1;
+    commaPos := 0;
+    foundComma := False;
+    closeParen := 0;
+
+    for i := openParen + 1 to Length(res) do
+    begin
+      if res[i] = '(' then
+        Inc(depth)
+      else if res[i] = ')' then
+      begin
+        Dec(depth);
+        if depth = 0 then
+        begin
+          closeParen := i;
+          Break;
+        end;
+      end
+      else if (res[i] = ',') and (depth = 1) and not foundComma then
+      begin
+        commaPos := i;
+        foundComma := True;
+      end;
+    end;
+
+    if closeParen = 0 then Break;
+
+    prefix := Copy(res, 1, pVar - 1);
+
+    if foundComma then
+    begin
+      varName := Trim(Copy(res, openParen + 1, commaPos - openParen - 1));
+      fallbackVal := Trim(Copy(res, commaPos + 1, closeParen - commaPos - 1));
+    end
+    else
+    begin
+      varName := Trim(Copy(res, openParen + 1, closeParen - openParen - 1));
+      fallbackVal := '';
+    end;
+
+    resolvedVal := GetCustomVarValue(varName, ALocalBlock, AClasses, APseudo);
+    if resolvedVal <> '' then
+    begin
+      if Pos('var(', LowerCase(resolvedVal)) > 0 then
+        resolvedVal := ResolveVarsInString(resolvedVal, ALocalBlock, AClasses, APseudo, ADepth + 1);
+    end
+    else if fallbackVal <> '' then
+    begin
+      if Pos('var(', LowerCase(fallbackVal)) > 0 then
+        resolvedVal := ResolveVarsInString(fallbackVal, ALocalBlock, AClasses, APseudo, ADepth + 1)
+      else
+        resolvedVal := fallbackVal;
+    end
+    else
+      resolvedVal := '';
+
+    res := prefix + resolvedVal + Copy(res, closeParen + 1, Length(res) - closeParen);
+  end;
+
+  Result := res;
+end;
+
+function TFtStyleSheet.GetVariable(const AVarName: string; const AClasses: string; const APseudo: string): string;
+begin
+  Result := GetCustomVarValue(AVarName, nil, AClasses, APseudo);
+end;
+
+function TFtStyleSheet.ResolveString(const S: string; const AClasses: string; const APseudo: string): string;
+begin
+  Result := ResolveVarsInString(S, nil, AClasses, APseudo, 0);
+end;
+
+procedure ParseBorderShorthand(const S: string; var AStyle: TFtWidgetStyle);
+var
+  parts: TStringList;
+  i: Integer;
+  tok: string;
+  lenVal: Double;
+  col: TFtRgbaColor;
+begin
+  parts := TStringList.Create();
+  try
+    parts.Delimiter := ' ';
+    parts.StrictDelimiter := False;
+    parts.DelimitedText := S;
+    for i := 0 to parts.Count - 1 do
+    begin
+      tok := Trim(parts[i]);
+      if tok = '' then Continue;
+      if SameText(tok, 'none') or SameText(tok, 'hidden') then
+      begin
+        AStyle.HasBorderWidth := True;
+        AStyle.BorderWidth := 0.0;
+      end
+      else if FtParseLength(tok, lenVal) then
+      begin
+        AStyle.HasBorderWidth := True;
+        AStyle.BorderWidth := lenVal;
+      end
+      else if FtParseColor(tok, col) then
+      begin
+        AStyle.HasBorderColor := True;
+        AStyle.BorderColor := col;
+      end;
+    end;
+  finally
+    parts.Free();
+  end;
+end;
+
+procedure TFtStyleSheet.ApplyStyleBlock(ABlock: TCSSStyleBlock; var AStyle: TFtWidgetStyle; const AClasses: string; const APseudo: string);
 var
   decl: TCSSStyleDeclaration;
   col: TFtRgbaColor;
-  s, subStr: string;
+  s, subStr, resolvedStr: string;
   pIdx: Integer;
   lenVal, opacVal: Double;
 begin
@@ -816,10 +1133,15 @@ begin
                              decl.Value.Color.B / 255.0,
                              decl.Value.Color.A / 255.0);
   end
+  else if (decl <> nil) and FtParseColor(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo), col) then
+  begin
+    AStyle.HasBgColor := True;
+    AStyle.BgColor := col;
+  end
   else
   begin
     decl := ABlock.GetCustom('background');
-    if (decl <> nil) and FtParseColor(decl.Value.Str, col) then
+    if (decl <> nil) and FtParseColor(ResolveVarsInString(decl.Value.Str, ABlock, AClasses, APseudo), col) then
     begin
       AStyle.HasBgColor := True;
       AStyle.BgColor := col;
@@ -835,6 +1157,11 @@ begin
                               decl.Value.Color.G / 255.0,
                               decl.Value.Color.B / 255.0,
                               decl.Value.Color.A / 255.0);
+  end
+  else if (decl <> nil) and FtParseColor(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo), col) then
+  begin
+    AStyle.HasTextColor := True;
+    AStyle.TextColor := col;
   end;
 
   // Border Color
@@ -847,6 +1174,11 @@ begin
                                 decl.Value.Color.G / 255.0,
                                 decl.Value.Color.B / 255.0,
                                 decl.Value.Color.A / 255.0);
+  end
+  else if (decl <> nil) and FtParseColor(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo), col) then
+  begin
+    AStyle.HasBorderColor := True;
+    AStyle.BorderColor := col;
   end;
 
   // Border Width
@@ -868,7 +1200,21 @@ begin
     begin
       AStyle.HasBorderWidth := True;
       AStyle.BorderWidth := decl.Value.Number;
+    end
+    else if FtParseLength(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo), lenVal) then
+    begin
+      AStyle.HasBorderWidth := True;
+      AStyle.BorderWidth := lenVal;
     end;
+  end;
+
+  // Border Shorthand: border: 1px solid var(--border-color)
+  decl := ABlock.GetDeclaration(cpiBorder);
+  if decl = nil then decl := ABlock.GetCustom('border');
+  if decl <> nil then
+  begin
+    resolvedStr := ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo);
+    ParseBorderShorthand(resolvedStr, AStyle);
   end;
 
   // Border Radius
@@ -890,6 +1236,11 @@ begin
     begin
       AStyle.HasBorderRadius := True;
       AStyle.BorderRadius := decl.Value.Number;
+    end
+    else if FtParseLength(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo), lenVal) then
+    begin
+      AStyle.HasBorderRadius := True;
+      AStyle.BorderRadius := lenVal;
     end;
   end;
 
@@ -898,7 +1249,7 @@ begin
   if decl = nil then decl := ABlock.GetCustom('shadow');
   if decl <> nil then
   begin
-    s := LowerCase(Trim(decl.Value.Str));
+    s := LowerCase(Trim(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo)));
     if (s = 'none') or (s = '0') or (s = 'false') then
     begin
       AStyle.HasShadow := True;
@@ -924,6 +1275,11 @@ begin
     begin
       AStyle.HasFontSize := True;
       AStyle.FontSize := decl.Value.Number;
+    end
+    else if FtParseLength(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo), lenVal) then
+    begin
+      AStyle.HasFontSize := True;
+      AStyle.FontSize := lenVal;
     end;
   end;
 
@@ -936,15 +1292,16 @@ begin
       AStyle.FontBold := (decl.Value.Keyword = 'bold') or (decl.Value.Keyword = 'bolder')
     else if decl.Value.Kind = cvkNumber then
       AStyle.FontBold := decl.Value.Number >= 700.0
-    else if decl.Value.Kind = cvkCustom then
+    else
     begin
-      s := LowerCase(Trim(decl.Value.Str));
+      s := LowerCase(Trim(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo)));
       AStyle.FontBold := (s = 'bold') or (s = '700') or (s = '800') or (s = '900');
     end;
   end;
 
   // Opacity
   decl := ABlock.GetDeclaration(cpiOpacity);
+  if decl = nil then decl := ABlock.GetCustom('opacity');
   if decl <> nil then
   begin
     if decl.Value.Kind = cvkNumber then
@@ -960,7 +1317,7 @@ begin
       else
         AStyle.Opacity := Max(0.0, Min(1.0, decl.Value.Length.Value));
     end
-    else if FtParseOpacity(decl.Value.ToString(), opacVal) then
+    else if FtParseOpacity(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo), opacVal) then
     begin
       AStyle.HasOpacity := True;
       AStyle.Opacity := opacVal;
@@ -972,7 +1329,7 @@ begin
   if decl = nil then decl := ABlock.GetCustom('-webkit-backdrop-filter');
   if decl <> nil then
   begin
-    s := decl.Value.Str;
+    s := ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo);
     pIdx := Pos('blur(', LowerCase(s));
     if pIdx > 0 then
     begin
@@ -992,14 +1349,16 @@ begin
   decl := ABlock.GetCustom('transition');
   if decl <> nil then
   begin
-    if FtParseTransition(decl.Value.Str, AStyle.TransitionProp, AStyle.TransitionDurationMs, AStyle.TransitionTiming) then
+    resolvedStr := ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo);
+    if FtParseTransition(resolvedStr, AStyle.TransitionProp, AStyle.TransitionDurationMs, AStyle.TransitionTiming) then
       AStyle.HasTransition := True;
   end;
 
   decl := ABlock.GetCustom('transition-duration');
   if decl <> nil then
   begin
-    if FtParseTimeMs(decl.Value.Str, AStyle.TransitionDurationMs) then
+    resolvedStr := ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo);
+    if FtParseTimeMs(resolvedStr, AStyle.TransitionDurationMs) then
       AStyle.HasTransition := True;
   end;
 
@@ -1007,14 +1366,200 @@ begin
   if decl <> nil then
   begin
     AStyle.HasTransition := True;
-    AStyle.TransitionProp := LowerCase(Trim(decl.Value.Str));
+    AStyle.TransitionProp := LowerCase(Trim(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo)));
   end;
 
   decl := ABlock.GetCustom('transition-timing-function');
   if decl <> nil then
   begin
     AStyle.HasTransition := True;
-    AStyle.TransitionTiming := LowerCase(Trim(decl.Value.Str));
+    AStyle.TransitionTiming := LowerCase(Trim(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo)));
+  end;
+end;
+
+procedure TFtStyleSheet.ApplyBaselineDefaults(var AStyle: TFtWidgetStyle; const AElementType, AClasses, APseudo: string);
+var
+  isRootElem, isDark, isHover, isDisabled: Boolean;
+  rootBlk, rootHoverBlk, rootDisabledBlk: TCSSStyleBlock;
+  rootNormalStyle, rootStateStyle: TFtWidgetStyle;
+  varVal: string;
+  col: TFtRgbaColor;
+begin
+  isRootElem := SameText(AElementType, 'window') or SameText(AElementType, 'root') or SameText(AElementType, ':root');
+  if isRootElem then Exit;
+
+  isDark := (Pos('dark', LowerCase(AClasses)) > 0) or GCssDarkMode;
+  isHover := SameText(APseudo, 'hover') or (APseudo = ':hover');
+  isDisabled := SameText(APseudo, 'disabled') or (APseudo = ':disabled');
+
+  rootNormalStyle.Init();
+  if isDark then
+    rootBlk := GetRootBlock('dark', '')
+  else
+    rootBlk := GetRootBlock('', '');
+  ApplyStyleBlock(rootBlk, rootNormalStyle, AClasses, '');
+
+  rootStateStyle.Init();
+  if isHover then
+  begin
+    if isDark then
+      rootHoverBlk := GetRootBlock('dark', 'hover')
+    else
+      rootHoverBlk := GetRootBlock('', 'hover');
+    ApplyStyleBlock(rootHoverBlk, rootStateStyle, AClasses, 'hover');
+  end
+  else if isDisabled then
+  begin
+    if isDark then
+      rootDisabledBlk := GetRootBlock('dark', 'disabled')
+    else
+      rootDisabledBlk := GetRootBlock('', 'disabled');
+    ApplyStyleBlock(rootDisabledBlk, rootStateStyle, AClasses, 'disabled');
+  end;
+
+  // 1. Text Color baseline inheritance
+  if not AStyle.HasTextColor then
+  begin
+    if isHover then
+    begin
+      if rootStateStyle.HasTextColor then
+      begin
+        AStyle.HasTextColor := True;
+        AStyle.TextColor := rootStateStyle.TextColor;
+      end
+      else
+      begin
+        varVal := GetCustomVarValue('--hover-text-color', nil, AClasses, APseudo);
+        if varVal = '' then varVal := GetCustomVarValue('--color-hover-text', nil, AClasses, APseudo);
+        if varVal = '' then varVal := GetCustomVarValue('--hover-color', nil, AClasses, APseudo);
+        if (varVal <> '') and FtParseColor(varVal, col) then
+        begin
+          AStyle.HasTextColor := True;
+          AStyle.TextColor := col;
+        end
+        else if rootNormalStyle.HasTextColor then
+        begin
+          AStyle.HasTextColor := True;
+          AStyle.TextColor := rootNormalStyle.TextColor;
+        end;
+      end;
+    end
+    else if isDisabled then
+    begin
+      if rootStateStyle.HasTextColor then
+      begin
+        AStyle.HasTextColor := True;
+        AStyle.TextColor := rootStateStyle.TextColor;
+      end
+      else
+      begin
+        varVal := GetCustomVarValue('--disabled-text-color', nil, AClasses, APseudo);
+        if varVal = '' then varVal := GetCustomVarValue('--color-disabled-text', nil, AClasses, APseudo);
+        if varVal = '' then varVal := GetCustomVarValue('--disabled-color', nil, AClasses, APseudo);
+        if (varVal <> '') and FtParseColor(varVal, col) then
+        begin
+          AStyle.HasTextColor := True;
+          AStyle.TextColor := col;
+        end
+        else if rootNormalStyle.HasTextColor then
+        begin
+          AStyle.HasTextColor := True;
+          AStyle.TextColor := rootNormalStyle.TextColor;
+        end;
+      end;
+    end
+    else
+    begin
+      if rootNormalStyle.HasTextColor then
+      begin
+        AStyle.HasTextColor := True;
+        AStyle.TextColor := rootNormalStyle.TextColor;
+      end
+      else
+      begin
+        varVal := GetCustomVarValue('--text-color', nil, AClasses, APseudo);
+        if varVal = '' then varVal := GetCustomVarValue('--color-text', nil, AClasses, APseudo);
+        if (varVal <> '') and FtParseColor(varVal, col) then
+        begin
+          AStyle.HasTextColor := True;
+          AStyle.TextColor := col;
+        end;
+      end;
+    end;
+  end;
+
+  // 2. Border Color baseline
+  if not AStyle.HasBorderColor then
+  begin
+    if isHover and rootStateStyle.HasBorderColor then
+    begin
+      AStyle.HasBorderColor := True;
+      AStyle.BorderColor := rootStateStyle.BorderColor;
+    end
+    else if isDisabled and rootStateStyle.HasBorderColor then
+    begin
+      AStyle.HasBorderColor := True;
+      AStyle.BorderColor := rootStateStyle.BorderColor;
+    end
+    else if (AStyle.HasBorderWidth and (AStyle.BorderWidth > 0.0)) or rootNormalStyle.HasBorderColor then
+    begin
+      if rootNormalStyle.HasBorderColor then
+      begin
+        AStyle.HasBorderColor := True;
+        AStyle.BorderColor := rootNormalStyle.BorderColor;
+      end
+      else
+      begin
+        varVal := GetCustomVarValue('--border-color', nil, AClasses, APseudo);
+        if varVal = '' then varVal := GetCustomVarValue('--color-border', nil, AClasses, APseudo);
+        if (varVal <> '') and FtParseColor(varVal, col) then
+        begin
+          AStyle.HasBorderColor := True;
+          AStyle.BorderColor := col;
+        end;
+      end;
+    end;
+  end;
+
+  // 3. Hover / Disabled Background Color baseline
+  if not AStyle.HasBgColor then
+  begin
+    if isHover then
+    begin
+      if rootStateStyle.HasBgColor then
+      begin
+        AStyle.HasBgColor := True;
+        AStyle.BgColor := rootStateStyle.BgColor;
+      end
+      else
+      begin
+        varVal := GetCustomVarValue('--hover-bg-color', nil, AClasses, APseudo);
+        if varVal = '' then varVal := GetCustomVarValue('--color-hover-bg', nil, AClasses, APseudo);
+        if (varVal <> '') and FtParseColor(varVal, col) then
+        begin
+          AStyle.HasBgColor := True;
+          AStyle.BgColor := col;
+        end;
+      end;
+    end
+    else if isDisabled then
+    begin
+      if rootStateStyle.HasBgColor then
+      begin
+        AStyle.HasBgColor := True;
+        AStyle.BgColor := rootStateStyle.BgColor;
+      end
+      else
+      begin
+        varVal := GetCustomVarValue('--disabled-bg-color', nil, AClasses, APseudo);
+        if varVal = '' then varVal := GetCustomVarValue('--color-disabled-bg', nil, AClasses, APseudo);
+        if (varVal <> '') and FtParseColor(varVal, col) then
+        begin
+          AStyle.HasBgColor := True;
+          AStyle.BgColor := col;
+        end;
+      end;
+    end;
   end;
 end;
 
@@ -1028,19 +1573,21 @@ begin
   adapter := TFtCSSElementAdapter.Create(AElementType, AId, AClasses, APseudo);
   resolvedBlock := FResolver.ResolveStyle(adapter);
   try
-    ApplyStyleBlock(resolvedBlock, Result);
+    ApplyStyleBlock(resolvedBlock, Result, AClasses, APseudo);
   finally
     resolvedBlock.Free();
   end;
 
   if Trim(AInlineCss) <> '' then
   begin
-    inlineStyle := ParseInlineStyle(AInlineCss);
+    inlineStyle := ParseInlineStyle(AInlineCss, AClasses, APseudo);
     Result.Merge(inlineStyle);
   end;
+
+  ApplyBaselineDefaults(Result, AElementType, AClasses, APseudo);
 end;
 
-function TFtStyleSheet.ParseInlineStyle(const AInlineCss: string): TFtWidgetStyle;
+function TFtStyleSheet.ParseInlineStyle(const AInlineCss: string; const AClasses: string; const APseudo: string): TFtWidgetStyle;
 var
   block: TCSSStyleBlock;
 begin
@@ -1048,9 +1595,9 @@ begin
   if Trim(AInlineCss) = '' then Exit;
 
   try
-    block := TCSSStyleBlock.FromCSS(AInlineCss);
+    block := TCSSStyleBlock.FromCSS(AInlineCss, True);
     try
-      ApplyStyleBlock(block, Result);
+      ApplyStyleBlock(block, Result, AClasses, APseudo);
     finally
       block.Free();
     end;

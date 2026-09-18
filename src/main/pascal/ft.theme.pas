@@ -997,6 +997,7 @@ begin
   if FDarkMode <> AValue then
   begin
     FDarkMode := AValue;
+    FtSetCssDarkMode(AValue);
     if Assigned(FCurrentTheme) then
       FCurrentTheme.DarkMode := AValue;
     if Assigned(FOnThemeChange) then

@@ -40,6 +40,8 @@ type
     procedure TestStyleSheetResolving();
     procedure TestPseudoClassResolving();
     procedure TestSpecificityAndInlineStyle();
+    procedure TestRootPseudoClassResolving();
+    procedure TestCssVariablesAndCustomProperties();
   end;
 
 procedure TFtCssTest.TestColorParsing();
@@ -240,6 +242,142 @@ begin
     st := sheet.ResolveStyle('button', 'my-btn', 'btn', '', 'background-color: #ffffff; border-radius: 16px;');
     AssertEquals('Inline bg R = 1.0', 1.0, Round(st.BgColor.R * 100.0) / 100.0);
     AssertEquals('Inline border radius = 16.0', 16.0, st.BorderRadius);
+  finally
+    sheet.Free();
+  end;
+end;
+
+procedure TFtCssTest.TestRootPseudoClassResolving();
+var
+  sheet: TFtStyleSheet;
+  css: string;
+  stWindow, stBtnNormal, stBtnHover, stBtnDisabled, stBtnCustom: TFtWidgetStyle;
+begin
+  sheet := TFtStyleSheet.Create();
+  try
+    css := ':root {' + LineEnding +
+           '    color: #1e293b;' + LineEnding +
+           '    background-color: #ffffff;' + LineEnding +
+           '    border-color: #cbd5e1;' + LineEnding +
+           '}' + LineEnding +
+           ':root:hover {' + LineEnding +
+           '    color: #2563eb;' + LineEnding +
+           '    background-color: #f1f5f9;' + LineEnding +
+           '}' + LineEnding +
+           ':root:disabled {' + LineEnding +
+           '    color: #94a3b8;' + LineEnding +
+           '    background-color: #f8fafc;' + LineEnding +
+           '}' + LineEnding +
+           'button.styled {' + LineEnding +
+           '    border-width: 2px;' + LineEnding +
+           '}' + LineEnding +
+           'button.custom {' + LineEnding +
+           '    color: #ef4444;' + LineEnding +
+           '    background-color: #fee2e2;' + LineEnding +
+           '}';
+
+    AssertTrue('Load CSS with :root', sheet.LoadFromString(css));
+
+    // 1. :root directly styles window
+    stWindow := sheet.ResolveStyle('window', '', '', '');
+    AssertTrue('Window has bg', stWindow.HasBgColor);
+    AssertTrue('Window has text color', stWindow.HasTextColor);
+    AssertTrue('Window has border color', stWindow.HasBorderColor);
+    AssertEquals('Window bg R is 1.0', 1.0, Round(stWindow.BgColor.R * 100.0) / 100.0);
+
+    // 2. Widget without color automatically inherits :root baseline text color and border color
+    stBtnNormal := sheet.ResolveStyle('button', '', 'styled', '');
+    AssertTrue('Button normal inherits root text color', stBtnNormal.HasTextColor);
+    AssertEquals('Root text R ~ 0.12', 0.12, Round(stBtnNormal.TextColor.R * 100.0) / 100.0);
+    AssertTrue('Button normal inherits root border color', stBtnNormal.HasBorderColor);
+
+    // 3. Widget on hover inherits :root:hover baseline
+    stBtnHover := sheet.ResolveStyle('button', '', 'styled', ':hover');
+    AssertTrue('Button hover inherits hover text color', stBtnHover.HasTextColor);
+    AssertTrue('Hover text color is blue', (stBtnHover.TextColor.B > 0.8) and (stBtnHover.TextColor.R < 0.3));
+    AssertTrue('Button hover inherits hover bg', stBtnHover.HasBgColor);
+
+    // 4. Widget on disabled inherits :root:disabled baseline
+    stBtnDisabled := sheet.ResolveStyle('button', '', 'styled', ':disabled');
+    AssertTrue('Button disabled inherits disabled text color', stBtnDisabled.HasTextColor);
+    AssertTrue('Button disabled inherits disabled bg', stBtnDisabled.HasBgColor);
+
+    // 5. Widget with explicit override does not get overwritten by baseline
+    stBtnCustom := sheet.ResolveStyle('button', '', 'custom', '');
+    AssertTrue('Custom has text color', stBtnCustom.HasTextColor);
+    AssertTrue('Custom text is red', stBtnCustom.TextColor.R > 0.8);
+    AssertTrue('Custom has bg', stBtnCustom.HasBgColor);
+  finally
+    sheet.Free();
+  end;
+end;
+
+procedure TFtCssTest.TestCssVariablesAndCustomProperties();
+var
+  sheet: TFtStyleSheet;
+  css: string;
+  stLight, stDark, stSpecial, stFallback: TFtWidgetStyle;
+begin
+  sheet := TFtStyleSheet.Create();
+  try
+    css := ':root {' + LineEnding +
+           '    --bg-main: #ffffff;' + LineEnding +
+           '    --text-main: #0f172a;' + LineEnding +
+           '    --accent: #3b82f6;' + LineEnding +
+           '    --radius: 8px;' + LineEnding +
+           '    --border-main: 1.5px solid #e2e8f0;' + LineEnding +
+           '}' + LineEnding +
+           '.dark {' + LineEnding +
+           '    --bg-main: #0f172a;' + LineEnding +
+           '    --text-main: #f8fafc;' + LineEnding +
+           '    --accent: #60a5fa;' + LineEnding +
+           '}' + LineEnding +
+           'button.themed {' + LineEnding +
+           '    background-color: var(--bg-main);' + LineEnding +
+           '    color: var(--text-main);' + LineEnding +
+           '    border-radius: var(--radius);' + LineEnding +
+           '    border: var(--border-main);' + LineEnding +
+           '}' + LineEnding +
+           'button.special {' + LineEnding +
+           '    --bg-main: #10b981;' + LineEnding +
+           '    background-color: var(--bg-main);' + LineEnding +
+           '}' + LineEnding +
+           'button.fallback {' + LineEnding +
+           '    background-color: var(--undefined-bg, #a855f7);' + LineEnding +
+           '    color: var(--undefined-text, var(--accent, #000000));' + LineEnding +
+           '}';
+
+    AssertTrue('Load CSS with custom properties', sheet.LoadFromString(css));
+
+    // 1. Light mode resolution
+    stLight := sheet.ResolveStyle('button', '', 'themed', '');
+    AssertTrue('Light button has bg', stLight.HasBgColor);
+    AssertEquals('Light bg is #ffffff', 1.0, Round(stLight.BgColor.R * 100.0) / 100.0);
+    AssertTrue('Light button has text', stLight.HasTextColor);
+    AssertTrue('Light button has border width 1.5', Abs(stLight.BorderWidth - 1.5) < 0.01);
+    AssertEquals('Light button has radius 8.0', 8.0, stLight.BorderRadius);
+
+    // 2. Dark mode resolution overrides variables
+    stDark := sheet.ResolveStyle('button', '', 'themed dark', '');
+    AssertTrue('Dark button has bg', stDark.HasBgColor);
+    AssertTrue('Dark bg is dark (#0f172a)', stDark.BgColor.R < 0.1);
+    AssertTrue('Dark text is white (#f8fafc)', stDark.TextColor.R > 0.9);
+    // Preserves non-overridden variable --radius
+    AssertEquals('Dark button retains radius 8.0', 8.0, stDark.BorderRadius);
+
+    // 3. Local element override takes precedence over :root
+    stSpecial := sheet.ResolveStyle('button', '', 'special', '');
+    AssertTrue('Special button has green bg (#10b981)', stSpecial.BgColor.G > 0.7);
+
+    // 4. Fallback support with nested var()
+    stFallback := sheet.ResolveStyle('button', '', 'fallback', '');
+    AssertTrue('Fallback bg resolved to #a855f7', (stFallback.BgColor.R > 0.6) and (stFallback.BgColor.B > 0.9));
+    AssertTrue('Nested fallback resolved to --accent (#3b82f6)', stFallback.TextColor.B > 0.9);
+
+    // 5. Public helper methods
+    AssertEquals('Query variable --accent', '#3b82f6', sheet.GetVariable('--accent'));
+    AssertEquals('Query variable in dark mode', '#60a5fa', sheet.GetVariable('--accent', 'dark'));
+    AssertTrue('ResolveString replaces vars', Pos('#3b82f6', sheet.ResolveString('2px solid var(--accent)')) > 0);
   finally
     sheet.Free();
   end;
