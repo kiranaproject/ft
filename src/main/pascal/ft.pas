@@ -483,6 +483,26 @@ begin
   end;
 end;
 
+procedure ft_window_button_set_transition_duration(button: Pointer; duration_ms: cint32); cdecl; export;
+begin
+  if Assigned(button) and (TObject(button) is TFtWindowButton) then
+    TFtWindowButton(button).TransitionDuration := duration_ms;
+end;
+
+function ft_window_button_get_transition_duration(button: Pointer): cint32; cdecl; export;
+begin
+  Result := 0;
+  if Assigned(button) and (TObject(button) is TFtWindowButton) then
+    Result := TFtWindowButton(button).TransitionDuration;
+end;
+
+function ft_window_button_get_hover_progress(button: Pointer): Double; cdecl; export;
+begin
+  Result := 0.0;
+  if Assigned(button) and (TObject(button) is TFtWindowButton) then
+    Result := TFtWindowButton(button).HoverProgress;
+end;
+
 function ft_switch_create(parent: Pointer; x, y, w, h: cint32; caption: PChar): Pointer; cdecl; export;
 var
   Sw: TFtSwitch;
@@ -3696,6 +3716,9 @@ exports
   ft_window_button_on_click,
   ft_window_button_on_hover,
   ft_window_button_on_press,
+  ft_window_button_set_transition_duration,
+  ft_window_button_get_transition_duration,
+  ft_window_button_get_hover_progress,
   ft_switch_create,
   ft_switch_set_checked,
   ft_switch_get_checked,

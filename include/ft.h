@@ -114,6 +114,9 @@ double ft_window_button_get_glyph_arm(FtWidget button);
 void ft_window_button_on_click(FtWidget button, FtClickCallback callback, void* user_data);
 void ft_window_button_on_hover(FtWidget button, FtHoverCallback callback, void* user_data);
 void ft_window_button_on_press(FtWidget button, FtPressCallback callback, void* user_data);
+void ft_window_button_set_transition_duration(FtWidget button, int32_t duration_ms);
+int32_t ft_window_button_get_transition_duration(FtWidget button);
+double ft_window_button_get_hover_progress(FtWidget button);
 
 /* Widgets: Switch */
 FtWidget ft_switch_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, const char* caption);

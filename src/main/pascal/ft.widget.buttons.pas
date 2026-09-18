@@ -5,7 +5,7 @@ unit Ft.Widget.Buttons;
 interface
 
 uses
-  ctypes, SysUtils, Classes, Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Theme, Ft.Css;
+  ctypes, SysUtils, Classes, Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Theme, Ft.Css, Ft.Animation;
 
 type
   TFtClickCallback = procedure(Sender: Pointer; UserData: Pointer); cdecl;
@@ -87,6 +87,13 @@ type
     FState: TFtButtonState;
     FIsMouseDown: Boolean;
     FGlyphArm: Double;
+    FHoverProgress: Double;
+    FTransitionStartMs: QWord;
+    FTransitionDurationMs: Integer;
+    FEffectiveDurationMs: Integer;
+    FTransitionStartVal: Double;
+    FTransitionTargetVal: Double;
+    FTransitionActive: Boolean;
     FOnClick: TFtClickCallback;
     FOnHover: TFtHoverCallback;
     FOnPress: TFtPressCallback;
@@ -94,9 +101,14 @@ type
     procedure SetKind(AValue: TFtWindowButtonKind);
     procedure SetStyle(AValue: TFtWindowButtonStyle);
     procedure SetGlyphArm(AValue: Double);
+    procedure SetTransitionDuration(AValue: Integer);
+    procedure StartHoverTransition(ATarget: Double);
+  protected
+    procedure SetEnabled(AValue: Boolean); override;
   public
     constructor Create(AParent: TFtWidget); override;
     constructor CreateKind(AParent: TFtWidget; AKind: TFtWindowButtonKind; AStyle: TFtWindowButtonStyle = wbsCircle);
+    destructor Destroy(); override;
 
     function GetElementType(): string; override;
     function GetStatePseudoClass(): string; override;
@@ -115,13 +127,16 @@ type
       AStyle: TFtWindowButtonStyle;
       AState: TFtButtonState;
       DarkMode: Boolean;
-      AGlyphArm: Double = 0.0
+      AGlyphArm: Double = 0.0;
+      AHoverProgress: Double = -1.0
     );
 
     property Kind: TFtWindowButtonKind read FKind write SetKind;
     property Style: TFtWindowButtonStyle read FStyle write SetStyle;
     property State: TFtButtonState read FState;
     property GlyphArm: Double read FGlyphArm write SetGlyphArm;
+    property TransitionDuration: Integer read FTransitionDurationMs write SetTransitionDuration;
+    property HoverProgress: Double read FHoverProgress;
     property OnClick: TFtClickCallback read FOnClick write FOnClick;
     property OnHover: TFtHoverCallback read FOnHover write FOnHover;
     property OnPress: TFtPressCallback read FOnPress write FOnPress;
@@ -413,6 +428,13 @@ begin
   FState := bsNormal;
   FIsMouseDown := False;
   FGlyphArm := 0.0;
+  FHoverProgress := 0.0;
+  FTransitionStartMs := 0;
+  FTransitionDurationMs := 180;
+  FEffectiveDurationMs := 180;
+  FTransitionStartVal := 0.0;
+  FTransitionTargetVal := 0.0;
+  FTransitionActive := False;
   FOnClick := nil;
   FOnHover := nil;
   FOnPress := nil;
@@ -426,6 +448,16 @@ begin
   Create(AParent);
   FKind := AKind;
   FStyle := AStyle;
+end;
+
+destructor TFtWindowButton.Destroy();
+begin
+  if FTransitionActive then
+  begin
+    FTransitionActive := False;
+    FtGetAnimator().UnregisterContinuous(Self);
+  end;
+  inherited Destroy();
 end;
 
 procedure TFtWindowButton.SetKind(AValue: TFtWindowButtonKind);
@@ -453,6 +485,62 @@ begin
     FGlyphArm := AValue;
     Invalidate();
   end;
+end;
+
+procedure TFtWindowButton.SetTransitionDuration(AValue: Integer);
+begin
+  if AValue < 0 then AValue := 0;
+  FTransitionDurationMs := AValue;
+end;
+
+procedure TFtWindowButton.SetEnabled(AValue: Boolean);
+begin
+  inherited SetEnabled(AValue);
+  if not AValue then
+  begin
+    if FTransitionActive then
+    begin
+      FTransitionActive := False;
+      FtGetAnimator().UnregisterContinuous(Self);
+    end;
+    FHoverProgress := 0.0;
+    FState := bsNormal;
+    Invalidate();
+  end;
+end;
+
+procedure TFtWindowButton.StartHoverTransition(ATarget: Double);
+var
+  dur: Integer;
+  st: TFtWidgetStyle;
+begin
+  dur := FTransitionDurationMs;
+  st := GetResolvedStyle();
+  if st.HasTransition and (st.TransitionDurationMs > 0) then
+    dur := st.TransitionDurationMs;
+
+  if (dur <= 0) or (Abs(FHoverProgress - ATarget) < 1e-4) then
+  begin
+    FHoverProgress := ATarget;
+    if FTransitionActive then
+    begin
+      FTransitionActive := False;
+      FtGetAnimator().UnregisterContinuous(Self);
+    end;
+    Invalidate();
+    Exit;
+  end;
+
+  FTransitionStartVal := FHoverProgress;
+  FTransitionTargetVal := ATarget;
+  FTransitionStartMs := GetTickCount64();
+  FEffectiveDurationMs := dur;
+  if not FTransitionActive then
+  begin
+    FTransitionActive := True;
+    FtGetAnimator().RegisterContinuous(Self);
+  end;
+  Invalidate();
 end;
 
 function TFtWindowButton.GetElementType(): string;
@@ -487,7 +575,8 @@ begin
     FState := bsPressed
   else
     FState := bsHovered;
-  Invalidate();
+  InvalidateStyle();
+  StartHoverTransition(1.0);
   if Assigned(FOnHover) then
     FOnHover(Pointer(Self), 1, FUserData);
 end;
@@ -497,7 +586,8 @@ begin
   inherited MouseLeave();
   if not FEnabled then Exit;
   FState := bsNormal;
-  Invalidate();
+  InvalidateStyle();
+  StartHoverTransition(0.0);
   if Assigned(FOnHover) then
     FOnHover(Pointer(Self), 0, FUserData);
 end;
@@ -510,6 +600,7 @@ begin
   begin
     FIsMouseDown := True;
     FState := bsPressed;
+    InvalidateStyle();
     Invalidate();
     if Assigned(FOnPress) then
       FOnPress(Pointer(Self), 1, FUserData);
@@ -528,13 +619,15 @@ begin
       if (AX >= X) and (AX < X + Width) and (AY >= Y) and (AY < Y + Height) then
       begin
         FState := bsHovered;
+        InvalidateStyle();
         Invalidate();
         Click();
       end
       else
       begin
         FState := bsNormal;
-        Invalidate();
+        InvalidateStyle();
+        StartHoverTransition(0.0);
       end;
       if Assigned(FOnPress) then
         FOnPress(Pointer(Self), 0, FUserData);
@@ -545,10 +638,38 @@ end;
 procedure TFtWindowButton.Draw(Canvas: TFtCanvasAgg);
 var
   theme: TFtTheme;
+  nowMs: QWord;
+  elapsed, t, easedT: Double;
 begin
   if not Visible then Exit;
+
+  if FTransitionActive then
+  begin
+    nowMs := GetTickCount64();
+    if nowMs <= FTransitionStartMs then
+      elapsed := 0.0
+    else
+      elapsed := Double(nowMs - FTransitionStartMs);
+
+    if (FEffectiveDurationMs <= 0) or (elapsed >= FEffectiveDurationMs) then
+    begin
+      FHoverProgress := FTransitionTargetVal;
+      FTransitionActive := False;
+      FtGetAnimator().UnregisterContinuous(Self);
+    end
+    else
+    begin
+      t := elapsed / FEffectiveDurationMs;
+      if t < 0.0 then t := 0.0;
+      if t > 1.0 then t := 1.0;
+      // Smooth cubic ease-out: 1 - (1 - t)^3
+      easedT := 1.0 - (1.0 - t) * (1.0 - t) * (1.0 - t);
+      FHoverProgress := FTransitionStartVal + (FTransitionTargetVal - FTransitionStartVal) * easedT;
+    end;
+  end;
+
   theme := FtGetTheme();
-  DrawWindowButton(Canvas, X, Y, Width, Height, FKind, FStyle, FState, theme.DarkMode, FGlyphArm);
+  DrawWindowButton(Canvas, X, Y, Width, Height, FKind, FStyle, FState, theme.DarkMode, FGlyphArm, FHoverProgress);
 end;
 
 class procedure TFtWindowButton.DrawWindowButton(
@@ -558,12 +679,23 @@ class procedure TFtWindowButton.DrawWindowButton(
   AStyle: TFtWindowButtonStyle;
   AState: TFtButtonState;
   DarkMode: Boolean;
-  AGlyphArm: Double
+  AGlyphArm: Double;
+  AHoverProgress: Double
 );
 var
   cenX, cenY, btnRad, arm, leg, rad: Double;
-  isPressed, isHover: Boolean;
+  isPressed: Boolean;
+  prog: Double;
+  normBgR, normBgG, normBgB: Double;
+  normBdR, normBdG, normBdB: Double;
+  normGR, normGG, normGB: Double;
+  hovBgR, hovBgG, hovBgB: Double;
+  hovHaloR, hovHaloG, hovHaloB: Double;
+  hovGR, hovGG, hovGB: Double;
+  pressBgR, pressBgG, pressBgB: Double;
+  curBgR, curBgG, curBgB: Double;
   gR, gG, gB, gA: Double;
+  outlineA, cShift: Double;
 begin
   cenX := BX + BW * 0.5;
   cenY := BY + BH * 0.5;
@@ -577,79 +709,104 @@ begin
     arm := btnRad * 0.42;
 
   isPressed := (AState = bsPressed);
-  isHover := (AState = bsHovered);
+
+  if AHoverProgress >= 0.0 then
+  begin
+    prog := AHoverProgress;
+    if prog < 0.0 then prog := 0.0;
+    if prog > 1.0 then prog := 1.0;
+  end
+  else
+  begin
+    if (AState = bsHovered) or isPressed then
+      prog := 1.0
+    else
+      prog := 0.0;
+  end;
 
   if isPressed then
     cenY := cenY + 0.5;
 
-  gR := 1.0; gG := 1.0; gB := 1.0; gA := 1.0;
+  if DarkMode then
+  begin
+    normBgR := 0.22; normBgG := 0.24; normBgB := 0.26;
+    normBdR := 0.32; normBdG := 0.35; normBdB := 0.38;
+    normGR  := 0.85; normGG := 0.87; normGB := 0.90;
+  end
+  else
+  begin
+    normBgR := 0.96; normBgG := 0.97; normBgB := 0.98;
+    normBdR := 0.80; normBdG := 0.82; normBdB := 0.85;
+    normGR  := 0.32; normGG := 0.38; normGB := 0.46;
+  end;
+
+  case AKind of
+    wbkClose:
+    begin
+      hovBgR := 0.98; hovBgG := 0.06; hovBgB := 0.11; // #FA0F1B
+      hovHaloR := 0.98; hovHaloG := 0.06; hovHaloB := 0.11;
+      hovGR := 1.0; hovGG := 1.0; hovGB := 1.0;
+      pressBgR := 0.70; pressBgG := 0.02; pressBgB := 0.05; // #B2060C
+    end;
+
+    wbkMinimize:
+    begin
+      hovBgR := 0.96; hovBgG := 0.62; hovBgB := 0.04; // #F59E0B
+      hovHaloR := 0.96; hovHaloG := 0.62; hovHaloB := 0.04;
+      hovGR := 0.28; hovGG := 0.16; hovGB := 0.02;
+      pressBgR := 0.78; pressBgG := 0.48; pressBgB := 0.02; // #C67600
+    end;
+
+    wbkMaximize, wbkRestore:
+    begin
+      hovBgR := 0.06; hovBgG := 0.72; hovBgB := 0.32; // #10B981
+      hovHaloR := 0.06; hovHaloG := 0.72; hovHaloB := 0.32;
+      hovGR := 1.0; hovGG := 1.0; hovGB := 1.0;
+      pressBgR := 0.06; pressBgG := 0.52; pressBgB := 0.24; // #0E823E
+    end;
+
+  else
+    hovBgR := 0.22; hovBgG := 0.50; hovBgB := 0.92;
+    hovHaloR := 0.22; hovHaloG := 0.50; hovHaloB := 0.92;
+    hovGR := 1.0; hovGG := 1.0; hovGB := 1.0;
+    pressBgR := 0.18; pressBgG := 0.42; pressBgB := 0.75;
+  end;
+
+  if isPressed then
+  begin
+    curBgR := pressBgR; curBgG := pressBgG; curBgB := pressBgB;
+    gR := hovGR; gG := hovGG; gB := hovGB; gA := 1.0;
+  end
+  else
+  begin
+    curBgR := normBgR + (hovBgR - normBgR) * prog;
+    curBgG := normBgG + (hovBgG - normBgG) * prog;
+    curBgB := normBgB + (hovBgB - normBgB) * prog;
+
+    gR := normGR + (hovGR - normGR) * prog;
+    gG := normGG + (hovGG - normGG) * prog;
+    gB := normGB + (hovGB - normGB) * prog;
+    gA := 1.0;
+  end;
 
   case AStyle of
     wbsCircle:
     begin
       if isPressed then
       begin
-        case AKind of
-          wbkClose:
-            Canvas.DrawCircle(cenX, cenY, btnRad - 0.5, 0.70, 0.02, 0.05, 1.0); // #B2060C Deep scarlet
-          wbkMinimize:
-            Canvas.DrawCircle(cenX, cenY, btnRad - 0.5, 0.78, 0.48, 0.02, 1.0); // #C67600 Deep amber
-          wbkMaximize, wbkRestore:
-            Canvas.DrawCircle(cenX, cenY, btnRad - 0.5, 0.06, 0.52, 0.24, 1.0); // #0E823E Deep emerald
-        else
-          Canvas.DrawCircle(cenX, cenY, btnRad - 0.5, 0.18, 0.42, 0.75, 1.0);
-        end;
-        gR := 1.0; gG := 1.0; gB := 1.0; gA := 1.0;
-      end
-      else if isHover then
-      begin
-        case AKind of
-          wbkClose:
-          begin
-            // Dual-layer scarlet halo
-            Canvas.DrawCircle(cenX, cenY, btnRad + 2.5, 0.98, 0.06, 0.11, 0.20);
-            Canvas.DrawCircle(cenX, cenY, btnRad + 1.2, 0.98, 0.06, 0.11, 0.40);
-            Canvas.DrawCircle(cenX, cenY, btnRad, 0.98, 0.06, 0.11, 1.0); // #FA0F1B
-            gR := 1.0; gG := 1.0; gB := 1.0; gA := 1.0;
-          end;
-          wbkMinimize:
-          begin
-            // Dual-layer amber gold halo
-            Canvas.DrawCircle(cenX, cenY, btnRad + 2.5, 0.96, 0.62, 0.04, 0.20);
-            Canvas.DrawCircle(cenX, cenY, btnRad + 1.2, 0.96, 0.62, 0.04, 0.40);
-            Canvas.DrawCircle(cenX, cenY, btnRad, 0.96, 0.62, 0.04, 1.0); // #F59E0B
-            gR := 0.28; gG := 0.16; gB := 0.02; gA := 1.0;
-          end;
-          wbkMaximize, wbkRestore:
-          begin
-            // Dual-layer emerald green halo
-            Canvas.DrawCircle(cenX, cenY, btnRad + 2.5, 0.06, 0.72, 0.32, 0.20);
-            Canvas.DrawCircle(cenX, cenY, btnRad + 1.2, 0.06, 0.72, 0.32, 0.40);
-            Canvas.DrawCircle(cenX, cenY, btnRad, 0.06, 0.72, 0.32, 1.0); // #10B981
-            gR := 1.0; gG := 1.0; gB := 1.0; gA := 1.0;
-          end;
-        else
-          Canvas.DrawCircle(cenX, cenY, btnRad + 2.5, 0.22, 0.50, 0.92, 0.20);
-          Canvas.DrawCircle(cenX, cenY, btnRad + 1.2, 0.22, 0.50, 0.92, 0.40);
-          Canvas.DrawCircle(cenX, cenY, btnRad, 0.22, 0.50, 0.92, 1.0);
-          gR := 1.0; gG := 1.0; gB := 1.0; gA := 1.0;
-        end;
+        Canvas.DrawCircle(cenX, cenY, btnRad - 0.5, curBgR, curBgG, curBgB, 1.0);
       end
       else
       begin
-        // Normal state: button-like styling
-        if DarkMode then
+        if prog > 0.005 then
         begin
-          Canvas.DrawCircle(cenX, cenY, btnRad, 0.22, 0.24, 0.26, 1.0);
-          Canvas.DrawCircleOutline(cenX, cenY, btnRad, 1.0, 0.32, 0.35, 0.38, 1.0);
-          gR := 0.85; gG := 0.87; gB := 0.90; gA := 1.0;
-        end
-        else
-        begin
-          Canvas.DrawCircle(cenX, cenY, btnRad, 0.96, 0.97, 0.98, 1.0);
-          Canvas.DrawCircleOutline(cenX, cenY, btnRad, 1.0, 0.80, 0.82, 0.85, 1.0);
-          gR := 0.32; gG := 0.38; gB := 0.46; gA := 1.0;
+          Canvas.DrawCircle(cenX, cenY, btnRad + 2.5 * prog, hovHaloR, hovHaloG, hovHaloB, 0.20 * prog);
+          Canvas.DrawCircle(cenX, cenY, btnRad + 1.2 * prog, hovHaloR, hovHaloG, hovHaloB, 0.40 * prog);
         end;
+        Canvas.DrawCircle(cenX, cenY, btnRad, curBgR, curBgG, curBgB, 1.0);
+        outlineA := 1.0 - prog;
+        if outlineA > 0.01 then
+          Canvas.DrawCircleOutline(cenX, cenY, btnRad, 1.0, normBdR, normBdG, normBdB, outlineA);
       end;
     end;
 
@@ -658,39 +815,18 @@ begin
       rad := 4.0;
       if isPressed then
       begin
-        if AKind = wbkClose then
-          Canvas.DrawRoundedRect(BX + 1.0, BY + 1.0, BW - 2.0, BH - 2.0, rad, 0.70, 0.02, 0.05, 1.0)
-        else
-          Canvas.DrawRoundedRect(BX + 1.0, BY + 1.0, BW - 2.0, BH - 2.0, rad, 0.20, 0.40, 0.70, 1.0);
-        gR := 1.0; gG := 1.0; gB := 1.0; gA := 1.0;
-      end
-      else if isHover then
-      begin
-        if AKind = wbkClose then
-        begin
-          Canvas.DrawRoundedRect(BX, BY, BW, BH, rad, 0.98, 0.06, 0.11, 1.0);
-          gR := 1.0; gG := 1.0; gB := 1.0; gA := 1.0;
-        end
-        else
-        begin
-          Canvas.DrawRoundedRect(BX, BY, BW, BH, rad, 0.25, 0.55, 0.95, 1.0);
-          gR := 1.0; gG := 1.0; gB := 1.0; gA := 1.0;
-        end;
+        Canvas.DrawRoundedRect(BX + 1.0, BY + 1.0, BW - 2.0, BH - 2.0, rad, curBgR, curBgG, curBgB, 1.0);
       end
       else
       begin
-        if DarkMode then
+        if prog > 0.005 then
         begin
-          Canvas.DrawRoundedRect(BX, BY, BW, BH, rad, 0.22, 0.24, 0.26, 1.0);
-          Canvas.DrawRoundedRectOutline(BX, BY, BW, BH, rad, 1.0, 0.32, 0.35, 0.38, 1.0);
-          gR := 0.85; gG := 0.87; gB := 0.90; gA := 1.0;
-        end
-        else
-        begin
-          Canvas.DrawRoundedRect(BX, BY, BW, BH, rad, 0.96, 0.97, 0.98, 1.0);
-          Canvas.DrawRoundedRectOutline(BX, BY, BW, BH, rad, 1.0, 0.80, 0.82, 0.85, 1.0);
-          gR := 0.32; gG := 0.38; gB := 0.46; gA := 1.0;
+          Canvas.DrawRoundedRect(BX - 1.5 * prog, BY - 1.5 * prog, BW + 3.0 * prog, BH + 3.0 * prog, rad + 1.0, hovHaloR, hovHaloG, hovHaloB, 0.20 * prog);
         end;
+        Canvas.DrawRoundedRect(BX, BY, BW, BH, rad, curBgR, curBgG, curBgB, 1.0);
+        outlineA := 1.0 - prog;
+        if outlineA > 0.01 then
+          Canvas.DrawRoundedRectOutline(BX, BY, BW, BH, rad, 1.0, normBdR, normBdG, normBdB, outlineA);
       end;
     end;
 
@@ -698,29 +834,18 @@ begin
     begin
       if isPressed then
       begin
-        if AKind = wbkClose then
-          Canvas.DrawRect(Round(BX), Round(BY), Round(BW), Round(BH), 0.70, 0.02, 0.05, 1.0)
-        else
-          Canvas.DrawRect(Round(BX), Round(BY), Round(BW), Round(BH), 0.20, 0.40, 0.70, 1.0);
-        gR := 1.0; gG := 1.0; gB := 1.0; gA := 1.0;
-      end
-      else if isHover then
-      begin
-        if AKind = wbkClose then
-          Canvas.DrawRect(Round(BX), Round(BY), Round(BW), Round(BH), 0.90, 0.10, 0.15, 1.0)
-        else
-          Canvas.DrawRect(Round(BX), Round(BY), Round(BW), Round(BH), 0.35, 0.38, 0.42, 1.0);
-        gR := 1.0; gG := 1.0; gB := 1.0; gA := 1.0;
+        Canvas.DrawRect(Round(BX), Round(BY), Round(BW), Round(BH), curBgR, curBgG, curBgB, 1.0);
       end
       else
       begin
-        if DarkMode then
+        if prog > 0.005 then
         begin
-          gR := 0.85; gG := 0.87; gB := 0.90; gA := 1.0;
-        end
-        else
-        begin
-          gR := 0.30; gG := 0.35; gB := 0.42; gA := 1.0;
+          if AKind = wbkClose then
+            Canvas.DrawRect(Round(BX), Round(BY), Round(BW), Round(BH), 0.90, 0.10, 0.15, prog)
+          else if DarkMode then
+            Canvas.DrawRect(Round(BX), Round(BY), Round(BW), Round(BH), 0.30, 0.34, 0.38, prog)
+          else
+            Canvas.DrawRect(Round(BX), Round(BY), Round(BW), Round(BH), 0.35, 0.38, 0.42, prog);
         end;
       end;
     end;
@@ -739,26 +864,28 @@ begin
       Canvas.DrawLine(cenX - arm, cenY, cenX + arm, cenY, 1.4, gR, gG, gB, gA);
     end;
 
-    wbkMaximize: // Mac-style outward chevrons
+    wbkMaximize: // Mac-style outward chevrons with subtle expansion on hover
     begin
+      cShift := 0.4 * prog;
       leg := arm * 0.8;
       // Top-right chevron (pointing ↗)
-      Canvas.DrawLine(cenX + arm - leg, cenY - arm, cenX + arm, cenY - arm, 1.3, gR, gG, gB, gA);
-      Canvas.DrawLine(cenX + arm, cenY - arm, cenX + arm, cenY - arm + leg, 1.3, gR, gG, gB, gA);
+      Canvas.DrawLine(cenX + arm - leg + cShift, cenY - arm - cShift, cenX + arm + cShift, cenY - arm - cShift, 1.3, gR, gG, gB, gA);
+      Canvas.DrawLine(cenX + arm + cShift, cenY - arm - cShift, cenX + arm + cShift, cenY - arm + leg - cShift, 1.3, gR, gG, gB, gA);
       // Bottom-left chevron (pointing ↙)
-      Canvas.DrawLine(cenX - arm + leg, cenY + arm, cenX - arm, cenY + arm, 1.3, gR, gG, gB, gA);
-      Canvas.DrawLine(cenX - arm, cenY + arm, cenX - arm, cenY + arm - leg, 1.3, gR, gG, gB, gA);
+      Canvas.DrawLine(cenX - arm + leg - cShift, cenY + arm + cShift, cenX - arm - cShift, cenY + arm + cShift, 1.3, gR, gG, gB, gA);
+      Canvas.DrawLine(cenX - arm - cShift, cenY + arm + cShift, cenX - arm - cShift, cenY + arm - leg + cShift, 1.3, gR, gG, gB, gA);
     end;
 
-    wbkRestore: // Mac-style inward chevrons
+    wbkRestore: // Mac-style inward chevrons with subtle inward convergence on hover
     begin
+      cShift := 0.35 * prog;
       leg := arm * 0.65;
       // Top-right chevron (pointing inward ↘ toward center)
-      Canvas.DrawLine(cenX + arm * 0.25, cenY - arm * 0.25 - leg, cenX + arm * 0.25, cenY - arm * 0.25, 1.3, gR, gG, gB, gA);
-      Canvas.DrawLine(cenX + arm * 0.25 + leg, cenY - arm * 0.25, cenX + arm * 0.25, cenY - arm * 0.25, 1.3, gR, gG, gB, gA);
+      Canvas.DrawLine(cenX + arm * 0.25 - cShift, cenY - arm * 0.25 - leg - cShift, cenX + arm * 0.25 - cShift, cenY - arm * 0.25 + cShift, 1.3, gR, gG, gB, gA);
+      Canvas.DrawLine(cenX + arm * 0.25 + leg - cShift, cenY - arm * 0.25, cenX + arm * 0.25 - cShift, cenY - arm * 0.25 + cShift, 1.3, gR, gG, gB, gA);
       // Bottom-left chevron (pointing inward ↖ toward center)
-      Canvas.DrawLine(cenX - arm * 0.25, cenY + arm * 0.25 + leg, cenX - arm * 0.25, cenY + arm * 0.25, 1.3, gR, gG, gB, gA);
-      Canvas.DrawLine(cenX - arm * 0.25 - leg, cenY + arm * 0.25, cenX - arm * 0.25, cenY + arm * 0.25, 1.3, gR, gG, gB, gA);
+      Canvas.DrawLine(cenX - arm * 0.25 + cShift, cenY + arm * 0.25 + leg + cShift, cenX - arm * 0.25 + cShift, cenY - arm * 0.25 - cShift, 1.3, gR, gG, gB, gA);
+      Canvas.DrawLine(cenX - arm * 0.25 - leg + cShift, cenY + arm * 0.25, cenX - arm * 0.25 + cShift, cenY - arm * 0.25 - cShift, 1.3, gR, gG, gB, gA);
     end;
 
     wbkShade:

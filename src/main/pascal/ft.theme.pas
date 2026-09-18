@@ -204,6 +204,9 @@ const
     '    border-color: #27272a;' + LineEnding +
     '    color: #e4e4e7;' + LineEnding +
     '}' + LineEnding +
+    'windowbutton {' + LineEnding +
+    '    transition: all 180ms ease-out;' + LineEnding +
+    '}' + LineEnding +
     'entry, textarea {' + LineEnding +
     '    background-color: #ffffff;' + LineEnding +
     '    color: #0f172a;' + LineEnding +

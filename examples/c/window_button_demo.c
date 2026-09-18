@@ -49,7 +49,7 @@ int main(void) {
 
     // Title and Subtitle
     ft_text_create(win, 30, 18, 620, 24, "TFtWindowButton Showcase (Tabs, Titlebars, Top Panels)");
-    ft_text_create(win, 30, 44, 620, 20, "Reusable vector buttons for window manager frames, caption controls, and notebook tabs.");
+    ft_text_create(win, 30, 44, 620, 20, "Reusable vector buttons with smooth 180ms ease-out hover transition animation & halo bloom.");
 
     FtWidget theme_btn = ft_button_create(win, 670, 20, 140, 32, "Toggle Dark Mode");
     ft_button_on_click(theme_btn, on_toggle_theme, NULL);

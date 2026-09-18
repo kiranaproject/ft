@@ -738,6 +738,12 @@ begin
     AssertEquals('Default height 16', 16, btn.Height);
     AssertEquals('Normal pseudo-class', '', btn.GetStatePseudoClass());
 
+    // Transition configuration
+    AssertEquals('Default transition duration is 180ms', 180, btn.TransitionDuration);
+    btn.TransitionDuration := 250;
+    AssertEquals('Custom transition duration 250ms', 250, btn.TransitionDuration);
+    AssertEquals('Initial hover progress is 0.0', 0, Round(btn.HoverProgress * 100));
+
     // Kinds
     btn.Kind := wbkMinimize;
     AssertEquals('Kind minimize', Ord(wbkMinimize), Ord(btn.Kind));
@@ -781,20 +787,24 @@ begin
     // Disabled state
     btn.Enabled := False;
     AssertEquals('Disabled pseudo-class', ':disabled', btn.GetStatePseudoClass());
+    AssertEquals('Disabled resets hover progress', 0, Round(btn.HoverProgress * 100));
     btn.Enabled := True;
 
-    // Direct rendering test for all kinds and styles in Canvas
+    // Direct rendering test for all kinds and styles in Canvas with hover transitions
     SetLength(rawBuf, 64 * 64 * 4);
     canvas := TFtCanvasAgg.Create(@rawBuf[0], 64, 64);
     try
       for s := Low(TFtWindowButtonStyle) to High(TFtWindowButtonStyle) do
         for k := Low(TFtWindowButtonKind) to High(TFtWindowButtonKind) do
         begin
-          TFtWindowButton.DrawWindowButton(canvas, 4, 4, 24, 24, k, s, bsNormal, False);
-          TFtWindowButton.DrawWindowButton(canvas, 4, 4, 24, 24, k, s, bsHovered, False);
+          // Normal, mid-transition, full hover, and pressed states in Light and Dark
+          TFtWindowButton.DrawWindowButton(canvas, 4, 4, 24, 24, k, s, bsNormal, False, 0.0, 0.0);
+          TFtWindowButton.DrawWindowButton(canvas, 4, 4, 24, 24, k, s, bsNormal, False, 0.0, 0.5);
+          TFtWindowButton.DrawWindowButton(canvas, 4, 4, 24, 24, k, s, bsHovered, False, 0.0, 1.0);
           TFtWindowButton.DrawWindowButton(canvas, 4, 4, 24, 24, k, s, bsPressed, False);
-          TFtWindowButton.DrawWindowButton(canvas, 4, 4, 24, 24, k, s, bsNormal, True);
-          TFtWindowButton.DrawWindowButton(canvas, 4, 4, 24, 24, k, s, bsHovered, True);
+          TFtWindowButton.DrawWindowButton(canvas, 4, 4, 24, 24, k, s, bsNormal, True, 0.0, 0.0);
+          TFtWindowButton.DrawWindowButton(canvas, 4, 4, 24, 24, k, s, bsNormal, True, 0.0, 0.5);
+          TFtWindowButton.DrawWindowButton(canvas, 4, 4, 24, 24, k, s, bsHovered, True, 0.0, 1.0);
           TFtWindowButton.DrawWindowButton(canvas, 4, 4, 24, 24, k, s, bsPressed, True);
         end;
     finally
