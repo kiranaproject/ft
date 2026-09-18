@@ -211,8 +211,6 @@ floria-toolkit/
 │   ├── gruvbox.css           # Retro warm Gruvbox theme
 │   ├── gtk2.css              # Industrial GTK2 gray theme
 │   └── classic.css           # Slate with emerald accents theme
-├── 3rdparty/
-│   └── fcl-css/              # Free Pascal CSS parser package
 ├── examples/
 │   ├── c/                    # C demo applications
 │   └── python/               # Python ctypes applications
