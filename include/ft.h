@@ -511,6 +511,16 @@ void ft_canvas_pop_alpha(void* canvas);
 void ft_canvas_reset_alpha(void* canvas);
 double ft_canvas_get_alpha(void* canvas);
 
+/* Direct Canvas Vector & Shape Drawing */
+void ft_canvas_draw_rect(void* canvas, int32_t x, int32_t y, int32_t w, int32_t h, double r, double g, double b, double a);
+void ft_canvas_draw_rounded_rect(void* canvas, double x, double y, double w, double h, double radius, double r, double g, double b, double a);
+void ft_canvas_draw_rounded_rect_outline(void* canvas, double x, double y, double w, double h, double radius, double border_width, double r, double g, double b, double a);
+void ft_canvas_draw_line(void* canvas, double x1, double y1, double x2, double y2, double width, double r, double g, double b, double a);
+void ft_canvas_draw_circle(void* canvas, double cx, double cy, double radius, double r, double g, double b, double a);
+void ft_canvas_draw_text(void* canvas, double x, double y, const char* text, void* font, double r, double g, double b);
+void ft_canvas_draw_text_left(void* canvas, double x, double y, double w, double h, const char* text, void* font, double r, double g, double b);
+void ft_canvas_draw_text_centered(void* canvas, int32_t x, int32_t y, int32_t w, int32_t h, const char* text, void* font, double r, double g, double b);
+
 /* ========================================================================= */
 /* Tabs & Notebook Container                                                 */
 /* ========================================================================= */
@@ -536,6 +546,8 @@ void ft_tab_page_set_title(FtTabPage page, const char* title);
 const char* ft_tab_page_get_title(FtTabPage page);
 void ft_tab_page_set_closeable(FtTabPage page, int32_t closeable);
 int32_t ft_tab_page_get_closeable(FtTabPage page);
+void ft_tab_page_set_icon(FtTabPage page, FtBitmap icon);
+FtBitmap ft_tab_page_get_icon(FtTabPage page);
 
 /* ========================================================================= */
 /* Splitter Container                                                        */
@@ -596,6 +608,8 @@ void ft_treenode_set_text(FtTreeNode node, const char* text);
 const char* ft_treenode_get_text(FtTreeNode node);
 void ft_treenode_set_expanded(FtTreeNode node, int32_t expanded);
 int32_t ft_treenode_get_expanded(FtTreeNode node);
+void ft_treenode_set_icon(FtTreeNode node, FtBitmap icon);
+FtBitmap ft_treenode_get_icon(FtTreeNode node);
 void ft_treenode_set_data(FtTreeNode node, void* data);
 void* ft_treenode_get_data(FtTreeNode node);
 void ft_treenode_set_tag(FtTreeNode node, int32_t tag);
@@ -609,6 +623,14 @@ typedef void* FtTable;
 
 typedef void (*FtTableRowSelectCallback)(FtTable table, int32_t row_index, void* user_data);
 
+typedef int32_t (*FtTableDrawHeaderCallback)(FtTable table, void* canvas, int32_t col_idx,
+                                             double x, double y, double w, double h,
+                                             int32_t sort_order, void* user_data);
+
+typedef int32_t (*FtTableDrawCellCallback)(FtTable table, void* canvas, int32_t row_idx, int32_t col_idx,
+                                           double x, double y, double w, double h,
+                                           int32_t is_selected, int32_t is_hovered, void* user_data);
+
 FtTable ft_table_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h);
 int32_t ft_table_add_column(FtTable table, const char* title, double width, int32_t alignment);
 int32_t ft_table_get_column_count(FtTable table);
@@ -618,6 +640,8 @@ void ft_table_set_column_width(FtTable table, int32_t col_idx, double width);
 double ft_table_get_column_width(FtTable table, int32_t col_idx);
 void ft_table_set_column_align(FtTable table, int32_t col_idx, int32_t alignment);
 int32_t ft_table_get_column_align(FtTable table, int32_t col_idx);
+void ft_table_set_column_icon(FtTable table, int32_t col_idx, FtBitmap icon);
+FtBitmap ft_table_get_column_icon(FtTable table, int32_t col_idx);
 
 int32_t ft_table_add_row(FtTable table);
 void ft_table_delete_row(FtTable table, int32_t row_idx);
@@ -627,6 +651,8 @@ int32_t ft_table_get_row_count(FtTable table);
 
 void ft_table_set_cell(FtTable table, int32_t row, int32_t col, const char* value);
 const char* ft_table_get_cell(FtTable table, int32_t row, int32_t col);
+void ft_table_set_cell_icon(FtTable table, int32_t row, int32_t col, FtBitmap icon);
+FtBitmap ft_table_get_cell_icon(FtTable table, int32_t row, int32_t col);
 
 void ft_table_set_selected_row(FtTable table, int32_t row);
 int32_t ft_table_get_selected_row(FtTable table);
@@ -642,6 +668,8 @@ void ft_table_set_zebra_striping(FtTable table, int32_t enabled);
 int32_t ft_table_get_zebra_striping(FtTable table);
 
 void ft_table_on_select_row(FtTable table, FtTableRowSelectCallback callback, void* user_data);
+void ft_table_on_draw_header(FtTable table, FtTableDrawHeaderCallback callback, void* user_data);
+void ft_table_on_draw_cell(FtTable table, FtTableDrawCellCallback callback, void* user_data);
 
 #ifdef __cplusplus
 }

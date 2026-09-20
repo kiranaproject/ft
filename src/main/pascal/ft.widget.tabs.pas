@@ -6,7 +6,7 @@ interface
 
 uses
   SysUtils, Classes, Math,
-  Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Widget.Containers, Ft.Widget.Buttons, Ft.Theme, Ft.Css;
+  Ft.Bitmap, Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Widget.Containers, Ft.Widget.Buttons, Ft.Theme, Ft.Css;
 
 type
   TFtTabPage = class;
@@ -20,15 +20,18 @@ type
   private
     FTitle: string;
     FCloseable: Boolean;
+    FIcon: TFtBitmap;
     FNotebook: TFtNotebook;
     procedure SetTitle(const AValue: string);
     procedure SetCloseable(AValue: Boolean);
+    procedure SetIcon(AValue: TFtBitmap);
   public
     constructor Create(AParent: TFtWidget); override;
     function GetElementType(): string; override;
 
     property Title: string read FTitle write SetTitle;
     property Closeable: Boolean read FCloseable write SetCloseable;
+    property Icon: TFtBitmap read FIcon write SetIcon;
     property Notebook: TFtNotebook read FNotebook write FNotebook;
   end;
 
@@ -92,6 +95,7 @@ begin
   inherited Create(AParent);
   FTitle := 'Tab';
   FCloseable := False;
+  FIcon := nil;
   FNotebook := nil;
   FDrawFrame := False;
   FPaddingX := 0.0;
@@ -118,6 +122,16 @@ begin
   if FCloseable <> AValue then
   begin
     FCloseable := AValue;
+    if Assigned(FNotebook) then
+      FNotebook.Invalidate();
+  end;
+end;
+
+procedure TFtTabPage.SetIcon(AValue: TFtBitmap);
+begin
+  if FIcon <> AValue then
+  begin
+    FIcon := AValue;
     if Assigned(FNotebook) then
       FNotebook.Invalidate();
   end;
@@ -354,6 +368,7 @@ var
   borderR, borderG, borderB: Double;
   baseY, rad: Double;
   btnState: TFtButtonState;
+  textStartX, textAvailW, iconW, iconH, iconY: Double;
 begin
   theme := FtGetTheme();
   rad := 6.0;
@@ -418,11 +433,29 @@ begin
     Canvas.DrawRoundedRectOutline(tx, ty, tw, th + rad, rad, 1.0, borderR, borderG, borderB, 1.0);
     Canvas.PopClipRect();
 
-    // Inactive Tab Title Text
+    // Inactive Tab Title Text & Icon
+    textStartX := tx + 12.0;
+    textAvailW := tw - 24.0;
     if page.Closeable then
-      Canvas.DrawTextLeft(tx + 12.0, ty + 1.0, tw - 38.0, th, page.Title, Font, textR, textG, textB)
-    else
-      Canvas.DrawTextCentered(Round(tx), Round(ty + 1.0), Round(tw), Round(th), page.Title, Font, textR, textG, textB);
+      textAvailW := tw - 38.0;
+
+    if Assigned(page.Icon) and (page.Icon.Width > 0) and (page.Icon.Height > 0) then
+    begin
+      iconH := Min(th - 6.0, 16.0);
+      iconW := (page.Icon.Width / page.Icon.Height) * iconH;
+      iconY := ty + (th - iconH) * 0.5;
+      Canvas.DrawImageScaled(textStartX, iconY, iconW, iconH, page.Icon, 1.0);
+      textStartX := textStartX + iconW + 6.0;
+      textAvailW := textAvailW - (iconW + 6.0);
+    end;
+
+    if textAvailW > 0.0 then
+    begin
+      if (not page.Closeable) and not Assigned(page.Icon) then
+        Canvas.DrawTextCentered(Round(tx), Round(ty + 1.0), Round(tw), Round(th), page.Title, Font, textR, textG, textB)
+      else
+        Canvas.DrawTextLeft(textStartX, ty + 1.0, textAvailW, th, page.Title, Font, textR, textG, textB);
+    end;
 
     // Inactive Tab Close Button
     if page.Closeable and GetCloseButtonRect(i, cx, cy, cw, ch) then
@@ -480,11 +513,29 @@ begin
       // Clear any remaining baseline line across active tab span to guarantee seamless merge
       Canvas.DrawLine(tx + 1.0, baseY, tx + tw - 1.0, baseY, 1.5, tabR, tabG, tabB, 1.0);
 
-      // Active Tab Title Text
+      // Active Tab Title Text & Icon
+      textStartX := tx + 12.0;
+      textAvailW := tw - 24.0;
       if page.Closeable then
-        Canvas.DrawTextLeft(tx + 12.0, ty + 1.0, tw - 38.0, th, page.Title, Font, textR, textG, textB)
-      else
-        Canvas.DrawTextCentered(Round(tx), Round(ty + 1.0), Round(tw), Round(th), page.Title, Font, textR, textG, textB);
+        textAvailW := tw - 38.0;
+
+      if Assigned(page.Icon) and (page.Icon.Width > 0) and (page.Icon.Height > 0) then
+      begin
+        iconH := Min(th - 6.0, 16.0);
+        iconW := (page.Icon.Width / page.Icon.Height) * iconH;
+        iconY := ty + (th - iconH) * 0.5;
+        Canvas.DrawImageScaled(textStartX, iconY, iconW, iconH, page.Icon, 1.0);
+        textStartX := textStartX + iconW + 6.0;
+        textAvailW := textAvailW - (iconW + 6.0);
+      end;
+
+      if textAvailW > 0.0 then
+      begin
+        if (not page.Closeable) and not Assigned(page.Icon) then
+          Canvas.DrawTextCentered(Round(tx), Round(ty + 1.0), Round(tw), Round(th), page.Title, Font, textR, textG, textB)
+        else
+          Canvas.DrawTextLeft(textStartX, ty + 1.0, textAvailW, th, page.Title, Font, textR, textG, textB);
+      end;
 
       // Active Tab Close Button
       if page.Closeable and GetCloseButtonRect(i, cx, cy, cw, ch) then

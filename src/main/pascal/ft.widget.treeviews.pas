@@ -6,7 +6,7 @@ interface
 
 uses
   SysUtils, Classes, Math,
-  Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Widget.Containers, Ft.Widget.ScrollBars, Ft.Theme, Ft.Css;
+  Ft.Bitmap, Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Widget.Containers, Ft.Widget.ScrollBars, Ft.Theme, Ft.Css;
 
 type
   TFtTreeNode = class;
@@ -21,6 +21,7 @@ type
     FData: Pointer;
     FTag: Integer;
     FExpanded: Boolean;
+    FIcon: TFtBitmap;
     FParent: TFtTreeNode;
     FChildren: TFPList; // TFtTreeNode
     FTreeView: TFtTreeView;
@@ -41,6 +42,7 @@ type
     property Data: Pointer read FData write FData;
     property Tag: Integer read FTag write FTag;
     property Expanded: Boolean read FExpanded write FExpanded;
+    property Icon: TFtBitmap read FIcon write FIcon;
     property Parent: TFtTreeNode read FParent;
     property Level: Integer read GetLevel;
     property ChildCount: Integer read GetChildCount;
@@ -103,6 +105,7 @@ begin
   FData := nil;
   FTag := 0;
   FExpanded := False;
+  FIcon := nil;
   FChildren := TFPList.Create();
 end;
 
@@ -321,6 +324,7 @@ var
   isSelected, isHovered: Boolean;
   arrowCX, arrowCY: Double;
   textR, textG, textB: Double;
+  textStartX, iconW, iconH, iconY: Double;
 begin
   theme := FtGetTheme();
   accent := theme.GetAccentColor();
@@ -385,8 +389,18 @@ begin
       end;
     end;
 
-    // Node text
-    Canvas.DrawTextLeft(nodeX + 16.0, nodeY + 2.0, Width - (nodeX + 20.0 - X), FItemHeight - 4.0, node.Text, Font, textR, textG, textB);
+    // Node icon & text
+    textStartX := nodeX + 16.0;
+    if Assigned(node.Icon) and (node.Icon.Width > 0) and (node.Icon.Height > 0) then
+    begin
+      iconH := Min(FItemHeight - 6.0, 16.0);
+      iconW := (node.Icon.Width / node.Icon.Height) * iconH;
+      iconY := nodeY + (FItemHeight - iconH) * 0.5;
+      Canvas.DrawImageScaled(textStartX, iconY, iconW, iconH, node.Icon, 1.0);
+      textStartX := textStartX + iconW + 4.0;
+    end;
+
+    Canvas.DrawTextLeft(textStartX, nodeY + 2.0, Width - (textStartX + 4.0 - X), FItemHeight - 4.0, node.Text, Font, textR, textG, textB);
   end;
 end;
 

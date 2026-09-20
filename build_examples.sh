@@ -40,6 +40,8 @@ eval gcc $CFLAGS examples/c/advanced_desktop_widgets_demo.c $LDFLAGS -o target/a
 eval gcc $CFLAGS examples/c/advanced_desktop_widgets_demo.c $LDFLAGS -o target/example_advanced_desktop_widgets
 eval gcc $CFLAGS examples/c/window_button_demo.c $LDFLAGS -o target/window_button_demo
 eval gcc $CFLAGS examples/c/window_button_demo.c $LDFLAGS -o target/example_window_button
+eval gcc $CFLAGS examples/c/custom_table_demo.c $LDFLAGS -o target/custom_table_demo
+eval gcc $CFLAGS examples/c/custom_table_demo.c $LDFLAGS -o target/example_custom_table
 
 echo "[INFO] Successfully built all C examples in target/:"
-ls -lh target/example_* target/c_example target/input_example target/scrollbar_example target/multilingual_example target/menu_example target/outside_menu_demo target/widget_context_menus_demo target/css_button_demo target/css_animation_demo target/form_controls_demo target/test_all_widgets_css target/advanced_desktop_widgets_demo target/window_button_demo
+ls -lh target/example_* target/c_example target/input_example target/scrollbar_example target/multilingual_example target/menu_example target/outside_menu_demo target/widget_context_menus_demo target/css_button_demo target/css_animation_demo target/form_controls_demo target/test_all_widgets_css target/advanced_desktop_widgets_demo target/window_button_demo target/custom_table_demo

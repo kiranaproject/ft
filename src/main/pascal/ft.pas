@@ -2756,6 +2756,69 @@ begin
     Result := 1.0;
 end;
 
+procedure ft_canvas_draw_rect(ACanvas: Pointer; AX, AY, AW, AH: cint32; AR, AG, AB, AA: cdouble); cdecl; export;
+begin
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvasAgg) then
+    TFtCanvasAgg(ACanvas).DrawRect(AX, AY, AW, AH, AR, AG, AB, AA);
+end;
+
+procedure ft_canvas_draw_rounded_rect(ACanvas: Pointer; AX, AY, AW, AH, ARadius, AR, AG, AB, AA: cdouble); cdecl; export;
+begin
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvasAgg) then
+    TFtCanvasAgg(ACanvas).DrawRoundedRect(AX, AY, AW, AH, ARadius, AR, AG, AB, AA);
+end;
+
+procedure ft_canvas_draw_rounded_rect_outline(ACanvas: Pointer; AX, AY, AW, AH, ARadius, ABorderWidth, AR, AG, AB, AA: cdouble); cdecl; export;
+begin
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvasAgg) then
+    TFtCanvasAgg(ACanvas).DrawRoundedRectOutline(AX, AY, AW, AH, ARadius, ABorderWidth, AR, AG, AB, AA);
+end;
+
+procedure ft_canvas_draw_line(ACanvas: Pointer; AX1, AY1, AX2, AY2, AWidth, AR, AG, AB, AA: cdouble); cdecl; export;
+begin
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvasAgg) then
+    TFtCanvasAgg(ACanvas).DrawLine(AX1, AY1, AX2, AY2, AWidth, AR, AG, AB, AA);
+end;
+
+procedure ft_canvas_draw_circle(ACanvas: Pointer; ACX, ACY, ARadius, AR, AG, AB, AA: cdouble); cdecl; export;
+begin
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvasAgg) then
+    TFtCanvasAgg(ACanvas).DrawCircle(ACX, ACY, ARadius, AR, AG, AB, AA);
+end;
+
+procedure ft_canvas_draw_text(ACanvas: Pointer; AX, AY: cdouble; AText: PAnsiChar; AFont: Pointer; AR, AG, AB: cdouble); cdecl; export;
+var
+  f: TFtFont;
+begin
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvasAgg) and Assigned(AText) then
+  begin
+    if Assigned(AFont) and (TObject(AFont) is TFtFont) then f := TFtFont(AFont) else f := nil;
+    TFtCanvasAgg(ACanvas).DrawText(AX, AY, string(AText), f, AR, AG, AB);
+  end;
+end;
+
+procedure ft_canvas_draw_text_left(ACanvas: Pointer; AX, AY, AW, AH: cdouble; AText: PAnsiChar; AFont: Pointer; AR, AG, AB: cdouble); cdecl; export;
+var
+  f: TFtFont;
+begin
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvasAgg) and Assigned(AText) then
+  begin
+    if Assigned(AFont) and (TObject(AFont) is TFtFont) then f := TFtFont(AFont) else f := nil;
+    TFtCanvasAgg(ACanvas).DrawTextLeft(AX, AY, AW, AH, string(AText), f, AR, AG, AB);
+  end;
+end;
+
+procedure ft_canvas_draw_text_centered(ACanvas: Pointer; AX, AY, AW, AH: cint32; AText: PAnsiChar; AFont: Pointer; AR, AG, AB: cdouble); cdecl; export;
+var
+  f: TFtFont;
+begin
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvasAgg) and Assigned(AText) then
+  begin
+    if Assigned(AFont) and (TObject(AFont) is TFtFont) then f := TFtFont(AFont) else f := nil;
+    TFtCanvasAgg(ACanvas).DrawTextCentered(AX, AY, AW, AH, string(AText), f, AR, AG, AB);
+  end;
+end;
+
 { ========================================================================= }
 { Tabs & Notebook Container                                                 }
 { ========================================================================= }
@@ -2915,6 +2978,25 @@ begin
   if not Assigned(page) or not (TObject(page) is TFtTabPage) then Exit;
   p := TFtTabPage(page);
   if p.Closeable then Result := 1 else Result := 0;
+end;
+
+procedure ft_tab_page_set_icon(page: Pointer; icon: Pointer); cdecl; export;
+var
+  p: TFtTabPage;
+begin
+  if not Assigned(page) or not (TObject(page) is TFtTabPage) then Exit;
+  p := TFtTabPage(page);
+  p.Icon := TFtBitmap(icon);
+end;
+
+function ft_tab_page_get_icon(page: Pointer): Pointer; cdecl; export;
+var
+  p: TFtTabPage;
+begin
+  Result := nil;
+  if not Assigned(page) or not (TObject(page) is TFtTabPage) then Exit;
+  p := TFtTabPage(page);
+  Result := Pointer(p.Icon);
 end;
 
 { ========================================================================= }
@@ -3303,6 +3385,27 @@ begin
   if n.Expanded then Result := 1 else Result := 0;
 end;
 
+procedure ft_treenode_set_icon(node: Pointer; icon: Pointer); cdecl; export;
+var
+  n: TFtTreeNode;
+begin
+  if not Assigned(node) or not (TObject(node) is TFtTreeNode) then Exit;
+  n := TFtTreeNode(node);
+  n.Icon := TFtBitmap(icon);
+  if Assigned(n.TreeView) then
+    n.TreeView.Invalidate();
+end;
+
+function ft_treenode_get_icon(node: Pointer): Pointer; cdecl; export;
+var
+  n: TFtTreeNode;
+begin
+  Result := nil;
+  if not Assigned(node) or not (TObject(node) is TFtTreeNode) then Exit;
+  n := TFtTreeNode(node);
+  Result := Pointer(n.Icon);
+end;
+
 procedure ft_treenode_set_data(node: Pointer; data: Pointer); cdecl; export;
 var
   n: TFtTreeNode;
@@ -3665,6 +3768,62 @@ begin
   tbl.UserData := user_data;
 end;
 
+procedure ft_table_set_column_icon(table: Pointer; col_idx: cint32; icon: Pointer); cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  tbl.SetColumnIcon(col_idx, TFtBitmap(icon));
+end;
+
+function ft_table_get_column_icon(table: Pointer; col_idx: cint32): Pointer; cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  Result := nil;
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  Result := Pointer(tbl.GetColumnIcon(col_idx));
+end;
+
+procedure ft_table_set_cell_icon(table: Pointer; row, col: cint32; icon: Pointer); cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  tbl.SetCellIcon(row, col, TFtBitmap(icon));
+end;
+
+function ft_table_get_cell_icon(table: Pointer; row, col: cint32): Pointer; cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  Result := nil;
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  Result := Pointer(tbl.GetCellIcon(row, col));
+end;
+
+procedure ft_table_on_draw_header(table: Pointer; callback: TFtTableDrawHeaderCallback; user_data: Pointer); cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  tbl.SetOnDrawHeaderCb(callback, user_data);
+end;
+
+procedure ft_table_on_draw_cell(table: Pointer; callback: TFtTableDrawCellCallback; user_data: Pointer); cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  tbl.SetOnDrawCellCb(callback, user_data);
+end;
+
 exports
   ft_init,
   ft_main_loop,
@@ -3982,6 +4141,14 @@ exports
   ft_canvas_pop_alpha,
   ft_canvas_reset_alpha,
   ft_canvas_get_alpha,
+  ft_canvas_draw_rect,
+  ft_canvas_draw_rounded_rect,
+  ft_canvas_draw_rounded_rect_outline,
+  ft_canvas_draw_line,
+  ft_canvas_draw_circle,
+  ft_canvas_draw_text,
+  ft_canvas_draw_text_left,
+  ft_canvas_draw_text_centered,
 
   // Notebook
   ft_notebook_create,
@@ -3999,6 +4166,8 @@ exports
   ft_tab_page_get_title,
   ft_tab_page_set_closeable,
   ft_tab_page_get_closeable,
+  ft_tab_page_set_icon,
+  ft_tab_page_get_icon,
 
   // Splitter
   ft_splitter_create,
@@ -4038,6 +4207,8 @@ exports
   ft_treenode_get_text,
   ft_treenode_set_expanded,
   ft_treenode_get_expanded,
+  ft_treenode_set_icon,
+  ft_treenode_get_icon,
   ft_treenode_set_data,
   ft_treenode_get_data,
   ft_treenode_set_tag,
@@ -4053,6 +4224,8 @@ exports
   ft_table_get_column_width,
   ft_table_set_column_align,
   ft_table_get_column_align,
+  ft_table_set_column_icon,
+  ft_table_get_column_icon,
   ft_table_add_row,
   ft_table_delete_row,
   ft_table_clear_rows,
@@ -4060,6 +4233,8 @@ exports
   ft_table_get_row_count,
   ft_table_set_cell,
   ft_table_get_cell,
+  ft_table_set_cell_icon,
+  ft_table_get_cell_icon,
   ft_table_set_selected_row,
   ft_table_get_selected_row,
   ft_table_set_header_height,
@@ -4070,7 +4245,9 @@ exports
   ft_table_get_show_gridlines,
   ft_table_set_zebra_striping,
   ft_table_get_zebra_striping,
-  ft_table_on_select_row;
+  ft_table_on_select_row,
+  ft_table_on_draw_header,
+  ft_table_on_draw_cell;
 
 begin
 end.

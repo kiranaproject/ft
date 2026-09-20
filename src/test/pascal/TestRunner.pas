@@ -798,8 +798,10 @@ end;
 procedure TFtDesktopWidgetsTest.TestTable();
 var
   tbl: TFtTable;
+  testBmp: TFtBitmap;
 begin
   tbl := TFtTable.Create(nil);
+  testBmp := TFtBitmap.Create(16, 16);
   try
     tbl.X := 0; tbl.Y := 0; tbl.Width := 500; tbl.Height := 300;
     tbl.AddColumn('ID', 60.0, taCenter);
@@ -811,6 +813,10 @@ begin
     AssertEquals('Column 1 width', 180.0, tbl.Columns[1].Width);
     AssertEquals('Column 2 align is taRight', Ord(taRight), Ord(tbl.Columns[2].Alignment));
 
+    // Test Column Icon
+    tbl.SetColumnIcon(0, testBmp);
+    AssertTrue('Column icon assigned', tbl.GetColumnIcon(0) = testBmp);
+
     tbl.AddRow(['1', 'Mechanical Keyboard', '$89.99']);
     tbl.AddRow(['2', 'Gaming Mouse', '$49.99']);
 
@@ -818,6 +824,10 @@ begin
     AssertEquals('Cell (0, 0)', '1', tbl.GetCell(0, 0));
     AssertEquals('Cell (0, 1)', 'Mechanical Keyboard', tbl.GetCell(0, 1));
     AssertEquals('Cell (1, 2)', '$49.99', tbl.GetCell(1, 2));
+
+    // Test Cell Icon
+    tbl.SetCellIcon(0, 1, testBmp);
+    AssertTrue('Cell icon assigned', tbl.GetCellIcon(0, 1) = testBmp);
 
     tbl.SetCell(1, 1, 'Wireless Mouse');
     AssertEquals('Updated Cell (1, 1)', 'Wireless Mouse', tbl.GetCell(1, 1));
@@ -832,6 +842,7 @@ begin
     tbl.ClearRows();
     AssertEquals('Row count after clear is 0', 0, tbl.RowCount);
   finally
+    testBmp.Free();
     tbl.Free();
   end;
 end;

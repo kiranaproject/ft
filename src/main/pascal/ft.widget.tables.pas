@@ -6,7 +6,7 @@ interface
 
 uses
   SysUtils, Classes, Math,
-  Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Widget.Containers, Ft.Widget.ScrollBars, Ft.Widget.Texts, Ft.Theme, Ft.Css;
+  Ft.Bitmap, Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Widget.Containers, Ft.Widget.ScrollBars, Ft.Widget.Texts, Ft.Theme, Ft.Css;
 
 type
   TFtTextAlign = TFtTextAlignment;
@@ -18,21 +18,36 @@ type
     Width: Double;
     Alignment: TFtTextAlign;
     SortOrder: TFtSortOrder;
+    Icon: TFtBitmap;
     constructor Create(const ATitle: string; AWidth: Double = 100.0; AAlign: TFtTextAlign = taLeft);
   end;
 
   TFtTableRow = class
+  private
+    FCellIcons: TFPList; // TFtBitmap
   public
     Cells: TStringList;
     Tag: Integer;
     Data: Pointer;
     constructor Create();
     destructor Destroy(); override;
+    procedure SetCellIcon(ACol: Integer; AIcon: TFtBitmap);
+    function GetCellIcon(ACol: Integer): TFtBitmap;
   end;
 
   TFtTableRowSelectEvent = procedure(Sender: TObject; RowIndex: Integer) of object;
   TFtTableColumnClickEvent = procedure(Sender: TObject; ColumnIndex: Integer) of object;
   TFtTableRowSelectCallback = procedure(Sender: Pointer; RowIndex: Integer; UserData: Pointer); cdecl;
+
+  TFtTableDrawHeaderEvent = function(Sender: TObject; Canvas: TFtCanvasAgg; ColumnIndex: Integer;
+    AX, AY, AW, AH: Double; ASortOrder: TFtSortOrder): Boolean of object;
+  TFtTableDrawHeaderCallback = function(Sender: Pointer; Canvas: Pointer; ColumnIndex: Integer;
+    AX, AY, AW, AH: Double; ASortOrder: Integer; UserData: Pointer): Integer; cdecl;
+
+  TFtTableDrawCellEvent = function(Sender: TObject; Canvas: TFtCanvasAgg; RowIndex, ColumnIndex: Integer;
+    AX, AY, AW, AH: Double; ASelected, AHovered: Boolean): Boolean of object;
+  TFtTableDrawCellCallback = function(Sender: Pointer; Canvas: Pointer; RowIndex, ColumnIndex: Integer;
+    AX, AY, AW, AH: Double; ASelected, AHovered: Integer; UserData: Pointer): Integer; cdecl;
 
   TFtTable = class(TFtContainer)
   private
@@ -47,6 +62,12 @@ type
     FOnSelectRow: TFtTableRowSelectEvent;
     FOnColumnClick: TFtTableColumnClickEvent;
     FOnSelectRowCb: TFtTableRowSelectCallback;
+    FOnDrawHeader: TFtTableDrawHeaderEvent;
+    FOnDrawHeaderCb: TFtTableDrawHeaderCallback;
+    FOnDrawHeaderUserData: Pointer;
+    FOnDrawCell: TFtTableDrawCellEvent;
+    FOnDrawCellCb: TFtTableDrawCellCallback;
+    FOnDrawCellUserData: Pointer;
 
     procedure SetSelectedRow(AValue: Integer);
     procedure SetHeaderHeight(AValue: Double);
@@ -71,6 +92,12 @@ type
     function AddRow(const AValues: array of string): Integer;
     procedure SetCell(ARow, ACol: Integer; const AValue: string);
     function GetCell(ARow, ACol: Integer): string;
+    procedure SetColumnIcon(ACol: Integer; AIcon: TFtBitmap);
+    function GetColumnIcon(ACol: Integer): TFtBitmap;
+    procedure SetCellIcon(ARow, ACol: Integer; AIcon: TFtBitmap);
+    function GetCellIcon(ARow, ACol: Integer): TFtBitmap;
+    procedure SetOnDrawHeaderCb(ACallback: TFtTableDrawHeaderCallback; AUserData: Pointer);
+    procedure SetOnDrawCellCb(ACallback: TFtTableDrawCellCallback; AUserData: Pointer);
     procedure DeleteRow(AIndex: Integer);
     procedure ClearRows();
     procedure ClearAll();
@@ -93,6 +120,10 @@ type
     property OnSelectRow: TFtTableRowSelectEvent read FOnSelectRow write FOnSelectRow;
     property OnColumnClick: TFtTableColumnClickEvent read FOnColumnClick write FOnColumnClick;
     property OnSelectRowCb: TFtTableRowSelectCallback read FOnSelectRowCb write FOnSelectRowCb;
+    property OnDrawHeader: TFtTableDrawHeaderEvent read FOnDrawHeader write FOnDrawHeader;
+    property OnDrawHeaderCb: TFtTableDrawHeaderCallback read FOnDrawHeaderCb write FOnDrawHeaderCb;
+    property OnDrawCell: TFtTableDrawCellEvent read FOnDrawCell write FOnDrawCell;
+    property OnDrawCellCb: TFtTableDrawCellCallback read FOnDrawCellCb write FOnDrawCellCb;
   end;
 
 implementation
@@ -106,6 +137,7 @@ begin
   Width := AWidth;
   Alignment := AAlign;
   SortOrder := soNone;
+  Icon := nil;
 end;
 
 { TFtTableRow }
@@ -114,14 +146,32 @@ constructor TFtTableRow.Create();
 begin
   inherited Create();
   Cells := TStringList.Create();
+  FCellIcons := TFPList.Create();
   Tag := 0;
   Data := nil;
 end;
 
 destructor TFtTableRow.Destroy();
 begin
+  FCellIcons.Free();
   Cells.Free();
   inherited Destroy();
+end;
+
+procedure TFtTableRow.SetCellIcon(ACol: Integer; AIcon: TFtBitmap);
+begin
+  if ACol < 0 then Exit;
+  while FCellIcons.Count <= ACol do
+    FCellIcons.Add(nil);
+  FCellIcons[ACol] := AIcon;
+end;
+
+function TFtTableRow.GetCellIcon(ACol: Integer): TFtBitmap;
+begin
+  if (ACol >= 0) and (ACol < FCellIcons.Count) then
+    Result := TFtBitmap(FCellIcons[ACol])
+  else
+    Result := nil;
 end;
 
 { TFtTable }
@@ -142,6 +192,12 @@ begin
   FFocusable := True;
   FDrawFrame := True;
   FScrollBarMode := ftSbModeAutoBoth;
+  FOnDrawHeader := nil;
+  FOnDrawHeaderCb := nil;
+  FOnDrawHeaderUserData := nil;
+  FOnDrawCell := nil;
+  FOnDrawCellCb := nil;
+  FOnDrawCellUserData := nil;
 end;
 
 destructor TFtTable.Destroy();
@@ -262,6 +318,64 @@ begin
     Result := row.Cells[ACol];
 end;
 
+procedure TFtTable.SetColumnIcon(ACol: Integer; AIcon: TFtBitmap);
+var
+  col: TFtTableColumn;
+begin
+  col := GetColumn(ACol);
+  if Assigned(col) then
+  begin
+    col.Icon := AIcon;
+    Invalidate();
+  end;
+end;
+
+function TFtTable.GetColumnIcon(ACol: Integer): TFtBitmap;
+var
+  col: TFtTableColumn;
+begin
+  col := GetColumn(ACol);
+  if Assigned(col) then
+    Result := col.Icon
+  else
+    Result := nil;
+end;
+
+procedure TFtTable.SetCellIcon(ARow, ACol: Integer; AIcon: TFtBitmap);
+var
+  row: TFtTableRow;
+begin
+  row := GetRow(ARow);
+  if Assigned(row) then
+  begin
+    row.SetCellIcon(ACol, AIcon);
+    Invalidate();
+  end;
+end;
+
+function TFtTable.GetCellIcon(ARow, ACol: Integer): TFtBitmap;
+var
+  row: TFtTableRow;
+begin
+  row := GetRow(ARow);
+  if Assigned(row) then
+    Result := row.GetCellIcon(ACol)
+  else
+    Result := nil;
+end;
+
+procedure TFtTable.SetOnDrawHeaderCb(ACallback: TFtTableDrawHeaderCallback; AUserData: Pointer);
+begin
+  FOnDrawHeaderCb := ACallback;
+  FOnDrawHeaderUserData := AUserData;
+end;
+
+procedure TFtTable.SetOnDrawCellCb(ACallback: TFtTableDrawCellCallback; AUserData: Pointer);
+begin
+  FOnDrawCellCb := ACallback;
+  FOnDrawCellUserData := AUserData;
+end;
+
 procedure TFtTable.DeleteRow(AIndex: Integer);
 var
   row: TFtTableRow;
@@ -361,6 +475,8 @@ var
   col: TFtTableColumn;
   colX: Double;
   arrowX, arrowY: Double;
+  handled: Boolean;
+  textStartX, textAvailW, iconW, iconH, iconY: Double;
 begin
   theme := FtGetTheme();
   if theme.DarkMode then
@@ -389,30 +505,57 @@ begin
     begin
       col := TFtTableColumn(FColumns[i]);
 
-      // Column title text
-      case col.Alignment of
-        taCenter:
-          Canvas.DrawTextCentered(Round(colX), Round(hy), Round(col.Width), Round(hh), col.Title, Font, textR, textG, textB);
-        taRight:
-          Canvas.DrawTextLeft(colX + 8.0, hy + 4.0, col.Width - 16.0, hh - 8.0, col.Title, Font, textR, textG, textB);
-        else
-          Canvas.DrawTextLeft(colX + 8.0, hy + 4.0, col.Width - 16.0, hh - 8.0, col.Title, Font, textR, textG, textB);
-      end;
+      // Check Owner-Draw Callback
+      handled := False;
+      if Assigned(FOnDrawHeader) then
+        handled := FOnDrawHeader(Self, Canvas, i, colX, hy, col.Width, hh, col.SortOrder)
+      else if Assigned(FOnDrawHeaderCb) then
+        handled := (FOnDrawHeaderCb(Pointer(Self), Pointer(Canvas), i, colX, hy, col.Width, hh, Ord(col.SortOrder), FOnDrawHeaderUserData) <> 0);
 
-      // Sort order indicator
-      if col.SortOrder <> soNone then
+      if not handled then
       begin
-        arrowX := colX + col.Width - 14.0;
-        arrowY := hy + hh * 0.5;
-        if col.SortOrder = soAscending then
+        textStartX := colX + 8.0;
+        textAvailW := col.Width - 16.0;
+
+        // Draw Column Icon if present
+        if Assigned(col.Icon) and (col.Icon.Width > 0) and (col.Icon.Height > 0) then
         begin
-          Canvas.DrawLine(arrowX - 4.0, arrowY + 2.0, arrowX, arrowY - 3.0, 1.5, textR, textG, textB, 0.9);
-          Canvas.DrawLine(arrowX, arrowY - 3.0, arrowX + 4.0, arrowY + 2.0, 1.5, textR, textG, textB, 0.9);
-        end
-        else
+          iconH := Min(hh - 6.0, 16.0);
+          iconW := (col.Icon.Width / col.Icon.Height) * iconH;
+          iconY := hy + (hh - iconH) * 0.5;
+          Canvas.DrawImageScaled(textStartX, iconY, iconW, iconH, col.Icon, 1.0);
+          textStartX := textStartX + iconW + 6.0;
+          textAvailW := textAvailW - (iconW + 6.0);
+        end;
+
+        // Column title text
+        if textAvailW > 0.0 then
         begin
-          Canvas.DrawLine(arrowX - 4.0, arrowY - 2.0, arrowX, arrowY + 3.0, 1.5, textR, textG, textB, 0.9);
-          Canvas.DrawLine(arrowX, arrowY + 3.0, arrowX + 4.0, arrowY - 2.0, 1.5, textR, textG, textB, 0.9);
+          case col.Alignment of
+            taCenter:
+              Canvas.DrawTextCentered(Round(textStartX), Round(hy), Round(textAvailW), Round(hh), col.Title, Font, textR, textG, textB);
+            taRight:
+              Canvas.DrawTextLeft(textStartX, hy + 4.0, textAvailW, hh - 8.0, col.Title, Font, textR, textG, textB);
+            else
+              Canvas.DrawTextLeft(textStartX, hy + 4.0, textAvailW, hh - 8.0, col.Title, Font, textR, textG, textB);
+          end;
+        end;
+
+        // Sort order indicator
+        if col.SortOrder <> soNone then
+        begin
+          arrowX := colX + col.Width - 14.0;
+          arrowY := hy + hh * 0.5;
+          if col.SortOrder = soAscending then
+          begin
+            Canvas.DrawLine(arrowX - 4.0, arrowY + 2.0, arrowX, arrowY - 3.0, 1.5, textR, textG, textB, 0.9);
+            Canvas.DrawLine(arrowX, arrowY - 3.0, arrowX + 4.0, arrowY + 2.0, 1.5, textR, textG, textB, 0.9);
+          end
+          else
+          begin
+            Canvas.DrawLine(arrowX - 4.0, arrowY - 2.0, arrowX, arrowY + 3.0, 1.5, textR, textG, textB, 0.9);
+            Canvas.DrawLine(arrowX, arrowY + 3.0, arrowX + 4.0, arrowY - 2.0, 1.5, textR, textG, textB, 0.9);
+          end;
         end;
       end;
 
@@ -444,6 +587,10 @@ var
   textR, textG, textB: Double;
   cellText: string;
   col: TFtTableColumn;
+  cellW: Double;
+  cellIcon: TFtBitmap;
+  handled: Boolean;
+  textStartX, textAvailW, iconW, iconH, iconY: Double;
 begin
   theme := FtGetTheme();
   accent := theme.GetAccentColor();
@@ -501,18 +648,47 @@ begin
       for c := 0 to FColumns.Count - 1 do
       begin
         col := TFtTableColumn(FColumns[c]);
-        if c < row.Cells.Count then
-          cellText := row.Cells[c]
-        else
-          cellText := '';
+        cellW := col.Width;
 
-        case col.Alignment of
-          taCenter:
-            Canvas.DrawTextCentered(Round(colX), Round(rowY), Round(col.Width), Round(FRowHeight), cellText, Font, textR, textG, textB);
-          taRight:
-            Canvas.DrawTextLeft(colX + 8.0, rowY + 3.0, col.Width - 16.0, FRowHeight - 6.0, cellText, Font, textR, textG, textB);
+        handled := False;
+        if Assigned(FOnDrawCell) then
+          handled := FOnDrawCell(Self, Canvas, r, c, colX, rowY, cellW, FRowHeight, isSelected, isHovered)
+        else if Assigned(FOnDrawCellCb) then
+          handled := (FOnDrawCellCb(Pointer(Self), Pointer(Canvas), r, c, colX, rowY, cellW, FRowHeight, Ord(isSelected), Ord(isHovered), FOnDrawCellUserData) <> 0);
+
+        if not handled then
+        begin
+          if c < row.Cells.Count then
+            cellText := row.Cells[c]
           else
-            Canvas.DrawTextLeft(colX + 8.0, rowY + 3.0, col.Width - 16.0, FRowHeight - 6.0, cellText, Font, textR, textG, textB);
+            cellText := '';
+
+          textStartX := colX + 8.0;
+          textAvailW := cellW - 16.0;
+
+          // Cell Icon
+          cellIcon := row.GetCellIcon(c);
+          if Assigned(cellIcon) and (cellIcon.Width > 0) and (cellIcon.Height > 0) then
+          begin
+            iconH := Min(FRowHeight - 6.0, 16.0);
+            iconW := (cellIcon.Width / cellIcon.Height) * iconH;
+            iconY := rowY + (FRowHeight - iconH) * 0.5;
+            Canvas.DrawImageScaled(textStartX, iconY, iconW, iconH, cellIcon, 1.0);
+            textStartX := textStartX + iconW + 6.0;
+            textAvailW := textAvailW - (iconW + 6.0);
+          end;
+
+          if textAvailW > 0.0 then
+          begin
+            case col.Alignment of
+              taCenter:
+                Canvas.DrawTextCentered(Round(textStartX), Round(rowY), Round(textAvailW), Round(FRowHeight), cellText, Font, textR, textG, textB);
+              taRight:
+                Canvas.DrawTextLeft(textStartX, rowY + 3.0, textAvailW, FRowHeight - 6.0, cellText, Font, textR, textG, textB);
+              else
+                Canvas.DrawTextLeft(textStartX, rowY + 3.0, textAvailW, FRowHeight - 6.0, cellText, Font, textR, textG, textB);
+            end;
+          end;
         end;
 
         // Grid lines
