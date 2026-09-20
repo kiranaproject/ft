@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project>
   <name>ft</name>
-  <version>0.0.1</version>
+  <version>0.0.1-SNAPSHOT</version>
   <author>Dio Affriza</author>
   <license>MPL-2.0</license>
 
@@ -14,7 +14,6 @@
     <manualUnitPaths>true</manualUnitPaths>
     <unitPaths>
       <path>src/main/pascal</path>
-      <path>../florialib/src/main/pascal</path>
     </unitPaths>
   </build>
 
@@ -29,6 +28,10 @@
     <dependency>
       <name>fpgui-framework</name>
       <version>2.2.0-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <name>florialib</name>
+      <version>0.0.1-SNAPSHOT</version>
     </dependency>
   </dependencies>
 </project>
