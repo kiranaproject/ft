@@ -172,38 +172,38 @@ const
     '    color: #f1f5f9;' + LineEnding +
     '}' + LineEnding +
     'button {' + LineEnding +
-    '    background-color: #e2e8f0;' + LineEnding +
-    '    color: #0f172a;' + LineEnding +
-    '    border-color: #cbd5e1;' + LineEnding +
+    '    background-color: #f5f7fa;' + LineEnding +
+    '    color: #334155;' + LineEnding +
+    '    border-color: #ccd1d9;' + LineEnding +
     '    border-width: 1px;' + LineEnding +
-    '    border-radius: 6px;' + LineEnding +
+    '    border-radius: 7px;' + LineEnding +
     '    box-shadow: 1;' + LineEnding +
     '    transition: all 150ms ease;' + LineEnding +
     '}' + LineEnding +
     'button:hover {' + LineEnding +
-    '    background-color: #cbd5e1;' + LineEnding +
-    '    border-color: #94a3b8;' + LineEnding +
-    '    color: #0f172a;' + LineEnding +
+    '    background-color: #ffffff;' + LineEnding +
+    '    border-color: #3b82f6;' + LineEnding +
+    '    color: #1d4ed8;' + LineEnding +
     '}' + LineEnding +
     'button:active {' + LineEnding +
-    '    background-color: #94a3b8;' + LineEnding +
-    '    border-color: #64748b;' + LineEnding +
-    '    color: #020617;' + LineEnding +
+    '    background-color: #e2e8f0;' + LineEnding +
+    '    border-color: #2563eb;' + LineEnding +
+    '    color: #0f172a;' + LineEnding +
     '}' + LineEnding +
     'button.dark {' + LineEnding +
-    '    background-color: #27272a;' + LineEnding +
-    '    color: #f4f4f5;' + LineEnding +
-    '    border-color: #3f3f46;' + LineEnding +
+    '    background-color: #25282e;' + LineEnding +
+    '    color: #d9dee6;' + LineEnding +
+    '    border-color: #3b4048;' + LineEnding +
     '}' + LineEnding +
     'button.dark:hover {' + LineEnding +
-    '    background-color: #3f3f46;' + LineEnding +
-    '    border-color: #52525b;' + LineEnding +
+    '    background-color: #2d323b;' + LineEnding +
+    '    border-color: #60a5fa;' + LineEnding +
     '    color: #ffffff;' + LineEnding +
     '}' + LineEnding +
     'button.dark:active {' + LineEnding +
-    '    background-color: #18181b;' + LineEnding +
-    '    border-color: #27272a;' + LineEnding +
-    '    color: #e4e4e7;' + LineEnding +
+    '    background-color: #1b1d22;' + LineEnding +
+    '    border-color: #3b82f6;' + LineEnding +
+    '    color: #e2e8f0;' + LineEnding +
     '}' + LineEnding +
     'windowbutton {' + LineEnding +
     '    transition: all 180ms ease-out;' + LineEnding +
@@ -473,6 +473,8 @@ procedure TFtTheme.DrawButtonEx(Canvas: TFtCanvasAgg; X, Y, W, H: Integer;
 var
   actualFont: TFtFont;
   rad, textR, textG, textB, plateR, plateG, plateB, borderR, borderG, borderB: Double;
+  haloR, haloG, haloB: Double;
+  textY: Integer;
   shOffY, shBlur, shOpac: Double;
   hasShadow: Boolean;
 begin
@@ -489,6 +491,7 @@ begin
   shOffY := FShadowOffsetY;
   shBlur := FShadowBlur;
   shOpac := FShadowOpacity;
+  haloR := 0.23; haloG := 0.51; haloB := 0.96;
 
   if FDarkMode then
   begin
@@ -497,23 +500,20 @@ begin
       begin
         plateR := 0.22; plateG := 0.24; plateB := 0.26;
         borderR := 0.32; borderG := 0.35; borderB := 0.38;
-        textR := 0.95; textG := 0.96; textB := 0.97;
+        textR := 0.85; textG := 0.87; textB := 0.90;
       end;
       bsHovered:
       begin
         plateR := 0.28; plateG := 0.31; plateB := 0.34;
-        borderR := 0.45; borderG := 0.50; borderB := 0.55;
+        borderR := 0.38; borderG := 0.65; borderB := 0.98;
         textR := 1.00; textG := 1.00; textB := 1.00;
-        shOffY := shOffY + 1.0;
-        shBlur := shBlur + 2.0;
+        haloR := 0.38; haloG := 0.65; haloB := 0.98;
       end;
       bsPressed:
       begin
         plateR := 0.16; plateG := 0.18; plateB := 0.20;
-        borderR := 0.24; borderG := 0.26; borderB := 0.28;
+        borderR := 0.23; borderG := 0.51; borderB := 0.96;
         textR := 0.85; textG := 0.86; textB := 0.88;
-        shOffY := 1.0;
-        shBlur := 2.0;
       end;
     end;
   end
@@ -524,23 +524,20 @@ begin
       begin
         plateR := 0.96; plateG := 0.97; plateB := 0.98;
         borderR := 0.80; borderG := 0.82; borderB := 0.85;
-        textR := 0.15; textG := 0.18; textB := 0.22;
+        textR := 0.20; textG := 0.25; textB := 0.33;
       end;
       bsHovered:
       begin
         plateR := 1.00; plateG := 1.00; plateB := 1.00;
-        borderR := 0.65; borderG := 0.70; borderB := 0.78;
-        textR := 0.05; textG := 0.08; textB := 0.12;
-        shOffY := shOffY + 1.0;
-        shBlur := shBlur + 2.0;
+        borderR := 0.23; borderG := 0.51; borderB := 0.96;
+        textR := 0.11; textG := 0.30; textB := 0.85;
+        haloR := 0.23; haloG := 0.51; haloB := 0.96;
       end;
       bsPressed:
       begin
-        plateR := 0.90; plateG := 0.91; plateB := 0.93;
-        borderR := 0.70; borderG := 0.72; borderB := 0.75;
-        textR := 0.15; textG := 0.18; textB := 0.22;
-        shOffY := 1.0;
-        shBlur := 2.0;
+        plateR := 0.88; plateG := 0.91; plateB := 0.94;
+        borderR := 0.15; borderG := 0.39; borderB := 0.92;
+        textR := 0.06; textG := 0.09; textB := 0.16;
       end;
     end;
   end;
@@ -552,24 +549,31 @@ begin
     textR := 1.0; textG := 1.0; textB := 1.0;
   end;
 
-  // 1. Drop shadow
+  // 1. Signature Floria squircle hover halo bloom
+  if (State = bsHovered) and (rad > 0.0) then
+    Canvas.DrawRoundedRect(X - 1.5, Y - 1.5, W + 3.0, H + 3.0, rad + 1.0, haloR, haloG, haloB, 0.20);
+
+  // 2. Drop shadow
   if hasShadow and (State <> bsPressed) then
     Canvas.DrawShadow(X, Y, W, H, rad, 0.0, shOffY, shBlur, 0.0, 0.0, 0.0, shOpac);
 
-  // 2. Button plate
+  // 3. Button plate
   Canvas.DrawRoundedRect(X, Y, W, H, rad, plateR, plateG, plateB);
 
-  // 3. Border outline
+  // 4. Border outline
   Canvas.DrawRoundedRectOutline(X, Y, W, H, rad, 1.0, borderR, borderG, borderB);
 
-  // 4. Centered text
+  // 5. Centered text with tactile pressed shift
   if Caption <> '' then
   begin
     if not Assigned(Font) then
       actualFont := FtGetSystemFont()
     else
       actualFont := Font;
-    Canvas.DrawTextCentered(X, Y, W, H, Caption, actualFont, textR, textG, textB);
+    textY := Y;
+    if State = bsPressed then
+      Inc(textY);
+    Canvas.DrawTextCentered(X, textY, W, H, Caption, actualFont, textR, textG, textB);
   end;
 end;
 

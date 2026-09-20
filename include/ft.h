@@ -63,6 +63,8 @@ void ft_widget_set_focusable(FtWidget widget, int32_t focusable);
 int32_t ft_widget_get_focusable(FtWidget widget);
 void ft_widget_set_opacity(FtWidget widget, double opacity);
 double ft_widget_get_opacity(FtWidget widget);
+void ft_widget_set_enabled(FtWidget widget, int32_t enabled);
+int32_t ft_widget_get_enabled(FtWidget widget);
 int32_t ft_widget_get_parent_render_area(FtWidget widget, double* x, double* y, double* w, double* h, double* radius);
 
 /* Widgets: Buttons */

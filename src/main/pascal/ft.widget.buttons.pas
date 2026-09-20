@@ -295,6 +295,8 @@ var
   bw: Double;
   txtFont: TFtFont;
   txtR, txtG, txtB: Double;
+  textY: Integer;
+  haloR, haloG, haloB: Double;
 begin
   if not Visible then Exit;
 
@@ -308,21 +310,42 @@ begin
     else
       effRadius := FtGetTheme().CornerRadius;
 
-    // 1. Drop shadow
+    // 1. Signature Floria squircle hover halo bloom
+    if (FState = bsHovered) and (effRadius > 0.0) then
+    begin
+      if st.HasBorderColor then
+      begin
+        haloR := st.BorderColor.R;
+        haloG := st.BorderColor.G;
+        haloB := st.BorderColor.B;
+      end
+      else if FtGetDarkMode() then
+      begin
+        haloR := 0.38; haloG := 0.65; haloB := 0.98;
+      end
+      else
+      begin
+        haloR := 0.23; haloG := 0.51; haloB := 0.96;
+      end;
+      Canvas.DrawRoundedRect(X - 1.5, Y - 1.5, Width + 3.0, Height + 3.0, effRadius + 1.0, haloR, haloG, haloB, 0.20);
+    end;
+
+    // 2. Drop shadow
     if (st.HasShadow and st.EnableShadow) or
        (not st.HasShadow and (FEnableShadow = 1)) or
        (not st.HasShadow and (FEnableShadow = -1) and FtGetTheme().EnableShadow) then
     begin
-      Canvas.DrawShadow(X, Y, Width, Height, effRadius, 0.0, 2.0, 4.0, 0.0, 0.0, 0.0, 0.18);
+      if FState <> bsPressed then
+        Canvas.DrawShadow(X, Y, Width, Height, effRadius, 0.0, 2.0, 4.0, 0.0, 0.0, 0.0, 0.18);
     end;
 
-    // 2. Background
+    // 3. Background
     if st.HasBgColor then
       Canvas.DrawRoundedRect(X, Y, Width, Height, effRadius, st.BgColor.R, st.BgColor.G, st.BgColor.B, st.BgColor.A)
     else
       Canvas.DrawRoundedRect(X, Y, Width, Height, effRadius, 0.23, 0.51, 0.96, 1.0);
 
-    // 3. Border outline
+    // 4. Border outline
     bw := 1.0;
     if st.HasBorderWidth then bw := st.BorderWidth;
     if bw > 0.0 then
@@ -333,7 +356,7 @@ begin
         Canvas.DrawRoundedRectOutline(X, Y, Width, Height, effRadius, bw, st.BgColor.R * 0.8, st.BgColor.G * 0.8, st.BgColor.B * 0.8, 1.0);
     end;
 
-    // 4. Centered text
+    // 5. Centered text with tactile pressed shift
     if Caption <> '' then
     begin
       txtFont := GetFont();
@@ -344,7 +367,10 @@ begin
         txtG := st.TextColor.G;
         txtB := st.TextColor.B;
       end;
-      Canvas.DrawTextCentered(X, Y, Width, Height, Caption, txtFont, txtR, txtG, txtB);
+      textY := Y;
+      if FState = bsPressed then
+        Inc(textY);
+      Canvas.DrawTextCentered(X, textY, Width, Height, Caption, txtFont, txtR, txtG, txtB);
     end;
   end
   else

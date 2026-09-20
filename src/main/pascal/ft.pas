@@ -249,6 +249,20 @@ begin
     Result := 0;
 end;
 
+procedure ft_widget_set_enabled(widget: Pointer; enabled: cint32); cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    TFtWidget(widget).Enabled := (enabled <> 0);
+end;
+
+function ft_widget_get_enabled(widget: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) and TFtWidget(widget).Enabled then
+    Result := 1
+  else
+    Result := 0;
+end;
+
 procedure AdjustChildCoordinates(AParent: Pointer; var AX, AY: cint32);
 var
   cont: TFtContainer;
@@ -3850,6 +3864,8 @@ exports
   ft_widget_has_focus,
   ft_widget_set_focusable,
   ft_widget_get_focusable,
+  ft_widget_set_enabled,
+  ft_widget_get_enabled,
   ft_button_create,
   ft_toggle_button_create,
   ft_button_on_click,

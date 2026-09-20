@@ -402,21 +402,22 @@ begin
     // 1. Light mode button
     stBtnLight := sheet.ResolveStyle('button', '', '', '');
     AssertTrue('Light button has bg', stBtnLight.HasBgColor);
-    AssertTrue('Light button bg ~ #e2e8f0', Abs(stBtnLight.BgColor.R - (226.0 / 255.0)) < 0.02);
-    AssertTrue('Light button has text #0f172a', Abs(stBtnLight.TextColor.R - (15.0 / 255.0)) < 0.02);
-    AssertTrue('Light button has border #cbd5e1', Abs(stBtnLight.BorderColor.R - (203.0 / 255.0)) < 0.02);
+    AssertTrue('Light button bg ~ #f5f7fa', Abs(stBtnLight.BgColor.R - (245.0 / 255.0)) < 0.02);
+    AssertTrue('Light button has text #334155', Abs(stBtnLight.TextColor.R - (51.0 / 255.0)) < 0.02);
+    AssertTrue('Light button has border #ccd1d9', Abs(stBtnLight.BorderColor.R - (204.0 / 255.0)) < 0.02);
 
     // 2. Dark mode button (variables automatically switch via .dark)
     stBtnDark := sheet.ResolveStyle('button', '', 'dark', '');
     AssertTrue('Dark button has bg', stBtnDark.HasBgColor);
-    AssertTrue('Dark button bg ~ #27272a', Abs(stBtnDark.BgColor.R - (39.0 / 255.0)) < 0.02);
-    AssertTrue('Dark button text ~ #f4f4f5', Abs(stBtnDark.TextColor.R - (244.0 / 255.0)) < 0.02);
-    AssertTrue('Dark button border ~ #3f3f46', Abs(stBtnDark.BorderColor.R - (63.0 / 255.0)) < 0.02);
+    AssertTrue('Dark button bg ~ #25282e', Abs(stBtnDark.BgColor.R - (37.0 / 255.0)) < 0.02);
+    AssertTrue('Dark button text ~ #d9dee6', Abs(stBtnDark.TextColor.R - (217.0 / 255.0)) < 0.02);
+    AssertTrue('Dark button border ~ #3b4048', Abs(stBtnDark.BorderColor.R - (59.0 / 255.0)) < 0.02);
 
     // 3. Dark mode button hover
     stBtnHoverDark := sheet.ResolveStyle('button', '', 'dark', ':hover');
-    AssertTrue('Dark button hover bg ~ #3f3f46', Abs(stBtnHoverDark.BgColor.R - (63.0 / 255.0)) < 0.02);
+    AssertTrue('Dark button hover bg ~ #2d323b', Abs(stBtnHoverDark.BgColor.R - (45.0 / 255.0)) < 0.02);
     AssertTrue('Dark button hover text #ffffff', Abs(stBtnHoverDark.TextColor.R - 1.0) < 0.02);
+    AssertTrue('Dark button hover border #60a5fa', Abs(stBtnHoverDark.BorderColor.R - (96.0 / 255.0)) < 0.02);
 
     // 4. Entry surface
     stEntryLight := sheet.ResolveStyle('entry', '', '', '');

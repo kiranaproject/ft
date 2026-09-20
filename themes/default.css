@@ -1,4 +1,4 @@
-/* Floria Toolkit - Modern Default (Breeze/Fusion) Theme */
+/* Floria Toolkit - Modern Default (Floria Squircle) Theme */
 
 :root {
     /* Base Window & Text */
@@ -16,11 +16,16 @@
     --border-active: #64748b;
     --border-dark: #94a3b8;
 
-    /* Plates & Buttons */
-    --plate-bg: #e2e8f0;
-    --plate-hover: #cbd5e1;
-    --plate-active: #94a3b8;
-    --btn-hover-text: #0f172a;
+    /* Plates & Buttons (Floria Squircle Identity) */
+    --plate-bg: #f5f7fa;
+    --plate-hover: #ffffff;
+    --plate-active: #e2e8f0;
+    --btn-color: #334155;
+    --btn-border: #ccd1d9;
+    --btn-border-hover: #3b82f6;
+    --btn-border-active: #2563eb;
+    --btn-hover-text: #1d4ed8;
+    --btn-active-text: #0f172a;
 
     /* Surfaces / Controls (Entry, Container, Menu, Combobox) */
     --surface-bg: #ffffff;
@@ -61,11 +66,16 @@
     --border-active: #27272a;
     --border-dark: #52525b;
 
-    /* Dark Plates & Buttons */
-    --plate-bg: #27272a;
-    --plate-hover: #3f3f46;
-    --plate-active: #18181b;
+    /* Dark Plates & Buttons (Floria Squircle Identity) */
+    --plate-bg: #25282e;
+    --plate-hover: #2d323b;
+    --plate-active: #1b1d22;
+    --btn-color: #d9dee6;
+    --btn-border: #3b4048;
+    --btn-border-hover: #60a5fa;
+    --btn-border-active: #3b82f6;
     --btn-hover-text: #ffffff;
+    --btn-active-text: #e2e8f0;
 
     /* Dark Surfaces / Controls */
     --surface-bg: #27272a;
@@ -93,24 +103,24 @@ window {
 
 button {
     background-color: var(--plate-bg);
-    color: var(--text-dark);
-    border-color: var(--border-color);
+    color: var(--btn-color);
+    border-color: var(--btn-border);
     border-width: 1px;
-    border-radius: 6px;
+    border-radius: 7px;
     box-shadow: 1;
     transition: all 150ms ease;
 }
 
 button:hover {
     background-color: var(--plate-hover);
-    border-color: var(--border-hover);
+    border-color: var(--btn-border-hover);
     color: var(--btn-hover-text);
 }
 
 button:active {
     background-color: var(--plate-active);
-    border-color: var(--border-active);
-    color: var(--text-active);
+    border-color: var(--btn-border-active);
+    color: var(--btn-active-text);
 }
 
 button:disabled {
