@@ -84,6 +84,10 @@ Comprehensive documentation is available in the [`docs/`](docs/) directory:
 ![Themes & CSS Transitions Showcase](docs/screenshots/floria_themes.gif)
 *Pure CSS theming engine with runtime hot-swapping between Default, Dark Mode, Dracula, Nord, Gruvbox, GTK2, and Classic themes.*
 
+### 60 FPS CSS Transitions & Animations
+![CSS Transitions and Animations Showcase](docs/screenshots/floria_css_animation.gif)
+*Smooth 60 FPS CSS transition engine showcasing color morphing, border radius morphing (rectangle to pill), pulsating border outlines, cubic-bezier timing functions, and dynamic inline style transitions with zero CPU usage when idle.*
+
 ---
 
 ## Quickstart
