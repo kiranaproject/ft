@@ -23,3 +23,6 @@ When developing or creating examples, widgets, and language bindings for Floria 
 ## 4. Widget State & Semantic Theming
 - **No Arithmetic Dimming for Disabled Text**: Never apply fixed multipliers (e.g., `txt * 0.6`) to darken or lighten text for disabled states. On light themes, multiplying dark text makes it darker/blacker instead of muted. Always query semantic tokens (`--text-disabled`, `--disabled-text-color`) and resolve `:disabled` pseudo-class styles.
 - **Dependency Cleanliness**: When an internal subsystem (like `Floria.CSS` from `florialib`) fully supersedes a third-party package (like `3rdparty/fcl-css`), immediately purge the obsolete package files, unused directories, and documentation references to maintain a zero-bloat repository.
+
+## 5. Build, Dependency & Packaging Workflows
+- **Installing FloriaLib Modifications**: `florialib` is consumed by `floria-toolkit` via PasBuild package management (`project.xml`). Whenever modifying, updating, or fixing code inside the `florialib` workspace (`/home/afumi/Documents/projects/kirana/florialib`), **always immediately run `pasbuild install` inside the `florialib` directory** before compiling or testing downstream projects (`floria-toolkit`) to ensure the latest artifacts are published to the local PasBuild cache.
