@@ -121,3 +121,26 @@ Elevate text handling to meet global typography standards:
   - Freedesktop notification daemon integration for system toasts.
 - [ ] **Clipboard & Drag-and-Drop (DND)**:
   - Rich MIME type clipboard negotiation and cross-application drag-and-drop (XDnD).
+
+---
+
+## 7. Toolchain Evolution & Migration to Blaise Compiler
+
+Floria Toolkit currently compiles with Free Pascal (`fpc`) managed via **PasBuild**. The strategic compiler roadmap includes migrating the toolkit and its core helper library (`florialib`) to the **Blaise Compiler** (`blaise`), Graeme Geldenhuys's modern Pascal compiler, aligning language cleanliness, high-performance compilation, and native PasBuild ecosystem integration.
+
+### Migration Milestones:
+
+- [ ] **Language & Syntax Modernization**:
+  - Enforce strict routine syntax rules across all units (including mandatory empty parentheses `()` on all zero-parameter declarations and call sites, already underway).
+  - Cleanly decouple from FPC-specific dialects and compiler directives (`{$mode objfpc}`, `{$H+}`) toward clean Blaise language constructs.
+  - Audit record layout, dynamic arrays, and memory management semantics under the Blaise runtime model.
+- [ ] **Core Subsystem & Dependency Porting**:
+  - Port `florialib` units (`Floria.CSS`, `Floria.SVG`, `Floria.XCB`, `Floria.X11`) to compile cleanly under Blaise.
+  - Port and validate `AggPas` subpixel vector rasterizer routines and 2D math algorithms.
+- [ ] **Universal C ABI & Shared Library (`libft.so`) Verification**:
+  - Ensure Blaise shared library export capabilities generate fully compliant ELF shared objects (`libft.so`) preserving the exact C ABI defined in [`include/ft.h`](include/ft.h).
+  - Validate that foreign language bindings (C, C++, Python `ctypes`, Rust, Zig, Go) require zero code changes.
+- [ ] **PasBuild Build Profile & Test Automation**:
+  - Configure `project.xml` build configurations for native Blaise compilation.
+  - Transition unit test runners from FPCUnit to the Blaise test runner framework.
+  - Support a dual-compiler transitional pipeline ensuring continuous verification under both compilers during migration.
