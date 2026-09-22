@@ -6,7 +6,7 @@ uses
   Classes, SysUtils, Math, fpcunit, testregistry, consoletestrunner,
   Floria.SVG.DOM, Floria.SVG.Parser,
   Ft.Css, Ft.Bitmap, Ft.Blur, Ft.Canvas.Agg, Ft.Svg, Ft.Widget, Ft.Widget.Containers, Ft.Widget.Images,
-  Ft.Widget.Tabs, Ft.Widget.Splitters, Ft.Widget.TreeViews, Ft.Widget.Tables, Ft.Widget.Texts, Ft.Widget.Buttons, Ft.Theme;
+  Ft.Widget.Tabs, Ft.Widget.Splitters, Ft.Widget.TreeViews, Ft.Widget.Tables, Ft.Widget.Texts, Ft.Widget.Buttons, Ft.Widget.Switches, Ft.Theme;
 
 type
   TFtDesktopWidgetsTest = class(TTestCase)
@@ -18,6 +18,7 @@ type
     procedure TestDynamicContainerRenderArea();
     procedure TestCanvasRoundedRectClipping();
     procedure TestWindowButton();
+    procedure TestSwitch();
   end;
 
   TFtSvgTest = class(TTestCase)
@@ -1043,6 +1044,55 @@ begin
     end;
   finally
     btn.Free();
+  end;
+end;
+
+procedure TFtDesktopWidgetsTest.TestSwitch();
+var
+  sw: TFtSwitch;
+  rawBuf: array of Byte;
+  canvas: TFtCanvasAgg;
+begin
+  sw := TFtSwitch.Create(nil);
+  try
+    AssertFalse('Default switch unchecked', sw.Checked);
+    AssertEquals('Initial thumb progress 0', 0, Round(sw.ThumbProgress * 100));
+    AssertEquals('Default transition duration 200ms', 200, sw.TransitionDuration);
+
+    // Custom transition duration
+    sw.TransitionDuration := 150;
+    AssertEquals('Custom transition duration 150ms', 150, sw.TransitionDuration);
+
+    // Pre-render state initialization
+    sw.Checked := True;
+    AssertTrue('Switch checked', sw.Checked);
+    AssertEquals('Pre-render snap thumb progress 1.0', 100, Round(sw.ThumbProgress * 100));
+
+    // Render pass
+    SetLength(rawBuf, 128 * 64 * 4);
+    canvas := TFtCanvasAgg.Create(@rawBuf[0], 128, 64);
+    try
+      sw.Draw(canvas);
+
+      // Toggle via Click() -> transition begins
+      sw.Click();
+      AssertFalse('Switch unchecked after click', sw.Checked);
+      AssertEquals('Pseudo-class empty after click', '', sw.GetStatePseudoClass());
+
+      // Draw frame during animation
+      sw.Draw(canvas);
+
+      // Disable duration to test instant snap
+      sw.TransitionDuration := 0;
+      sw.Click(); // toggle back to Checked
+      AssertTrue('Switch checked again', sw.Checked);
+      AssertEquals('Thumb snaps to 1.0 when duration is 0', 100, Round(sw.ThumbProgress * 100));
+      AssertEquals('Pseudo-class is :checked', ':checked', sw.GetStatePseudoClass());
+    finally
+      canvas.Free();
+    end;
+  finally
+    sw.Free();
   end;
 end;
 

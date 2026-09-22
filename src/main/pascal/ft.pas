@@ -648,6 +648,19 @@ begin
     Result := nil;
 end;
 
+procedure ft_switch_set_transition_duration(switch_widget: Pointer; duration_ms: cint32); cdecl; export;
+begin
+  if Assigned(switch_widget) and (TObject(switch_widget) is TFtSwitch) then
+    TFtSwitch(switch_widget).TransitionDuration := duration_ms;
+end;
+
+function ft_switch_get_transition_duration(switch_widget: Pointer): cint32; cdecl; export;
+begin
+  Result := 0;
+  if Assigned(switch_widget) and (TObject(switch_widget) is TFtSwitch) then
+    Result := TFtSwitch(switch_widget).TransitionDuration;
+end;
+
 function ft_text_create(parent: Pointer; x, y, w, h: cint32; text: PChar): Pointer; cdecl; export;
 var
   strText: string;
@@ -3910,6 +3923,8 @@ exports
   ft_switch_get_shadow,
   ft_switch_set_caption,
   ft_switch_get_caption,
+  ft_switch_set_transition_duration,
+  ft_switch_get_transition_duration,
   ft_system_font_get,
   ft_system_font_set,
   ft_widget_set_font,

@@ -5,7 +5,7 @@ unit Ft.Widget.Switches;
 interface
 
 uses
-  ctypes, SysUtils, Classes, Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Theme, Ft.Css;
+  ctypes, SysUtils, Classes, Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Theme, Ft.Css, Ft.Animation;
 
 type
   TFtSwitchCallback = procedure(Sender: Pointer; Checked: cint32; UserData: Pointer); cdecl;
@@ -18,16 +18,29 @@ type
     FIsMouseDown: Boolean;
     FCornerRadius: Double;
     FEnableShadow: Integer;
+    FThumbProgress: Double;
+    FThumbInitialized: Boolean;
+    FTransitionActive: Boolean;
+    FTransitionStartVal: Double;
+    FTransitionTargetVal: Double;
+    FTransitionStartMs: QWord;
+    FEffectiveDurationMs: Integer;
+    FEffectiveTiming: string;
+    FTransitionDurationMs: Integer;
     FOnToggle: TFtSwitchCallback;
     FOnHover: TFtSwitchHoverCallback;
     FUserData: Pointer;
     procedure SetChecked(AValue: Boolean);
     procedure SetCornerRadius(AValue: Double);
     procedure SetEnableShadow(AValue: Integer);
+    procedure SetTransitionDuration(AValue: Integer);
+    procedure StartThumbTransition(ATarget: Double);
   public
     Caption: string;
     constructor Create(AParent: TFtWidget); override;
+    destructor Destroy(); override;
 
+    procedure SetEnabled(AValue: Boolean); override;
     procedure Draw(Canvas: TFtCanvasAgg); override;
     procedure Click(); override;
     procedure MouseEnter(); override;
@@ -43,6 +56,8 @@ type
 
     property Checked: Boolean read FChecked write SetChecked;
     property State: TFtButtonState read FState;
+    property ThumbProgress: Double read FThumbProgress;
+    property TransitionDuration: Integer read FTransitionDurationMs write SetTransitionDuration;
     property CornerRadius: Double read FCornerRadius write SetCornerRadius;
     property EnableShadow: Integer read FEnableShadow write SetEnableShadow;
     property OnToggle: TFtSwitchCallback read FOnToggle write FOnToggle;
@@ -63,12 +78,46 @@ begin
   FIsMouseDown := False;
   FCornerRadius := -1.0;
   FEnableShadow := -1;
+  FThumbProgress := 0.0;
+  FThumbInitialized := False;
+  FTransitionActive := False;
+  FTransitionStartVal := 0.0;
+  FTransitionTargetVal := 0.0;
+  FTransitionStartMs := 0;
+  FEffectiveDurationMs := 200;
+  FEffectiveTiming := 'ease';
+  FTransitionDurationMs := 200;
   FOnToggle := nil;
   FOnHover := nil;
   FUserData := nil;
   Caption := '';
   Width := 48;
   Height := 24;
+end;
+
+destructor TFtSwitch.Destroy();
+begin
+  if FTransitionActive then
+  begin
+    FTransitionActive := False;
+    FtGetAnimator().UnregisterContinuous(Self);
+  end;
+  inherited Destroy();
+end;
+
+procedure TFtSwitch.SetEnabled(AValue: Boolean);
+begin
+  inherited SetEnabled(AValue);
+  if not AValue then
+  begin
+    if FTransitionActive then
+    begin
+      FTransitionActive := False;
+      FtGetAnimator().UnregisterContinuous(Self);
+    end;
+    FState := bsNormal;
+    Invalidate();
+  end;
 end;
 
 procedure TFtSwitch.SetCornerRadius(AValue: Double);
@@ -89,12 +138,72 @@ begin
   end;
 end;
 
+procedure TFtSwitch.SetTransitionDuration(AValue: Integer);
+begin
+  if AValue < 0 then AValue := 0;
+  FTransitionDurationMs := AValue;
+end;
+
+procedure TFtSwitch.StartThumbTransition(ATarget: Double);
+var
+  dur: Integer;
+  st: TFtWidgetStyle;
+  timing: string;
+begin
+  dur := FTransitionDurationMs;
+  timing := 'ease';
+  st := GetResolvedStyle();
+  if st.HasTransition and (st.TransitionDurationMs > 0) then
+    dur := st.TransitionDurationMs;
+  if st.HasTransition and (st.TransitionTiming <> '') then
+    timing := st.TransitionTiming;
+
+  if (dur <= 0) or (Abs(FThumbProgress - ATarget) < 1e-4) then
+  begin
+    FThumbProgress := ATarget;
+    if FTransitionActive then
+    begin
+      FTransitionActive := False;
+      FtGetAnimator().UnregisterContinuous(Self);
+    end;
+    Invalidate();
+    Exit;
+  end;
+
+  FTransitionStartVal := FThumbProgress;
+  FTransitionTargetVal := ATarget;
+  FTransitionStartMs := GetTickCount64();
+  FEffectiveDurationMs := dur;
+  FEffectiveTiming := timing;
+  if not FTransitionActive then
+  begin
+    FTransitionActive := True;
+    FtGetAnimator().RegisterContinuous(Self);
+  end;
+  Invalidate();
+end;
+
 procedure TFtSwitch.SetChecked(AValue: Boolean);
+var
+  targetVal: Double;
 begin
   if FChecked <> AValue then
   begin
     FChecked := AValue;
     InvalidateStyle();
+    if FChecked then
+      targetVal := 1.0
+    else
+      targetVal := 0.0;
+
+    if not FThumbInitialized then
+    begin
+      FThumbInitialized := True;
+      FThumbProgress := targetVal;
+    end
+    else
+      StartThumbTransition(targetVal);
+
     Invalidate();
     if Assigned(FOnToggle) then
     begin
@@ -188,12 +297,43 @@ procedure TFtSwitch.Draw(Canvas: TFtCanvasAgg);
 var
   trackW, trackH: Integer;
   rad, thumbD, thumbX, thumbY, labelX, labelY: Double;
+  minThumbX, maxThumbX: Double;
   bw: Double;
   actualFont: TFtFont;
   st: TFtWidgetStyle;
   txtR, txtG, txtB: Double;
+  trackR, trackG, trackB: Double;
+  nowMs: QWord;
+  elapsed, t, easedT: Double;
 begin
   if not Visible then Exit;
+
+  if not FThumbInitialized then
+    FThumbInitialized := True;
+
+  if FTransitionActive then
+  begin
+    nowMs := GetTickCount64();
+    if nowMs <= FTransitionStartMs then
+      elapsed := 0.0
+    else
+      elapsed := Double(nowMs - FTransitionStartMs);
+
+    if (FEffectiveDurationMs <= 0) or (elapsed >= FEffectiveDurationMs) then
+    begin
+      FThumbProgress := FTransitionTargetVal;
+      FTransitionActive := False;
+      FtGetAnimator().UnregisterContinuous(Self);
+    end
+    else
+    begin
+      t := elapsed / FEffectiveDurationMs;
+      if t < 0.0 then t := 0.0;
+      if t > 1.0 then t := 1.0;
+      easedT := FtEvaluateTiming(t, FEffectiveTiming);
+      FThumbProgress := FTransitionStartVal + (FTransitionTargetVal - FTransitionStartVal) * easedT;
+    end;
+  end;
 
   st := GetResolvedStyle();
 
@@ -221,10 +361,9 @@ begin
   thumbD := trackH - 4.0;
   thumbY := Y + 2.0;
 
-  if FChecked then
-    thumbX := X + trackW - thumbD - 2.0
-  else
-    thumbX := X + 2.0;
+  minThumbX := X + 2.0;
+  maxThumbX := X + trackW - thumbD - 2.0;
+  thumbX := minThumbX + (maxThumbX - minThumbX) * FThumbProgress;
 
   // 1. Drop shadow if enabled
   if (st.HasShadow and st.EnableShadow) or
@@ -239,10 +378,11 @@ begin
     Canvas.DrawRoundedRect(X, Y, trackW, trackH, rad, st.BgColor.R, st.BgColor.G, st.BgColor.B, st.BgColor.A)
   else
   begin
-    if FChecked then
-      Canvas.DrawRoundedRect(X, Y, trackW, trackH, rad, 0.23, 0.51, 0.96, 1.0)
-    else
-      Canvas.DrawRoundedRect(X, Y, trackW, trackH, rad, 0.85, 0.87, 0.90, 1.0);
+    // Smoothly lerp track background in fallback mode
+    trackR := 0.85 + (0.23 - 0.85) * FThumbProgress;
+    trackG := 0.87 + (0.51 - 0.87) * FThumbProgress;
+    trackB := 0.90 + (0.96 - 0.90) * FThumbProgress;
+    Canvas.DrawRoundedRect(X, Y, trackW, trackH, rad, trackR, trackG, trackB, 1.0);
   end;
 
   // 3. Border outline

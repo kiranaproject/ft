@@ -142,6 +142,9 @@ int32_t ft_switch_get_shadow(FtWidget switch_widget);
 void ft_switch_set_caption(FtWidget switch_widget, const char* caption);
 const char* ft_switch_get_caption(FtWidget switch_widget);
 
+void ft_switch_set_transition_duration(FtWidget switch_widget, int32_t duration_ms);
+int32_t ft_switch_get_transition_duration(FtWidget switch_widget);
+
 /* Text Alignment */
 enum {
     FT_TEXT_ALIGN_LEFT = 0,
