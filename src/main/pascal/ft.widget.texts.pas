@@ -55,6 +55,7 @@ type
     function SubStrChars(ACharStart, ACharLen: Integer): string;
     function HasSelection(): Boolean;
     function GetElementType(): string; override;
+    function GetEffectiveHint(): string; override;
 
     procedure Draw(Canvas: TFtCanvasAgg); override;
     procedure MouseDown(AX, AY: Integer; AButton: Integer); override;
@@ -567,6 +568,21 @@ end;
 function TFtText.GetElementType(): string;
 begin
   Result := 'label';
+end;
+
+function TFtText.GetEffectiveHint(): string;
+var
+  f: TFtFont;
+begin
+  if not FShowHint or not Visible then Exit('');
+  if FHint <> '' then Exit(FHint);
+  if FText = '' then Exit('');
+  f := GetFont();
+  if not Assigned(f) then f := FtGetSystemFont();
+  if Assigned(f) and (Width > 0) and (f.GetTextWidth(FText) > (Width - 4.0)) then
+    Result := FText
+  else
+    Result := '';
 end;
 
 procedure TFtText.Draw(Canvas: TFtCanvasAgg);

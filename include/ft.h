@@ -67,6 +67,15 @@ void ft_widget_set_enabled(FtWidget widget, int32_t enabled);
 int32_t ft_widget_get_enabled(FtWidget widget);
 int32_t ft_widget_get_parent_render_area(FtWidget widget, double* x, double* y, double* w, double* h, double* radius);
 
+/* Widget Hints & Tooltips */
+void ft_widget_set_hint(FtWidget widget, const char* hint);
+const char* ft_widget_get_hint(FtWidget widget);
+const char* ft_widget_get_effective_hint(FtWidget widget);
+void ft_widget_set_show_hint(FtWidget widget, int32_t show_hint);
+int32_t ft_widget_get_show_hint(FtWidget widget);
+void ft_set_hint_delay(int32_t delay_ms);
+int32_t ft_get_hint_delay(void);
+
 /* Widgets: Buttons */
 FtWidget ft_button_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, const char* caption);
 FtWidget ft_toggle_button_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, const char* caption);

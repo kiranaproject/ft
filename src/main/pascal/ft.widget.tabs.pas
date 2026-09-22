@@ -57,6 +57,7 @@ type
     constructor Create(AParent: TFtWidget); override;
     destructor Destroy(); override;
     function GetElementType(): string; override;
+    function GetEffectiveHint(): string; override;
 
     function GetTabRect(AIndex: Integer; out RX, RY, RW, RH: Double): Boolean;
     function GetCloseButtonRect(AIndex: Integer; out CX, CY, CW, CH: Double): Boolean;
@@ -161,6 +162,38 @@ end;
 function TFtNotebook.GetElementType(): string;
 begin
   Result := 'notebook';
+end;
+
+function TFtNotebook.GetEffectiveHint(): string;
+var
+  page: TFtTabPage;
+  rx, ry, rw, rh, twText: Double;
+  fnt: TFtFont;
+begin
+  if not FShowHint or not Visible then Exit('');
+  if (FHoveredIndex >= 0) and (FHoveredIndex < FPages.Count) then
+  begin
+    if FHoveredClose then
+      Exit('Close Tab');
+    page := GetPage(FHoveredIndex);
+    if Assigned(page) then
+    begin
+      if page.Hint <> '' then
+        Exit(page.Hint);
+      fnt := Font;
+      if not Assigned(fnt) then fnt := FtGetSystemFont();
+      if Assigned(fnt) then
+        twText := fnt.GetTextWidth(page.Title)
+      else
+        twText := Length(page.Title) * 8.5;
+      if GetTabRect(FHoveredIndex, rx, ry, rw, rh) then
+      begin
+        if (rx + rw > X + Width) or (rw < twText + 20.0) then
+          Exit(page.Title);
+      end;
+    end;
+  end;
+  Result := inherited GetEffectiveHint();
 end;
 
 function TFtNotebook.GetPageCount(): Integer;

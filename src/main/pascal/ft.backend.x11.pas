@@ -152,6 +152,21 @@ type
   TFtWindow = TFtX11Window;
   TFtXCBWindow = TFtX11Window;
 
+  TFtHintWindow = class(TFtWidget)
+  private
+    FPopupWindow: TFtX11Window;
+    FText: string;
+    FLines: TStringList;
+  public
+    constructor Create(AParent: TFtWidget); override;
+    destructor Destroy(); override;
+    procedure SetHintText(const AText: string);
+    procedure ShowAt(AScreenX, AScreenY: Integer);
+    procedure Hide();
+    procedure Draw(Canvas: TFtCanvasAgg); override;
+    property PopupWindow: TFtX11Window read FPopupWindow;
+  end;
+
 type
   TFtSelectionLostHandler = procedure();
 
@@ -186,10 +201,16 @@ procedure FtSetSelectionLostHandler(AHandler: TFtSelectionLostHandler);
 function FtGetScreenWidth(): Integer;
 function FtGetScreenHeight(): Integer;
 
+procedure FtShowHint(AWidget: TFtWidget; const AHintText: string; AScreenX, AScreenY: Integer);
+procedure FtHideHint();
+function FtIsHintVisible(): Boolean;
+procedure FtSetHintDelay(ADelayMs: Integer);
+function FtGetHintDelay(): Integer;
+
 implementation
 
 uses
-  Ft.Widget.Menus;
+  Math, Ft.Font, Ft.Widget.Menus;
 
 procedure c_free(p: Pointer); cdecl; external 'c' name 'free';
 function xcb_cursor_load_cursor(ctx: Pxcb_cursor_context_t; const name: PChar): xcb_cursor_t; cdecl; external 'xcb-cursor' name 'xcb_cursor_load_cursor';
@@ -220,6 +241,14 @@ var
   atomNetWmWindowOpacity: xcb_atom_t = 0;
   atomBlurRegionNet: xcb_atom_t = 0;
   atomBlurRegionKde: xcb_atom_t = 0;
+
+  GHintWindow: TFtHintWindow = nil;
+  GHintTargetWidget: TFtWidget = nil;
+  GHintHoverStartMs: QWord = 0;
+  GHintDelayMs: Integer = 500;
+  GHintLastMouseX: Integer = -1;
+  GHintLastMouseY: Integer = -1;
+  GHintVisible: Boolean = False;
 
 function InternAtom(const AName: string): xcb_atom_t;
 var
@@ -414,6 +443,55 @@ begin
   end;
 end;
 
+procedure CheckHintTimer();
+var
+  nowMs: QWord;
+  effHint: string;
+begin
+  if not GHintVisible and Assigned(GHintTargetWidget) and (GHintHoverStartMs > 0) then
+  begin
+    nowMs := GetTickCount64();
+    if (nowMs - GHintHoverStartMs) >= QWord(GHintDelayMs) then
+    begin
+      effHint := GHintTargetWidget.GetEffectiveHint();
+      if effHint <> '' then
+        FtShowHint(GHintTargetWidget, effHint, GHintLastMouseX, GHintLastMouseY);
+      GHintHoverStartMs := 0;
+    end;
+  end;
+end;
+
+procedure HandleHintMotion(AWindow: TFtX11Window; ATarget: TFtWidget; ARootX, ARootY: Integer);
+begin
+  if (ATarget = nil) or not ATarget.Visible or not ATarget.ShowHint then
+  begin
+    FtHideHint();
+    GHintTargetWidget := nil;
+    GHintHoverStartMs := 0;
+    Exit;
+  end;
+
+  if ATarget <> GHintTargetWidget then
+  begin
+    FtHideHint();
+    GHintTargetWidget := ATarget;
+    GHintHoverStartMs := GetTickCount64();
+    GHintLastMouseX := ARootX;
+    GHintLastMouseY := ARootY;
+  end
+  else
+  begin
+    if (Abs(ARootX - GHintLastMouseX) > 6) or (Abs(ARootY - GHintLastMouseY) > 6) then
+    begin
+      if GHintVisible then
+        FtHideHint();
+      GHintHoverStartMs := GetTickCount64();
+      GHintLastMouseX := ARootX;
+      GHintLastMouseY := ARootY;
+    end;
+  end;
+end;
+
 procedure FtBackendProcessEvents();
 var
   ev: Pxcb_generic_event_t;
@@ -494,6 +572,7 @@ begin
       end;
     end;
   end;
+  CheckHintTimer();
 end;
 
 function IsAnyWindowResizing(ANowMs: QWord): Boolean;
@@ -1168,6 +1247,12 @@ end;
 
 procedure TFtX11Window.Hide();
 begin
+  if Assigned(GHintTargetWidget) and (GHintTargetWidget.GetRootWidget() = Self) then
+  begin
+    FtHideHint();
+    GHintTargetWidget := nil;
+    GHintHoverStartMs := 0;
+  end;
   Visible := False;
   if (FWindow <> 0) and Assigned(FConnection) then
   begin
@@ -1207,7 +1292,7 @@ begin
   end;
 
   st := GetResolvedStyle();
-  isTranslucent := (FDepth = 32) and ((FBackgroundOpacity < 0.999) or (st.HasBgColor and (st.BgColor.A < 0.999)));
+  isTranslucent := (FDepth = 32) and ((FBackgroundOpacity < 0.999) or (st.HasBgColor and (st.BgColor.A < 0.999)) or (FWindowType in [ftwtPopupMenu, ftwtDropdownMenu, ftwtTooltip]));
 
   if isPartial then
   begin
@@ -1225,7 +1310,7 @@ begin
     FCanvas.ResetAllClipping();
     FCanvas.PushClipRect(dirtyX, dirtyY, dirtyW, dirtyH);
     try
-      if not (FWindowType in [ftwtPopupMenu, ftwtDropdownMenu]) then
+      if not (FWindowType in [ftwtPopupMenu, ftwtDropdownMenu, ftwtTooltip]) then
       begin
         if st.HasBgColor then
         begin
@@ -1253,7 +1338,7 @@ begin
       FillChar(FPixelBuffer^, Width * Height * 4, 0);
 
     FCanvas.ResetAllClipping();
-    if not (FWindowType in [ftwtPopupMenu, ftwtDropdownMenu]) then
+    if not (FWindowType in [ftwtPopupMenu, ftwtDropdownMenu, ftwtTooltip]) then
     begin
       if st.HasBgColor then
       begin
@@ -1631,6 +1716,12 @@ end;
 
 procedure TFtX11Window.WidgetDestroyed(AWidget: TFtWidget);
 begin
+  if GHintTargetWidget = AWidget then
+  begin
+    FtHideHint();
+    GHintTargetWidget := nil;
+    GHintHoverStartMs := 0;
+  end;
   if FHoverWidget = AWidget then
     FHoverWidget := nil;
   if FPressedWidget = AWidget then
@@ -1846,11 +1937,15 @@ begin
           Target.MouseMove(mp^.event_x, mp^.event_y);
           UpdateCursor();
         end;
+        HandleHintMotion(Self, Target, mp^.root_x, mp^.root_y);
       end;
     end;
 
     XCB_LEAVE_NOTIFY:
     begin
+      FtHideHint();
+      GHintTargetWidget := nil;
+      GHintHoverStartMs := 0;
       if Assigned(FHoverWidget) then
       begin
         FHoverWidget.MouseLeave();
@@ -1861,6 +1956,8 @@ begin
 
     XCB_BUTTON_PRESS:
     begin
+      FtHideHint();
+      GHintHoverStartMs := 0;
       bp := Pxcb_button_press_event_t(Event);
       if FWindowType in [ftwtPopupMenu, ftwtDropdownMenu] then
       begin
@@ -1996,6 +2093,8 @@ begin
 
     XCB_KEY_PRESS:
     begin
+      FtHideHint();
+      GHintHoverStartMs := 0;
       kp := Pxcb_key_press_event_t(Event);
       col := 0;
       if (kp^.state and 1) <> 0 then col := 1;
@@ -2136,7 +2235,228 @@ begin
   end;
 end;
 
+{ TFtHintWindow }
+
+constructor TFtHintWindow.Create(AParent: TFtWidget);
+var
+  popWin: TFtX11Window;
+  prevActive: TFtX11Window;
+begin
+  inherited Create(AParent);
+  FText := '';
+  FLines := TStringList.Create();
+  FPopupWindow := nil;
+  Visible := False;
+
+  if Assigned(GConnection) then
+  begin
+    prevActive := GActiveWindow;
+    popWin := TFtX11Window.Create(100, 30, '');
+    GActiveWindow := prevActive;
+    popWin.WindowType := ftwtTooltip;
+    popWin.Borderless := True;
+    popWin.SkipTaskbar := True;
+    popWin.Visible := False;
+    FPopupWindow := popWin;
+    Self.X := 0;
+    Self.Y := 0;
+    Self.Parent := popWin;
+    popWin.Children.Add(Self);
+  end;
+end;
+
+destructor TFtHintWindow.Destroy();
+begin
+  FLines.Free();
+  if Assigned(FPopupWindow) then
+  begin
+    FPopupWindow.Children.Remove(Self);
+    Self.Parent := nil;
+    FPopupWindow.Free();
+    FPopupWindow := nil;
+  end;
+  inherited Destroy();
+end;
+
+procedure TFtHintWindow.SetHintText(const AText: string);
+var
+  fnt: TFtFont;
+  i: Integer;
+  lineW, maxW, lineH, totalH: Double;
+  padX, padY: Double;
+  newW, newH: Integer;
+begin
+  FText := AText;
+  FLines.Clear();
+  if AText = '' then Exit;
+  FLines.Text := AText;
+  if FLines.Count = 0 then
+    FLines.Add(AText);
+
+  fnt := FtGetSystemFont();
+  lineH := 16.0;
+  if Assigned(fnt) then
+    lineH := fnt.Height;
+  if lineH < 14.0 then lineH := 14.0;
+
+  maxW := 0.0;
+  for i := 0 to FLines.Count - 1 do
+  begin
+    if Assigned(fnt) then
+      lineW := fnt.GetTextWidth(FLines[i])
+    else
+      lineW := Length(FLines[i]) * 8.0;
+    if lineW > maxW then
+      maxW := lineW;
+  end;
+
+  padX := 8.0;
+  padY := 5.0;
+  totalH := FLines.Count * (lineH + 2.0) - 2.0;
+
+  newW := Math.Max(24, Math.Ceil(maxW + padX * 2.0));
+  newH := Math.Max(18, Math.Ceil(totalH + padY * 2.0));
+
+  Self.Width := newW;
+  Self.Height := newH;
+  if Assigned(FPopupWindow) then
+    FPopupWindow.Resize(newW, newH);
+end;
+
+procedure TFtHintWindow.ShowAt(AScreenX, AScreenY: Integer);
+var
+  screenW, screenH: Integer;
+  posX, posY: Integer;
+begin
+  if not Assigned(FPopupWindow) or (FText = '') then Exit;
+
+  screenW := FPopupWindow.ScreenWidth;
+  screenH := FPopupWindow.ScreenHeight;
+
+  posX := AScreenX + 12;
+  posY := AScreenY + 20;
+
+  if posX + Width > screenW - 6 then
+    posX := screenW - Width - 6;
+  if posX < 6 then
+    posX := 6;
+
+  if posY + Height > screenH - 6 then
+    posY := AScreenY - Height - 6;
+  if posY < 6 then
+    posY := 6;
+
+  FPopupWindow.SetPosition(posX, posY);
+  FPopupWindow.Show();
+  Self.Visible := True;
+  FPopupWindow.Repaint();
+end;
+
+procedure TFtHintWindow.Hide();
+begin
+  Self.Visible := False;
+  if Assigned(FPopupWindow) then
+    FPopupWindow.Hide();
+end;
+
+procedure TFtHintWindow.Draw(Canvas: TFtCanvasAgg);
+var
+  fnt: TFtFont;
+  i: Integer;
+  curY, lineH, padX, padY: Double;
+  bgR, bgG, bgB, bgA: Double;
+  bdR, bdG, bdB, bdA: Double;
+  txR, txG, txB: Double;
+  rad: Double;
+begin
+  if not Visible or (FText = '') then Exit;
+
+  rad := 5.0;
+  padX := 8.0;
+  padY := 5.0;
+
+  if FtGetDarkMode() then
+  begin
+    bgR := 0.16; bgG := 0.18; bgB := 0.22; bgA := 0.96;
+    bdR := 0.32; bdG := 0.36; bdB := 0.42; bdA := 0.90;
+    txR := 0.96; txG := 0.97; txB := 0.98;
+  end
+  else
+  begin
+    bgR := 0.18; bgG := 0.20; bgB := 0.24; bgA := 0.94;
+    bdR := 0.28; bdG := 0.30; bdB := 0.35; bdA := 0.80;
+    txR := 1.0;  txG := 1.0;  txB := 1.0;
+  end;
+
+  Canvas.DrawShadow(X, Y, Width, Height, rad, 0.0, 2.0, 4.0, 0.0, 0.0, 0.0, 0.25);
+  Canvas.DrawRoundedRect(X, Y, Width, Height, rad, bgR, bgG, bgB, bgA);
+  Canvas.DrawRoundedRectOutline(X, Y, Width, Height, rad, 1.0, bdR, bdG, bdB, bdA);
+
+  fnt := FtGetSystemFont();
+  lineH := 16.0;
+  if Assigned(fnt) then
+    lineH := fnt.Height;
+  if lineH < 14.0 then lineH := 14.0;
+
+  curY := Y + padY;
+  if Assigned(fnt) then
+    curY := curY + fnt.Ascent
+  else
+    curY := curY + 12.0;
+
+  for i := 0 to FLines.Count - 1 do
+  begin
+    if Assigned(fnt) then
+      Canvas.DrawText(X + padX, curY, FLines[i], fnt, txR, txG, txB)
+    else
+      Canvas.DrawTextLeft(X + padX, curY - 12.0, Width - padX * 2.0, lineH, FLines[i], nil, txR, txG, txB);
+    curY := curY + lineH + 2.0;
+  end;
+end;
+
+procedure FtShowHint(AWidget: TFtWidget; const AHintText: string; AScreenX, AScreenY: Integer);
+begin
+  if AHintText = '' then
+  begin
+    FtHideHint();
+    Exit;
+  end;
+  if not Assigned(GHintWindow) then
+    GHintWindow := TFtHintWindow.Create(nil);
+  GHintWindow.SetHintText(AHintText);
+  GHintWindow.ShowAt(AScreenX, AScreenY);
+  GHintVisible := True;
+end;
+
+procedure FtHideHint();
+begin
+  if GHintVisible then
+  begin
+    if Assigned(GHintWindow) then
+      GHintWindow.Hide();
+    GHintVisible := False;
+  end;
+  GHintHoverStartMs := 0;
+end;
+
+function FtIsHintVisible(): Boolean;
+begin
+  Result := GHintVisible;
+end;
+
+procedure FtSetHintDelay(ADelayMs: Integer);
+begin
+  GHintDelayMs := Math.Max(50, ADelayMs);
+end;
+
+function FtGetHintDelay(): Integer;
+begin
+  Result := GHintDelayMs;
+end;
+
 finalization
+  if Assigned(GHintWindow) then
+    FreeAndNil(GHintWindow);
   if Assigned(GBroadcaster) then
   begin
     if Assigned(FtThemeManager()) then

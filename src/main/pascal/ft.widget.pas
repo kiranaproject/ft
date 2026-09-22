@@ -30,6 +30,8 @@ type
     FHasResolvedStyle: Boolean;
     FStyleInitialized: Boolean;
     FOpacity: Double;
+    FHint: string;
+    FShowHint: Boolean;
     function GetFont(): TFtFont; virtual;
     procedure SetFont(AValue: TFtFont); virtual;
     function GetFontDesc(): string; virtual;
@@ -42,6 +44,8 @@ type
     procedure SetInlineStyle(const AValue: string); virtual;
     function GetOpacity(): Double; virtual;
     procedure SetOpacity(AValue: Double); virtual;
+    procedure SetHint(const AValue: string); virtual;
+    procedure SetShowHint(AValue: Boolean); virtual;
   public
     X, Y, Width, Height: Integer;
     Visible: Boolean;
@@ -79,6 +83,7 @@ type
     function GetStatePseudoClass(): string; virtual;
     function GetResolvedStyle(): TFtWidgetStyle; virtual;
     procedure InvalidateStyle(); virtual;
+    function GetEffectiveHint(): string; virtual;
 
     function GetChildRenderArea(out AX, AY, AW, AH, ARadius: Double): Boolean; virtual;
     function GetParentRenderArea(out AX, AY, AW, AH, ARadius: Double): Boolean; virtual;
@@ -93,6 +98,8 @@ type
     property StyleId: string read FStyleId write SetStyleId;
     property InlineStyle: string read FInlineStyle write SetInlineStyle;
     property Opacity: Double read GetOpacity write SetOpacity;
+    property Hint: string read FHint write SetHint;
+    property ShowHint: Boolean read FShowHint write SetShowHint;
   end;
 
 implementation
@@ -117,6 +124,8 @@ begin
   FStyleInitialized := False;
   FResolvedStyle.Init();
   FOpacity := 1.0;
+  FHint := '';
+  FShowHint := True;
   if Assigned(Parent) then
     Parent.Children.Add(Self);
 end;
@@ -139,7 +148,7 @@ begin
   if Assigned(Children) then
   begin
     while Children.Count > 0 do
-    begin
+      begin
       w := TFtWidget(Children[Children.Count - 1]);
       w.Parent := nil;
       Children.Delete(Children.Count - 1);
@@ -170,6 +179,22 @@ begin
     FOpacity := AValue;
     Invalidate();
   end;
+end;
+
+procedure TFtWidget.SetHint(const AValue: string);
+begin
+  FHint := AValue;
+end;
+
+procedure TFtWidget.SetShowHint(AValue: Boolean);
+begin
+  FShowHint := AValue;
+end;
+
+function TFtWidget.GetEffectiveHint(): string;
+begin
+  if not FShowHint or not Visible then Exit('');
+  Result := FHint;
 end;
 
 function TFtWidget.GetFont(): TFtFont;

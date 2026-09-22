@@ -36,6 +36,7 @@ type
 
     function GetElementType(): string; override;
     function GetStatePseudoClass(): string; override;
+    function GetEffectiveHint(): string; override;
     procedure Draw(Canvas: TFtCanvasAgg); override;
     procedure Click(); override;
     procedure MouseEnter(); override;
@@ -112,6 +113,7 @@ type
 
     function GetElementType(): string; override;
     function GetStatePseudoClass(): string; override;
+    function GetEffectiveHint(): string; override;
 
     procedure Draw(Canvas: TFtCanvasAgg); override;
     procedure Click(); override;
@@ -225,6 +227,21 @@ begin
     Result := ':checked'
   else if FFocused then
     Result := ':focus'
+  else
+    Result := '';
+end;
+
+function TFtButton.GetEffectiveHint(): string;
+var
+  f: TFtFont;
+begin
+  if not FShowHint or not Visible then Exit('');
+  if FHint <> '' then Exit(FHint);
+  if Caption = '' then Exit('');
+  f := GetFont();
+  if not Assigned(f) then f := FtGetSystemFont();
+  if Assigned(f) and (Width > 0) and (f.GetTextWidth(Caption) > (Width - 16.0)) then
+    Result := Caption
   else
     Result := '';
 end;
@@ -584,6 +601,24 @@ begin
     Result := ':hover'
   else
     Result := '';
+end;
+
+function TFtWindowButton.GetEffectiveHint(): string;
+begin
+  if not FShowHint or not Visible then Exit('');
+  if FHint <> '' then Exit(FHint);
+  case FKind of
+    wbkClose: Result := 'Close';
+    wbkMinimize: Result := 'Minimize';
+    wbkMaximize: Result := 'Maximize';
+    wbkRestore: Result := 'Restore';
+    wbkShade: Result := 'Shade';
+    wbkPin: Result := 'Pin';
+    wbkMenu: Result := 'Menu';
+    wbkAdd: Result := 'Add';
+  else
+    Result := '';
+  end;
 end;
 
 procedure TFtWindowButton.Click();

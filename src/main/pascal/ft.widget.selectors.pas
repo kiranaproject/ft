@@ -45,6 +45,7 @@ type
     procedure Toggle();
     function GetElementType(): string; override;
     function GetStatePseudoClass(): string; override;
+    function GetEffectiveHint(): string; override;
 
     property Checked: Boolean read FChecked write SetChecked;
     property Caption: string read FCaption write SetCaption;
@@ -81,6 +82,7 @@ type
 
     function GetElementType(): string; override;
     function GetStatePseudoClass(): string; override;
+    function GetEffectiveHint(): string; override;
 
     property Checked: Boolean read FChecked write SetChecked;
     property Caption: string read FCaption write SetCaption;
@@ -242,6 +244,21 @@ begin
     Result := ':hover'
   else if FFocused then
     Result := ':focus'
+  else
+    Result := '';
+end;
+
+function TFtCheckBox.GetEffectiveHint(): string;
+var
+  f: TFtFont;
+begin
+  if not FShowHint or not Visible then Exit('');
+  if FHint <> '' then Exit(FHint);
+  if FCaption = '' then Exit('');
+  f := GetFont();
+  if not Assigned(f) then f := FtGetSystemFont();
+  if Assigned(f) and (Width > 0) and (f.GetTextWidth(FCaption) > (Width - 28.0)) then
+    Result := FCaption
   else
     Result := '';
 end;
@@ -521,6 +538,21 @@ begin
     Result := ':hover'
   else if FFocused then
     Result := ':focus'
+  else
+    Result := '';
+end;
+
+function TFtRadioButton.GetEffectiveHint(): string;
+var
+  f: TFtFont;
+begin
+  if not FShowHint or not Visible then Exit('');
+  if FHint <> '' then Exit(FHint);
+  if FCaption = '' then Exit('');
+  f := GetFont();
+  if not Assigned(f) then f := FtGetSystemFont();
+  if Assigned(f) and (Width > 0) and (f.GetTextWidth(FCaption) > (Width - 28.0)) then
+    Result := FCaption
   else
     Result := '';
 end;

@@ -53,6 +53,7 @@ type
 
     function GetElementType(): string; override;
     function GetStatePseudoClass(): string; override;
+    function GetEffectiveHint(): string; override;
 
     property Checked: Boolean read FChecked write SetChecked;
     property State: TFtButtonState read FState;
@@ -232,6 +233,21 @@ begin
     Result := ':hover'
   else if FFocused then
     Result := ':focus'
+  else
+    Result := '';
+end;
+
+function TFtSwitch.GetEffectiveHint(): string;
+var
+  f: TFtFont;
+begin
+  if not FShowHint or not Visible then Exit('');
+  if FHint <> '' then Exit(FHint);
+  if Caption = '' then Exit('');
+  f := GetFont();
+  if not Assigned(f) then f := FtGetSystemFont();
+  if Assigned(f) and (Width > 0) and (f.GetTextWidth(Caption) > (Width - 52.0)) then
+    Result := Caption
   else
     Result := '';
 end;

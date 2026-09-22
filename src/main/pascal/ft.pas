@@ -38,6 +38,8 @@ var
   gLastAvailableThemes: AnsiString;
   gLastSwitchCaption: AnsiString;
   gLastTextValue: AnsiString;
+  gLastHintValue: AnsiString;
+  gLastEffectiveHintValue: AnsiString;
   gLastSelectedText: AnsiString;
   gLastClipboardText: AnsiString;
   gLastEntryText: AnsiString;
@@ -261,6 +263,63 @@ begin
     Result := 1
   else
     Result := 0;
+end;
+
+procedure ft_widget_set_hint(widget: Pointer; hint: PChar); cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+  begin
+    if hint <> nil then
+      TFtWidget(widget).Hint := StrPas(hint)
+    else
+      TFtWidget(widget).Hint := '';
+  end;
+end;
+
+function ft_widget_get_hint(widget: Pointer): PChar; cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+  begin
+    gLastHintValue := TFtWidget(widget).Hint;
+    Result := PChar(gLastHintValue);
+  end
+  else
+    Result := nil;
+end;
+
+function ft_widget_get_effective_hint(widget: Pointer): PChar; cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+  begin
+    gLastEffectiveHintValue := TFtWidget(widget).GetEffectiveHint();
+    Result := PChar(gLastEffectiveHintValue);
+  end
+  else
+    Result := nil;
+end;
+
+procedure ft_widget_set_show_hint(widget: Pointer; show_hint: cint32); cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    TFtWidget(widget).ShowHint := (show_hint <> 0);
+end;
+
+function ft_widget_get_show_hint(widget: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) and TFtWidget(widget).ShowHint then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+procedure ft_set_hint_delay(delay_ms: cint32); cdecl; export;
+begin
+  FtSetHintDelay(delay_ms);
+end;
+
+function ft_get_hint_delay(): cint32; cdecl; export;
+begin
+  Result := FtGetHintDelay();
 end;
 
 procedure AdjustChildCoordinates(AParent: Pointer; var AX, AY: cint32);
@@ -3879,6 +3938,13 @@ exports
   ft_widget_get_focusable,
   ft_widget_set_enabled,
   ft_widget_get_enabled,
+  ft_widget_set_hint,
+  ft_widget_get_hint,
+  ft_widget_get_effective_hint,
+  ft_widget_set_show_hint,
+  ft_widget_get_show_hint,
+  ft_set_hint_delay,
+  ft_get_hint_delay,
   ft_button_create,
   ft_toggle_button_create,
   ft_button_on_click,

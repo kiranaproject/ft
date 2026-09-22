@@ -6,7 +6,8 @@ uses
   Classes, SysUtils, Math, fpcunit, testregistry, consoletestrunner,
   Floria.SVG.DOM, Floria.SVG.Parser,
   Ft.Css, Ft.Bitmap, Ft.Blur, Ft.Canvas.Agg, Ft.Svg, Ft.Widget, Ft.Widget.Containers, Ft.Widget.Images,
-  Ft.Widget.Tabs, Ft.Widget.Splitters, Ft.Widget.TreeViews, Ft.Widget.Tables, Ft.Widget.Texts, Ft.Widget.Buttons, Ft.Widget.Switches, Ft.Theme;
+  Ft.Widget.Tabs, Ft.Widget.Splitters, Ft.Widget.TreeViews, Ft.Widget.Tables, Ft.Widget.Texts, Ft.Widget.Buttons,
+  Ft.Widget.Switches, Ft.Widget.Selectors, Ft.Backend.X11, Ft.Theme;
 
 type
   TFtDesktopWidgetsTest = class(TTestCase)
@@ -19,6 +20,7 @@ type
     procedure TestCanvasRoundedRectClipping();
     procedure TestWindowButton();
     procedure TestSwitch();
+    procedure TestHints();
   end;
 
   TFtSvgTest = class(TTestCase)
@@ -1094,6 +1096,155 @@ begin
   finally
     sw.Free();
   end;
+end;
+
+procedure TFtDesktopWidgetsTest.TestHints();
+var
+  w: TFtWidget;
+  btn: TFtButton;
+  wb: TFtWindowButton;
+  txt: TFtText;
+  cb: TFtCheckBox;
+  rb: TFtRadioButton;
+  sw: TFtSwitch;
+begin
+  // 1. Base TFtWidget Hint properties
+  w := TFtWidget.Create(nil);
+  try
+    AssertEquals('Default Hint is empty', '', w.Hint);
+    AssertTrue('Default ShowHint is True', w.ShowHint);
+    AssertEquals('Default effective hint is empty', '', w.GetEffectiveHint());
+
+    w.Hint := 'Tooltip content';
+    AssertEquals('Effective hint returns Hint', 'Tooltip content', w.GetEffectiveHint());
+
+    w.ShowHint := False;
+    AssertEquals('ShowHint=False yields empty effective hint', '', w.GetEffectiveHint());
+
+    w.ShowHint := True;
+    w.Visible := False;
+    AssertEquals('Visible=False yields empty effective hint', '', w.GetEffectiveHint());
+  finally
+    w.Free();
+  end;
+
+  // 2. TFtButton caption truncation & custom override
+  btn := TFtButton.Create(nil);
+  try
+    btn.Width := 200;
+    btn.Caption := 'OK';
+    AssertEquals('Non-truncated button caption yields empty hint', '', btn.GetEffectiveHint());
+
+    btn.Width := 30;
+    btn.Caption := 'A very long button caption that exceeds width';
+    AssertEquals('Truncated button caption yields full caption as hint',
+                 'A very long button caption that exceeds width', btn.GetEffectiveHint());
+
+    btn.Hint := 'Custom button override';
+    AssertEquals('Custom hint overrides auto-truncated caption',
+                 'Custom button override', btn.GetEffectiveHint());
+  finally
+    btn.Free();
+  end;
+
+  // 3. TFtWindowButton kind hints & custom override
+  wb := TFtWindowButton.Create(nil);
+  try
+    wb.Kind := wbkClose;
+    AssertEquals('wbkClose hint', 'Close', wb.GetEffectiveHint());
+
+    wb.Kind := wbkMinimize;
+    AssertEquals('wbkMinimize hint', 'Minimize', wb.GetEffectiveHint());
+
+    wb.Kind := wbkMaximize;
+    AssertEquals('wbkMaximize hint', 'Maximize', wb.GetEffectiveHint());
+
+    wb.Kind := wbkRestore;
+    AssertEquals('wbkRestore hint', 'Restore', wb.GetEffectiveHint());
+
+    wb.Hint := 'Close Window';
+    AssertEquals('Custom window button hint overrides default kind hint',
+                 'Close Window', wb.GetEffectiveHint());
+  finally
+    wb.Free();
+  end;
+
+  // 4. TFtText truncation & custom override
+  txt := TFtText.Create(nil, 'Short');
+  try
+    txt.Width := 200;
+    AssertEquals('Non-truncated text yields empty hint', '', txt.GetEffectiveHint());
+
+    txt.Width := 25;
+    txt.Text := 'This label text exceeds twenty-five pixels';
+    AssertEquals('Truncated text yields full text as hint',
+                 'This label text exceeds twenty-five pixels', txt.GetEffectiveHint());
+
+    txt.Hint := 'Information label';
+    AssertEquals('Custom hint overrides label text',
+                 'Information label', txt.GetEffectiveHint());
+  finally
+    txt.Free();
+  end;
+
+  // 5. TFtCheckBox & TFtRadioButton truncation & custom override
+  cb := TFtCheckBox.Create(nil);
+  try
+    cb.Width := 250;
+    cb.Caption := 'Enable Feature';
+    AssertEquals('Non-truncated checkbox yields empty hint', '', cb.GetEffectiveHint());
+
+    cb.Width := 35;
+    cb.Caption := 'Very long checkbox caption overflowing boundary';
+    AssertEquals('Truncated checkbox yields full caption',
+                 'Very long checkbox caption overflowing boundary', cb.GetEffectiveHint());
+
+    cb.Hint := 'Toggle setting';
+    AssertEquals('Custom hint on checkbox', 'Toggle setting', cb.GetEffectiveHint());
+  finally
+    cb.Free();
+  end;
+
+  rb := TFtRadioButton.Create(nil);
+  try
+    rb.Width := 250;
+    rb.Caption := 'Option A';
+    AssertEquals('Non-truncated radio yields empty hint', '', rb.GetEffectiveHint());
+
+    rb.Width := 35;
+    rb.Caption := 'Option with long descriptive title that overflows';
+    AssertEquals('Truncated radio yields full caption',
+                 'Option with long descriptive title that overflows', rb.GetEffectiveHint());
+
+    rb.Hint := 'Choose Option A';
+    AssertEquals('Custom hint on radio', 'Choose Option A', rb.GetEffectiveHint());
+  finally
+    rb.Free();
+  end;
+
+  // 6. TFtSwitch truncation & custom override
+  sw := TFtSwitch.Create(nil);
+  try
+    sw.Width := 250;
+    sw.Caption := 'Bluetooth';
+    AssertEquals('Non-truncated switch caption yields empty hint', '', sw.GetEffectiveHint());
+
+    sw.Width := 50;
+    sw.Caption := 'Bluetooth Power State Active';
+    AssertEquals('Truncated switch caption yields full caption',
+                 'Bluetooth Power State Active', sw.GetEffectiveHint());
+
+    sw.Hint := 'Toggle Bluetooth Device';
+    AssertEquals('Custom switch hint', 'Toggle Bluetooth Device', sw.GetEffectiveHint());
+  finally
+    sw.Free();
+  end;
+
+  // 7. Global hint delay getter and setter
+  AssertEquals('Default hint delay is 500ms', 500, FtGetHintDelay());
+  FtSetHintDelay(350);
+  AssertEquals('Updated hint delay is 350ms', 350, FtGetHintDelay());
+  FtSetHintDelay(500); // restore default
 end;
 
 var
