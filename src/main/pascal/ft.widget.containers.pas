@@ -5,7 +5,7 @@ unit Ft.Widget.Containers;
 interface
 
 uses
-  ctypes, SysUtils, Classes, Math, Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Theme, Ft.Widget.ScrollBars, Ft.Css;
+  ctypes, SysUtils, Classes, Math, Floria.Canvas.Agg, Floria.Font, Ft.Widget, Ft.Theme, Ft.Widget.ScrollBars, Ft.Css;
 
 type
   TFtContainer = class(TFtWidget)

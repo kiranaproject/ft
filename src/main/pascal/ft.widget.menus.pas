@@ -5,7 +5,7 @@ unit Ft.Widget.Menus;
 interface
 
 uses
-  SysUtils, Classes, Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Theme;
+  SysUtils, Classes, Floria.Canvas.Agg, Floria.Font, Ft.Widget, Ft.Theme;
 
 type
   { Forward declarations }

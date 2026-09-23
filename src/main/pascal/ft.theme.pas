@@ -5,7 +5,7 @@ unit Ft.Theme;
 interface
 
 uses
-  SysUtils, Classes, Ft.Canvas.Agg, Ft.Font;
+  SysUtils, Classes, Floria.Canvas.Agg, Floria.Font;
 
 type
   { Button interactive states }

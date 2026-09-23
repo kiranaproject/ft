@@ -5,7 +5,7 @@ unit Ft.Widget.Meters;
 interface
 
 uses
-  ctypes, SysUtils, Classes, Math, Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Theme, Ft.Css, Ft.Animation;
+  ctypes, SysUtils, Classes, Math, Floria.Canvas.Agg, Floria.Font, Ft.Widget, Ft.Theme, Ft.Css, Ft.Animation;
 
 type
   TFtSliderOrientation = (ftSliderHorizontal = 0, ftSliderVertical = 1);

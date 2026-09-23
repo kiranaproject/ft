@@ -6,7 +6,7 @@ interface
 
 uses
   SysUtils, Classes, Math,
-  Ft.Bitmap, Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Widget.Containers, Ft.Widget.Buttons, Ft.Theme, Ft.Css;
+  Floria.Image.Core, Floria.Canvas.Agg, Floria.Font, Ft.Widget, Ft.Widget.Containers, Ft.Widget.Buttons, Ft.Theme, Ft.Css;
 
 type
   TFtTabPage = class;
@@ -20,18 +20,18 @@ type
   private
     FTitle: string;
     FCloseable: Boolean;
-    FIcon: TFtBitmap;
+    FIcon: TFloriaImage;
     FNotebook: TFtNotebook;
     procedure SetTitle(const AValue: string);
     procedure SetCloseable(AValue: Boolean);
-    procedure SetIcon(AValue: TFtBitmap);
+    procedure SetIcon(AValue: TFloriaImage);
   public
     constructor Create(AParent: TFtWidget); override;
     function GetElementType(): string; override;
 
     property Title: string read FTitle write SetTitle;
     property Closeable: Boolean read FCloseable write SetCloseable;
-    property Icon: TFtBitmap read FIcon write SetIcon;
+    property Icon: TFloriaImage read FIcon write SetIcon;
     property Notebook: TFtNotebook read FNotebook write FNotebook;
   end;
 
@@ -128,7 +128,7 @@ begin
   end;
 end;
 
-procedure TFtTabPage.SetIcon(AValue: TFtBitmap);
+procedure TFtTabPage.SetIcon(AValue: TFloriaImage);
 begin
   if FIcon <> AValue then
   begin

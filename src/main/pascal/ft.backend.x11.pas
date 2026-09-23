@@ -7,7 +7,7 @@ interface
 uses
   ctypes, SysUtils, Classes,
   Floria.XCB, Floria.XCB.Keysyms, Floria.XCB.Cursor, Floria.X11.KeySym,
-  Ft.Canvas.Agg, Ft.Widget, Ft.Theme, Ft.Css, Ft.Animation;
+  Floria.Canvas.Agg, Ft.Widget, Ft.Theme, Ft.Css, Ft.Animation;
 
 type
   TFtWindowType = (
@@ -210,7 +210,7 @@ function FtGetHintDelay(): Integer;
 implementation
 
 uses
-  Math, Ft.Font, Ft.Widget.Menus;
+  Math, Floria.Font, Ft.Widget.Menus;
 
 procedure c_free(p: Pointer); cdecl; external 'c' name 'free';
 function xcb_cursor_load_cursor(ctx: Pxcb_cursor_context_t; const name: PChar): xcb_cursor_t; cdecl; external 'xcb-cursor' name 'xcb_cursor_load_cursor';

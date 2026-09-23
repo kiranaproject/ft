@@ -5,7 +5,7 @@ library ft;
 uses
   ctypes, SysUtils, Types,
   Ft.Backend.X11,
-  Ft.Font,
+  Floria.Font,
   Ft.Widget,
   Ft.Widget.Buttons,
   Ft.Widget.Switches,
@@ -20,10 +20,10 @@ uses
   Ft.Theme,
   Ft.Css,
   Ft.Animation,
-  Ft.Canvas.Agg,
-  Ft.Bitmap,
+  Floria.Canvas.Agg,
+  Floria.Image.Core,
   Ft.Widget.Images,
-  Ft.Svg,
+  Floria.SVG.Rasterizer,
   Floria.SVG.DOM,
   Floria.SVG.Parser,
   Ft.Widget.Tabs,
@@ -2607,85 +2607,85 @@ end;
 
 function ft_bitmap_create(AWidth, AHeight: cint32): Pointer; cdecl; export;
 begin
-  Result := TFtBitmap.Create(AWidth, AHeight);
+  Result := TFloriaImage.Create(AWidth, AHeight);
 end;
 
 function ft_bitmap_load_file(AFilePath: PAnsiChar): Pointer; cdecl; export;
 begin
   if (AFilePath = nil) or (AFilePath^ = #0) then
-    Result := TFtBitmap.Create(0, 0)
+    Result := TFloriaImage.Create(0, 0)
   else
-    Result := TFtBitmap.CreateFromFile(string(AFilePath));
+    Result := TFloriaImage.CreateFromFile(string(AFilePath));
 end;
 
 function ft_bitmap_load_memory(AData: Pointer; ASize: cint32): Pointer; cdecl; export;
 begin
   if (AData = nil) or (ASize <= 0) then
-    Result := TFtBitmap.Create(0, 0)
+    Result := TFloriaImage.Create(0, 0)
   else
-    Result := TFtBitmap.CreateFromMemory(AData, ASize);
+    Result := TFloriaImage.CreateFromMemory(AData, ASize);
 end;
 
 function ft_bitmap_create_from_rgba(APixels: Pointer; AWidth, AHeight: cint32): Pointer; cdecl; export;
 begin
-  Result := TFtBitmap.CreateFromRGBA(APixels, AWidth, AHeight);
+  Result := TFloriaImage.CreateFromRGBA(APixels, AWidth, AHeight);
 end;
 
 function ft_bitmap_create_from_bgra(APixels: Pointer; AWidth, AHeight: cint32): Pointer; cdecl; export;
 begin
-  Result := TFtBitmap.CreateFromBGRA(APixels, AWidth, AHeight);
+  Result := TFloriaImage.CreateFromBGRA(APixels, AWidth, AHeight);
 end;
 
 function ft_bitmap_get_width(ABitmap: Pointer): cint32; cdecl; export;
 begin
-  if Assigned(ABitmap) and (TObject(ABitmap) is TFtBitmap) then
-    Result := TFtBitmap(ABitmap).Width
+  if Assigned(ABitmap) and (TObject(ABitmap) is TFloriaImage) then
+    Result := TFloriaImage(ABitmap).Width
   else
     Result := 0;
 end;
 
 function ft_bitmap_get_height(ABitmap: Pointer): cint32; cdecl; export;
 begin
-  if Assigned(ABitmap) and (TObject(ABitmap) is TFtBitmap) then
-    Result := TFtBitmap(ABitmap).Height
+  if Assigned(ABitmap) and (TObject(ABitmap) is TFloriaImage) then
+    Result := TFloriaImage(ABitmap).Height
   else
     Result := 0;
 end;
 
 function ft_bitmap_get_stride(ABitmap: Pointer): cint32; cdecl; export;
 begin
-  if Assigned(ABitmap) and (TObject(ABitmap) is TFtBitmap) then
-    Result := TFtBitmap(ABitmap).Stride
+  if Assigned(ABitmap) and (TObject(ABitmap) is TFloriaImage) then
+    Result := TFloriaImage(ABitmap).Stride
   else
     Result := 0;
 end;
 
 function ft_bitmap_get_pixels(ABitmap: Pointer): Pointer; cdecl; export;
 begin
-  if Assigned(ABitmap) and (TObject(ABitmap) is TFtBitmap) then
-    Result := TFtBitmap(ABitmap).PixelBuffer
+  if Assigned(ABitmap) and (TObject(ABitmap) is TFloriaImage) then
+    Result := TFloriaImage(ABitmap).PixelBuffer
   else
     Result := nil;
 end;
 
 function ft_bitmap_create_scaled(ABitmap: Pointer; ANewW, ANewH: cint32): Pointer; cdecl; export;
 begin
-  if Assigned(ABitmap) and (TObject(ABitmap) is TFtBitmap) then
-    Result := TFtBitmap(ABitmap).CreateScaled(ANewW, ANewH)
+  if Assigned(ABitmap) and (TObject(ABitmap) is TFloriaImage) then
+    Result := TFloriaImage(ABitmap).CreateScaled(ANewW, ANewH)
   else
-    Result := TFtBitmap.Create(0, 0);
+    Result := TFloriaImage.Create(0, 0);
 end;
 
 procedure ft_bitmap_destroy(ABitmap: Pointer); cdecl; export;
 begin
-  if Assigned(ABitmap) and (TObject(ABitmap) is TFtBitmap) then
-    TFtBitmap(ABitmap).Free();
+  if Assigned(ABitmap) and (TObject(ABitmap) is TFloriaImage) then
+    TFloriaImage(ABitmap).Free();
 end;
 
 procedure ft_bitmap_save_to_file(ABitmap: Pointer; AFileName: PAnsiChar); cdecl; export;
 begin
-  if Assigned(ABitmap) and (TObject(ABitmap) is TFtBitmap) and (AFileName <> nil) then
-    TFtBitmap(ABitmap).SaveToFile(string(AFileName));
+  if Assigned(ABitmap) and (TObject(ABitmap) is TFloriaImage) and (AFileName <> nil) then
+    TFloriaImage(ABitmap).SaveToFile(string(AFileName));
 end;
 
 { --- Image Widget API --- }
@@ -2721,7 +2721,7 @@ end;
 procedure ft_image_set_bitmap(AWidget: Pointer; ABitmap: Pointer; AOwnsBitmap: cint32); cdecl; export;
 begin
   if Assigned(AWidget) and (TObject(AWidget) is TFtImage) then
-    TFtImage(AWidget).SetBitmap(TFtBitmap(ABitmap), AOwnsBitmap <> 0);
+    TFtImage(AWidget).SetBitmap(TFloriaImage(ABitmap), AOwnsBitmap <> 0);
 end;
 
 function ft_image_get_bitmap(AWidget: Pointer): Pointer; cdecl; export;
@@ -2795,7 +2795,7 @@ end;
 function ft_bitmap_create_from_svg(ASVGContent: PAnsiChar; AWidth, AHeight: cint32): Pointer; cdecl; export;
 begin
   if ASVGContent <> nil then
-    Result := Pointer(TFtBitmap.CreateFromSVG(string(ASVGContent), AWidth, AHeight))
+    Result := Pointer(TFloriaSVGRenderer.RenderStringToImage(string(ASVGContent), AWidth, AHeight))
   else
     Result := nil;
 end;
@@ -2803,7 +2803,7 @@ end;
 function ft_bitmap_create_from_svg_file(AFilePath: PAnsiChar; AWidth, AHeight: cint32): Pointer; cdecl; export;
 begin
   if AFilePath <> nil then
-    Result := Pointer(TFtBitmap.CreateFromSVGFile(string(AFilePath), AWidth, AHeight))
+    Result := Pointer(TFloriaSVGRenderer.RenderFileToImage(string(AFilePath), AWidth, AHeight))
   else
     Result := nil;
 end;
@@ -2824,20 +2824,20 @@ end;
 
 procedure ft_canvas_draw_image(ACanvas: Pointer; AX, AY: cdouble; ABitmap: Pointer; AOpacity: cdouble); cdecl; export;
 begin
-  if Assigned(ACanvas) and Assigned(ABitmap) and (TObject(ACanvas) is TFtCanvasAgg) and (TObject(ABitmap) is TFtBitmap) then
-    TFtCanvasAgg(ACanvas).DrawImage(AX, AY, TFtBitmap(ABitmap), AOpacity);
+  if Assigned(ACanvas) and Assigned(ABitmap) and (TObject(ACanvas) is TFtCanvasAgg) and (TObject(ABitmap) is TFloriaImage) then
+    TFtCanvasAgg(ACanvas).DrawImage(AX, AY, TFloriaImage(ABitmap), AOpacity);
 end;
 
 procedure ft_canvas_draw_image_scaled(ACanvas: Pointer; AX, AY, AW, AH: cdouble; ABitmap: Pointer; AOpacity: cdouble); cdecl; export;
 begin
-  if Assigned(ACanvas) and Assigned(ABitmap) and (TObject(ACanvas) is TFtCanvasAgg) and (TObject(ABitmap) is TFtBitmap) then
-    TFtCanvasAgg(ACanvas).DrawImageScaled(AX, AY, AW, AH, TFtBitmap(ABitmap), AOpacity);
+  if Assigned(ACanvas) and Assigned(ABitmap) and (TObject(ACanvas) is TFtCanvasAgg) and (TObject(ABitmap) is TFloriaImage) then
+    TFtCanvasAgg(ACanvas).DrawImageScaled(AX, AY, AW, AH, TFloriaImage(ABitmap), AOpacity);
 end;
 
 procedure ft_canvas_draw_image_part(ACanvas: Pointer; AX, AY, AW, AH: cdouble; ABitmap: Pointer; ASrcX, ASrcY, ASrcW, ASrcH: cint32; AOpacity: cdouble); cdecl; export;
 begin
-  if Assigned(ACanvas) and Assigned(ABitmap) and (TObject(ACanvas) is TFtCanvasAgg) and (TObject(ABitmap) is TFtBitmap) then
-    TFtCanvasAgg(ACanvas).DrawImagePart(AX, AY, AW, AH, TFtBitmap(ABitmap), ASrcX, ASrcY, ASrcW, ASrcH, AOpacity);
+  if Assigned(ACanvas) and Assigned(ABitmap) and (TObject(ACanvas) is TFtCanvasAgg) and (TObject(ABitmap) is TFloriaImage) then
+    TFtCanvasAgg(ACanvas).DrawImagePart(AX, AY, AW, AH, TFloriaImage(ABitmap), ASrcX, ASrcY, ASrcW, ASrcH, AOpacity);
 end;
 
 procedure ft_canvas_push_alpha(ACanvas: Pointer; AAlpha: cdouble); cdecl; export;
@@ -3096,7 +3096,7 @@ var
 begin
   if not Assigned(page) or not (TObject(page) is TFtTabPage) then Exit;
   p := TFtTabPage(page);
-  p.Icon := TFtBitmap(icon);
+  p.Icon := TFloriaImage(icon);
 end;
 
 function ft_tab_page_get_icon(page: Pointer): Pointer; cdecl; export;
@@ -3501,7 +3501,7 @@ var
 begin
   if not Assigned(node) or not (TObject(node) is TFtTreeNode) then Exit;
   n := TFtTreeNode(node);
-  n.Icon := TFtBitmap(icon);
+  n.Icon := TFloriaImage(icon);
   if Assigned(n.TreeView) then
     n.TreeView.Invalidate();
 end;
@@ -3884,7 +3884,7 @@ var
 begin
   if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
   tbl := TFtTable(table);
-  tbl.SetColumnIcon(col_idx, TFtBitmap(icon));
+  tbl.SetColumnIcon(col_idx, TFloriaImage(icon));
 end;
 
 function ft_table_get_column_icon(table: Pointer; col_idx: cint32): Pointer; cdecl; export;
@@ -3903,7 +3903,7 @@ var
 begin
   if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
   tbl := TFtTable(table);
-  tbl.SetCellIcon(row, col, TFtBitmap(icon));
+  tbl.SetCellIcon(row, col, TFloriaImage(icon));
 end;
 
 function ft_table_get_cell_icon(table: Pointer; row, col: cint32): Pointer; cdecl; export;

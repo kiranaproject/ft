@@ -5,9 +5,9 @@ program TestRunner;
 uses
   Classes, SysUtils, Math, fpcunit, testregistry, consoletestrunner,
   Floria.SVG.DOM, Floria.SVG.Parser,
-  Ft.Css, Ft.Bitmap, Ft.Blur, Ft.Canvas.Agg, Ft.Svg, Ft.Widget, Ft.Widget.Containers, Ft.Widget.Images,
+  Ft.Css, Floria.Image.Core, Floria.Image.Blur, Floria.Canvas.Agg, Floria.SVG.Rasterizer, Ft.Widget, Ft.Widget.Containers, Ft.Widget.Images,
   Ft.Widget.Tabs, Ft.Widget.Splitters, Ft.Widget.TreeViews, Ft.Widget.Tables, Ft.Widget.Texts, Ft.Widget.Buttons,
-  Ft.Widget.Switches, Ft.Widget.Selectors, Ft.Backend.X11, Ft.Theme, Ft.Font;
+  Ft.Widget.Switches, Ft.Widget.Selectors, Ft.Backend.X11, Ft.Theme, Floria.Font;
 
 type
   TFtDesktopWidgetsTest = class(TTestCase)
@@ -474,7 +474,7 @@ end;
 procedure TFtSvgTest.TestSVGRasterizeRect();
 var
   svg: string;
-  bmp: TFtBitmap;
+  bmp: TFloriaImage;
   p: PByte;
 begin
   svg := '<svg width="100" height="100" viewBox="0 0 100 100">' +
@@ -503,7 +503,7 @@ end;
 procedure TFtSvgTest.TestSVGRasterizeCircle();
 var
   svg: string;
-  bmp: TFtBitmap;
+  bmp: TFloriaImage;
   p: PByte;
 begin
   svg := '<svg width="100" height="100" viewBox="0 0 100 100">' +
@@ -528,7 +528,7 @@ end;
 procedure TFtSvgTest.TestSVGRasterizePath();
 var
   svg: string;
-  bmp: TFtBitmap;
+  bmp: TFloriaImage;
   p: PByte;
 begin
   svg := '<svg width="100" height="100" viewBox="0 0 100 100">' +
@@ -549,7 +549,7 @@ end;
 procedure TFtSvgTest.TestSVGRasterizeUseAndGroup();
 var
   svg: string;
-  bmp: TFtBitmap;
+  bmp: TFloriaImage;
   p: PByte;
 begin
   svg := '<svg width="100" height="100">' +
@@ -580,13 +580,13 @@ end;
 procedure TFtSvgTest.TestBitmapCreateFromSVG();
 var
   svg: string;
-  bmp: TFtBitmap;
+  bmp: TFloriaImage;
   p: PByte;
 begin
   svg := '<svg width="60" height="60" viewBox="0 0 60 60">' +
          '  <rect width="60" height="60" fill="#00ffff" />' +
          '</svg>';
-  bmp := TFtBitmap.CreateFromSVG(svg, 60, 60);
+  bmp := TFloriaSVGRenderer.RenderStringToImage(svg, 60, 60);
   try
     AssertEquals('Bmp Width', 60, bmp.Width);
     AssertEquals('Bmp Height', 60, bmp.Height);
@@ -619,7 +619,7 @@ end;
 procedure TFtSvgTest.TestSVGRasterizeLinearGradient();
 var
   svg: string;
-  bmp: TFtBitmap;
+  bmp: TFloriaImage;
   pLeft, pRight: PByte;
 begin
   svg := '<svg width="100" height="100">' +
@@ -654,7 +654,7 @@ end;
 procedure TFtSvgTest.TestSVGRasterizeRadialGradient();
 var
   svg: string;
-  bmp: TFtBitmap;
+  bmp: TFloriaImage;
   pCenter, pEdge: PByte;
 begin
   svg := '<svg width="100" height="100">' +
@@ -803,10 +803,10 @@ end;
 procedure TFtDesktopWidgetsTest.TestTable();
 var
   tbl: TFtTable;
-  testBmp: TFtBitmap;
+  testBmp: TFloriaImage;
 begin
   tbl := TFtTable.Create(nil);
-  testBmp := TFtBitmap.Create(16, 16);
+  testBmp := TFloriaImage.Create(16, 16);
   try
     tbl.X := 0; tbl.Y := 0; tbl.Width := 500; tbl.Height := 300;
     tbl.AddColumn('ID', 60.0, taCenter);

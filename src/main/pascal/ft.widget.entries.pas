@@ -5,7 +5,7 @@ unit Ft.Widget.Entries;
 interface
 
 uses
-  ctypes, SysUtils, Classes, Math, Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Theme, Ft.Backend.X11,
+  ctypes, SysUtils, Classes, Math, Floria.Canvas.Agg, Floria.Font, Ft.Widget, Ft.Theme, Ft.Backend.X11,
   Ft.Widget.ScrollBars, Ft.Widget.Containers, Ft.Widget.Menus, Ft.Css;
 
 type

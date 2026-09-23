@@ -5,7 +5,7 @@ unit Ft.Widget.Selectors;
 interface
 
 uses
-  ctypes, SysUtils, Classes, Math, Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Theme, Ft.Css,
+  ctypes, SysUtils, Classes, Math, Floria.Canvas.Agg, Floria.Font, Ft.Widget, Ft.Theme, Ft.Css,
   Ft.Widget.Menus, Ft.Backend.X11;
 
 type

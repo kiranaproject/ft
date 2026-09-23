@@ -5,7 +5,7 @@ unit Ft.Widget;
 interface
 
 uses
-  SysUtils, Classes, Ft.Canvas.Agg, Ft.Font, Ft.Css, Ft.Animation;
+  SysUtils, Classes, Floria.Canvas.Agg, Floria.Font, Ft.Css, Ft.Animation;
 
 const
   FT_CURSOR_DEFAULT = 0;

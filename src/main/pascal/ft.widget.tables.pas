@@ -6,7 +6,7 @@ interface
 
 uses
   SysUtils, Classes, Math,
-  Ft.Bitmap, Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Widget.Containers, Ft.Widget.ScrollBars, Ft.Widget.Texts, Ft.Theme, Ft.Css;
+  Floria.Image.Core, Floria.Canvas.Agg, Floria.Font, Ft.Widget, Ft.Widget.Containers, Ft.Widget.ScrollBars, Ft.Widget.Texts, Ft.Theme, Ft.Css;
 
 type
   TFtTextAlign = TFtTextAlignment;
@@ -18,21 +18,21 @@ type
     Width: Double;
     Alignment: TFtTextAlign;
     SortOrder: TFtSortOrder;
-    Icon: TFtBitmap;
+    Icon: TFloriaImage;
     constructor Create(const ATitle: string; AWidth: Double = 100.0; AAlign: TFtTextAlign = taLeft);
   end;
 
   TFtTableRow = class
   private
-    FCellIcons: TFPList; // TFtBitmap
+    FCellIcons: TFPList; // TFloriaImage
   public
     Cells: TStringList;
     Tag: Integer;
     Data: Pointer;
     constructor Create();
     destructor Destroy(); override;
-    procedure SetCellIcon(ACol: Integer; AIcon: TFtBitmap);
-    function GetCellIcon(ACol: Integer): TFtBitmap;
+    procedure SetCellIcon(ACol: Integer; AIcon: TFloriaImage);
+    function GetCellIcon(ACol: Integer): TFloriaImage;
   end;
 
   TFtTableRowSelectEvent = procedure(Sender: TObject; RowIndex: Integer) of object;
@@ -92,10 +92,10 @@ type
     function AddRow(const AValues: array of string): Integer;
     procedure SetCell(ARow, ACol: Integer; const AValue: string);
     function GetCell(ARow, ACol: Integer): string;
-    procedure SetColumnIcon(ACol: Integer; AIcon: TFtBitmap);
-    function GetColumnIcon(ACol: Integer): TFtBitmap;
-    procedure SetCellIcon(ARow, ACol: Integer; AIcon: TFtBitmap);
-    function GetCellIcon(ARow, ACol: Integer): TFtBitmap;
+    procedure SetColumnIcon(ACol: Integer; AIcon: TFloriaImage);
+    function GetColumnIcon(ACol: Integer): TFloriaImage;
+    procedure SetCellIcon(ARow, ACol: Integer; AIcon: TFloriaImage);
+    function GetCellIcon(ARow, ACol: Integer): TFloriaImage;
     procedure SetOnDrawHeaderCb(ACallback: TFtTableDrawHeaderCallback; AUserData: Pointer);
     procedure SetOnDrawCellCb(ACallback: TFtTableDrawCellCallback; AUserData: Pointer);
     procedure DeleteRow(AIndex: Integer);
@@ -158,7 +158,7 @@ begin
   inherited Destroy();
 end;
 
-procedure TFtTableRow.SetCellIcon(ACol: Integer; AIcon: TFtBitmap);
+procedure TFtTableRow.SetCellIcon(ACol: Integer; AIcon: TFloriaImage);
 begin
   if ACol < 0 then Exit;
   while FCellIcons.Count <= ACol do
@@ -166,10 +166,10 @@ begin
   FCellIcons[ACol] := AIcon;
 end;
 
-function TFtTableRow.GetCellIcon(ACol: Integer): TFtBitmap;
+function TFtTableRow.GetCellIcon(ACol: Integer): TFloriaImage;
 begin
   if (ACol >= 0) and (ACol < FCellIcons.Count) then
-    Result := TFtBitmap(FCellIcons[ACol])
+    Result := TFloriaImage(FCellIcons[ACol])
   else
     Result := nil;
 end;
@@ -318,7 +318,7 @@ begin
     Result := row.Cells[ACol];
 end;
 
-procedure TFtTable.SetColumnIcon(ACol: Integer; AIcon: TFtBitmap);
+procedure TFtTable.SetColumnIcon(ACol: Integer; AIcon: TFloriaImage);
 var
   col: TFtTableColumn;
 begin
@@ -330,7 +330,7 @@ begin
   end;
 end;
 
-function TFtTable.GetColumnIcon(ACol: Integer): TFtBitmap;
+function TFtTable.GetColumnIcon(ACol: Integer): TFloriaImage;
 var
   col: TFtTableColumn;
 begin
@@ -341,7 +341,7 @@ begin
     Result := nil;
 end;
 
-procedure TFtTable.SetCellIcon(ARow, ACol: Integer; AIcon: TFtBitmap);
+procedure TFtTable.SetCellIcon(ARow, ACol: Integer; AIcon: TFloriaImage);
 var
   row: TFtTableRow;
 begin
@@ -353,7 +353,7 @@ begin
   end;
 end;
 
-function TFtTable.GetCellIcon(ARow, ACol: Integer): TFtBitmap;
+function TFtTable.GetCellIcon(ARow, ACol: Integer): TFloriaImage;
 var
   row: TFtTableRow;
 begin
@@ -588,7 +588,7 @@ var
   cellText: string;
   col: TFtTableColumn;
   cellW: Double;
-  cellIcon: TFtBitmap;
+  cellIcon: TFloriaImage;
   handled: Boolean;
   textStartX, textAvailW, iconW, iconH, iconY: Double;
 begin

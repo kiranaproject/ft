@@ -5,7 +5,7 @@ unit Ft.Widget.ScrollBars;
 interface
 
 uses
-  ctypes, SysUtils, Classes, Math, Ft.Canvas.Agg, Ft.Widget, Ft.Theme, Ft.Css;
+  ctypes, SysUtils, Classes, Math, Floria.Canvas.Agg, Ft.Widget, Ft.Theme, Ft.Css;
 
 type
   { ScrollBar visibility modes for scrollable containers }

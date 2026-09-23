@@ -5,7 +5,7 @@ unit Ft.Widget.Buttons;
 interface
 
 uses
-  ctypes, SysUtils, Classes, Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Theme, Ft.Css, Ft.Animation;
+  ctypes, SysUtils, Classes, Floria.Canvas.Agg, Floria.Font, Ft.Widget, Ft.Theme, Ft.Css, Ft.Animation;
 
 type
   TFtClickCallback = procedure(Sender: Pointer; UserData: Pointer); cdecl;

@@ -6,7 +6,7 @@ interface
 
 uses
   SysUtils, Classes, Math,
-  Ft.Canvas.Agg, Ft.Widget, Ft.Font, Ft.Theme, Ft.Backend.X11, Ft.Widget.Menus, Ft.Css;
+  Floria.Canvas.Agg, Ft.Widget, Floria.Font, Ft.Theme, Ft.Backend.X11, Ft.Widget.Menus, Ft.Css;
 
 type
   TFtTextAlignment = (taLeft, taCenter, taRight);

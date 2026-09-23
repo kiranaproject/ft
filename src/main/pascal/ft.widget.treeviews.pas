@@ -6,7 +6,7 @@ interface
 
 uses
   SysUtils, Classes, Math,
-  Ft.Bitmap, Ft.Canvas.Agg, Ft.Font, Ft.Widget, Ft.Widget.Containers, Ft.Widget.ScrollBars, Ft.Theme, Ft.Css;
+  Floria.Image.Core, Floria.Canvas.Agg, Floria.Font, Ft.Widget, Ft.Widget.Containers, Ft.Widget.ScrollBars, Ft.Theme, Ft.Css;
 
 type
   TFtTreeNode = class;
@@ -21,7 +21,7 @@ type
     FData: Pointer;
     FTag: Integer;
     FExpanded: Boolean;
-    FIcon: TFtBitmap;
+    FIcon: TFloriaImage;
     FParent: TFtTreeNode;
     FChildren: TFPList; // TFtTreeNode
     FTreeView: TFtTreeView;
@@ -42,7 +42,7 @@ type
     property Data: Pointer read FData write FData;
     property Tag: Integer read FTag write FTag;
     property Expanded: Boolean read FExpanded write FExpanded;
-    property Icon: TFtBitmap read FIcon write FIcon;
+    property Icon: TFloriaImage read FIcon write FIcon;
     property Parent: TFtTreeNode read FParent;
     property Level: Integer read GetLevel;
     property ChildCount: Integer read GetChildCount;

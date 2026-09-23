@@ -8,9 +8,10 @@ uses
   SysUtils, Classes,
   Floria.SVG.DOM,
   Floria.SVG.Parser,
+  Floria.SVG.Rasterizer,
+  Floria.Canvas.Agg,
+  Floria.Image.Core,
   Ft.Widget,
-  Ft.Canvas.Agg,
-  Ft.Bitmap,
   Ft.Theme,
   Ft.Css;
 
@@ -24,15 +25,15 @@ type
 
   TFtImage = class(TFtWidget)
   private
-    FBitmap: TFtBitmap;
+    FBitmap: TFloriaImage;
     FOwnsBitmap: Boolean;
     FScaleMode: TFtImageScaleMode;
     FSVGDoc: TSVGDocument;
-    FCachedSVG: TFtBitmap;
+    FCachedSVG: TFloriaImage;
     FCachedSVGWidth: Integer;
     FCachedSVGHeight: Integer;
     procedure SetScaleMode(AValue: TFtImageScaleMode);
-    function GetBitmap(): TFtBitmap;
+    function GetBitmap(): TFloriaImage;
     procedure ClearImage();
   public
     constructor Create(AParent: TFtWidget; AX, AY, AW, AH: Integer; const AFilePath: string = ''); reintroduce;
@@ -42,22 +43,20 @@ type
     procedure LoadFromMemory(AData: Pointer; ASize: Integer);
     procedure LoadSVGFromFile(const AFilePath: string);
     procedure LoadSVGFromString(const ASVGContent: string);
-    procedure SetBitmap(ABitmap: TFtBitmap; AOwnsBitmap: Boolean = False);
+    procedure SetBitmap(ABitmap: TFloriaImage; AOwnsBitmap: Boolean = False);
     procedure InvalidateSVGCache();
 
     procedure Draw(ACanvas: TFtCanvasAgg); override;
     function GetElementType(): string; override;
 
-    property Bitmap: TFtBitmap read GetBitmap;
+    property Bitmap: TFloriaImage read GetBitmap;
+    property Image: TFloriaImage read GetBitmap;
     property SVGDocument: TSVGDocument read FSVGDoc;
     property OwnsBitmap: Boolean read FOwnsBitmap write FOwnsBitmap;
     property ScaleMode: TFtImageScaleMode read FScaleMode write SetScaleMode;
   end;
 
 implementation
-
-uses
-  Ft.Svg;
 
 procedure TFtImage.InvalidateSVGCache();
 begin
@@ -98,13 +97,13 @@ begin
   end;
 end;
 
-function TFtImage.GetBitmap(): TFtBitmap;
+function TFtImage.GetBitmap(): TFloriaImage;
 begin
   if (FBitmap = nil) and Assigned(FSVGDoc) then
   begin
     if Assigned(FCachedSVG) then
       Exit(FCachedSVG);
-    FBitmap := TFtSVGRenderer.RenderToBitmap(FSVGDoc, Width, Height);
+    FBitmap := TFloriaSVGRenderer.RenderToImage(FSVGDoc, Width, Height);
     FOwnsBitmap := True;
   end;
   Result := FBitmap;
@@ -144,7 +143,7 @@ begin
     Exit;
   end;
 
-  FBitmap := TFtBitmap.CreateFromFile(AFilePath);
+  FBitmap := TFloriaImage.CreateFromFile(AFilePath);
   FOwnsBitmap := True;
   Invalidate();
 end;
@@ -174,12 +173,12 @@ end;
 procedure TFtImage.LoadFromMemory(AData: Pointer; ASize: Integer);
 begin
   ClearImage();
-  FBitmap := TFtBitmap.CreateFromMemory(AData, ASize);
+  FBitmap := TFloriaImage.CreateFromMemory(AData, ASize);
   FOwnsBitmap := True;
   Invalidate();
 end;
 
-procedure TFtImage.SetBitmap(ABitmap: TFtBitmap; AOwnsBitmap: Boolean = False);
+procedure TFtImage.SetBitmap(ABitmap: TFloriaImage; AOwnsBitmap: Boolean = False);
 begin
   ClearImage();
   FBitmap := ABitmap;
@@ -268,7 +267,7 @@ begin
       if (FCachedSVG = nil) or (FCachedSVGWidth <> targetW) or (FCachedSVGHeight <> targetH) then
       begin
         InvalidateSVGCache();
-        FCachedSVG := TFtSVGRenderer.RenderToBitmap(FSVGDoc, targetW, targetH);
+        FCachedSVG := TFloriaSVGRenderer.RenderToImage(FSVGDoc, targetW, targetH);
         FCachedSVGWidth := targetW;
         FCachedSVGHeight := targetH;
       end;
