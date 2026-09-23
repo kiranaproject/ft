@@ -229,6 +229,10 @@ This document provides a comprehensive reference for the Floria Toolkit C ABI ex
 | `int32_t ft_text_get_alignment(FtWidget txt)` | Gets current text alignment. |
 | `void ft_text_set_color(FtWidget txt, double r, double g, double b)` | Sets custom text color override. |
 | `void ft_text_reset_color(FtWidget txt)` | Resets text color to follow theme. |
+| `void ft_text_set_word_wrap(FtWidget txt, int32_t word_wrap)` | Enables (`1`) or disables (`0`) multiline word wrapping. |
+| `int32_t ft_text_get_word_wrap(FtWidget txt)` | Queries whether word wrapping is enabled. |
+| `void ft_text_set_wrap(FtWidget txt, int32_t wrap)` | Alias for `ft_text_set_word_wrap`. |
+| `int32_t ft_text_get_wrap(FtWidget txt)` | Alias for `ft_text_get_word_wrap`. |
 
 ---
 

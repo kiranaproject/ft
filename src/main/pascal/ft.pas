@@ -841,6 +841,30 @@ begin
     TFtText(text_widget).ResetColor();
 end;
 
+procedure ft_text_set_word_wrap(text_widget: Pointer; word_wrap: cint32); cdecl; export;
+begin
+  if Assigned(text_widget) and (TObject(text_widget) is TFtText) then
+    TFtText(text_widget).WordWrap := (word_wrap <> 0);
+end;
+
+function ft_text_get_word_wrap(text_widget: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(text_widget) and (TObject(text_widget) is TFtText) then
+    Result := Ord(TFtText(text_widget).WordWrap)
+  else
+    Result := 0;
+end;
+
+procedure ft_text_set_wrap(text_widget: Pointer; wrap: cint32); cdecl; export;
+begin
+  ft_text_set_word_wrap(text_widget, wrap);
+end;
+
+function ft_text_get_wrap(text_widget: Pointer): cint32; cdecl; export;
+begin
+  Result := ft_text_get_word_wrap(text_widget);
+end;
+
 procedure ft_clipboard_set_text(text: PChar); cdecl; export;
 begin
   if Assigned(text) then
@@ -4024,6 +4048,10 @@ exports
   ft_text_get_alignment,
   ft_text_set_color,
   ft_text_reset_color,
+  ft_text_set_word_wrap,
+  ft_text_get_word_wrap,
+  ft_text_set_wrap,
+  ft_text_get_wrap,
   ft_clipboard_set_text,
   ft_clipboard_get_text,
   ft_entry_create,

@@ -181,6 +181,10 @@ void ft_text_set_alignment(FtWidget text_widget, int32_t alignment);
 int32_t ft_text_get_alignment(FtWidget text_widget);
 void ft_text_set_color(FtWidget text_widget, double r, double g, double b);
 void ft_text_reset_color(FtWidget text_widget);
+void ft_text_set_word_wrap(FtWidget text_widget, int32_t word_wrap);
+int32_t ft_text_get_word_wrap(FtWidget text_widget);
+void ft_text_set_wrap(FtWidget text_widget, int32_t wrap);
+int32_t ft_text_get_wrap(FtWidget text_widget);
 
 /* System Clipboard */
 void ft_clipboard_set_text(const char* text);

@@ -7,7 +7,7 @@ uses
   Floria.SVG.DOM, Floria.SVG.Parser,
   Ft.Css, Ft.Bitmap, Ft.Blur, Ft.Canvas.Agg, Ft.Svg, Ft.Widget, Ft.Widget.Containers, Ft.Widget.Images,
   Ft.Widget.Tabs, Ft.Widget.Splitters, Ft.Widget.TreeViews, Ft.Widget.Tables, Ft.Widget.Texts, Ft.Widget.Buttons,
-  Ft.Widget.Switches, Ft.Widget.Selectors, Ft.Backend.X11, Ft.Theme;
+  Ft.Widget.Switches, Ft.Widget.Selectors, Ft.Backend.X11, Ft.Theme, Ft.Font;
 
 type
   TFtDesktopWidgetsTest = class(TTestCase)
@@ -21,6 +21,7 @@ type
     procedure TestWindowButton();
     procedure TestSwitch();
     procedure TestHints();
+    procedure TestTextWordWrapAndClipping();
   end;
 
   TFtSvgTest = class(TTestCase)
@@ -1245,6 +1246,125 @@ begin
   FtSetHintDelay(350);
   AssertEquals('Updated hint delay is 350ms', 350, FtGetHintDelay());
   FtSetHintDelay(500); // restore default
+end;
+
+procedure TFtDesktopWidgetsTest.TestTextWordWrapAndClipping();
+var
+  txt: TFtText;
+  f: TFtFont;
+  lines: TFtTextLineArray;
+  sumChars: Integer;
+  i: Integer;
+  buf: array[0..99, 0..99] of TBgraPixel;
+  canvas: TFtCanvasAgg;
+  pBuf: PBgraPixel;
+  x, y: Integer;
+begin
+  txt := TFtText.Create(nil, 'The quick brown fox jumps over the lazy dog');
+  try
+    // 1. Default properties
+    AssertFalse('Default WordWrap is False', txt.WordWrap);
+    AssertFalse('Default Wrap alias is False', txt.Wrap);
+
+    // 2. Setting WordWrap / Wrap
+    txt.WordWrap := True;
+    AssertTrue('WordWrap is True', txt.WordWrap);
+    AssertTrue('Wrap alias is True', txt.Wrap);
+
+    txt.Wrap := False;
+    AssertFalse('WordWrap after Wrap := False', txt.WordWrap);
+    AssertFalse('Wrap alias after Wrap := False', txt.Wrap);
+
+    txt.WordWrap := True;
+
+    // 3. BuildLines with wide vs narrow width
+    f := txt.Font;
+    if not Assigned(f) then f := FtGetSystemFont();
+
+    lines := txt.BuildLines(f, 2000.0);
+    AssertEquals('Wide width yields 1 line', 1, Length(lines));
+    AssertEquals('Single line text matches', 'The quick brown fox jumps over the lazy dog', lines[0].Text);
+
+    lines := txt.BuildLines(f, 80.0);
+    AssertTrue('Narrow width yields multiple lines', Length(lines) > 1);
+    sumChars := 0;
+    for i := 0 to High(lines) do
+      Inc(sumChars, lines[i].CharLen);
+    AssertEquals('All characters accounted for across lines', txt.CharCount(), sumChars);
+
+    // 4. Long unbroken word
+    txt.Text := 'Supercalifragilisticexpialidocious';
+    lines := txt.BuildLines(f, 50.0);
+    AssertTrue('Long unbroken word splits into multiple lines', Length(lines) > 1);
+    sumChars := 0;
+    for i := 0 to High(lines) do
+      Inc(sumChars, lines[i].CharLen);
+    AssertEquals('All characters of long word preserved', txt.CharCount(), sumChars);
+
+    // 5. Explicit newlines
+    txt.Text := 'Line 1'#10'Line 2'#10'Line 3';
+    lines := txt.BuildLines(f, 500.0);
+    AssertEquals('Explicit newlines yield 3 lines', 3, Length(lines));
+    AssertEquals('Line 1 text', 'Line 1', lines[0].Text);
+    AssertEquals('Line 2 text', 'Line 2', lines[1].Text);
+    AssertEquals('Line 3 text', 'Line 3', lines[2].Text);
+
+    // 6. Hit testing multiline text
+    txt.X := 10;
+    txt.Y := 10;
+    txt.Width := 200;
+    txt.Height := 100;
+    lines := txt.BuildLines(f, 196.0);
+    AssertTrue('Lines count >= 2', Length(lines) >= 2);
+    AssertEquals('HitTestChar line 0 start', 0, txt.HitTestChar(12, Round(lines[0].Y)));
+    AssertEquals('HitTestChar line 1 start', lines[1].StartChar, txt.HitTestChar(12, Round(lines[1].Y)));
+
+    // 7. GetEffectiveHint on vertical overflow
+    txt.Height := 20; // Only enough for 1 line, but text has 3 lines
+    AssertEquals('Vertical overflow yields full text hint', 'Line 1'#10'Line 2'#10'Line 3', txt.GetEffectiveHint());
+    txt.Height := 200; // Enough for all 3 lines
+    AssertEquals('Sufficient height yields empty hint', '', txt.GetEffectiveHint());
+
+    // 8. Clipping test: verify no text pixels drawn outside widget bounds
+    pBuf := @buf[0, 0];
+    for y := 0 to 99 do
+      for x := 0 to 99 do
+      begin
+        buf[y, x].R := 255;
+        buf[y, x].G := 255;
+        buf[y, x].B := 255;
+        buf[y, x].A := 255;
+      end;
+
+    canvas := TFtCanvasAgg.Create(pBuf, 100, 100);
+    try
+      txt.X := 10;
+      txt.Y := 10;
+      txt.Width := 40;
+      txt.Height := 25;
+      txt.Text := 'WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW';
+      txt.SetColor(0.0, 0.0, 0.0);
+      txt.Draw(canvas);
+
+      // Widget bound is X: [10..50], Y: [10..35].
+      // Any pixel outside X > 50 or Y > 35 must remain untouched white (R=255)!
+      for x := 52 to 99 do
+        for y := 10 to 35 do
+        begin
+          AssertEquals('Pixel outside X bounds untouched', 255, buf[y, x].R);
+        end;
+
+      for y := 37 to 99 do
+        for x := 10 to 50 do
+        begin
+          AssertEquals('Pixel outside Y bounds untouched', 255, buf[y, x].R);
+        end;
+    finally
+      canvas.Free();
+    end;
+  finally
+    txt.Free();
+  end;
 end;
 
 var

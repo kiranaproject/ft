@@ -12,11 +12,21 @@ type
   TFtTextAlignment = (taLeft, taCenter, taRight);
   TFtTextChangeNotify = procedure(Sender: Pointer; UserData: Pointer); cdecl;
 
+  TFtTextLine = record
+    StartChar: Integer;   { 0-based character index in FText }
+    CharLen: Integer;     { Number of Unicode characters in this line }
+    Text: string;         { UTF-8 string content of this line }
+    LineWidth: Double;    { Measured width of visible text (excluding trailing wrap spaces) }
+    Y: Double;            { Baseline Y coordinate }
+  end;
+  TFtTextLineArray = array of TFtTextLine;
+
   TFtText = class(TFtWidget)
   private
     FText: string;
     FSelectable: Boolean;
     FAlignment: TFtTextAlignment;
+    FWordWrap: Boolean;
     FCustomColor: Boolean;
     FTextColor: TFtRgbColor;
 
@@ -39,8 +49,8 @@ type
     procedure SetText(const AValue: string);
     procedure SetSelectable(AValue: Boolean);
     procedure SetAlignment(AValue: TFtTextAlignment);
+    procedure SetWordWrap(AValue: Boolean);
     function GetSelectedText(): string;
-    function HitTestChar(AX: Integer): Integer;
     procedure SelectWordAt(ACharIdx: Integer);
     procedure CreateDefaultMenu();
     procedure UpdateDefaultMenu();
@@ -54,6 +64,9 @@ type
     function CharByteOffset(ACharIdx: Integer): Integer;
     function SubStrChars(ACharStart, ACharLen: Integer): string;
     function HasSelection(): Boolean;
+    function BuildLines(AFont: TFtFont; AAvailWidth: Double): TFtTextLineArray;
+    function HitTestChar(AX, AY: Integer): Integer; overload;
+    function HitTestChar(AX: Integer): Integer; overload;
     function GetElementType(): string; override;
     function GetEffectiveHint(): string; override;
 
@@ -73,6 +86,8 @@ type
     property Text: string read FText write SetText;
     property Selectable: Boolean read FSelectable write SetSelectable;
     property Alignment: TFtTextAlignment read FAlignment write SetAlignment;
+    property WordWrap: Boolean read FWordWrap write SetWordWrap;
+    property Wrap: Boolean read FWordWrap write SetWordWrap;
     property SelectedText: string read GetSelectedText;
     property SelStart: Integer read FSelAnchor;
     property SelCursor: Integer read FSelCursor;
@@ -110,6 +125,117 @@ begin
     TFtText(UserData).CopyToClipboard();
 end;
 
+type
+  TFtTokenKind = (tkWord, tkSpace, tkNewline);
+  TFtTextToken = record
+    Kind: TFtTokenKind;
+    StartChar: Integer;
+    CharLen: Integer;
+    Text: string;
+  end;
+  TFtTextTokenArray = array of TFtTextToken;
+
+function IsCJK(code: Cardinal): Boolean;
+begin
+  Result := ((code >= $2E80) and (code <= $9FFF)) or  { CJK Radicals, Ideographs }
+            ((code >= $AC00) and (code <= $D7AF)) or  { Hangul Syllables }
+            ((code >= $F900) and (code <= $FAFF)) or  { CJK Compatibility }
+            ((code >= $FF00) and (code <= $FFEF)) or  { Fullwidth Forms }
+            ((code >= $3000) and (code <= $303F)) or  { CJK Symbols and Punctuation }
+            ((code >= $3040) and (code <= $309F)) or  { Hiragana }
+            ((code >= $30A0) and (code <= $30FF));    { Katakana }
+end;
+
+function TokenizeText(const S: string): TFtTextTokenArray;
+var
+  p, pTokenStart: PChar;
+  chCode: Cardinal;
+  chLen: LongInt;
+  charIdx, tokenCharStart, tokenCharLen: Integer;
+  tokCount: Integer;
+  tokStr: string;
+
+  procedure AddToken(AKind: TFtTokenKind; AStartChar, ACharLen: Integer; const AText: string);
+  begin
+    if Length(Result) <= tokCount then
+      SetLength(Result, (tokCount + 1) * 2);
+    Result[tokCount].Kind := AKind;
+    Result[tokCount].StartChar := AStartChar;
+    Result[tokCount].CharLen := ACharLen;
+    Result[tokCount].Text := AText;
+    Inc(tokCount);
+  end;
+
+begin
+  Result := nil;
+  tokCount := 0;
+  if S = '' then Exit;
+  p := PChar(S);
+  charIdx := 0;
+  while p^ <> #0 do
+  begin
+    chCode := UTF8CharToUnicode(p, chLen);
+    tokenCharStart := charIdx;
+    pTokenStart := p;
+
+    if (chCode = 13) or (chCode = 10) then
+    begin
+      if (chCode = 13) and ((p + chLen)^ = #10) then
+      begin
+        AddToken(tkNewline, tokenCharStart, 2, #13#10);
+        Inc(p, chLen + 1);
+        Inc(charIdx, 2);
+      end
+      else
+      begin
+        if chCode = 13 then
+          AddToken(tkNewline, tokenCharStart, 1, #13)
+        else
+          AddToken(tkNewline, tokenCharStart, 1, #10);
+        Inc(p, chLen);
+        Inc(charIdx, 1);
+      end;
+    end
+    else if (chCode = 32) or (chCode = 9) then
+    begin
+      tokenCharLen := 0;
+      while (p^ <> #0) do
+      begin
+        chCode := UTF8CharToUnicode(p, chLen);
+        if (chCode <> 32) and (chCode <> 9) then Break;
+        Inc(p, chLen);
+        Inc(charIdx);
+        Inc(tokenCharLen);
+      end;
+      SetString(tokStr, pTokenStart, p - pTokenStart);
+      AddToken(tkSpace, tokenCharStart, tokenCharLen, tokStr);
+    end
+    else if IsCJK(chCode) then
+    begin
+      SetString(tokStr, p, chLen);
+      AddToken(tkWord, tokenCharStart, 1, tokStr);
+      Inc(p, chLen);
+      Inc(charIdx);
+    end
+    else
+    begin
+      tokenCharLen := 0;
+      while (p^ <> #0) do
+      begin
+        chCode := UTF8CharToUnicode(p, chLen);
+        if (chCode = 13) or (chCode = 10) or (chCode = 32) or (chCode = 9) or IsCJK(chCode) then
+          Break;
+        Inc(p, chLen);
+        Inc(charIdx);
+        Inc(tokenCharLen);
+      end;
+      SetString(tokStr, pTokenStart, p - pTokenStart);
+      AddToken(tkWord, tokenCharStart, tokenCharLen, tokStr);
+    end;
+  end;
+  SetLength(Result, tokCount);
+end;
+
 { TFtText }
 
 constructor TFtText.Create(AParent: TFtWidget; const AText: string = '');
@@ -118,6 +244,7 @@ begin
   FText := AText;
   FSelectable := True; { Selectable by default }
   FAlignment := taLeft;
+  FWordWrap := False;
   FCustomColor := False;
   FTextColor := MakeRgbColor(0.0, 0.0, 0.0);
 
@@ -190,6 +317,15 @@ begin
   if FAlignment <> AValue then
   begin
     FAlignment := AValue;
+    Invalidate();
+  end;
+end;
+
+procedure TFtText.SetWordWrap(AValue: Boolean);
+begin
+  if FWordWrap <> AValue then
+  begin
+    FWordWrap := AValue;
     Invalidate();
   end;
 end;
@@ -268,38 +404,241 @@ begin
   Result := SubStrChars(sMin, sMax - sMin);
 end;
 
-function TFtText.HitTestChar(AX: Integer): Integer;
+function TFtText.BuildLines(AFont: TFtFont; AAvailWidth: Double): TFtTextLineArray;
+var
+  availW: Double;
+  tokens: TFtTextTokenArray;
+  tokIdx: Integer;
+  curStartChar, curCharLen: Integer;
+  curText: string;
+  testW: Double;
+  lineCount: Integer;
+  lineHeight: Double;
+  i: Integer;
+
+  procedure PushLine();
+  var
+    visText: string;
+  begin
+    if Length(Result) <= lineCount then
+      SetLength(Result, (lineCount + 1) * 2);
+    Result[lineCount].StartChar := curStartChar;
+    Result[lineCount].CharLen := curCharLen;
+    Result[lineCount].Text := curText;
+    visText := TrimRight(curText);
+    if visText <> '' then
+      Result[lineCount].LineWidth := AFont.GetTextWidth(visText)
+    else
+      Result[lineCount].LineWidth := 0.0;
+    Result[lineCount].Y := 0.0;
+    Inc(lineCount);
+    curStartChar := curStartChar + curCharLen;
+    curCharLen := 0;
+    curText := '';
+  end;
+
+  procedure BreakWordAcrossLines(const ATok: TFtTextToken);
+  var
+    p: PChar;
+    chLen: LongInt;
+    chStr: string;
+    testW: Double;
+  begin
+    p := PChar(ATok.Text);
+    while p^ <> #0 do
+    begin
+      UTF8CharToUnicode(p, chLen);
+      SetString(chStr, p, chLen);
+      testW := AFont.GetTextWidth(TrimRight(curText + chStr));
+      if (curCharLen > 0) and (testW > availW) then
+      begin
+        PushLine();
+      end;
+      curText := curText + chStr;
+      Inc(curCharLen);
+      Inc(p, chLen);
+    end;
+  end;
+
+begin
+  Result := nil;
+  if FText = '' then Exit;
+  if not Assigned(AFont) then
+  begin
+    AFont := GetFont();
+    if not Assigned(AFont) then AFont := FtGetSystemFont();
+  end;
+
+  if not FWordWrap then
+  begin
+    SetLength(Result, 1);
+    Result[0].StartChar := 0;
+    Result[0].CharLen := CharCount();
+    Result[0].Text := FText;
+    Result[0].LineWidth := AFont.GetTextWidth(FText);
+    Result[0].Y := Y + (Height / 2.0) + (AFont.Ascent - AFont.Descent) / 2.0;
+    Exit;
+  end;
+
+  availW := AAvailWidth;
+  if availW < 1.0 then availW := 1.0;
+
+  tokens := TokenizeText(FText);
+  if Length(tokens) = 0 then Exit;
+
+  lineCount := 0;
+  curStartChar := 0;
+  curCharLen := 0;
+  curText := '';
+  tokIdx := 0;
+
+  while tokIdx < Length(tokens) do
+  begin
+    case tokens[tokIdx].Kind of
+      tkNewline:
+        begin
+          curCharLen := curCharLen + tokens[tokIdx].CharLen;
+          PushLine();
+          Inc(tokIdx);
+        end;
+
+      tkSpace:
+        begin
+          if curCharLen > 0 then
+          begin
+            curText := curText + tokens[tokIdx].Text;
+            curCharLen := curCharLen + tokens[tokIdx].CharLen;
+            Inc(tokIdx);
+          end
+          else
+          begin
+            testW := AFont.GetTextWidth(TrimRight(tokens[tokIdx].Text));
+            if testW <= availW then
+            begin
+              curText := tokens[tokIdx].Text;
+              curCharLen := tokens[tokIdx].CharLen;
+              Inc(tokIdx);
+            end
+            else
+            begin
+              BreakWordAcrossLines(tokens[tokIdx]);
+              Inc(tokIdx);
+            end;
+          end;
+        end;
+
+      tkWord:
+        begin
+          testW := AFont.GetTextWidth(TrimRight(curText + tokens[tokIdx].Text));
+          if testW <= availW then
+          begin
+            curText := curText + tokens[tokIdx].Text;
+            curCharLen := curCharLen + tokens[tokIdx].CharLen;
+            Inc(tokIdx);
+          end
+          else if curCharLen > 0 then
+          begin
+            PushLine();
+          end
+          else
+          begin
+            BreakWordAcrossLines(tokens[tokIdx]);
+            Inc(tokIdx);
+          end;
+        end;
+    end;
+  end;
+
+  if curCharLen > 0 then
+    PushLine();
+
+  SetLength(Result, lineCount);
+  if lineCount > 0 then
+  begin
+    lineHeight := AFont.Height;
+    if lineHeight < (AFont.Ascent + AFont.Descent) then
+      lineHeight := AFont.Ascent + AFont.Descent + 2.0;
+
+    if (lineCount = 1) and (Height <= lineHeight + 8.0) then
+      Result[0].Y := Y + (Height / 2.0) + (AFont.Ascent - AFont.Descent) / 2.0
+    else
+      for i := 0 to lineCount - 1 do
+        Result[i].Y := Y + 2.0 + AFont.Ascent + i * lineHeight;
+  end;
+end;
+
+function TFtText.HitTestChar(AX, AY: Integer): Integer;
 var
   AFont: TFtFont;
-  TW, TX: Double;
-  cnt, i: Integer;
+  lines: TFtTextLineArray;
+  targetLine, i, c: Integer;
+  lineTop, lineBottom, lineTX: Double;
   wPrev, wNext, midX: Double;
+  cnt: Integer;
 begin
   cnt := CharCount();
   if cnt = 0 then Exit(0);
   AFont := GetFont();
   if not Assigned(AFont) then AFont := FtGetSystemFont();
 
-  TW := AFont.GetTextWidth(FText);
-  case FAlignment of
-    taCenter: TX := X + (Width - TW) / 2.0;
-    taRight:  TX := X + Width - TW - 2.0;
-    else      TX := X + 2.0;
+  lines := BuildLines(AFont, Width - 4.0);
+  if Length(lines) = 0 then Exit(0);
+
+  if AY < (lines[0].Y - AFont.Ascent) then
+    targetLine := 0
+  else if AY >= (lines[High(lines)].Y + AFont.Descent) then
+    targetLine := High(lines)
+  else
+  begin
+    targetLine := High(lines);
+    for i := 0 to High(lines) do
+    begin
+      if i = 0 then
+        lineTop := -1e9
+      else
+        lineTop := (lines[i - 1].Y + lines[i].Y) / 2.0;
+
+      if i = High(lines) then
+        lineBottom := 1e9
+      else
+        lineBottom := (lines[i].Y + lines[i + 1].Y) / 2.0;
+
+      if (AY >= lineTop) and (AY < lineBottom) then
+      begin
+        targetLine := i;
+        Break;
+      end;
+    end;
   end;
 
-  if AX <= TX then Exit(0);
-  if AX >= TX + TW then Exit(cnt);
+  case FAlignment of
+    taCenter: lineTX := X + (Width - lines[targetLine].LineWidth) / 2.0;
+    taRight:  lineTX := X + Width - lines[targetLine].LineWidth - 2.0;
+    else      lineTX := X + 2.0;
+  end;
+
+  if AX <= lineTX then
+    Exit(lines[targetLine].StartChar);
+
+  if AX >= (lineTX + lines[targetLine].LineWidth) then
+    Exit(lines[targetLine].StartChar + lines[targetLine].CharLen);
 
   wPrev := 0.0;
-  for i := 0 to cnt - 1 do
+  for c := 0 to lines[targetLine].CharLen - 1 do
   begin
-    wNext := AFont.GetTextWidth(SubStrChars(0, i + 1));
-    midX := TX + (wPrev + wNext) / 2.0;
+    wNext := AFont.GetTextWidth(SubStrChars(lines[targetLine].StartChar, c + 1));
+    midX := lineTX + (wPrev + wNext) / 2.0;
     if AX < midX then
-      Exit(i);
+      Exit(lines[targetLine].StartChar + c);
     wPrev := wNext;
   end;
-  Result := cnt;
+
+  Result := lines[targetLine].StartChar + lines[targetLine].CharLen;
+end;
+
+function TFtText.HitTestChar(AX: Integer): Integer;
+begin
+  Result := HitTestChar(AX, Round(Y + Height / 2.0));
 end;
 
 procedure TFtText.SelectWordAt(ACharIdx: Integer);
@@ -447,7 +786,7 @@ begin
   begin
     if HasSelection() then
     begin
-      clickChar := HitTestChar(AX);
+      clickChar := HitTestChar(AX, AY);
       sMin := Math.Min(FSelAnchor, FSelCursor);
       sMax := Math.Max(FSelAnchor, FSelCursor);
       if (clickChar < sMin) or (clickChar > sMax) then
@@ -476,14 +815,14 @@ begin
 
   if FClickCount = 1 then
   begin
-    FSelAnchor := HitTestChar(AX);
+    FSelAnchor := HitTestChar(AX, AY);
     FSelCursor := FSelAnchor;
     FIsDragging := True;
     Invalidate();
   end
   else if FClickCount = 2 then
   begin
-    SelectWordAt(HitTestChar(AX));
+    SelectWordAt(HitTestChar(AX, AY));
     FIsDragging := False;
   end
   else if FClickCount >= 3 then
@@ -500,7 +839,7 @@ begin
   inherited MouseMove(AX, AY);
   if not FSelectable or not FIsDragging then Exit;
 
-  newPos := HitTestChar(AX);
+  newPos := HitTestChar(AX, AY);
   if newPos <> FSelCursor then
   begin
     FSelCursor := newPos;
@@ -573,29 +912,56 @@ end;
 function TFtText.GetEffectiveHint(): string;
 var
   f: TFtFont;
+  lines: TFtTextLineArray;
+  lineHeight, totalH: Double;
+  i: Integer;
 begin
   if not FShowHint or not Visible then Exit('');
   if FHint <> '' then Exit(FHint);
   if FText = '' then Exit('');
   f := GetFont();
   if not Assigned(f) then f := FtGetSystemFont();
-  if Assigned(f) and (Width > 0) and (f.GetTextWidth(FText) > (Width - 4.0)) then
-    Result := FText
+  if not Assigned(f) or (Width <= 0) or (Height <= 0) then Exit('');
+
+  if not FWordWrap then
+  begin
+    if f.GetTextWidth(FText) > (Width - 4.0) then
+      Result := FText
+    else
+      Result := '';
+  end
   else
+  begin
+    lines := BuildLines(f, Width - 4.0);
+    if Length(lines) = 0 then Exit('');
+    lineHeight := f.Height;
+    if lineHeight < (f.Ascent + f.Descent) then
+      lineHeight := f.Ascent + f.Descent + 2.0;
+    totalH := Length(lines) * lineHeight + 4.0;
+    if totalH > Height then
+      Exit(FText);
+    for i := 0 to High(lines) do
+      if lines[i].LineWidth > (Width - 4.0) then
+        Exit(FText);
     Result := '';
+  end;
 end;
 
 procedure TFtText.Draw(Canvas: TFtCanvasAgg);
 var
   AFont: TFtFont;
-  TW, TX, TY, rad, bw: Double;
+  rad: Double;
   curTheme: TFtTheme;
   normCol, accentCol: TFtRgbColor;
-  selMin, selMax: Integer;
+  st: TFtWidgetStyle;
+  lines: TFtTextLineArray;
+  i: Integer;
+  lineTX, lineTY: Double;
+  selMin, selMax, lineStart, lineEnd: Integer;
+  lineSelMin, lineSelMax, relMin, relMax: Integer;
   wBefore, wSel: Double;
   boxX, boxY, boxW, boxH: Double;
   strBefore, strSel, strAfter: string;
-  st: TFtWidgetStyle;
 begin
   if not Visible or (FText = '') then Exit;
 
@@ -615,15 +981,6 @@ begin
   AFont := GetFont();
   if not Assigned(AFont) then AFont := FtGetSystemFont();
 
-  TW := AFont.GetTextWidth(FText);
-  case FAlignment of
-    taCenter: TX := X + (Width - TW) / 2.0;
-    taRight:  TX := X + Width - TW - 2.0;
-    else      TX := X + 2.0;
-  end;
-
-  TY := Y + (Height / 2.0) + (AFont.Ascent - AFont.Descent) / 2.0;
-
   if FCustomColor then
     normCol := FTextColor
   else if st.HasTextColor then
@@ -633,41 +990,71 @@ begin
 
   accentCol := curTheme.GetAccentColor();
 
-  if FSelectable and HasSelection() then
-  begin
-    selMin := Min(FSelAnchor, FSelCursor);
-    selMax := Max(FSelAnchor, FSelCursor);
+  Canvas.PushClipRect(X, Y, Width, Height);
+  try
+    lines := BuildLines(AFont, Width - 4.0);
+    if HasSelection() then
+    begin
+      selMin := Min(FSelAnchor, FSelCursor);
+      selMax := Max(FSelAnchor, FSelCursor);
+    end
+    else
+    begin
+      selMin := 0;
+      selMax := 0;
+    end;
 
-    wBefore := AFont.GetTextWidth(SubStrChars(0, selMin));
-    wSel := AFont.GetTextWidth(SubStrChars(selMin, selMax - selMin));
+    for i := 0 to High(lines) do
+    begin
+      lineTY := lines[i].Y;
+      // Skip if completely out of vertical bounds
+      if (lineTY + AFont.Descent < Y) or (lineTY - AFont.Ascent > Y + Height) then
+        Continue;
 
-    boxX := TX + wBefore;
-    boxY := TY - AFont.Ascent - 1.0;
-    boxW := wSel;
-    boxH := AFont.Ascent + AFont.Descent + 2.0;
+      case FAlignment of
+        taCenter: lineTX := X + (Width - lines[i].LineWidth) / 2.0;
+        taRight:  lineTX := X + Width - lines[i].LineWidth - 2.0;
+        else      lineTX := X + 2.0;
+      end;
 
-    { Draw selection highlight box with theme accent }
-    Canvas.DrawRoundedRect(boxX, boxY, boxW, boxH, 2.0, accentCol.R, accentCol.G, accentCol.B, 0.85);
+      lineStart := lines[i].StartChar;
+      lineEnd := lineStart + lines[i].CharLen;
 
-    { Text segment before selection }
-    strBefore := SubStrChars(0, selMin);
-    if strBefore <> '' then
-      Canvas.DrawText(TX, TY, strBefore, AFont, normCol.R, normCol.G, normCol.B);
+      if FSelectable and HasSelection() and (selMin < lineEnd) and (selMax > lineStart) then
+      begin
+        lineSelMin := Max(selMin, lineStart);
+        lineSelMax := Min(selMax, lineEnd);
+        relMin := lineSelMin - lineStart;
+        relMax := lineSelMax - lineStart;
 
-    { Text segment inside selection (crisp high-contrast white) }
-    strSel := SubStrChars(selMin, selMax - selMin);
-    if strSel <> '' then
-      Canvas.DrawText(boxX, TY, strSel, AFont, 1.0, 1.0, 1.0);
+        strBefore := SubStrChars(lineStart, relMin);
+        strSel := SubStrChars(lineSelMin, relMax - relMin);
+        strAfter := SubStrChars(lineSelMax, lines[i].CharLen - relMax);
 
-    { Text segment after selection }
-    strAfter := SubStrChars(selMax, CharCount() - selMax);
-    if strAfter <> '' then
-      Canvas.DrawText(boxX + boxW, TY, strAfter, AFont, normCol.R, normCol.G, normCol.B);
-  end
-  else
-  begin
-    { Normal unselected text }
-    Canvas.DrawText(TX, TY, FText, AFont, normCol.R, normCol.G, normCol.B);
+        wBefore := AFont.GetTextWidth(strBefore);
+        wSel := AFont.GetTextWidth(strSel);
+
+        boxX := lineTX + wBefore;
+        boxY := lineTY - AFont.Ascent - 1.0;
+        boxW := wSel;
+        boxH := AFont.Ascent + AFont.Descent + 2.0;
+
+        Canvas.DrawRoundedRect(boxX, boxY, boxW, boxH, 2.0, accentCol.R, accentCol.G, accentCol.B, 0.85);
+
+        if strBefore <> '' then
+          Canvas.DrawText(lineTX, lineTY, strBefore, AFont, normCol.R, normCol.G, normCol.B);
+        if strSel <> '' then
+          Canvas.DrawText(boxX, lineTY, strSel, AFont, 1.0, 1.0, 1.0);
+        if strAfter <> '' then
+          Canvas.DrawText(boxX + boxW, lineTY, strAfter, AFont, normCol.R, normCol.G, normCol.B);
+      end
+      else
+      begin
+        Canvas.DrawText(lineTX, lineTY, lines[i].Text, AFont, normCol.R, normCol.G, normCol.B);
+      end;
+    end;
+  finally
+    Canvas.PopClipRect();
   end;
 
   if FSelectable and FFocused and not HasSelection() then
