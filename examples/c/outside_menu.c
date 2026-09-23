@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
 
     /* Recent Files Cascading Submenu (extends outside to the right of the File menu) */
     FtWidget recent_menu = ft_popup_menu_create(file_menu);
-    ft_popup_menu_add_item(recent_menu, "outside_menu_demo.c", on_menu_action, (void*)"outside_menu_demo.c");
+    ft_popup_menu_add_item(recent_menu, "outside_menu.c", on_menu_action, (void*)"outside_menu.c");
     ft_popup_menu_add_item(recent_menu, "ft.backend.x11.pas", on_menu_action, (void*)"ft.backend.x11.pas");
     ft_popup_menu_add_item(recent_menu, "ft.widget.menus.pas", on_menu_action, (void*)"ft.widget.menus.pas");
     ft_popup_menu_add_submenu(file_menu, "Recent Projects", recent_menu);

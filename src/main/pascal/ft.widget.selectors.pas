@@ -6,7 +6,7 @@ interface
 
 uses
   ctypes, SysUtils, Classes, Math, Floria.Canvas.Agg, Floria.Font, Ft.Widget, Ft.Theme, Ft.Css,
-  Ft.Widget.Menus, Ft.Backend.X11;
+  Ft.Widget.Menus, Ft.Window;
 
 type
   { CheckBox Callbacks }
@@ -152,8 +152,8 @@ begin
   if Assigned(AWidget) then
   begin
     rootWin := AWidget.GetRootWidget();
-    if Assigned(rootWin) and (rootWin is TFtX11Window) then
-      Exit(TFtX11Window(rootWin).ClientToScreen(AWidget.X, AWidget.Y));
+    if Assigned(rootWin) and (rootWin is TFtWindow) then
+      Exit(TFtWindow(rootWin).ClientToScreen(AWidget.X, AWidget.Y));
     Result.X := AWidget.X;
     Result.Y := AWidget.Y;
   end

@@ -4,6 +4,7 @@ library ft;
 
 uses
   ctypes, SysUtils, Types,
+  Ft.Window,
   Ft.Backend.X11,
   Floria.Font,
   Ft.Widget,
@@ -82,15 +83,15 @@ end;
 
 function ft_window_create(width, height: cint32; title: PChar): Pointer; cdecl; export;
 begin
-  Result := Pointer(TFtX11Window.Create(width, height, StrPas(title)));
+  Result := Pointer(FtCreateWindow(width, height, StrPas(title)));
 end;
 
 procedure ft_widget_show(widget: Pointer); cdecl; export;
 begin
   if Assigned(widget) then
   begin
-    if TObject(widget) is TFtX11Window then
-      TFtX11Window(widget).Show()
+    if TObject(widget) is TFtWindow then
+      TFtWindow(widget).Show()
     else if TObject(widget) is TFtWidget then
     begin
       TFtWidget(widget).Visible := True;
@@ -103,8 +104,8 @@ procedure ft_widget_hide(widget: Pointer); cdecl; export;
 begin
   if Assigned(widget) then
   begin
-    if TObject(widget) is TFtX11Window then
-      TFtX11Window(widget).Hide()
+    if TObject(widget) is TFtWindow then
+      TFtWindow(widget).Hide()
     else if TObject(widget) is TFtWidget then
     begin
       TFtWidget(widget).Visible := False;
@@ -115,19 +116,19 @@ end;
 
 procedure ft_window_set_title(window: Pointer; title: PChar); cdecl; export;
 begin
-  if Assigned(window) and (TObject(window) is TFtX11Window) then
-    TFtX11Window(window).SetTitle(StrPas(title));
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    TFtWindow(window).SetTitle(StrPas(title));
 end;
 
 procedure ft_window_set_borderless(window: Pointer; borderless: cint32); cdecl; export;
 begin
-  if Assigned(window) and (TObject(window) is TFtX11Window) then
-    TFtX11Window(window).SetBorderless(borderless <> 0);
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    TFtWindow(window).SetBorderless(borderless <> 0);
 end;
 
 function ft_window_get_borderless(window: Pointer): cint32; cdecl; export;
 begin
-  if Assigned(window) and (TObject(window) is TFtX11Window) and TFtX11Window(window).Borderless then
+  if Assigned(window) and (TObject(window) is TFtWindow) and TFtWindow(window).Borderless then
     Result := 1
   else
     Result := 0;
@@ -135,13 +136,13 @@ end;
 
 procedure ft_window_set_skip_taskbar(window: Pointer; skip_taskbar: cint32); cdecl; export;
 begin
-  if Assigned(window) and (TObject(window) is TFtX11Window) then
-    TFtX11Window(window).SetSkipTaskbar(skip_taskbar <> 0);
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    TFtWindow(window).SetSkipTaskbar(skip_taskbar <> 0);
 end;
 
 function ft_window_get_skip_taskbar(window: Pointer): cint32; cdecl; export;
 begin
-  if Assigned(window) and (TObject(window) is TFtX11Window) and TFtX11Window(window).SkipTaskbar then
+  if Assigned(window) and (TObject(window) is TFtWindow) and TFtWindow(window).SkipTaskbar then
     Result := 1
   else
     Result := 0;
@@ -149,25 +150,25 @@ end;
 
 procedure ft_window_set_window_type(window: Pointer; window_type: cint32); cdecl; export;
 begin
-  if Assigned(window) and (TObject(window) is TFtX11Window) then
+  if Assigned(window) and (TObject(window) is TFtWindow) then
   begin
     if (window_type >= Ord(Low(TFtWindowType))) and (window_type <= Ord(High(TFtWindowType))) then
-      TFtX11Window(window).SetWindowType(TFtWindowType(window_type));
+      TFtWindow(window).SetWindowType(TFtWindowType(window_type));
   end;
 end;
 
 function ft_window_get_window_type(window: Pointer): cint32; cdecl; export;
 begin
-  if Assigned(window) and (TObject(window) is TFtX11Window) then
-    Result := Ord(TFtX11Window(window).WindowType)
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    Result := Ord(TFtWindow(window).WindowType)
   else
     Result := Ord(ftwtNormal);
 end;
 
 procedure ft_window_set_position(window: Pointer; x, y: cint32); cdecl; export;
 begin
-  if Assigned(window) and (TObject(window) is TFtX11Window) then
-    TFtX11Window(window).SetPosition(x, y);
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    TFtWindow(window).SetPosition(x, y);
 end;
 
 procedure ft_window_get_position(window: Pointer; out_x, out_y: pcint32); cdecl; export;
@@ -176,8 +177,8 @@ var
 begin
   wx := 0;
   wy := 0;
-  if Assigned(window) and (TObject(window) is TFtX11Window) then
-    TFtX11Window(window).GetPosition(wx, wy);
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    TFtWindow(window).GetPosition(wx, wy);
   if Assigned(out_x) then
     out_x^ := wx;
   if Assigned(out_y) then
@@ -186,41 +187,41 @@ end;
 
 procedure ft_window_set_opacity(window: Pointer; opacity: cdouble); cdecl; export;
 begin
-  if Assigned(window) and (TObject(window) is TFtX11Window) then
-    TFtX11Window(window).SetWindowOpacity(opacity);
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    TFtWindow(window).SetWindowOpacity(opacity);
 end;
 
 function ft_window_get_opacity(window: Pointer): cdouble; cdecl; export;
 begin
-  if Assigned(window) and (TObject(window) is TFtX11Window) then
-    Result := TFtX11Window(window).GetWindowOpacity()
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    Result := TFtWindow(window).GetWindowOpacity()
   else
     Result := 1.0;
 end;
 
 procedure ft_window_set_background_opacity(window: Pointer; opacity: cdouble); cdecl; export;
 begin
-  if Assigned(window) and (TObject(window) is TFtX11Window) then
-    TFtX11Window(window).SetBackgroundOpacity(opacity);
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    TFtWindow(window).SetBackgroundOpacity(opacity);
 end;
 
 function ft_window_get_background_opacity(window: Pointer): cdouble; cdecl; export;
 begin
-  if Assigned(window) and (TObject(window) is TFtX11Window) then
-    Result := TFtX11Window(window).GetBackgroundOpacity()
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    Result := TFtWindow(window).GetBackgroundOpacity()
   else
     Result := 1.0;
 end;
 
 procedure ft_window_set_background_blur(window: Pointer; blur: cint32); cdecl; export;
 begin
-  if Assigned(window) and (TObject(window) is TFtX11Window) then
-    TFtX11Window(window).SetBackgroundBlur(blur <> 0);
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    TFtWindow(window).SetBackgroundBlur(blur <> 0);
 end;
 
 function ft_window_get_background_blur(window: Pointer): cint32; cdecl; export;
 begin
-  if Assigned(window) and (TObject(window) is TFtX11Window) and TFtX11Window(window).GetBackgroundBlur() then
+  if Assigned(window) and (TObject(window) is TFtWindow) and TFtWindow(window).GetBackgroundBlur() then
     Result := 1
   else
     Result := 0;
@@ -1609,8 +1610,8 @@ var
   menu: TFtMainMenu;
 begin
   menu := TFtMainMenu.Create(TFtWidget(window));
-  if Assigned(window) and (TObject(window) is TFtX11Window) then
-    TFtX11Window(window).MainMenu := menu;
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    TFtWindow(window).MainMenu := menu;
   Result := Pointer(menu);
 end;
 
@@ -1722,9 +1723,9 @@ begin
     if Assigned(menu.OwnerWidget) then
     begin
       rootWin := menu.OwnerWidget.GetRootWidget();
-      if Assigned(rootWin) and (rootWin is TFtX11Window) then
+      if Assigned(rootWin) and (rootWin is TFtWindow) then
       begin
-        pt := TFtX11Window(rootWin).ClientToScreen(x, y);
+        pt := TFtWindow(rootWin).ClientToScreen(x, y);
         x := pt.X;
         y := pt.Y;
       end;
@@ -1909,14 +1910,14 @@ end;
 
 procedure ft_window_set_main_menu(window: Pointer; main_menu: Pointer); cdecl; export;
 begin
-  if Assigned(window) and (TObject(window) is TFtX11Window) then
-    TFtX11Window(window).MainMenu := TFtWidget(main_menu);
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    TFtWindow(window).MainMenu := TFtWidget(main_menu);
 end;
 
 function ft_window_get_main_menu(window: Pointer): Pointer; cdecl; export;
 begin
-  if Assigned(window) and (TObject(window) is TFtX11Window) then
-    Result := Pointer(TFtX11Window(window).MainMenu)
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    Result := Pointer(TFtWindow(window).MainMenu)
   else
     Result := nil;
 end;

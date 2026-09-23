@@ -24,7 +24,7 @@ A lightweight, high-performance native GUI toolkit engineered with Free Pascal, 
 - **CSS Transitions & Animation**:
   - Smooth 60 FPS state transitions (e.g. hover effects, dark mode switches, window caption button glowing halos) with easing functions (`ease`, `ease-in`, `ease-out`, `ease-in-out`, `linear`).
 - **Modern Desktop Widgets**:
-  - **Window**: Native X11 windows with double-buffered vector rendering.
+  - **Window (`TFtWindow`)**: Platform-agnostic window abstraction with double-buffered vector rendering (`AGG`), dirty rectangle tracking, and pluggable platform backends (`TFtX11Window` on X11/XCB, WinAPI for Windows, Cocoa for macOS, Wayland).
   - **Window Button (`TFtWindowButton`)**: Titlebar and tab caption buttons (Close, Minimize, Maximize/Restore, Custom) with OS styles (Mac, GTK, Windows), glowing radial hover transitions, and dark mode adaptation.
   - **Button & Toggle Button**: Interactive push and latching buttons with hover transitions.
   - **Switch**: Modern toggle switch with circular thumb slider and accent highlights.
@@ -33,13 +33,13 @@ A lightweight, high-performance native GUI toolkit engineered with Free Pascal, 
   - **ComboBox**: Dropdown selection menu with popup list and optional editable entry.
   - **Slider**: Horizontal and vertical continuous or stepped sliders with dragging and keyboard arrows.
   - **ProgressBar**: Determinate percentage progress and 60 FPS indeterminate animated activity bar.
-  - **Text / Label**: Dual-mode text with selectable mouse-drag highlight and clipboard copy.
+  - **Text / Label (`TFtText`)**: Dual-mode text with selectable mouse-drag highlight, clipboard copy, multiline word wrapping, and bounds clipping.
   - **Entry**: Single-line text input with blinking caret, selection, and clipboard support.
   - **TextArea**: Multi-line text area with line navigation and dynamic scrollbars.
   - **Notebook & Tabs (`TFtNotebook`, `TFtTabs`)**: Tabbed multi-page containers with close buttons, active tab indicators, and page switching.
   - **Splitter (`TFtSplitter`)**: Resizable dual-pane container with horizontal or vertical splitter bar, grip handle, and live mouse dragging.
   - **TreeView (`TFtTreeView`)**: Hierarchical tree viewer with expand/collapse vector carets, arbitrary node nesting, and selection tracking.
-  - **Table / DataGrid (`TFtTable`, `TFtGrid`)**: Multi-column tabular data grid with column headers, text alignment, zebra striping, and cell selection.
+  - **Table / DataGrid (`TFtTable`, `TFtGrid`)**: Multi-column tabular data grid with column headers, text alignment, zebra striping, cell selection, and multi-row selection (`Ctrl`/`Shift` multi-select).
   - **Image (`TFtImage`)**: Raster image decoding (BMP, PNG, JPG) and scalable vector SVG rendering with scaling modes (`fit`, `fill`, `stretch`, `center`).
   - **ScrollBar**: Standalone vector scrollbars with proportional thumb sizing and drag physics.
   - **Container**: Scrolled viewport frame with automatic scrollbars and AGG scissor clipping.
@@ -207,9 +207,11 @@ floria-toolkit/
 │   └── ft.h                  # C/C++ API header
 ├── src/main/pascal/
 │   ├── ft.pas                # Library entry point & C exports
+│   ├── ft.window.pas         # Abstract window base class (TFtWindow), window factory & focus logic
 │   ├── ft.css.pas            # CSS stylesheet engine, variable resolver & cascade
 │   ├── ft.animation.pas      # Transition & animation interpolation engine
-│   ├── ft.backend.x11.pas    # X11 window backend & 60 FPS event loop
+│   ├── ft.backend.x11.pas    # X11/XCB window backend & 60 FPS event loop (TFtX11Window)
+│   ├── ft.backend.xcb.pas    # XCB backend compatibility wrapper
 │   ├── ft.theme.pas          # Theme manager & stylesheet loader
 │   ├── ft.widget.pas         # Base widget abstraction (uses florialib for vector canvas & fonts)
 │   ├── ft.widget.buttons.pas # Push, toggle, and window caption buttons (TFtWindowButton)
@@ -224,7 +226,7 @@ floria-toolkit/
 │   ├── ft.widget.tabs.pas    # Notebook & tabbed container (TFtNotebook, TFtTabs)
 │   ├── ft.widget.splitters.pas# Resizable dual-pane splitter (TFtSplitter)
 │   ├── ft.widget.treeviews.pas# Hierarchical tree view (TFtTreeView)
-│   ├── ft.widget.tables.pas  # Tabular data grid (TFtTable, TFtGrid)
+│   ├── ft.widget.tables.pas  # Tabular data grid with multi-row selection (TFtTable, TFtGrid)
 │   ├── ft.widget.images.pas  # Raster image & SVG viewer (TFtImage)
 │   └── ft.widget.menus.pas   # Main menu bar & popup menus
 ├── themes/                   # Bundled CSS theme stylesheets (*.css)
@@ -236,7 +238,33 @@ floria-toolkit/
 │   └── classic.css           # Slate with emerald accents theme
 ├── examples/
 │   ├── c/                    # C demo applications (*.c)
+│   │   ├── advanced_desktop_widgets.c # Notebook, Splitter, TreeView, Table demo
+│   │   ├── custom_table.c    # Multi-column table with multi-row selection
+│   │   ├── window_button.c   # OS-styled window caption buttons & halos
+│   │   ├── form_controls.c   # CheckBoxes, RadioButtons, ComboBox, Sliders
+│   │   ├── menus.c           # Main menu bar & cascading submenus
+│   │   ├── outside_menu.c    # Floating popup context menus
+│   │   ├── widget_context_menus.c # Widget-attached right-click menus
+│   │   ├── containers.c      # Dynamic containers & scrolled viewports
+│   │   ├── container_render_area.c # Padding & custom render areas
+│   │   ├── css_button.c      # Pure CSS styled buttons & hover effects
+│   │   ├── css_animation.c   # 60 FPS CSS transitions & color morphing
+│   │   ├── squircle_button.c # Superellipse squircle shaped buttons
+│   │   ├── multilingual.c    # International Unicode text rendering
+│   │   ├── chinese.c         # CJK font rendering showcase
+│   │   ├── inputs.c          # Single-line entry & multiline text area
+│   │   ├── scrollbars.c      # Standalone vector scrollbars
+│   │   └── test_all_widgets_css.c # Comprehensive widget styling suite
 │   └── python/               # Python ctypes applications (*.py)
+│       ├── app.py            # Python quickstart application
+│       ├── fastfetch_ui.py   # Desktop system info viewer GUI
+│       ├── blur_showcase.py  # Window blur behind & elevation showcase
+│       ├── opacity.py        # Alpha transparency & window opacity demo
+│       ├── terminal_transparency.py # Translucent terminal mock-up
+│       ├── svg_vector.py     # Scalable vector SVG graphics demo
+│       ├── image_emoji.py    # Raster image decoding & emoji rendering
+│       ├── multilingual.py   # Multi-language Python GUI
+│       └── test_chinese.py   # CJK UTF-8 Python showcase
 └── project.xml               # PasBuild package manifest (dependencies: florialib, fpgui-framework)
 ```
 

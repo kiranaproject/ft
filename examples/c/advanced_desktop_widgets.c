@@ -155,13 +155,13 @@ int main(int argc, char* argv[]) {
 
     FtTreeNode n_ex = ft_treeview_add_node(tree, "examples", NULL);
     ft_treenode_set_expanded(n_ex, 1);
-    ft_treenode_add_child(n_ex, "c/advanced_desktop_widgets_demo.c");
+    ft_treenode_add_child(n_ex, "c/advanced_desktop_widgets.c");
     ft_treenode_add_child(n_ex, "c/containers.c");
     ft_treenode_add_child(n_ex, "c/menus.c");
 
     FtTreeNode n_doc = ft_treeview_add_node(tree, "docs", NULL);
     ft_treenode_add_child(n_doc, "ROADMAP.md");
-    ft_treenode_add_child(n_doc, "ARCHITECTURE.md");
+    ft_treenode_add_child(n_doc, "architecture.md");
 
     /* Right: Table showing file details */
     FtTable tbl_files = ft_table_create(split1, 0, 0, 620, 535);

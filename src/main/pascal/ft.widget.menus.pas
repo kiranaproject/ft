@@ -154,7 +154,7 @@ type
 implementation
 
 uses
-  Types, Ft.Backend.X11;
+  Types, Ft.Window;
 
 { TFtMenuItem }
 
@@ -230,7 +230,7 @@ end;
 
 constructor TFtPopupMenu.Create(AParent: TFtWidget);
 var
-  popWin: TFtX11Window;
+  popWin: TFtWindow;
 begin
   inherited Create(nil);
   FOwnerWidget := AParent;
@@ -247,8 +247,7 @@ begin
   FCornerRadius := 0.0;
 
   { Create native borderless popup window }
-  popWin := TFtX11Window.Create(FMinWidth, 50, '');
-  popWin.WindowType := ftwtPopupMenu;
+  popWin := FtCreateWindow(FMinWidth, 50, '', ftwtPopupMenu);
   popWin.Borderless := True;
   popWin.SkipTaskbar := True;
   popWin.Visible := False;
@@ -430,18 +429,18 @@ begin
   begin
     Self.Width := Width;
     Self.Height := Height;
-    TFtX11Window(FPopupWindow).Resize(Width, Height);
+    TFtWindow(FPopupWindow).Resize(Width, Height);
   end;
 end;
 
 procedure TFtPopupMenu.Popup(AX, AY: Integer);
 var
-  popWin: TFtX11Window;
+  popWin: TFtWindow;
   screenW, screenH: Integer;
 begin
   RecalcLayout();
 
-  popWin := TFtX11Window(FPopupWindow);
+  popWin := TFtWindow(FPopupWindow);
   if Assigned(popWin) then
   begin
     screenW := popWin.ScreenWidth;
@@ -478,7 +477,7 @@ end;
 
 procedure TFtPopupMenu.Close();
 var
-  popWin: TFtX11Window;
+  popWin: TFtWindow;
 begin
   if not FIsOpen then Exit;
   if Assigned(FActiveSubMenu) then
@@ -490,7 +489,7 @@ begin
   Visible := False;
   FHoverIndex := -1;
   FPressedIndex := -1;
-  popWin := TFtX11Window(FPopupWindow);
+  popWin := TFtWindow(FPopupWindow);
   if Assigned(popWin) then
     popWin.Hide();
 end;
@@ -498,7 +497,7 @@ end;
 procedure TFtPopupMenu.DismissAll();
 var
   rootPop: TFtPopupMenu;
-  popWin: TFtX11Window;
+  popWin: TFtWindow;
 begin
   rootPop := Self;
   while Assigned(rootPop.FParentPopupMenu) do
@@ -506,7 +505,7 @@ begin
 
   if GGrabbedPopup = rootPop then
   begin
-    popWin := TFtX11Window(rootPop.FPopupWindow);
+    popWin := TFtWindow(rootPop.FPopupWindow);
     if Assigned(popWin) then
       FtUngrabMenuInput(popWin);
     GGrabbedPopup := nil;
@@ -588,7 +587,7 @@ var
   newIdx: Integer;
   item: TFtMenuItem;
   subX, subY: Integer;
-  popWin: TFtX11Window;
+  popWin: TFtWindow;
   screenNum, screenW: Integer;
 begin
   newIdx := ItemAt(AX, AY);
@@ -614,7 +613,7 @@ begin
           FActiveSubMenu.FParentMenuItem := item;
           FActiveSubMenu.RecalcLayout();
 
-          popWin := TFtX11Window(FPopupWindow);
+          popWin := TFtWindow(FPopupWindow);
           subX := popWin.X + Width - 2;
           subY := popWin.Y + item.Y - 2;
 
@@ -644,7 +643,7 @@ begin
     end;
 
     if Assigned(FPopupWindow) then
-      TFtX11Window(FPopupWindow).Repaint();
+      TFtWindow(FPopupWindow).Repaint();
   end;
 end;
 
@@ -660,7 +659,7 @@ begin
       FPressedIndex := idx;
       FHoverIndex := idx;
       if Assigned(FPopupWindow) then
-        TFtX11Window(FPopupWindow).Repaint();
+        TFtWindow(FPopupWindow).Repaint();
     end;
   end;
 end;
@@ -687,7 +686,7 @@ begin
     end;
     FPressedIndex := -1;
     if Assigned(FPopupWindow) then
-      TFtX11Window(FPopupWindow).Repaint();
+      TFtWindow(FPopupWindow).Repaint();
   end;
 end;
 
@@ -712,7 +711,7 @@ begin
     begin
       FHoverIndex := idx;
       if Assigned(FPopupWindow) then
-        TFtX11Window(FPopupWindow).Repaint();
+        TFtWindow(FPopupWindow).Repaint();
       Exit;
     end;
   until idx = startIdx;
@@ -735,7 +734,7 @@ begin
     begin
       FHoverIndex := idx;
       if Assigned(FPopupWindow) then
-        TFtX11Window(FPopupWindow).Repaint();
+        TFtWindow(FPopupWindow).Repaint();
       Exit;
     end;
   until idx = startIdx;
@@ -881,7 +880,7 @@ procedure TFtMainMenu.CloseMenu();
 var
   item: TFtMenuItem;
   rootPop: TFtPopupMenu;
-  popWin: TFtX11Window;
+  popWin: TFtWindow;
 begin
   if FActiveIndex >= 0 then
   begin
@@ -894,7 +893,7 @@ begin
 
       if GGrabbedPopup = rootPop then
       begin
-        popWin := TFtX11Window(rootPop.FPopupWindow);
+        popWin := TFtWindow(rootPop.FPopupWindow);
         if Assigned(popWin) then
           FtUngrabMenuInput(popWin);
         GGrabbedPopup := nil;
@@ -989,8 +988,8 @@ begin
       begin
         item.SubMenu.ParentMainMenu := Self;
         rootWin := GetRootWidget();
-        if Assigned(rootWin) and (rootWin is TFtX11Window) then
-          pt := TFtX11Window(rootWin).ClientToScreen(X + item.X, Y + Height)
+        if Assigned(rootWin) and (rootWin is TFtWindow) then
+          pt := TFtWindow(rootWin).ClientToScreen(X + item.X, Y + Height)
         else
         begin
           pt.X := X + item.X;
@@ -1041,8 +1040,8 @@ begin
         begin
           item.SubMenu.ParentMainMenu := Self;
           rootWin := GetRootWidget();
-          if Assigned(rootWin) and (rootWin is TFtX11Window) then
-            pt := TFtX11Window(rootWin).ClientToScreen(X + item.X, Y + Height)
+          if Assigned(rootWin) and (rootWin is TFtWindow) then
+            pt := TFtWindow(rootWin).ClientToScreen(X + item.X, Y + Height)
           else
           begin
             pt.X := X + item.X;

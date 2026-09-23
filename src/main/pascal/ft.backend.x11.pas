@@ -7,18 +7,9 @@ interface
 uses
   ctypes, SysUtils, Classes,
   Floria.XCB, Floria.XCB.Keysyms, Floria.XCB.Cursor, Floria.X11.KeySym,
-  Floria.Canvas.Agg, Ft.Widget, Ft.Theme, Ft.Css, Ft.Animation;
+  Floria.Canvas.Agg, Ft.Widget, Ft.Theme, Ft.Css, Ft.Animation, Ft.Window;
 
 type
-  TFtWindowType = (
-    ftwtNormal = 0,
-    ftwtDialog = 1,
-    ftwtPopupMenu = 2,
-    ftwtDropdownMenu = 3,
-    ftwtTooltip = 4,
-    ftwtUtility = 5
-  );
-
   TMWMHints = record
     flags: culong;
     functions: culong;
@@ -55,106 +46,67 @@ const
   MWM_HINTS_DECORATIONS = 1 shl 1;
 
 type
-  TFtX11Window = class(TFtWidget)
+  TFtX11Window = class(TFtWindow)
   private
     FConnection: Pxcb_connection_t;
     FWindow: xcb_window_t;
     FGC: xcb_gcontext_t;
-    FPixelBuffer: Pointer;
     FScratchBuffer: Pointer;
     FScratchBufferSize: Cardinal;
-    FCanvas: TFtCanvasAgg;
     FVisual: xcb_visualid_t;
     FDepth: Byte;
     FColormap: xcb_colormap_t;
-    FHoverWidget: TFtWidget;
-    FPressedWidget: TFtWidget;
-    FFocusedWidget: TFtWidget;
-    FMainMenu: TFtWidget;
-    FActivePopup: TFtWidget;
-    FNeedsRepaint: Boolean;
-    FDirtyLeft: Integer;
-    FDirtyTop: Integer;
-    FDirtyRight: Integer;
-    FDirtyBottom: Integer;
-    FHasDirtyRect: Boolean;
-    FFullRepaint: Boolean;
     FHasPendingResize: Boolean;
     FPendingResizeW: Integer;
     FPendingResizeH: Integer;
     FLastResizeTime: QWord;
     FLastConfigureTime: QWord;
     FLastResizeRenderTime: QWord;
-    FBorderless: Boolean;
-    FSkipTaskbar: Boolean;
-    FWindowType: TFtWindowType;
-    FBackgroundOpacity: Double;
-    FBackgroundBlur: Boolean;
     FCurrentCursor: xcb_cursor_t;
 
-    procedure OnThemeChanged();
-    procedure OnStyleSheetChanged();
-    procedure UpdateCursor();
     procedure UpdateBlurBehindRegion();
-    function GetScreenWidth(): Integer;
-    function GetScreenHeight(): Integer;
   public
-    constructor Create(W, H: Integer; Title: string); reintroduce;
+    function GetScreenWidth(): Integer; override;
+    function GetScreenHeight(): Integer; override;
+    constructor Create(W, H: Integer; const ATitle: string = ''); override;
     destructor Destroy(); override;
-    procedure Resize(NewW, NewH: Integer; AApplyToX11: Boolean = True);
-    procedure SetTitle(const ATitle: string);
-    procedure SetBorderless(ABorderless: Boolean);
-    procedure SetSkipTaskbar(ASkip: Boolean);
-    procedure SetWindowType(AType: TFtWindowType);
-    procedure SetWindowOpacity(AOpacity: Double);
-    function GetWindowOpacity(): Double;
-    procedure SetOpacity(AValue: Double); override;
-    procedure SetBackgroundOpacity(AValue: Double);
-    function GetBackgroundOpacity(): Double;
-    procedure SetBackgroundBlur(AValue: Boolean);
-    function GetBackgroundBlur(): Boolean;
-    procedure SetPosition(NewX, NewY: Integer);
-    procedure GetPosition(out OutX, OutY: Integer);
-    function ClientToScreen(AX, AY: Integer): TPoint;
-    function ScreenToClient(AX, AY: Integer): TPoint;
-    function GetElementType(): string; override;
-    procedure Repaint();
+    procedure Resize(NewW, NewH: Integer; AApplyToBackend: Boolean = True); override;
+    procedure SetTitle(const ATitle: string); override;
+    procedure SetBorderless(ABorderless: Boolean); override;
+    procedure SetSkipTaskbar(ASkip: Boolean); override;
+    procedure SetWindowType(AType: TFtWindowType); override;
+    procedure SetWindowOpacity(AOpacity: Double); override;
+    procedure SetBackgroundBlur(AValue: Boolean); override;
+    procedure SetPosition(NewX, NewY: Integer); override;
+    procedure GetPosition(out OutX, OutY: Integer); override;
+    function ClientToScreen(AX, AY: Integer): TPoint; override;
+    function ScreenToClient(AX, AY: Integer): TPoint; override;
+    procedure Repaint(); override;
+    procedure Show(); override;
+    procedure Hide(); override;
+    procedure UpdateCursor(); override;
+    procedure ClearActivePopup(); override;
+    procedure ClaimClipboard(); override;
+    procedure ClaimPrimarySelection(const AText: string); override;
+    procedure ClearPrimarySelection(); override;
+    function FetchClipboardText(): string; override;
+    function FetchPrimarySelectionText(): string; override;
+    procedure GrabInput(); override;
+    procedure UngrabInput(); override;
+    function GetNativeHandle(): Pointer; override;
+    procedure WidgetDestroyed(AWidget: TFtWidget); override;
+
     procedure HandleEvents();
     procedure HandleGenericEvent(Event: Pxcb_generic_event_t);
-    procedure Show();
-    procedure Hide();
-    procedure Invalidate(); override;
-    procedure InvalidateRect(AX, AY, AW, AH: Integer); override;
-    procedure WidgetDestroyed(AWidget: TFtWidget); override;
-    procedure RequestFocus(AWidget: TFtWidget); override;
-    procedure SetFocusedWidget(AWidget: TFtWidget);
-    procedure FocusNext(ABackward: Boolean = False);
-    procedure ClaimClipboard();
-    procedure SetActivePopup(APopup: TFtWidget);
-    procedure ClearActivePopup();
 
     property Window: xcb_window_t read FWindow;
     property Connection: Pxcb_connection_t read FConnection;
     property Display: Pxcb_connection_t read FConnection; // For backwards compatibility
-    property ScreenWidth: Integer read GetScreenWidth;
-    property ScreenHeight: Integer read GetScreenHeight;
-    property Borderless: Boolean read FBorderless write SetBorderless;
-    property SkipTaskbar: Boolean read FSkipTaskbar write SetSkipTaskbar;
-    property WindowType: TFtWindowType read FWindowType write SetWindowType;
-    property WindowOpacity: Double read GetWindowOpacity write SetWindowOpacity;
-    property BackgroundOpacity: Double read GetBackgroundOpacity write SetBackgroundOpacity;
-    property BackgroundBlur: Boolean read GetBackgroundBlur write SetBackgroundBlur;
-    property FocusedWidget: TFtWidget read FFocusedWidget;
-    property MainMenu: TFtWidget read FMainMenu write FMainMenu;
-    property ActivePopup: TFtWidget read FActivePopup write SetActivePopup;
   end;
-
-  TFtWindow = TFtX11Window;
-  TFtXCBWindow = TFtX11Window;
 
   TFtHintWindow = class(TFtWidget)
   private
-    FPopupWindow: TFtX11Window;
+    FPopupWindow: TFtWindow;
     FText: string;
     FLines: TStringList;
   public
@@ -164,11 +116,8 @@ type
     procedure ShowAt(AScreenX, AScreenY: Integer);
     procedure Hide();
     procedure Draw(Canvas: TFtCanvasAgg); override;
-    property PopupWindow: TFtX11Window read FPopupWindow;
+    property PopupWindow: TFtWindow read FPopupWindow;
   end;
-
-type
-  TFtSelectionLostHandler = procedure();
 
 var
   GConnection: Pxcb_connection_t = nil;
@@ -181,16 +130,13 @@ var
   GCursorSizeV: xcb_cursor_t = 0;
   GCursorHand:  xcb_cursor_t = 0;
   GRunning: Boolean = False;
-  GActiveWindow: TFtX11Window = nil;
-  GWindows: TFPList = nil;
-  GGrabbedPopup: TFtWidget = nil;
 
 procedure FtBackendInit();
 procedure FtBackendMainLoop();
 procedure FtBackendProcessEvents();
 procedure FtBackendQuit();
-procedure FtGrabMenuInput(AWindow: TFtX11Window);
-procedure FtUngrabMenuInput(AWindow: TFtX11Window);
+procedure FtGrabMenuInput(AWindow: TFtWindow);
+procedure FtUngrabMenuInput(AWindow: TFtWindow);
 function FindWindowByHandle(AWindow: xcb_window_t): TFtX11Window;
 function HasMainWindows(): Boolean;
 procedure FtSetClipboardText(const AText: string);
@@ -373,29 +319,29 @@ end;
 function FindWindowByHandle(AWindow: xcb_window_t): TFtX11Window;
 var
   i: Integer;
-  w: TFtX11Window;
+  w: TFtWindow;
 begin
   Result := nil;
   if not Assigned(GWindows) or (AWindow = 0) then Exit;
   for i := 0 to GWindows.Count - 1 do
   begin
-    w := TFtX11Window(GWindows[i]);
-    if w.FWindow = AWindow then
-      Exit(w);
+    w := TFtWindow(GWindows[i]);
+    if (w is TFtX11Window) and (TFtX11Window(w).FWindow = AWindow) then
+      Exit(TFtX11Window(w));
   end;
 end;
 
 function HasMainWindows(): Boolean;
 var
   i: Integer;
-  w: TFtX11Window;
+  w: TFtWindow;
 begin
   Result := False;
   if not Assigned(GWindows) then Exit;
   for i := 0 to GWindows.Count - 1 do
   begin
-    w := TFtX11Window(GWindows[i]);
-    if w.FWindowType in [ftwtNormal, ftwtDialog] then
+    w := TFtWindow(GWindows[i]);
+    if w.WindowType in [ftwtNormal, ftwtDialog] then
       Exit(True);
   end;
 end;
@@ -416,30 +362,41 @@ begin
     Result := 1080;
 end;
 
-procedure FtGrabMenuInput(AWindow: TFtX11Window);
+procedure FtGrabMenuInput(AWindow: TFtWindow);
 var
   mask: Word;
+  xwin: TFtX11Window;
 begin
-  if Assigned(AWindow) and (AWindow.FWindow <> 0) and Assigned(AWindow.FConnection) then
+  if Assigned(AWindow) and (AWindow is TFtX11Window) then
   begin
-    mask := XCB_EVENT_MASK_BUTTON_PRESS or
-            XCB_EVENT_MASK_BUTTON_RELEASE or
-            XCB_EVENT_MASK_POINTER_MOTION;
-    xcb_grab_pointer(AWindow.FConnection, 1, AWindow.FWindow, mask,
-                     XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, 0, 0, XCB_CURRENT_TIME);
-    xcb_grab_keyboard(AWindow.FConnection, 1, AWindow.FWindow, XCB_CURRENT_TIME,
-                      XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC);
-    xcb_flush(AWindow.FConnection);
+    xwin := TFtX11Window(AWindow);
+    if (xwin.FWindow <> 0) and Assigned(xwin.FConnection) then
+    begin
+      mask := XCB_EVENT_MASK_BUTTON_PRESS or
+              XCB_EVENT_MASK_BUTTON_RELEASE or
+              XCB_EVENT_MASK_POINTER_MOTION;
+      xcb_grab_pointer(xwin.FConnection, 1, xwin.FWindow, mask,
+                       XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, 0, 0, XCB_CURRENT_TIME);
+      xcb_grab_keyboard(xwin.FConnection, 1, xwin.FWindow, XCB_CURRENT_TIME,
+                        XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC);
+      xcb_flush(xwin.FConnection);
+    end;
   end;
 end;
 
-procedure FtUngrabMenuInput(AWindow: TFtX11Window);
+procedure FtUngrabMenuInput(AWindow: TFtWindow);
+var
+  xwin: TFtX11Window;
 begin
-  if Assigned(AWindow) and Assigned(AWindow.FConnection) then
+  if Assigned(AWindow) and (AWindow is TFtX11Window) then
   begin
-    xcb_ungrab_pointer(AWindow.FConnection, XCB_CURRENT_TIME);
-    xcb_ungrab_keyboard(AWindow.FConnection, XCB_CURRENT_TIME);
-    xcb_flush(AWindow.FConnection);
+    xwin := TFtX11Window(AWindow);
+    if Assigned(xwin.FConnection) then
+    begin
+      xcb_ungrab_pointer(xwin.FConnection, XCB_CURRENT_TIME);
+      xcb_ungrab_keyboard(xwin.FConnection, XCB_CURRENT_TIME);
+      xcb_flush(xwin.FConnection);
+    end;
   end;
 end;
 
@@ -531,8 +488,8 @@ begin
     begin
       if (evType = XCB_SELECTION_REQUEST) or (evType = XCB_SELECTION_CLEAR) then
       begin
-        if Assigned(GActiveWindow) then
-          GActiveWindow.HandleGenericEvent(ev);
+        if Assigned(GActiveWindow) and (GActiveWindow is TFtX11Window) then
+          TFtX11Window(GActiveWindow).HandleGenericEvent(ev);
       end;
     end;
 
@@ -546,28 +503,31 @@ begin
     begin
       if i < GWindows.Count then
       begin
-        win := TFtX11Window(GWindows[i]);
-        if win.FHasPendingResize then
+        if TObject(GWindows[i]) is TFtX11Window then
         begin
-          if (win.FPendingResizeW = win.Width) and (win.FPendingResizeH = win.Height) then
-            win.FHasPendingResize := False
-          else
+          win := TFtX11Window(GWindows[i]);
+          if win.FHasPendingResize then
           begin
-            shouldResize := ((nowMs - win.FLastConfigureTime) >= 25) or
-                            ((nowMs - win.FLastResizeRenderTime) >= 30);
-            if shouldResize then
+            if (win.FPendingResizeW = win.Width) and (win.FPendingResizeH = win.Height) then
+              win.FHasPendingResize := False
+            else
             begin
-              win.FHasPendingResize := False;
-              win.FNeedsRepaint := False;
-              win.Resize(win.FPendingResizeW, win.FPendingResizeH, False);
+              shouldResize := ((nowMs - win.FLastConfigureTime) >= 25) or
+                              ((nowMs - win.FLastResizeRenderTime) >= 30);
+              if shouldResize then
+              begin
+                win.FHasPendingResize := False;
+                win.NeedsRepaint := False;
+                win.Resize(win.FPendingResizeW, win.FPendingResizeH, False);
+              end;
             end;
           end;
-        end;
 
-        if win.FNeedsRepaint then
-        begin
-          win.FNeedsRepaint := False;
-          win.Repaint();
+          if win.NeedsRepaint then
+          begin
+            win.NeedsRepaint := False;
+            win.Repaint();
+          end;
         end;
       end;
     end;
@@ -584,9 +544,12 @@ begin
   if not Assigned(GWindows) then Exit;
   for i := 0 to GWindows.Count - 1 do
   begin
-    w := TFtX11Window(GWindows[i]);
-    if w.FHasPendingResize or ((ANowMs >= w.FLastConfigureTime) and ((ANowMs - w.FLastConfigureTime) < 150)) then
-      Exit(True);
+    if TObject(GWindows[i]) is TFtX11Window then
+    begin
+      w := TFtX11Window(GWindows[i]);
+      if w.FHasPendingResize or ((ANowMs >= w.FLastConfigureTime) and ((ANowMs - w.FLastConfigureTime) < 150)) then
+        Exit(True);
+    end;
   end;
 end;
 
@@ -659,47 +622,6 @@ begin
     xcb_disconnect(GConnection);
     GConnection := nil;
     GDisplay := nil;
-  end;
-end;
-
-type
-  TFtX11Broadcaster = class
-    procedure HandleThemeChanged();
-    procedure HandleStyleSheetChanged();
-  end;
-
-var
-  GBroadcaster: TFtX11Broadcaster = nil;
-
-procedure TFtX11Broadcaster.HandleThemeChanged();
-var
-  i: Integer;
-  win: TFtX11Window;
-begin
-  if Assigned(GWindows) then
-  begin
-    for i := 0 to GWindows.Count - 1 do
-    begin
-      win := TFtX11Window(GWindows[i]);
-      win.InvalidateStyle();
-      win.Invalidate();
-    end;
-  end;
-end;
-
-procedure TFtX11Broadcaster.HandleStyleSheetChanged();
-var
-  i: Integer;
-  win: TFtX11Window;
-begin
-  if Assigned(GWindows) then
-  begin
-    for i := 0 to GWindows.Count - 1 do
-    begin
-      win := TFtX11Window(GWindows[i]);
-      win.InvalidateStyle();
-      win.Invalidate();
-    end;
   end;
 end;
 
@@ -777,23 +699,14 @@ begin
   end;
 end;
 
-constructor TFtX11Window.Create(W, H: Integer; Title: string);
+constructor TFtX11Window.Create(W, H: Integer; const ATitle: string);
 var
   vis32: xcb_visualid_t;
   mask: Cardinal;
   valList: xcb_create_window_value_list_t;
 begin
-  inherited Create(nil);
-  X := 0;
-  Y := 0;
-  Width := W;
-  Height := H;
+  inherited Create(W, H, ATitle);
   FConnection := GConnection;
-  FBorderless := False;
-  FSkipTaskbar := False;
-  FWindowType := ftwtNormal;
-  FBackgroundOpacity := 1.0;
-  FBackgroundBlur := False;
   FScratchBuffer := nil;
   FScratchBufferSize := 0;
 
@@ -839,20 +752,8 @@ begin
                         100, 100, Width, Height, 0,
                         XCB_WINDOW_CLASS_INPUT_OUTPUT, FVisual, mask, @valList);
 
-  SetTitle(Title);
-  FHoverWidget := nil;
-  FPressedWidget := nil;
-  FFocusedWidget := nil;
-  FMainMenu := nil;
-  FActivePopup := nil;
+  SetTitle(ATitle);
   FCurrentCursor := High(xcb_cursor_t);
-  FNeedsRepaint := False;
-  FDirtyLeft := 0;
-  FDirtyTop := 0;
-  FDirtyRight := 0;
-  FDirtyBottom := 0;
-  FHasDirtyRect := False;
-  FFullRepaint := True;
   FHasPendingResize := False;
   FPendingResizeW := 0;
   FPendingResizeH := 0;
@@ -867,21 +768,6 @@ begin
   FGC := xcb_generate_id(FConnection);
   xcb_create_gc(FConnection, FGC, FWindow, 0, nil);
 
-  GetMem(FPixelBuffer, Width * Height * 4);
-  FCanvas := TFtCanvasAgg.Create(FPixelBuffer, Width, Height);
-
-  if not Assigned(GWindows) then
-    GWindows := TFPList.Create();
-  GWindows.Add(Self);
-  GActiveWindow := Self;
-
-  if not Assigned(GBroadcaster) then
-  begin
-    GBroadcaster := TFtX11Broadcaster.Create();
-    FtThemeManager().OnThemeChange := @GBroadcaster.HandleThemeChanged;
-    FtGetStyleSheet().OnChange := @GBroadcaster.HandleStyleSheetChanged;
-  end;
-
   xcb_flush(FConnection);
 end;
 
@@ -890,6 +776,7 @@ var
   p: PChar;
   len: Integer;
 begin
+  inherited SetTitle(ATitle);
   p := PChar(ATitle);
   len := Length(ATitle);
 
@@ -907,7 +794,7 @@ var
   hints: TMWMHints;
   val: xcb_change_window_attributes_value_list_t;
 begin
-  FBorderless := ABorderless;
+  inherited SetBorderless(ABorderless);
   if (FWindow = 0) or (FConnection = nil) then Exit;
 
   FillChar(hints, SizeOf(hints), 0);
@@ -932,7 +819,7 @@ procedure TFtX11Window.SetSkipTaskbar(ASkip: Boolean);
 var
   atoms: array[0..1] of xcb_atom_t;
 begin
-  FSkipTaskbar := ASkip;
+  inherited SetSkipTaskbar(ASkip);
   if (FWindow = 0) or (FConnection = nil) then Exit;
 
   if ASkip then
@@ -951,7 +838,7 @@ var
   typeAtom: xcb_atom_t;
   val: xcb_change_window_attributes_value_list_t;
 begin
-  FWindowType := AType;
+  inherited SetWindowType(AType);
   if (FWindow = 0) or (FConnection = nil) then Exit;
 
   case AType of
@@ -982,9 +869,7 @@ procedure TFtX11Window.SetWindowOpacity(AOpacity: Double);
 var
   cardinalValue: Cardinal;
 begin
-  if AOpacity < 0.0 then AOpacity := 0.0;
-  if AOpacity > 1.0 then AOpacity := 1.0;
-  FOpacity := AOpacity;
+  inherited SetWindowOpacity(AOpacity);
   if (FConnection = nil) or (FWindow = 0) then Exit;
 
   if AOpacity >= 0.999 then
@@ -997,46 +882,13 @@ begin
   xcb_flush(FConnection);
 end;
 
-function TFtX11Window.GetWindowOpacity(): Double;
-begin
-  Result := FOpacity;
-end;
-
-procedure TFtX11Window.SetOpacity(AValue: Double);
-begin
-  inherited SetOpacity(AValue);
-  SetWindowOpacity(AValue);
-end;
-
-procedure TFtX11Window.SetBackgroundOpacity(AValue: Double);
-begin
-  if AValue < 0.0 then AValue := 0.0;
-  if AValue > 1.0 then AValue := 1.0;
-  if Abs(FBackgroundOpacity - AValue) > 1e-4 then
-  begin
-    FBackgroundOpacity := AValue;
-    Invalidate();
-  end;
-end;
-
-function TFtX11Window.GetBackgroundOpacity(): Double;
-begin
-  Result := FBackgroundOpacity;
-end;
-
 procedure TFtX11Window.SetBackgroundBlur(AValue: Boolean);
 begin
   if FBackgroundBlur <> AValue then
   begin
-    FBackgroundBlur := AValue;
+    inherited SetBackgroundBlur(AValue);
     UpdateBlurBehindRegion();
-    Invalidate();
   end;
-end;
-
-function TFtX11Window.GetBackgroundBlur(): Boolean;
-begin
-  Result := FBackgroundBlur;
 end;
 
 procedure TFtX11Window.UpdateBlurBehindRegion();
@@ -1149,28 +1001,6 @@ end;
 
 destructor TFtX11Window.Destroy();
 begin
-  if Assigned(GWindows) then
-    GWindows.Remove(Self);
-  if GActiveWindow = Self then
-  begin
-    if Assigned(GWindows) and (GWindows.Count > 0) then
-      GActiveWindow := TFtX11Window(GWindows[0])
-    else
-      GActiveWindow := nil;
-  end;
-  if GGrabbedPopup = Self then
-    GGrabbedPopup := nil;
-
-  FHoverWidget := nil;
-  FPressedWidget := nil;
-  FFocusedWidget := nil;
-  FCanvas.Free();
-
-  if Assigned(FPixelBuffer) then
-  begin
-    FreeMem(FPixelBuffer);
-    FPixelBuffer := nil;
-  end;
   if Assigned(FScratchBuffer) then
   begin
     FreeMem(FScratchBuffer);
@@ -1196,20 +1026,18 @@ begin
   inherited Destroy();
 end;
 
-procedure TFtX11Window.Resize(NewW, NewH: Integer; AApplyToX11: Boolean = True);
+procedure TFtX11Window.Resize(NewW, NewH: Integer; AApplyToBackend: Boolean = True);
 var
   values: array[0..1] of Cardinal;
 begin
   if (NewW <= 0) or (NewH <= 0) or ((NewW = Width) and (NewH = Height)) then Exit;
 
-  Width := NewW;
-  Height := NewH;
+  inherited Resize(NewW, NewH, AApplyToBackend);
+
   FHasPendingResize := False;
   FLastResizeTime := GetTickCount64();
-  if Assigned(FMainMenu) then
-    FMainMenu.Width := Width;
 
-  if AApplyToX11 and (FWindow <> 0) and Assigned(FConnection) then
+  if AApplyToBackend and (FWindow <> 0) and Assigned(FConnection) then
   begin
     values[0] := Cardinal(Width);
     values[1] := Cardinal(Height);
@@ -1219,16 +1047,6 @@ begin
     xcb_flush(FConnection);
   end;
 
-  if Assigned(FPixelBuffer) then
-    FreeMem(FPixelBuffer);
-
-  GetMem(FPixelBuffer, Width * Height * 4);
-
-  if Assigned(FCanvas) then
-    FCanvas.Resize(FPixelBuffer, Width, Height)
-  else
-    FCanvas := TFtCanvasAgg.Create(FPixelBuffer, Width, Height);
-
   FFullRepaint := True;
   Repaint();
   FLastResizeRenderTime := GetTickCount64();
@@ -1236,7 +1054,7 @@ end;
 
 procedure TFtX11Window.Show();
 begin
-  Visible := True;
+  inherited Show();
   if (FWindow <> 0) and Assigned(FConnection) then
   begin
     xcb_map_window(FConnection, FWindow);
@@ -1253,7 +1071,7 @@ begin
     GHintTargetWidget := nil;
     GHintHoverStartMs := 0;
   end;
-  Visible := False;
+  inherited Hide();
   if (FWindow <> 0) and Assigned(FConnection) then
   begin
     xcb_unmap_window(FConnection, FWindow);
@@ -1261,23 +1079,13 @@ begin
   end;
 end;
 
-function TFtX11Window.GetElementType(): string;
-begin
-  Result := 'window';
-end;
-
 procedure TFtX11Window.Repaint();
 var
-  st: TFtWidgetStyle;
   isPartial: Boolean;
   dirtyX, dirtyY, dirtyW, dirtyH: Integer;
-  isTranslucent: Boolean;
-  effBgA: Double;
-  rowY: Integer;
 begin
   if (Width <= 0) or (Height <= 0) or (FWindow = 0) or not Assigned(FCanvas) or not Assigned(FConnection) then Exit;
 
-  FNeedsRepaint := False;
   isPartial := FHasDirtyRect and not FFullRepaint;
   if FHasDirtyRect then
   begin
@@ -1291,217 +1099,107 @@ begin
     dirtyX := 0; dirtyY := 0; dirtyW := Width; dirtyH := Height;
   end;
 
-  st := GetResolvedStyle();
-  isTranslucent := (FDepth = 32) and ((FBackgroundOpacity < 0.999) or (st.HasBgColor and (st.BgColor.A < 0.999)) or (FWindowType in [ftwtPopupMenu, ftwtDropdownMenu, ftwtTooltip]));
+  inherited Repaint();
 
   if isPartial then
   begin
-    FHasDirtyRect := False;
-    FFullRepaint := False;
-
-    if (dirtyW <= 0) or (dirtyH <= 0) then Exit;
-
-    if isTranslucent then
-    begin
-      for rowY := dirtyY to dirtyY + dirtyH - 1 do
-        FillChar(PByte(FPixelBuffer)[(rowY * Width + dirtyX) * 4], dirtyW * 4, 0);
-    end;
-
-    FCanvas.ResetAllClipping();
-    FCanvas.PushClipRect(dirtyX, dirtyY, dirtyW, dirtyH);
-    try
-      if not (FWindowType in [ftwtPopupMenu, ftwtDropdownMenu, ftwtTooltip]) then
-      begin
-        if st.HasBgColor then
-        begin
-          effBgA := st.BgColor.A * FBackgroundOpacity;
-          FCanvas.DrawRect(0, 0, Width, Height, st.BgColor.R, st.BgColor.G, st.BgColor.B, effBgA);
-        end
-        else
-          FtGetTheme().DrawWindowBackground(FCanvas, Width, Height, FBackgroundOpacity);
-      end;
-      Self.Draw(FCanvas);
-    finally
-      FCanvas.ResetAllClipping();
-    end;
-
-    FtXcbPutImage(FConnection, FWindow, FGC, FDepth, FPixelBuffer, Width, Height,
-                  dirtyX, dirtyY, dirtyW, dirtyH, FScratchBuffer, FScratchBufferSize);
-    xcb_flush(FConnection);
+    if (dirtyW > 0) and (dirtyH > 0) then
+      FtXcbPutImage(FConnection, FWindow, FGC, FDepth, FPixelBuffer, Width, Height,
+                    dirtyX, dirtyY, dirtyW, dirtyH, FScratchBuffer, FScratchBufferSize);
   end
   else
   begin
-    FHasDirtyRect := False;
-    FFullRepaint := False;
-
-    if isTranslucent then
-      FillChar(FPixelBuffer^, Width * Height * 4, 0);
-
-    FCanvas.ResetAllClipping();
-    if not (FWindowType in [ftwtPopupMenu, ftwtDropdownMenu, ftwtTooltip]) then
-    begin
-      if st.HasBgColor then
-      begin
-        effBgA := st.BgColor.A * FBackgroundOpacity;
-        FCanvas.DrawRect(0, 0, Width, Height, st.BgColor.R, st.BgColor.G, st.BgColor.B, effBgA);
-      end
-      else
-        FtGetTheme().DrawWindowBackground(FCanvas, Width, Height, FBackgroundOpacity);
-    end;
-    Self.Draw(FCanvas);
-
     FtXcbPutImage(FConnection, FWindow, FGC, FDepth, FPixelBuffer, Width, Height,
                   0, 0, Width, Height, FScratchBuffer, FScratchBufferSize);
-    xcb_flush(FConnection);
   end;
-end;
-
-procedure TFtX11Window.SetActivePopup(APopup: TFtWidget);
-begin
-  FActivePopup := APopup;
+  xcb_flush(FConnection);
 end;
 
 procedure TFtX11Window.ClearActivePopup();
 begin
-  FActivePopup := nil;
+  inherited ClearActivePopup();
   if Assigned(FMainMenu) then
     TFtMainMenu(FMainMenu).CloseMenu();
 end;
 
-procedure TFtX11Window.OnThemeChanged();
+procedure TFtX11Window.ClaimPrimarySelection(const AText: string);
 begin
-  InvalidateStyle();
-  Invalidate();
-end;
-
-procedure TFtX11Window.OnStyleSheetChanged();
-begin
-  InvalidateStyle();
-  Invalidate();
-end;
-
-procedure TFtX11Window.Invalidate();
-begin
-  FFullRepaint := True;
-  FNeedsRepaint := True;
-end;
-
-procedure TFtX11Window.InvalidateRect(AX, AY, AW, AH: Integer);
-var
-  cx1, cy1, cx2, cy2: Integer;
-begin
-  if not Visible or (Width <= 0) or (Height <= 0) then Exit;
-  if (AW <= 0) or (AH <= 0) then Exit;
-
-  cx1 := AX;
-  cy1 := AY;
-  cx2 := AX + AW;
-  cy2 := AY + AH;
-  if cx1 < 0 then cx1 := 0;
-  if cy1 < 0 then cy1 := 0;
-  if cx2 > Width then cx2 := Width;
-  if cy2 > Height then cy2 := Height;
-  if (cx2 <= cx1) or (cy2 <= cy1) then Exit;
-
-  if FFullRepaint then
+  if (FWindow <> 0) and Assigned(FConnection) then
   begin
-    FNeedsRepaint := True;
-    Exit;
-  end;
-
-  if not FHasDirtyRect then
-  begin
-    FDirtyLeft := cx1;
-    FDirtyTop := cy1;
-    FDirtyRight := cx2;
-    FDirtyBottom := cy2;
-    FHasDirtyRect := True;
-  end
-  else
-  begin
-    if cx1 < FDirtyLeft then FDirtyLeft := cx1;
-    if cy1 < FDirtyTop then FDirtyTop := cy1;
-    if cx2 > FDirtyRight then FDirtyRight := cx2;
-    if cy2 > FDirtyBottom then FDirtyBottom := cy2;
-  end;
-
-  FNeedsRepaint := True;
-end;
-
-var
-  gClipboardText: string = '';
-  gPrimarySelectionText: string = '';
-  gOnPrimarySelectionLost: TFtSelectionLostHandler = nil;
-
-procedure FtSetSelectionLostHandler(AHandler: TFtSelectionLostHandler);
-begin
-  gOnPrimarySelectionLost := AHandler;
-end;
-
-procedure FtClaimPrimarySelection(const AText: string);
-begin
-  gPrimarySelectionText := AText;
-  if Assigned(GActiveWindow) and Assigned(GActiveWindow.FConnection) and (GActiveWindow.FWindow <> 0) then
-  begin
-    xcb_set_selection_owner(GActiveWindow.FConnection, GActiveWindow.FWindow, 1 {XA_PRIMARY}, XCB_CURRENT_TIME);
-    xcb_flush(GActiveWindow.FConnection);
+    xcb_set_selection_owner(FConnection, FWindow, 1 {XA_PRIMARY}, XCB_CURRENT_TIME);
+    xcb_flush(FConnection);
   end;
 end;
 
-procedure FtClearPrimarySelection();
+procedure TFtX11Window.ClearPrimarySelection();
 var
   cookie: xcb_get_selection_owner_cookie_t;
   reply: Pxcb_get_selection_owner_reply_t;
   isOwner: Boolean;
 begin
-  gPrimarySelectionText := '';
-  if Assigned(GActiveWindow) and Assigned(GActiveWindow.FConnection) and (GActiveWindow.FWindow <> 0) then
+  if (FWindow <> 0) and Assigned(FConnection) then
   begin
-    cookie := xcb_get_selection_owner(GActiveWindow.FConnection, 1);
-    reply := xcb_get_selection_owner_reply(GActiveWindow.FConnection, cookie, nil);
+    cookie := xcb_get_selection_owner(FConnection, 1);
+    reply := xcb_get_selection_owner_reply(FConnection, cookie, nil);
     if Assigned(reply) then
     begin
-      isOwner := (reply^.owner = GActiveWindow.FWindow);
+      isOwner := (reply^.owner = FWindow);
       c_free(reply);
       if isOwner then
       begin
-        xcb_set_selection_owner(GActiveWindow.FConnection, 0, 1, XCB_CURRENT_TIME);
-        xcb_flush(GActiveWindow.FConnection);
+        xcb_set_selection_owner(FConnection, 0, 1, XCB_CURRENT_TIME);
+        xcb_flush(FConnection);
       end;
     end;
   end;
 end;
 
+procedure FtSetSelectionLostHandler(AHandler: TFtSelectionLostHandler);
+begin
+  Ft.Window.FtSetSelectionLostHandler(AHandler);
+end;
+
+procedure FtClaimPrimarySelection(const AText: string);
+begin
+  Ft.Window.FtClaimPrimarySelection(AText);
+end;
+
+procedure FtClearPrimarySelection();
+begin
+  Ft.Window.FtClearPrimarySelection();
+end;
+
 procedure FtSetClipboardText(const AText: string);
 begin
-  gClipboardText := AText;
-  if Assigned(GActiveWindow) then
-    GActiveWindow.ClaimClipboard();
+  Ft.Window.FtSetClipboardText(AText);
 end;
 
 function GetSelectionRequestorWindow(): TFtX11Window;
 var
   i: Integer;
-  w: TFtX11Window;
+  w: TFtWindow;
 begin
-  if Assigned(GActiveWindow) and (GActiveWindow.FWindowType = ftwtNormal) and (GActiveWindow.FWindow <> 0) then
-    Exit(GActiveWindow);
+  if Assigned(GActiveWindow) and (TObject(GActiveWindow) is TFtX11Window) and
+     (GActiveWindow.WindowType = ftwtNormal) and (TFtX11Window(GActiveWindow).FWindow <> 0) then
+    Exit(TFtX11Window(GActiveWindow));
   if Assigned(GWindows) then
   begin
     for i := 0 to GWindows.Count - 1 do
     begin
-      w := TFtX11Window(GWindows[i]);
-      if Assigned(w) and (w.FWindowType = ftwtNormal) and (w.FWindow <> 0) then
-        Exit(w);
+      w := TFtWindow(GWindows[i]);
+      if Assigned(w) and (TObject(w) is TFtX11Window) and (w.WindowType = ftwtNormal) and (TFtX11Window(w).FWindow <> 0) then
+        Exit(TFtX11Window(w));
     end;
     for i := 0 to GWindows.Count - 1 do
     begin
-      w := TFtX11Window(GWindows[i]);
-      if Assigned(w) and (w.FWindow <> 0) then
-        Exit(w);
+      w := TFtWindow(GWindows[i]);
+      if Assigned(w) and (TObject(w) is TFtX11Window) and (TFtX11Window(w).FWindow <> 0) then
+        Exit(TFtX11Window(w));
     end;
   end;
-  Result := GActiveWindow;
+  if Assigned(GActiveWindow) and (TObject(GActiveWindow) is TFtX11Window) then
+    Exit(TFtX11Window(GActiveWindow));
+  Result := nil;
 end;
 
 function FtFetchSelectionFromXCB(ASelectionAtom: xcb_atom_t): string;
@@ -1548,7 +1246,8 @@ begin
   begin
     for attempt := 0 to GWindows.Count - 1 do
     begin
-      if TFtX11Window(GWindows[attempt]).FWindow = ownerWin then
+      if (TObject(GWindows[attempt]) is TFtX11Window) and
+         (TFtX11Window(GWindows[attempt]).FWindow = ownerWin) then
       begin
         if ASelectionAtom = 1 then
           Exit(gPrimarySelectionText)
@@ -1611,7 +1310,7 @@ begin
   end;
 end;
 
-function FtGetClipboardText(): string;
+function FetchClipboardFromXCB(): string;
 var
   win: TFtX11Window;
   conn: Pxcb_connection_t;
@@ -1668,6 +1367,11 @@ begin
   Result := gClipboardText;
 end;
 
+function FtGetClipboardText(): string;
+begin
+  Result := Ft.Window.FtGetClipboardText();
+end;
+
 procedure TFtX11Window.UpdateCursor();
 var
   target: TFtWidget;
@@ -1714,6 +1418,31 @@ begin
   end;
 end;
 
+function TFtX11Window.FetchClipboardText(): string;
+begin
+  Result := FetchClipboardFromXCB();
+end;
+
+function TFtX11Window.FetchPrimarySelectionText(): string;
+begin
+  Result := FtFetchSelectionFromXCB(1);
+end;
+
+procedure TFtX11Window.GrabInput();
+begin
+  FtGrabMenuInput(Self);
+end;
+
+procedure TFtX11Window.UngrabInput();
+begin
+  FtUngrabMenuInput(Self);
+end;
+
+function TFtX11Window.GetNativeHandle(): Pointer;
+begin
+  Result := Pointer(PtrUInt(FWindow));
+end;
+
 procedure TFtX11Window.WidgetDestroyed(AWidget: TFtWidget);
 begin
   if GHintTargetWidget = AWidget then
@@ -1722,104 +1451,8 @@ begin
     GHintTargetWidget := nil;
     GHintHoverStartMs := 0;
   end;
-  if FHoverWidget = AWidget then
-    FHoverWidget := nil;
-  if FPressedWidget = AWidget then
-    FPressedWidget := nil;
-  if FFocusedWidget = AWidget then
-    FFocusedWidget := nil;
-  if FMainMenu = AWidget then
-    FMainMenu := nil;
-  if FActivePopup = AWidget then
-    FActivePopup := nil;
-  UpdateCursor();
   inherited WidgetDestroyed(AWidget);
-end;
-
-procedure TFtX11Window.RequestFocus(AWidget: TFtWidget);
-begin
-  SetFocusedWidget(AWidget);
-end;
-
-procedure TFtX11Window.SetFocusedWidget(AWidget: TFtWidget);
-begin
-  if AWidget = FFocusedWidget then Exit;
-  if Assigned(FFocusedWidget) then
-    FFocusedWidget.LostFocus();
-  if Assigned(AWidget) and AWidget.CanFocus() then
-  begin
-    FFocusedWidget := AWidget;
-    FFocusedWidget.GotFocus();
-  end
-  else
-    FFocusedWidget := nil;
-end;
-
-procedure TFtX11Window.FocusNext(ABackward: Boolean = False);
-
-  procedure CollectFocusable(AWidget: TFtWidget; AList: TFPList);
-  var
-    i: Integer;
-    child: TFtWidget;
-  begin
-    if not AWidget.Visible then Exit;
-    if AWidget.CanFocus() then
-      AList.Add(AWidget);
-    for i := 0 to AWidget.Children.Count - 1 do
-    begin
-      child := TFtWidget(AWidget.Children[i]);
-      CollectFocusable(child, AList);
-    end;
-  end;
-
-var
-  list: TFPList;
-  idx, nextIdx, cnt: Integer;
-begin
-  list := TFPList.Create();
-  try
-    CollectFocusable(Self, list);
-    cnt := list.Count;
-    if cnt = 0 then
-    begin
-      SetFocusedWidget(nil);
-      Exit;
-    end;
-
-    idx := list.IndexOf(FFocusedWidget);
-    if idx < 0 then
-    begin
-      if ABackward then
-        nextIdx := cnt - 1
-      else
-        nextIdx := 0;
-    end
-    else
-    begin
-      if ABackward then
-        nextIdx := (idx - 1 + cnt) mod cnt
-      else
-        nextIdx := (idx + 1) mod cnt;
-    end;
-
-    SetFocusedWidget(TFtWidget(list[nextIdx]));
-  finally
-    list.Free();
-  end;
-end;
-
-function FindFocusableWidget(AWidget: TFtWidget): TFtWidget;
-var
-  w: TFtWidget;
-begin
-  w := AWidget;
-  while Assigned(w) do
-  begin
-    if w.CanFocus() then
-      Exit(w);
-    w := w.Parent;
-  end;
-  Result := nil;
+  UpdateCursor();
 end;
 
 procedure TFtX11Window.HandleEvents();
@@ -2244,8 +1877,8 @@ end;
 
 constructor TFtHintWindow.Create(AParent: TFtWidget);
 var
-  popWin: TFtX11Window;
-  prevActive: TFtX11Window;
+  popWin: TFtWindow;
+  prevActive: TFtWindow;
 begin
   inherited Create(AParent);
   FText := '';
@@ -2256,9 +1889,8 @@ begin
   if Assigned(GConnection) then
   begin
     prevActive := GActiveWindow;
-    popWin := TFtX11Window.Create(100, 30, '');
+    popWin := FtCreateWindow(100, 30, '', ftwtTooltip);
     GActiveWindow := prevActive;
-    popWin.WindowType := ftwtTooltip;
     popWin.Borderless := True;
     popWin.SkipTaskbar := True;
     popWin.Visible := False;
@@ -2459,18 +2091,11 @@ begin
   Result := GHintDelayMs;
 end;
 
+initialization
+  FtRegisterWindowClass(TFtX11Window);
+
 finalization
   if Assigned(GHintWindow) then
     FreeAndNil(GHintWindow);
-  if Assigned(GBroadcaster) then
-  begin
-    if Assigned(FtThemeManager()) then
-      FtThemeManager().OnThemeChange := nil;
-    if Assigned(FtGetStyleSheet()) then
-      FtGetStyleSheet().OnChange := nil;
-    FreeAndNil(GBroadcaster);
-  end;
-  if Assigned(GWindows) then
-    FreeAndNil(GWindows);
 
 end.

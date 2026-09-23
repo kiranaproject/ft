@@ -7,7 +7,7 @@ Floria Toolkit provides a rich suite of native desktop widgets designed with obj
 ## Table of Contents
 1. [Widget Hierarchy](#widget-hierarchy)
 2. [Base Widget (`TFtWidget`)](#base-widget-tftwidget)
-3. [Top-Level Window (`TFtX11Window`)](#top-level-window-tftx11window)
+3. [Top-Level Window (`TFtWindow`, `TFtX11Window`)](#top-level-window-tftwindow-tftx11window)
 4. [Push & Toggle Buttons (`TFtButton`)](#push--toggle-buttons-tftbutton)
 5. [Window Caption Button (`TFtWindowButton`)](#window-caption-button-tftwindowbutton)
 6. [Toggle Switch (`TFtSwitch`)](#toggle-switch-tftswitch)
@@ -26,7 +26,7 @@ Floria Toolkit provides a rich suite of native desktop widgets designed with obj
 19. [Table & DataGrid (`TFtTable`, `TFtGrid`)](#table--datagrid-tfttable-tftgrid)
 20. [Image & SVG Viewer (`TFtImage`)](#image--svg-viewer-tftimage)
 21. [Vector ScrollBar (`TFtScrollBar`)](#vector-scrollbar-tftscrollbar)
-22. [Main Menu & Popup Context Menus](#main-menu--popup-context-menus)
+22: [Main Menu & Popup Context Menus](#main-menu--popup-context-menus)
 
 ---
 
@@ -34,7 +34,8 @@ Floria Toolkit provides a rich suite of native desktop widgets designed with obj
 
 ```
 TFtWidget (Ft.Widget)
-├── TFtX11Window (Ft.Backend.X11)
+├── TFtWindow (Ft.Window)
+│   └── TFtX11Window (Ft.Backend.X11)
 ├── TFtButton (Ft.Widget.Buttons)
 │   └── TFtWindowButton (Ft.Widget.Buttons)
 ├── TFtSwitch (Ft.Widget.Switches)
@@ -72,13 +73,21 @@ All visual elements inherit from `TFtWidget`:
 
 ---
 
-## Top-Level Window (`TFtX11Window`)
+## Top-Level Window (`TFtWindow`, `TFtX11Window`)
 
-Native X11 window wrapper providing:
-- Double-buffered AGG software rendering pipe.
-- Modern EWMH title, icon, and window type management (`_NET_WM_WINDOW_TYPE_NORMAL`, `DIALOG`, `POPUP_MENU`, etc.).
-- Borderless and taskbar-skipping options.
-- 60 FPS event and animation dispatch loop.
+Floria Toolkit separates top-level window logic into an abstract base class and platform-specific backends:
+- **Abstract Base (`TFtWindow`)**:
+  - Manages double-buffered AGG software rendering (`FPixelBuffer`, `FCanvas: TFtCanvasAgg`).
+  - Selective dirty rect tracking (`HasDirtyRect`, `DirtyLeft`, `DirtyTop`, `DirtyRight`, `DirtyBottom`, `NeedsRepaint`).
+  - Active keyboard focus traversal (`FocusNext`) and focused widget state tracking.
+  - Active popup menu tracking (`ActivePopup`, `GGrabbedPopup`) and outside-click dismissal.
+  - Factory pattern: `FtRegisterWindowClass()` and `FtCreateWindow()`.
+- **X11/XCB Implementation (`TFtX11Window`)**:
+  - Native XCB window (`xcb_window_t`) and graphics context (`xcb_gcontext_t`).
+  - Modern EWMH title, icon, and window type management (`_NET_WM_WINDOW_TYPE_NORMAL`, `DIALOG`, `POPUP_MENU`, `TOOLTIP`, etc.).
+  - Borderless, taskbar-skipping, and full compositor opacity options (`_NET_WM_WINDOW_OPACITY`).
+  - KDE/KWin blur behind window integration (`_KDE_NET_WM_BLUR_BEHIND_REGION`).
+  - 60 FPS event loop with XCB event polling and animation scheduling.
 
 ---
 
@@ -170,6 +179,9 @@ A modern toggle switch inspired by modern mobile and desktop operating systems:
 - **Dual Modes**:
   - **Static Label**: Lightweight immutable text display (skips keyboard focus).
   - **Selectable Text**: Full desktop text selection support (mouse drag, double-click word selection, `Ctrl+A`, `Ctrl+C` clipboard copy, I-beam cursor).
+- **Word Wrapping & Bounds Clipping**:
+  - Multiline automatic word wrapping enabled via `WordWrap: Boolean` (`ft_text_set_word_wrap`). Text wraps gracefully at word and character boundaries based on widget width.
+  - Bounds scissor clipping prevents text overflow from drawing outside the widget rectangle when content exceeds dimensions.
 - **Internationalization**: Full UTF-8 Unicode rendering across complex writing systems (Latin, Cyrillic, Greek, CJK, Thai, Devanagari, Arabic, Hebrew).
 
 ---

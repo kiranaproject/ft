@@ -13,37 +13,24 @@ echo "[INFO] Compiling Floria Toolkit C examples..."
 CFLAGS="-Wall -O2 -Iinclude"
 LDFLAGS="-Ltarget -lft -Wl,-rpath,'\$ORIGIN'"
 
-eval gcc $CFLAGS examples/c/main.c $LDFLAGS -o target/c_example
-eval gcc $CFLAGS examples/c/main.c $LDFLAGS -o target/example_main
-eval gcc $CFLAGS examples/c/multilingual.c $LDFLAGS -o target/multilingual_example
-eval gcc $CFLAGS examples/c/multilingual.c $LDFLAGS -o target/example_multilingual
-eval gcc $CFLAGS examples/c/chinese.c $LDFLAGS -o target/example_chinese
-eval gcc $CFLAGS examples/c/inputs.c $LDFLAGS -o target/input_example
-eval gcc $CFLAGS examples/c/inputs.c $LDFLAGS -o target/example_inputs
-eval gcc $CFLAGS examples/c/scrollbars.c $LDFLAGS -o target/scrollbar_example
-eval gcc $CFLAGS examples/c/scrollbars.c $LDFLAGS -o target/example_scrollbars
-eval gcc $CFLAGS examples/c/containers.c $LDFLAGS -o target/example_containers
-eval gcc $CFLAGS examples/c/menus.c $LDFLAGS -o target/example_menus
-eval gcc $CFLAGS examples/c/menus.c $LDFLAGS -o target/menu_example
-eval gcc $CFLAGS examples/c/outside_menu_demo.c $LDFLAGS -o target/example_outside_menus
-eval gcc $CFLAGS examples/c/outside_menu_demo.c $LDFLAGS -o target/outside_menu_demo
-eval gcc $CFLAGS examples/c/widget_context_menus_demo.c $LDFLAGS -o target/widget_context_menus_demo
-eval gcc $CFLAGS examples/c/widget_context_menus_demo.c $LDFLAGS -o target/example_widget_context_menus
-eval gcc $CFLAGS examples/c/css_button_demo.c $LDFLAGS -o target/example_css_button
-eval gcc $CFLAGS examples/c/css_button_demo.c $LDFLAGS -o target/css_button_demo
-eval gcc $CFLAGS examples/c/css_animation_demo.c $LDFLAGS -o target/example_css_animation
-eval gcc $CFLAGS examples/c/css_animation_demo.c $LDFLAGS -o target/css_animation_demo
-eval gcc $CFLAGS examples/c/form_controls_demo.c $LDFLAGS -o target/example_form_controls
-eval gcc $CFLAGS examples/c/form_controls_demo.c $LDFLAGS -o target/form_controls_demo
-eval gcc $CFLAGS examples/c/test_all_widgets_css.c $LDFLAGS -o target/test_all_widgets_css
-eval gcc $CFLAGS examples/c/advanced_desktop_widgets_demo.c $LDFLAGS -o target/advanced_desktop_widgets_demo
-eval gcc $CFLAGS examples/c/advanced_desktop_widgets_demo.c $LDFLAGS -o target/example_advanced_desktop_widgets
-eval gcc $CFLAGS examples/c/window_button_demo.c $LDFLAGS -o target/window_button_demo
-eval gcc $CFLAGS examples/c/window_button_demo.c $LDFLAGS -o target/example_window_button
-eval gcc $CFLAGS examples/c/custom_table_demo.c $LDFLAGS -o target/custom_table_demo
-eval gcc $CFLAGS examples/c/custom_table_demo.c $LDFLAGS -o target/example_custom_table
-eval gcc $CFLAGS examples/c/squircle_button_demo.c $LDFLAGS -o target/squircle_button_demo
-eval gcc $CFLAGS examples/c/squircle_button_demo.c $LDFLAGS -o target/example_squircle_button
+eval gcc $CFLAGS examples/c/main.c $LDFLAGS -o target/example_c_main
+eval gcc $CFLAGS examples/c/multilingual.c $LDFLAGS -o target/example_c_multilingual
+eval gcc $CFLAGS examples/c/chinese.c $LDFLAGS -o target/example_c_chinese
+eval gcc $CFLAGS examples/c/inputs.c $LDFLAGS -o target/example_c_inputs
+eval gcc $CFLAGS examples/c/scrollbars.c $LDFLAGS -o target/example_c_scrollbars
+eval gcc $CFLAGS examples/c/containers.c $LDFLAGS -o target/example_c_containers
+eval gcc $CFLAGS examples/c/container_render_area.c $LDFLAGS -o target/example_c_container_render_area
+eval gcc $CFLAGS examples/c/menus.c $LDFLAGS -o target/example_c_menus
+eval gcc $CFLAGS examples/c/outside_menu.c $LDFLAGS -o target/example_c_outside_menus
+eval gcc $CFLAGS examples/c/widget_context_menus.c $LDFLAGS -o target/example_c_widget_context_menus
+eval gcc $CFLAGS examples/c/css_button.c $LDFLAGS -o target/example_c_css_button
+eval gcc $CFLAGS examples/c/css_animation.c $LDFLAGS -o target/example_c_css_animation
+eval gcc $CFLAGS examples/c/form_controls.c $LDFLAGS -o target/example_c_form_controls
+eval gcc $CFLAGS examples/c/test_all_widgets_css.c $LDFLAGS -o target/example_c_test_all_widgets_css
+eval gcc $CFLAGS examples/c/advanced_desktop_widgets.c $LDFLAGS -o target/example_c_advanced_desktop_widgets
+eval gcc $CFLAGS examples/c/window_button.c $LDFLAGS -o target/example_c_window_button
+eval gcc $CFLAGS examples/c/custom_table.c $LDFLAGS -o target/example_c_custom_table
+eval gcc $CFLAGS examples/c/squircle_button.c $LDFLAGS -o target/example_c_squircle_button
 
 echo "[INFO] Successfully built all C examples in target/:"
-ls -lh target/example_* target/c_example target/input_example target/scrollbar_example target/multilingual_example target/menu_example target/outside_menu_demo target/widget_context_menus_demo target/css_button_demo target/css_animation_demo target/form_controls_demo target/test_all_widgets_css target/advanced_desktop_widgets_demo target/window_button_demo target/custom_table_demo target/squircle_button_demo
+ls -lh target/example_c_*
