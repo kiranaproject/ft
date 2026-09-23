@@ -5,7 +5,7 @@ program TestRunner;
 uses
   Classes, SysUtils, Math, fpcunit, testregistry, consoletestrunner,
   Floria.SVG.DOM, Floria.SVG.Parser,
-  Ft.Css, Floria.Image.Core, Floria.Image.Blur, Floria.Canvas.Agg, Floria.SVG.Rasterizer, Ft.Widget, Ft.Widget.Containers, Ft.Widget.Images,
+  Ft.Css, Floria.Image.Core, Floria.Image.BMP, Floria.Image.PNG, Floria.Image.JPEG, Floria.Image.Blur, Floria.Canvas.Agg, Floria.SVG.Rasterizer, Ft.Widget, Ft.Widget.Containers, Ft.Widget.Images,
   Ft.Widget.Tabs, Ft.Widget.Splitters, Ft.Widget.TreeViews, Ft.Widget.Tables, Ft.Widget.Texts, Ft.Widget.Buttons,
   Ft.Widget.Switches, Ft.Widget.Selectors, Ft.Backend.X11, Ft.Theme, Floria.Font;
 
@@ -32,6 +32,7 @@ type
     procedure TestSVGRasterizeUseAndGroup();
     procedure TestBitmapCreateFromSVG();
     procedure TestImageWidgetLoadSVG();
+    procedure TestImageWidgetLoadPNG();
     procedure TestSVGRasterizeLinearGradient();
     procedure TestSVGRasterizeRadialGradient();
   end;
@@ -611,6 +612,29 @@ begin
     img.LoadSVGFromString(svg);
     AssertTrue('SVGDocument assigned', Assigned(img.SVGDocument));
     AssertEquals('Intrinsic Width', 50.0, img.SVGDocument.GetIntrinsicWidth());
+  finally
+    img.Free();
+  end;
+end;
+
+procedure TFtSvgTest.TestImageWidgetLoadPNG();
+var
+  img: TFtImage;
+  assetPath: string;
+begin
+  img := TFtImage.Create(nil, 0, 0, 100, 100);
+  try
+    if FileExists('examples/assets/emoji_smile.png') then
+      assetPath := 'examples/assets/emoji_smile.png'
+    else if FileExists('../examples/assets/emoji_smile.png') then
+      assetPath := '../examples/assets/emoji_smile.png'
+    else
+      assetPath := ExtractFilePath(ParamStr(0)) + '../examples/assets/emoji_smile.png';
+    AssertTrue('Asset file exists: ' + assetPath, FileExists(assetPath));
+    img.LoadFromFile(assetPath);
+    AssertTrue('Bitmap assigned', Assigned(img.Bitmap));
+    AssertEquals('Width 128', 128, img.Bitmap.Width);
+    AssertEquals('Height 128', 128, img.Bitmap.Height);
   finally
     img.Free();
   end;

@@ -11,6 +11,9 @@ uses
   Floria.SVG.Rasterizer,
   Floria.Canvas.Agg,
   Floria.Image.Core,
+  Floria.Image.BMP,
+  Floria.Image.PNG,
+  Floria.Image.JPEG,
   Ft.Widget,
   Ft.Theme,
   Ft.Css;
