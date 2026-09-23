@@ -172,21 +172,24 @@ lazbuild src/main/pascal/ft.lpi
 ```bash
 ./build_examples.sh
 
-# Run any example
-./target/c_example
-./target/advanced_desktop_widgets_demo
-./target/window_button_demo
-./target/form_controls_demo
-./target/example_menus
-./target/example_containers
-./target/css_button_demo
-./target/css_animation_demo
+# Run any example binary built in target/
+./target/example_c_main
+./target/example_c_advanced_desktop_widgets
+./target/example_c_window_button
+./target/example_c_form_controls
+./target/example_c_menus
+./target/example_c_containers
+./target/example_c_css_button
+./target/example_c_css_animation
 ```
 
 ### 3. Run Python Examples
 
 ```bash
 python3 examples/python/app.py
+python3 examples/python/fastfetch_ui.py
+python3 examples/python/blur_showcase.py
+python3 examples/python/terminal_transparency.py
 ```
 
 ---
@@ -207,16 +210,13 @@ floria-toolkit/
 │   ├── ft.css.pas            # CSS stylesheet engine, variable resolver & cascade
 │   ├── ft.animation.pas      # Transition & animation interpolation engine
 │   ├── ft.backend.x11.pas    # X11 window backend & 60 FPS event loop
-│   ├── ft.canvas.agg.pas     # AGG 2D vector drawing & shadow pipeline
-│   ├── ft.bitmap.pas         # RGBA pixel buffer & image rasterization
-│   ├── ft.svg.pas            # Vector SVG parser and geometry renderer
-│   ├── ft.blur.pas           # Gaussian blur and drop shadow computation
-│   ├── ft.widget.pas         # Base widget abstraction
+│   ├── ft.theme.pas          # Theme manager & stylesheet loader
+│   ├── ft.widget.pas         # Base widget abstraction (uses florialib for vector canvas & fonts)
 │   ├── ft.widget.buttons.pas # Push, toggle, and window caption buttons (TFtWindowButton)
-│   ├── ft.widget.switches.pas# Toggle switch
+│   ├── ft.widget.switches.pas# Animated toggle switch
 │   ├── ft.widget.selectors.pas# CheckBox, RadioButton, ComboBox
 │   ├── ft.widget.meters.pas  # Slider and ProgressBar
-│   ├── ft.widget.texts.pas   # Selectable & static text labels
+│   ├── ft.widget.texts.pas   # Selectable & static text labels with word wrapping & clipping
 │   ├── ft.widget.entries.pas # Single-line text input
 │   ├── ft.widget.textareas.pas# Multi-line text area
 │   ├── ft.widget.scrollbars.pas# Scrollbar widget
@@ -226,9 +226,7 @@ floria-toolkit/
 │   ├── ft.widget.treeviews.pas# Hierarchical tree view (TFtTreeView)
 │   ├── ft.widget.tables.pas  # Tabular data grid (TFtTable, TFtGrid)
 │   ├── ft.widget.images.pas  # Raster image & SVG viewer (TFtImage)
-│   ├── ft.widget.menus.pas   # Main menu bar & popup menus
-│   ├── ft.theme.pas          # Theme manager & stylesheet loader
-│   └── ft.font.pas           # Font management & subpixel DPI scaling
+│   └── ft.widget.menus.pas   # Main menu bar & popup menus
 ├── themes/                   # Bundled CSS theme stylesheets (*.css)
 │   ├── default.css           # Modern Breeze/Fusion theme (with :root variables)
 │   ├── nord.css              # Arctic frosty slate theme
@@ -237,9 +235,9 @@ floria-toolkit/
 │   ├── gtk2.css              # Industrial GTK2 gray theme
 │   └── classic.css           # Slate with emerald accents theme
 ├── examples/
-│   ├── c/                    # C demo applications
-│   └── python/               # Python ctypes applications
-└── project.xml               # PasBuild package manifest
+│   ├── c/                    # C demo applications (*.c)
+│   └── python/               # Python ctypes applications (*.py)
+└── project.xml               # PasBuild package manifest (dependencies: florialib, fpgui-framework)
 ```
 
 ---

@@ -12,19 +12,23 @@ Floria Toolkit (`Ft`) is engineered as a lightweight, modular desktop GUI framew
 │            (C, C++, Python, Rust, Zig, Go, Pascal)          │
 └──────────────────────────────┬──────────────────────────────┘
                                │ C ABI (include/ft.h)
-┌──────────────────────────────▼──────────────────────────────┐
+┌─────────────────────────────────────────────────────────────┐
 │                    Floria C FFI (ft.pas)                    │
 ├──────────────────────────────┬──────────────────────────────┤
 │    Widget Engine             │    CSS & Theming Engine      │
 │    - ft.widget.pas           │    - ft.css.pas (Floria.CSS) │
 │    - ft.widget.buttons.pas   │    - ft.theme.pas            │
 │    - ft.widget.containers.pas│    - ft.animation.pas        │
+│    - ft.widget.tabs.pas      │                              │
+│    - ft.widget.tables.pas    │                              │
+│    - ft.widget.images.pas    │                              │
 │    - ft.widget.menus.pas     │                              │
 ├──────────────────────────────┴──────────────────────────────┤
-│         AGG Vector Graphics Pipeline (ft.canvas.agg.pas)    │
-│         - Subpixel Antialiasing & Curves                    │
-│         - True 2D Gaussian Drop Shadows                     │
-│         - DPI Scaling & Gamma-Corrected Font Glyphs         │
+│      Vector Graphics Engine (florialib / Floria.Canvas.Agg) │
+│      - Subpixel Antialiasing & Curves (AggPas)              │
+│      - True 2D Gaussian Drop Shadows (Floria.Blur)          │
+│      - DPI Scaling & Subpixel Fonts (Floria.Font)           │
+│      - Pixel Buffers & SVG Renderer (Floria.Bitmap, .SVG)   │
 ├─────────────────────────────────────────────────────────────┤
 │         X11 Backend & Event Loop (ft.backend.x11.pas)       │
 │         - Native Windows & Compositor-Friendly Menus        │
@@ -37,11 +41,12 @@ Floria Toolkit (`Ft`) is engineered as a lightweight, modular desktop GUI framew
 
 ## Core Components
 
-### 1. Vector Graphics Pipeline (`Ft.Canvas.Agg`)
-Floria Toolkit bypasses traditional rasterization libraries in favor of Anti-Grain Geometry (`AGG`):
+### 1. Vector Graphics Pipeline (`Floria.Canvas.Agg` via `florialib`)
+Floria Toolkit leverages Anti-Grain Geometry (`AGG`) vector primitives through `florialib`:
 - **Subpixel Antialiasing**: Every line, curve, rounded rectangle, and text glyph is rasterized with subpixel precision.
-- **Gaussian Drop Shadows**: Employs true 2D dual-pass Gaussian box blurs to create realistic elevation shadows under buttons, menus, and cards.
+- **Gaussian Drop Shadows**: Employs true 2D dual-pass Gaussian box blurs (`Floria.Blur`) to create realistic elevation shadows under buttons, menus, and cards.
 - **Scissor Clipping Stack**: Hierarchical scissor rectangles allow containers and viewports to nest arbitrarily with zero visual clipping artifacts.
+- **Font & Asset Management**: Uses `Floria.Font` for FreeType font management with DPI scaling and `Floria.Bitmap` / `Floria.SVG` for image and vector asset handling.
 - **Pluggable Architecture (Roadmap)**: As hardware-accelerated GPU backends (OpenGL, Vulkan) are introduced via an abstract `TFtCanvas` interface, `AggPas` remains the primary zero-dependency **Software Reference and Fallback Engine** for headless CI, VMs, remote X11/VNC sessions, and pre-rasterization asset caching. See [ROADMAP.md](../ROADMAP.md) for details.
 
 ### 2. X11 Backend & Event Loop (`Ft.Backend.X11`)

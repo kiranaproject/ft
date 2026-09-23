@@ -9,18 +9,24 @@ Floria Toolkit provides a rich suite of native desktop widgets designed with obj
 2. [Base Widget (`TFtWidget`)](#base-widget-tftwidget)
 3. [Top-Level Window (`TFtX11Window`)](#top-level-window-tftx11window)
 4. [Push & Toggle Buttons (`TFtButton`)](#push--toggle-buttons-tftbutton)
-5. [Toggle Switch (`TFtSwitch`)](#toggle-switch-tftswitch)
-6. [CheckBox (`TFtCheckBox`)](#checkbox-tftcheckbox)
-7. [RadioButton (`TFtRadioButton`)](#radiobutton-tftradiobutton)
-8. [ComboBox Dropdown (`TFtComboBox`)](#combobox-dropdown-tftcombobox)
-9. [Slider (`TFtSlider`)](#slider-tftslider)
-10. [ProgressBar (`TFtProgressBar`)](#progressbar-tftprogressbar)
-11. [Text / Label (`TFtText`)](#text--label-tfttext)
-12. [Container Box & Viewport (`TFtContainer`)](#container-box--viewport-tftcontainer)
-13. [Single-Line Text Entry (`TFtEntry`)](#single-line-text-entry-tftentry)
-14. [Multi-Line Text Area (`TFtTextArea`)](#multi-line-text-area-tfttextarea)
-15. [Vector ScrollBar (`TFtScrollBar`)](#vector-scrollbar-tftscrollbar)
-16. [Main Menu & Popup Context Menus](#main-menu--popup-context-menus)
+5. [Window Caption Button (`TFtWindowButton`)](#window-caption-button-tftwindowbutton)
+6. [Toggle Switch (`TFtSwitch`)](#toggle-switch-tftswitch)
+7. [CheckBox (`TFtCheckBox`)](#checkbox-tftcheckbox)
+8. [RadioButton (`TFtRadioButton`)](#radiobutton-tftradiobutton)
+9. [ComboBox Dropdown (`TFtComboBox`)](#combobox-dropdown-tftcombobox)
+10. [Slider (`TFtSlider`)](#slider-tftslider)
+11. [ProgressBar (`TFtProgressBar`)](#progressbar-tftprogressbar)
+12. [Text / Label (`TFtText`)](#text--label-tfttext)
+13. [Container Box & Viewport (`TFtContainer`)](#container-box--viewport-tftcontainer)
+14. [Single-Line Text Entry (`TFtEntry`)](#single-line-text-entry-tftentry)
+15. [Multi-Line Text Area (`TFtTextArea`)](#multi-line-text-area-tfttextarea)
+16. [Notebook & Tabs (`TFtNotebook`, `TFtTabs`)](#notebook--tabs-tftnotebook-tfttabs)
+17. [Dual-Pane Splitter (`TFtSplitter`)](#dual-pane-splitter-tftsplitter)
+18. [TreeView (`TFtTreeView`)](#treeview-tfttreeview)
+19. [Table & DataGrid (`TFtTable`, `TFtGrid`)](#table--datagrid-tfttable-tftgrid)
+20. [Image & SVG Viewer (`TFtImage`)](#image--svg-viewer-tftimage)
+21. [Vector ScrollBar (`TFtScrollBar`)](#vector-scrollbar-tftscrollbar)
+22. [Main Menu & Popup Context Menus](#main-menu--popup-context-menus)
 
 ---
 
@@ -30,17 +36,24 @@ Floria Toolkit provides a rich suite of native desktop widgets designed with obj
 TFtWidget (Ft.Widget)
 ├── TFtX11Window (Ft.Backend.X11)
 ├── TFtButton (Ft.Widget.Buttons)
+│   └── TFtWindowButton (Ft.Widget.Buttons)
 ├── TFtSwitch (Ft.Widget.Switches)
 ├── TFtCheckBox (Ft.Widget.Selectors)
 ├── TFtRadioButton (Ft.Widget.Selectors)
 ├── TFtComboBox (Ft.Widget.Selectors)
 ├── TFtSlider (Ft.Widget.Meters)
 ├── TFtProgressBar (Ft.Widget.Meters)
-├── TFtText (Ft.Widget.Texts)
+├── TFtText / TFtLabel (Ft.Widget.Texts)
 ├── TFtScrollBar (Ft.Widget.ScrollBars)
 ├── TFtContainer (Ft.Widget.Containers)
 │   ├── TFtEntry (Ft.Widget.Entries)
-│   └── TFtTextArea (Ft.Widget.TextAreas)
+│   ├── TFtTextArea (Ft.Widget.TextAreas)
+│   ├── TFtNotebook (Ft.Widget.Tabs)
+│   ├── TFtSplitter (Ft.Widget.Splitters)
+│   └── TFtTable / TFtGrid (Ft.Widget.Tables)
+├── TFtTabs (Ft.Widget.Tabs)
+├── TFtTreeView (Ft.Widget.TreeViews)
+├── TFtImage (Ft.Widget.Images)
 ├── TFtMainMenu (Ft.Widget.Menus)
 └── TFtPopupMenu (Ft.Widget.Menus)
 ```
@@ -75,6 +88,16 @@ Native X11 window wrapper providing:
 - **Modes**: Standard push-button or latching toggle button (`ft_button_set_toggle`).
 - **Vector Styling**: Customizable corner radii, 2D drop shadows, and theme accent colors.
 - **Transitions**: Smooth color and geometry interpolation between states via CSS transitions.
+
+---
+
+## Window Caption Button (`TFtWindowButton`)
+
+Specialized titlebar and tab caption button derived from `TFtButton`:
+- **Kinds**: `wbkClose` (✕), `wbkMinimize` (─), `wbkMaximize` (□), `wbkRestore` (❐), `wbkCustom`.
+- **Operating System Styles**: `wbsMac` (traffic lights), `wbsGtk` (subtle flat circles), `wbsWindows` (clean rectangular symbols).
+- **Glow & Halo Transitions**: 60 FPS smooth radial halo on hover with dark mode adaptation.
+- **Auto Hints**: Displays default localized hints on hover with custom developer override capability.
 
 ---
 
@@ -182,6 +205,51 @@ Inherits from `TFtContainer`:
 - Line navigation via `Up`/`Down`/`Home`/`End`/`PageUp`/`PageDown`.
 - Dynamic vertical and horizontal scrolling with automatic scrollbars.
 - Built-in right-click context menu (Select All, Cut, Copy, Paste, Delete).
+
+---
+
+## Notebook & Tabs (`TFtNotebook`, `TFtTabs`)
+*Equivalent to `GtkNotebook` in GTK, `QTabWidget` in Qt, and `TPageControl` in Lazarus LCL.*
+
+- **Multi-Page Management**: Container hosting multiple pages with tab bar header.
+- **Tab Customization**: Close buttons, icons, custom indicators, and glowing active selection halos.
+- **Dynamic Insertion & Removal**: Add, remove, and switch pages at runtime.
+
+---
+
+## Dual-Pane Splitter (`TFtSplitter`)
+*Equivalent to `GtkPaned` in GTK, `QSplitter` in Qt, and `TSplitter` in Lazarus LCL.*
+
+- **Orientations**: Horizontal (left/right panes) and Vertical (top/bottom panes).
+- **Live Dragging**: Smooth interactive mouse dragging with minimum pane size constraints.
+- **Visuals**: Center grip handle with theme-aware hover transitions.
+
+---
+
+## TreeView (`TFtTreeView`)
+*Equivalent to `GtkTreeView` in GTK, `QTreeView` in Qt, and `TTreeView` in Lazarus LCL.*
+
+- **Hierarchical Nodes**: Arbitrary nesting depth with parent-child relationships.
+- **Vector Carets**: Anti-aliased expand and collapse arrow glyphs (`▶`, `▼`).
+- **Selection Tracking**: Single-item click selection with theme accent highlights.
+
+---
+
+## Table & DataGrid (`TFtTable`, `TFtGrid`)
+*Equivalent to `GtkTreeView` (list mode) in GTK, `QTableView` in Qt, and `TStringGrid` in Lazarus LCL.*
+
+- **Multi-Column Grid**: Configurable column headers, widths, and text alignments (`taLeft`, `taCenter`, `taRight`).
+- **Styling**: Zebra-striped rows, hover rows, and active cell/row selection highlighting.
+- **Scrolling**: Built-in automatic horizontal and vertical viewport scrollbars.
+
+---
+
+## Image & SVG Viewer (`TFtImage`)
+*Equivalent to `GtkImage` in GTK and `QLabel` (pixmap mode) in Qt.*
+
+- **Format Decoding**: Decodes raster bitmaps (BMP, PNG, JPEG) and vector SVG documents.
+- **Scaling Modes**: `fit`, `fill`, `stretch`, `center`, and `none`.
+- **HiDPI Scaling**: Vector SVG scales losslessly at any monitor DPI or widget dimension.
 
 ---
 

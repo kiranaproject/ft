@@ -21,7 +21,7 @@ Floria Toolkit (`Ft`) features a native CSS theming and styling engine powered b
 Floria Toolkit's theming pipeline separates styling from widget logic:
 - **Parser (`Floria.CSS`)**: Parses standards-compliant CSS grammar directly into a syntax tree (`TCSSStylesheet`).
 - **Resolver (`Ft.Css`)**: Resolves widget styles by querying the document hierarchy with specific specificity rules (inline style > `#id` > `.class` > element type).
-- **Renderer (`Ft.Canvas.Agg`)**: Converts resolved color tuples, borders, shadows, and radii into vector primitives rendered by Anti-Grain Geometry.
+- **Renderer (`Floria.Canvas.Agg`)**: Converts resolved color tuples, borders, shadows, and radii into vector primitives rendered by Anti-Grain Geometry via `florialib`.
 - **Animator (`Ft.Animation`)**: Intercepts style changes with active `transition` properties and animates them at 60 FPS.
 
 ---
