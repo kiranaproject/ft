@@ -5,7 +5,7 @@ unit Ft.Widget.Tables;
 interface
 
 uses
-  SysUtils, Classes, Math,
+  SysUtils, Classes, Math, Types,
   Floria.Image.Core, Floria.Canvas.Agg, Floria.Font, Ft.Widget, Ft.Widget.Containers, Ft.Widget.ScrollBars, Ft.Widget.Texts, Ft.Theme, Ft.Css;
 
 type
@@ -25,6 +25,7 @@ type
   TFtTableRow = class
   private
     FCellIcons: TFPList; // TFloriaImage
+    FSelected: Boolean;
   public
     Cells: TStringList;
     Tag: Integer;
@@ -33,6 +34,7 @@ type
     destructor Destroy(); override;
     procedure SetCellIcon(ACol: Integer; AIcon: TFloriaImage);
     function GetCellIcon(ACol: Integer): TFloriaImage;
+    property Selected: Boolean read FSelected write FSelected;
   end;
 
   TFtTableRowSelectEvent = procedure(Sender: TObject; RowIndex: Integer) of object;
@@ -54,11 +56,13 @@ type
     FColumns: TFPList; // TFtTableColumn
     FRows: TFPList;    // TFtTableRow
     FSelectedRow: Integer;
+    FSelAnchorRow: Integer;
     FHoveredRow: Integer;
     FHeaderHeight: Double;
     FRowHeight: Double;
     FShowGridLines: Boolean;
     FZebraStriping: Boolean;
+    FMultiSelect: Boolean;
     FOnSelectRow: TFtTableRowSelectEvent;
     FOnColumnClick: TFtTableColumnClickEvent;
     FOnSelectRowCb: TFtTableRowSelectCallback;
@@ -70,6 +74,7 @@ type
     FOnDrawCellUserData: Pointer;
 
     procedure SetSelectedRow(AValue: Integer);
+    procedure SetMultiSelect(AValue: Boolean);
     procedure SetHeaderHeight(AValue: Double);
     procedure SetRowHeight(AValue: Double);
     function GetColumnCount(): Integer;
@@ -102,6 +107,13 @@ type
     procedure ClearRows();
     procedure ClearAll();
 
+    procedure SelectAll();
+    procedure ClearSelection();
+    function IsRowSelected(AIndex: Integer): Boolean;
+    procedure SetRowSelected(AIndex: Integer; ASelected: Boolean);
+    function GetSelectedRowCount(): Integer;
+    function GetSelectedRows(): TIntegerDynArray;
+
     procedure Draw(Canvas: TFtCanvasAgg); override;
     procedure MouseDown(AX, AY: Integer; AButton: Integer); override;
     procedure MouseMove(AX, AY: Integer); override;
@@ -113,6 +125,7 @@ type
     property Columns[AIndex: Integer]: TFtTableColumn read GetColumn;
     property Rows[AIndex: Integer]: TFtTableRow read GetRow;
     property SelectedRow: Integer read FSelectedRow write SetSelectedRow;
+    property MultiSelect: Boolean read FMultiSelect write SetMultiSelect;
     property HeaderHeight: Double read FHeaderHeight write SetHeaderHeight;
     property RowHeight: Double read FRowHeight write SetRowHeight;
     property ShowGridLines: Boolean read FShowGridLines write FShowGridLines;
@@ -147,6 +160,7 @@ begin
   inherited Create();
   Cells := TStringList.Create();
   FCellIcons := TFPList.Create();
+  FSelected := False;
   Tag := 0;
   Data := nil;
 end;
@@ -184,11 +198,13 @@ begin
   FColumns := TFPList.Create();
   FRows := TFPList.Create();
   FSelectedRow := -1;
+  FSelAnchorRow := -1;
   FHoveredRow := -1;
   FHeaderHeight := 28.0;
   FRowHeight := 26.0;
   FShowGridLines := True;
   FZebraStriping := True;
+  FMultiSelect := False;
   FFocusable := True;
   FDrawFrame := True;
   FScrollBarMode := ftSbModeAutoBoth;
@@ -379,14 +395,47 @@ end;
 procedure TFtTable.DeleteRow(AIndex: Integer);
 var
   row: TFtTableRow;
+  i: Integer;
 begin
   if (AIndex < 0) or (AIndex >= FRows.Count) then Exit;
   row := TFtTableRow(FRows[AIndex]);
   FRows.Delete(AIndex);
   row.Free();
 
+  if FSelectedRow = AIndex then
+  begin
+    if not FMultiSelect then
+    begin
+      if FSelectedRow >= FRows.Count then
+        FSelectedRow := FRows.Count - 1;
+      if FSelectedRow >= 0 then
+        TFtTableRow(FRows[FSelectedRow]).Selected := True;
+    end
+    else
+    begin
+      FSelectedRow := -1;
+      for i := 0 to FRows.Count - 1 do
+      begin
+        if TFtTableRow(FRows[i]).Selected then
+        begin
+          FSelectedRow := i;
+          Break;
+        end;
+      end;
+    end;
+  end
+  else if FSelectedRow > AIndex then
+    Dec(FSelectedRow);
+
+  if FSelAnchorRow = AIndex then
+    FSelAnchorRow := FSelectedRow
+  else if FSelAnchorRow > AIndex then
+    Dec(FSelAnchorRow);
+
   if FSelectedRow >= FRows.Count then
     FSelectedRow := FRows.Count - 1;
+  if FSelAnchorRow >= FRows.Count then
+    FSelAnchorRow := FRows.Count - 1;
 
   RecalculateMetrics();
 end;
@@ -399,6 +448,7 @@ begin
     TFtTableRow(FRows[i]).Free();
   FRows.Clear();
   FSelectedRow := -1;
+  FSelAnchorRow := -1;
   FHoveredRow := -1;
   RecalculateMetrics();
 end;
@@ -415,17 +465,194 @@ begin
 end;
 
 procedure TFtTable.SetSelectedRow(AValue: Integer);
+var
+  i: Integer;
+  changed: Boolean;
 begin
   if (AValue < -1) or (AValue >= FRows.Count) then AValue := -1;
-  if FSelectedRow <> AValue then
-  begin
-    FSelectedRow := AValue;
-    Invalidate();
+  changed := (FSelectedRow <> AValue);
 
+  FSelectedRow := AValue;
+  FSelAnchorRow := AValue;
+
+  for i := 0 to FRows.Count - 1 do
+    TFtTableRow(FRows[i]).Selected := (i = FSelectedRow);
+
+  Invalidate();
+
+  if changed then
+  begin
     if (FSelectedRow >= 0) and Assigned(FOnSelectRow) then
       FOnSelectRow(Self, FSelectedRow);
     if (FSelectedRow >= 0) and Assigned(FOnSelectRowCb) then
       FOnSelectRowCb(Pointer(Self), FSelectedRow, FUserData);
+  end;
+end;
+
+procedure TFtTable.SetMultiSelect(AValue: Boolean);
+var
+  i, sel: Integer;
+begin
+  if FMultiSelect <> AValue then
+  begin
+    FMultiSelect := AValue;
+    if not FMultiSelect then
+    begin
+      if (FSelectedRow >= 0) and (FSelectedRow < FRows.Count) and TFtTableRow(FRows[FSelectedRow]).Selected then
+      begin
+        for i := 0 to FRows.Count - 1 do
+          TFtTableRow(FRows[i]).Selected := (i = FSelectedRow);
+      end
+      else
+      begin
+        sel := -1;
+        for i := 0 to FRows.Count - 1 do
+        begin
+          if (sel = -1) and TFtTableRow(FRows[i]).Selected then
+            sel := i
+          else
+            TFtTableRow(FRows[i]).Selected := False;
+        end;
+        FSelectedRow := sel;
+        FSelAnchorRow := sel;
+      end;
+      Invalidate();
+    end;
+  end;
+end;
+
+procedure TFtTable.SelectAll();
+var
+  i: Integer;
+begin
+  if not FMultiSelect or (FRows.Count = 0) then Exit;
+  for i := 0 to FRows.Count - 1 do
+    TFtTableRow(FRows[i]).Selected := True;
+  if FSelectedRow < 0 then
+    FSelectedRow := 0;
+  if FSelAnchorRow < 0 then
+    FSelAnchorRow := 0;
+  Invalidate();
+  if Assigned(FOnSelectRow) then
+    FOnSelectRow(Self, FSelectedRow);
+  if Assigned(FOnSelectRowCb) then
+    FOnSelectRowCb(Pointer(Self), FSelectedRow, FUserData);
+end;
+
+procedure TFtTable.ClearSelection();
+var
+  i: Integer;
+  hadSelection: Boolean;
+begin
+  hadSelection := False;
+  for i := 0 to FRows.Count - 1 do
+  begin
+    if TFtTableRow(FRows[i]).Selected then
+    begin
+      TFtTableRow(FRows[i]).Selected := False;
+      hadSelection := True;
+    end;
+  end;
+  if (FSelectedRow >= 0) or hadSelection then
+  begin
+    FSelectedRow := -1;
+    FSelAnchorRow := -1;
+    Invalidate();
+    if Assigned(FOnSelectRow) then
+      FOnSelectRow(Self, -1);
+    if Assigned(FOnSelectRowCb) then
+      FOnSelectRowCb(Pointer(Self), -1, FUserData);
+  end;
+end;
+
+function TFtTable.IsRowSelected(AIndex: Integer): Boolean;
+var
+  row: TFtTableRow;
+begin
+  row := GetRow(AIndex);
+  if Assigned(row) then
+    Result := row.Selected
+  else
+    Result := False;
+end;
+
+procedure TFtTable.SetRowSelected(AIndex: Integer; ASelected: Boolean);
+var
+  row: TFtTableRow;
+  i: Integer;
+begin
+  row := GetRow(AIndex);
+  if not Assigned(row) then Exit;
+
+  if not FMultiSelect then
+  begin
+    if ASelected then
+      SelectedRow := AIndex
+    else if FSelectedRow = AIndex then
+      SelectedRow := -1;
+    Exit;
+  end;
+
+  if row.Selected <> ASelected then
+  begin
+    row.Selected := ASelected;
+    if ASelected then
+    begin
+      FSelectedRow := AIndex;
+      if FSelAnchorRow < 0 then
+        FSelAnchorRow := AIndex;
+    end
+    else
+    begin
+      if FSelectedRow = AIndex then
+      begin
+        FSelectedRow := -1;
+        for i := 0 to FRows.Count - 1 do
+        begin
+          if TFtTableRow(FRows[i]).Selected then
+          begin
+            FSelectedRow := i;
+            Break;
+          end;
+        end;
+      end;
+      if FSelAnchorRow = AIndex then
+        FSelAnchorRow := FSelectedRow;
+    end;
+    Invalidate();
+    if Assigned(FOnSelectRow) then
+      FOnSelectRow(Self, FSelectedRow);
+    if Assigned(FOnSelectRowCb) then
+      FOnSelectRowCb(Pointer(Self), FSelectedRow, FUserData);
+  end;
+end;
+
+function TFtTable.GetSelectedRowCount(): Integer;
+var
+  i: Integer;
+begin
+  Result := 0;
+  for i := 0 to FRows.Count - 1 do
+  begin
+    if TFtTableRow(FRows[i]).Selected then
+      Inc(Result);
+  end;
+end;
+
+function TFtTable.GetSelectedRows(): TIntegerDynArray;
+var
+  i, cnt, idx: Integer;
+begin
+  cnt := GetSelectedRowCount();
+  SetLength(Result, cnt);
+  idx := 0;
+  for i := 0 to FRows.Count - 1 do
+  begin
+    if TFtTableRow(FRows[i]).Selected then
+    begin
+      Result[idx] := i;
+      Inc(idx);
+    end;
   end;
 end;
 
@@ -608,7 +835,7 @@ begin
       if (rowY + FRowHeight < bodyY) or (rowY > Y + Height) then
         Continue;
 
-      isSelected := (r = FSelectedRow);
+      isSelected := row.Selected;
       isHovered := (r = FHoveredRow);
 
       if isSelected then
@@ -762,6 +989,9 @@ procedure TFtTable.MouseDown(AX, AY: Integer; AButton: Integer);
 var
   colIdx: Integer;
   rowIdx: Integer;
+  mods: Cardinal;
+  hasCtrl, hasShift: Boolean;
+  minIdx, maxIdx, i: Integer;
 begin
   inherited MouseDown(AX, AY, AButton);
 
@@ -781,7 +1011,70 @@ begin
     begin
       rowIdx := RowAtPosition(AY);
       if rowIdx >= 0 then
-        SelectedRow := rowIdx;
+      begin
+        mods := FtGetKeyboardModifiers();
+        hasCtrl := (mods and FT_KEY_MOD_CONTROL) <> 0;
+        hasShift := (mods and FT_KEY_MOD_SHIFT) <> 0;
+
+        if not FMultiSelect then
+        begin
+          SelectedRow := rowIdx;
+        end
+        else
+        begin
+          if hasShift then
+          begin
+            if FSelAnchorRow < 0 then
+            begin
+              if FSelectedRow >= 0 then
+                FSelAnchorRow := FSelectedRow
+              else
+                FSelAnchorRow := 0;
+            end;
+
+            if not hasCtrl then
+            begin
+              for i := 0 to FRows.Count - 1 do
+                TFtTableRow(FRows[i]).Selected := False;
+            end;
+
+            minIdx := Min(FSelAnchorRow, rowIdx);
+            maxIdx := Max(FSelAnchorRow, rowIdx);
+            for i := minIdx to maxIdx do
+              TFtTableRow(FRows[i]).Selected := True;
+
+            FSelectedRow := rowIdx;
+            Invalidate();
+            if Assigned(FOnSelectRow) then
+              FOnSelectRow(Self, FSelectedRow);
+            if Assigned(FOnSelectRowCb) then
+              FOnSelectRowCb(Pointer(Self), FSelectedRow, FUserData);
+          end
+          else if hasCtrl then
+          begin
+            TFtTableRow(FRows[rowIdx]).Selected := not TFtTableRow(FRows[rowIdx]).Selected;
+            FSelectedRow := rowIdx;
+            FSelAnchorRow := rowIdx;
+            Invalidate();
+            if Assigned(FOnSelectRow) then
+              FOnSelectRow(Self, FSelectedRow);
+            if Assigned(FOnSelectRowCb) then
+              FOnSelectRowCb(Pointer(Self), FSelectedRow, FUserData);
+          end
+          else
+          begin
+            for i := 0 to FRows.Count - 1 do
+              TFtTableRow(FRows[i]).Selected := (i = rowIdx);
+            FSelectedRow := rowIdx;
+            FSelAnchorRow := rowIdx;
+            Invalidate();
+            if Assigned(FOnSelectRow) then
+              FOnSelectRow(Self, FSelectedRow);
+            if Assigned(FOnSelectRowCb) then
+              FOnSelectRowCb(Pointer(Self), FSelectedRow, FUserData);
+          end;
+        end;
+      end;
     end;
   end;
 end;
@@ -811,18 +1104,102 @@ begin
 end;
 
 procedure TFtTable.KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string);
+var
+  hasCtrl, hasShift: Boolean;
+  targetRow, minIdx, maxIdx, i: Integer;
 begin
   inherited KeyDown(AKeySym, AState, AChar);
 
-  // Up Arrow ($FF52): Previous Row
-  if (AKeySym = $FF52) and (FSelectedRow > 0) then
+  hasCtrl := (AState and FT_KEY_MOD_CONTROL) <> 0;
+  hasShift := (AState and FT_KEY_MOD_SHIFT) <> 0;
+
+  // Ctrl + A: Select All (only when MultiSelect is True)
+  if FMultiSelect and hasCtrl and ((AKeySym = $61) or (AKeySym = $41) or (AChar = 'a') or (AChar = 'A')) then
   begin
-    SelectedRow := FSelectedRow - 1;
+    SelectAll();
+    Exit;
+  end;
+
+  // Escape ($FF1B): Clear selection
+  if (AKeySym = $FF1B) then
+  begin
+    ClearSelection();
+    Exit;
+  end;
+
+  // Up Arrow ($FF52): Previous Row
+  if (AKeySym = $FF52) and (FRows.Count > 0) then
+  begin
+    if FSelectedRow > 0 then
+      targetRow := FSelectedRow - 1
+    else if FSelectedRow < 0 then
+      targetRow := 0
+    else
+      targetRow := 0;
+
+    if FMultiSelect and hasShift then
+    begin
+      if FSelAnchorRow < 0 then
+        FSelAnchorRow := FSelectedRow;
+      if FSelAnchorRow < 0 then
+        FSelAnchorRow := 0;
+
+      for i := 0 to FRows.Count - 1 do
+        TFtTableRow(FRows[i]).Selected := False;
+
+      minIdx := Min(FSelAnchorRow, targetRow);
+      maxIdx := Max(FSelAnchorRow, targetRow);
+      for i := minIdx to maxIdx do
+        TFtTableRow(FRows[i]).Selected := True;
+
+      FSelectedRow := targetRow;
+      Invalidate();
+      if Assigned(FOnSelectRow) then
+        FOnSelectRow(Self, FSelectedRow);
+      if Assigned(FOnSelectRowCb) then
+        FOnSelectRowCb(Pointer(Self), FSelectedRow, FUserData);
+    end
+    else
+    begin
+      SelectedRow := targetRow;
+    end;
   end
   // Down Arrow ($FF54): Next Row
-  else if (AKeySym = $FF54) and (FSelectedRow < FRows.Count - 1) then
+  else if (AKeySym = $FF54) and (FRows.Count > 0) then
   begin
-    SelectedRow := FSelectedRow + 1;
+    if (FSelectedRow >= 0) and (FSelectedRow < FRows.Count - 1) then
+      targetRow := FSelectedRow + 1
+    else if FSelectedRow < 0 then
+      targetRow := 0
+    else
+      targetRow := FRows.Count - 1;
+
+    if FMultiSelect and hasShift then
+    begin
+      if FSelAnchorRow < 0 then
+        FSelAnchorRow := FSelectedRow;
+      if FSelAnchorRow < 0 then
+        FSelAnchorRow := 0;
+
+      for i := 0 to FRows.Count - 1 do
+        TFtTableRow(FRows[i]).Selected := False;
+
+      minIdx := Min(FSelAnchorRow, targetRow);
+      maxIdx := Max(FSelAnchorRow, targetRow);
+      for i := minIdx to maxIdx do
+        TFtTableRow(FRows[i]).Selected := True;
+
+      FSelectedRow := targetRow;
+      Invalidate();
+      if Assigned(FOnSelectRow) then
+        FOnSelectRow(Self, FSelectedRow);
+      if Assigned(FOnSelectRowCb) then
+        FOnSelectRowCb(Pointer(Self), FSelectedRow, FUserData);
+    end
+    else
+    begin
+      SelectedRow := targetRow;
+    end;
   end;
 end;
 

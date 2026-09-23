@@ -1901,6 +1901,7 @@ begin
     XCB_MOTION_NOTIFY:
     begin
       mp := Pxcb_motion_notify_event_t(Event);
+      GCurrentKeyboardModifiers := mp^.state;
       if FWindowType in [ftwtPopupMenu, ftwtDropdownMenu] then
       begin
         if (Children.Count > 0) and (TFtWidget(Children[0]) is TFtPopupMenu) then
@@ -1959,6 +1960,7 @@ begin
       FtHideHint();
       GHintHoverStartMs := 0;
       bp := Pxcb_button_press_event_t(Event);
+      GCurrentKeyboardModifiers := bp^.state;
       if FWindowType in [ftwtPopupMenu, ftwtDropdownMenu] then
       begin
         if (bp^.event_x < 0) or (bp^.event_x >= Width) or
@@ -2065,6 +2067,7 @@ begin
     XCB_BUTTON_RELEASE:
     begin
       bp := Pxcb_button_release_event_t(Event);
+      GCurrentKeyboardModifiers := bp^.state;
       if FWindowType in [ftwtPopupMenu, ftwtDropdownMenu] then
       begin
         if (Children.Count > 0) and (TFtWidget(Children[0]) is TFtPopupMenu) then
@@ -2096,6 +2099,7 @@ begin
       FtHideHint();
       GHintHoverStartMs := 0;
       kp := Pxcb_key_press_event_t(Event);
+      GCurrentKeyboardModifiers := kp^.state;
       col := 0;
       if (kp^.state and 1) <> 0 then col := 1;
       keysym := xcb_key_press_lookup_keysym(GKeySymbols, kp, col);
@@ -2146,6 +2150,7 @@ begin
     XCB_KEY_RELEASE:
     begin
       kr := Pxcb_key_release_event_t(Event);
+      GCurrentKeyboardModifiers := kr^.state;
       col := 0;
       if (kr^.state and 1) <> 0 then col := 1;
       keysym := xcb_key_release_lookup_keysym(GKeySymbols, kr, col);

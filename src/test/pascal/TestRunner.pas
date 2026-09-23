@@ -3,7 +3,7 @@ program TestRunner;
 {$mode objfpc}{$H+}
 
 uses
-  Classes, SysUtils, Math, fpcunit, testregistry, consoletestrunner,
+  Classes, SysUtils, Math, Types, fpcunit, testregistry, consoletestrunner,
   Floria.SVG.DOM, Floria.SVG.Parser,
   Ft.Css, Floria.Image.Core, Floria.Image.BMP, Floria.Image.PNG, Floria.Image.JPEG, Floria.Image.Blur, Floria.Canvas.Agg, Floria.SVG.Rasterizer, Ft.Widget, Ft.Widget.Containers, Ft.Widget.Images,
   Ft.Widget.Tabs, Ft.Widget.Splitters, Ft.Widget.TreeViews, Ft.Widget.Tables, Ft.Widget.Texts, Ft.Widget.Buttons,
@@ -16,6 +16,7 @@ type
     procedure TestSplitter();
     procedure TestTreeView();
     procedure TestTable();
+    procedure TestTableMultiSelect();
     procedure TestDynamicContainerRenderArea();
     procedure TestCanvasRoundedRectClipping();
     procedure TestWindowButton();
@@ -872,6 +873,136 @@ begin
     AssertEquals('Row count after clear is 0', 0, tbl.RowCount);
   finally
     testBmp.Free();
+    tbl.Free();
+  end;
+end;
+
+procedure TFtDesktopWidgetsTest.TestTableMultiSelect();
+var
+  tbl: TFtTable;
+  rows: TIntegerDynArray;
+begin
+  tbl := TFtTable.Create(nil);
+  try
+    tbl.X := 0; tbl.Y := 0; tbl.Width := 500; tbl.Height := 300;
+    tbl.AddColumn('ID', 60.0, taCenter);
+    tbl.AddColumn('Name', 180.0, taLeft);
+
+    tbl.AddRow(['1', 'Item 1']);
+    tbl.AddRow(['2', 'Item 2']);
+    tbl.AddRow(['3', 'Item 3']);
+    tbl.AddRow(['4', 'Item 4']);
+    tbl.AddRow(['5', 'Item 5']);
+
+    // 1. Initial defaults (MultiSelect = False)
+    AssertFalse('Default MultiSelect is False', tbl.MultiSelect);
+    AssertEquals('Default SelectedRow is -1', -1, tbl.SelectedRow);
+    AssertEquals('Default selected count is 0', 0, tbl.GetSelectedRowCount());
+
+    // Single-selection behavior
+    tbl.SelectedRow := 1;
+    AssertEquals('SelectedRow is 1', 1, tbl.SelectedRow);
+    AssertTrue('Row 1 is selected', tbl.IsRowSelected(1));
+    AssertFalse('Row 0 is not selected', tbl.IsRowSelected(0));
+    AssertEquals('Selected count is 1', 1, tbl.GetSelectedRowCount());
+    rows := tbl.GetSelectedRows();
+    AssertEquals('Selected rows length is 1', 1, Length(rows));
+    AssertEquals('Selected row index is 1', 1, rows[0]);
+
+    // 2. Enable MultiSelect
+    tbl.MultiSelect := True;
+    AssertTrue('MultiSelect is True', tbl.MultiSelect);
+    AssertTrue('Row 1 remains selected after enabling MultiSelect', tbl.IsRowSelected(1));
+
+    // Programmatically add row 3
+    tbl.SetRowSelected(3, True);
+    AssertTrue('Row 3 is selected', tbl.IsRowSelected(3));
+    AssertTrue('Row 1 is still selected', tbl.IsRowSelected(1));
+    AssertEquals('Selected count is 2', 2, tbl.GetSelectedRowCount());
+    rows := tbl.GetSelectedRows();
+    AssertEquals('Selected rows length is 2', 2, Length(rows));
+    AssertEquals('Row 1 in list', 1, rows[0]);
+    AssertEquals('Row 3 in list', 3, rows[1]);
+
+    // Programmatically unselect row 1
+    tbl.SetRowSelected(1, False);
+    AssertFalse('Row 1 unselected', tbl.IsRowSelected(1));
+    AssertTrue('Row 3 remains selected', tbl.IsRowSelected(3));
+    AssertEquals('Selected count is 1', 1, tbl.GetSelectedRowCount());
+
+    // 3. SelectAll()
+    tbl.SelectAll();
+    AssertEquals('All 5 rows selected', 5, tbl.GetSelectedRowCount());
+    AssertTrue('Row 0 selected', tbl.IsRowSelected(0));
+    AssertTrue('Row 4 selected', tbl.IsRowSelected(4));
+
+    // 4. ClearSelection()
+    tbl.ClearSelection();
+    AssertEquals('Selected count is 0 after ClearSelection', 0, tbl.GetSelectedRowCount());
+    AssertEquals('SelectedRow is -1 after ClearSelection', -1, tbl.SelectedRow);
+    AssertFalse('Row 0 not selected', tbl.IsRowSelected(0));
+
+    // 5. Mouse interactions
+    // Regular click on row 2 (no modifiers)
+    FtSetKeyboardModifiers(0);
+    tbl.MouseDown(10, Round(tbl.Y + tbl.HeaderHeight + 2.5 * tbl.RowHeight), 1);
+    AssertEquals('SelectedRow is 2 after click', 2, tbl.SelectedRow);
+    AssertTrue('Row 2 is selected', tbl.IsRowSelected(2));
+    AssertEquals('Only 1 row selected', 1, tbl.GetSelectedRowCount());
+
+    // Ctrl + Click on row 4 (toggle on)
+    FtSetKeyboardModifiers(FT_KEY_MOD_CONTROL);
+    tbl.MouseDown(10, Round(tbl.Y + tbl.HeaderHeight + 4.5 * tbl.RowHeight), 1);
+    AssertTrue('Row 2 remains selected', tbl.IsRowSelected(2));
+    AssertTrue('Row 4 is selected', tbl.IsRowSelected(4));
+    AssertEquals('Selected count is 2 after Ctrl+Click', 2, tbl.GetSelectedRowCount());
+
+    // Ctrl + Click on row 2 (toggle off)
+    tbl.MouseDown(10, Round(tbl.Y + tbl.HeaderHeight + 2.5 * tbl.RowHeight), 1);
+    AssertFalse('Row 2 toggled off', tbl.IsRowSelected(2));
+    AssertTrue('Row 4 still selected', tbl.IsRowSelected(4));
+    AssertEquals('Selected count is 1 after Ctrl+Click off', 1, tbl.GetSelectedRowCount());
+
+    // Regular click on row 1 resets selection and sets anchor
+    FtSetKeyboardModifiers(0);
+    tbl.MouseDown(10, Round(tbl.Y + tbl.HeaderHeight + 1.5 * tbl.RowHeight), 1);
+    AssertTrue('Row 1 is selected', tbl.IsRowSelected(1));
+    AssertFalse('Row 4 is unselected', tbl.IsRowSelected(4));
+    AssertEquals('Selected count is 1 after fresh click', 1, tbl.GetSelectedRowCount());
+
+    // Shift + Click on row 3 (range from anchor 1 to 3: rows 1, 2, 3)
+    FtSetKeyboardModifiers(FT_KEY_MOD_SHIFT);
+    tbl.MouseDown(10, Round(tbl.Y + tbl.HeaderHeight + 3.5 * tbl.RowHeight), 1);
+    AssertTrue('Row 1 in range', tbl.IsRowSelected(1));
+    AssertTrue('Row 2 in range', tbl.IsRowSelected(2));
+    AssertTrue('Row 3 in range', tbl.IsRowSelected(3));
+    AssertFalse('Row 0 not in range', tbl.IsRowSelected(0));
+    AssertFalse('Row 4 not in range', tbl.IsRowSelected(4));
+    AssertEquals('Selected count is 3 after Shift+Click', 3, tbl.GetSelectedRowCount());
+
+    // 6. Keyboard interactions
+    // Escape key clears selection
+    FtSetKeyboardModifiers(0);
+    tbl.KeyDown($FF1B, 0, '');
+    AssertEquals('Escape clears selection', 0, tbl.GetSelectedRowCount());
+
+    // Ctrl + A selects all
+    tbl.KeyDown($61, FT_KEY_MOD_CONTROL, 'a');
+    AssertEquals('Ctrl+A selects all 5 rows', 5, tbl.GetSelectedRowCount());
+
+    // 7. Toggle MultiSelect back to False (collapses selection)
+    tbl.MultiSelect := False;
+    AssertFalse('MultiSelect toggled off', tbl.MultiSelect);
+    AssertEquals('Selection collapsed to at most 1', 1, tbl.GetSelectedRowCount());
+
+    // 8. DeleteRow consistency
+    tbl.ClearSelection();
+    tbl.SelectedRow := 2; // selects row 2
+    tbl.DeleteRow(0); // deleting row 0 shifts row 2 to row 1
+    AssertEquals('SelectedRow shifted to 1 after deleting row 0', 1, tbl.SelectedRow);
+    AssertTrue('Shifted row 1 is selected', tbl.IsRowSelected(1));
+  finally
+    FtSetKeyboardModifiers(0);
     tbl.Free();
   end;
 end;

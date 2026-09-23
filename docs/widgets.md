@@ -241,6 +241,14 @@ Inherits from `TFtContainer`:
 - **Multi-Column Grid**: Configurable column headers, widths, and text alignments (`taLeft`, `taCenter`, `taRight`).
 - **Styling**: Zebra-striped rows, hover rows, and active cell/row selection highlighting.
 - **Scrolling**: Built-in automatic horizontal and vertical viewport scrollbars.
+- **Multi-Row Selection**: Supports single-row and multiple-row selection modes via `MultiSelect` (`ft_table_set_multi_select`).
+  - **Single Click**: Selects clicked row and clears other selections.
+  - **Ctrl + Click**: Toggles selection state of clicked row without affecting other rows.
+  - **Shift + Click**: Selects a contiguous range of rows from anchor to clicked row.
+  - **Ctrl + Shift + Click**: Extends range selection while preserving previously selected rows.
+  - **Ctrl + A**: Selects all rows when `MultiSelect` is enabled.
+  - **Escape**: Clears row selection.
+- **Selection API**: `SelectAll()`, `ClearSelection()`, `IsRowSelected(Index)`, `SetRowSelected(Index, Selected)`, `GetSelectedRowCount()`, and `GetSelectedRows()`.
 
 ---
 

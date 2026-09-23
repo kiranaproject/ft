@@ -674,6 +674,14 @@ FtBitmap ft_table_get_cell_icon(FtTable table, int32_t row, int32_t col);
 
 void ft_table_set_selected_row(FtTable table, int32_t row);
 int32_t ft_table_get_selected_row(FtTable table);
+void ft_table_set_multi_select(FtTable table, int32_t enabled);
+int32_t ft_table_get_multi_select(FtTable table);
+int32_t ft_table_is_row_selected(FtTable table, int32_t row_idx);
+void ft_table_set_row_selected(FtTable table, int32_t row_idx, int32_t selected);
+void ft_table_select_all(FtTable table);
+void ft_table_clear_selection(FtTable table);
+int32_t ft_table_get_selected_row_count(FtTable table);
+int32_t ft_table_get_selected_rows(FtTable table, int32_t* out_indices, int32_t max_count);
 
 void ft_table_set_header_height(FtTable table, double height);
 double ft_table_get_header_height(FtTable table);

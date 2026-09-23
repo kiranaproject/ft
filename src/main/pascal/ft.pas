@@ -3795,6 +3795,97 @@ begin
   Result := tbl.SelectedRow;
 end;
 
+procedure ft_table_set_multi_select(table: Pointer; enabled: cint32); cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  tbl.MultiSelect := (enabled <> 0);
+end;
+
+function ft_table_get_multi_select(table: Pointer): cint32; cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  Result := 0;
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  if tbl.MultiSelect then
+    Result := 1;
+end;
+
+function ft_table_is_row_selected(table: Pointer; row_idx: cint32): cint32; cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  Result := 0;
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  if tbl.IsRowSelected(row_idx) then
+    Result := 1;
+end;
+
+procedure ft_table_set_row_selected(table: Pointer; row_idx: cint32; selected: cint32); cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  tbl.SetRowSelected(row_idx, selected <> 0);
+end;
+
+procedure ft_table_select_all(table: Pointer); cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  tbl.SelectAll();
+end;
+
+procedure ft_table_clear_selection(table: Pointer); cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  tbl.ClearSelection();
+end;
+
+function ft_table_get_selected_row_count(table: Pointer): cint32; cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  Result := 0;
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  Result := tbl.GetSelectedRowCount();
+end;
+
+function ft_table_get_selected_rows(table: Pointer; out_indices: Pcint32; max_count: cint32): cint32; cdecl; export;
+var
+  tbl: TFtTable;
+  rows: TIntegerDynArray;
+  i, n: Integer;
+begin
+  Result := 0;
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  rows := tbl.GetSelectedRows();
+  n := Length(rows);
+  if Assigned(out_indices) and (max_count > 0) then
+  begin
+    if n > max_count then
+      n := max_count;
+    for i := 0 to n - 1 do
+      out_indices[i] := rows[i];
+    Result := n;
+  end
+  else
+    Result := Length(rows);
+end;
+
 procedure ft_table_set_header_height(table: Pointer; height: Double); cdecl; export;
 var
   tbl: TFtTable;
@@ -4365,6 +4456,14 @@ exports
   ft_table_get_cell_icon,
   ft_table_set_selected_row,
   ft_table_get_selected_row,
+  ft_table_set_multi_select,
+  ft_table_get_multi_select,
+  ft_table_is_row_selected,
+  ft_table_set_row_selected,
+  ft_table_select_all,
+  ft_table_clear_selection,
+  ft_table_get_selected_row_count,
+  ft_table_get_selected_rows,
   ft_table_set_header_height,
   ft_table_get_header_height,
   ft_table_set_row_height,

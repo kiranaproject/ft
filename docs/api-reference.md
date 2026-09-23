@@ -24,10 +24,11 @@ This document provides a comprehensive reference for the Floria Toolkit C ABI ex
 17. [Pop-up & Context Menus](#pop-up--context-menus)
 18. [Menu Items](#menu-items)
 19. [Context Menu & Window Attachment](#context-menu--window-attachment)
-20. [Clipboard Management](#clipboard-management)
-21. [Theme Management](#theme-management)
-22. [CSS Styling & Animation](#css-styling--animation)
-23. [Typography & Screen DPI](#typography--screen-dpi)
+20. [Table & DataGrid](#table--datagrid)
+21. [Clipboard Management](#clipboard-management)
+22. [Theme Management](#theme-management)
+23. [CSS Styling & Animation](#css-styling--animation)
+24. [Typography & Screen DPI](#typography--screen-dpi)
 
 ---
 
@@ -388,6 +389,54 @@ This document provides a comprehensive reference for the Floria Toolkit C ABI ex
 | `FtWidget ft_window_get_context_menu(FtWidget window)` | Returns attached context menu of window. |
 | `void ft_window_set_main_menu(FtWidget window, FtWidget main_menu)` | Sets active top-level main menu on window. |
 | `FtWidget ft_window_get_main_menu(FtWidget window)` | Returns main menu of window. |
+
+---
+
+## Table & DataGrid
+
+| Function | Description |
+|---|---|
+| `FtTable ft_table_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h)` | Creates a table / datagrid widget. |
+| `int32_t ft_table_add_column(FtTable table, const char* title, double width, int32_t alignment)` | Appends a column and returns column index. |
+| `int32_t ft_table_get_column_count(FtTable table)` | Returns number of columns. |
+| `void ft_table_set_column_title(FtTable table, int32_t col_idx, const char* title)` | Sets column header title. |
+| `const char* ft_table_get_column_title(FtTable table, int32_t col_idx)` | Retrieves column header title. |
+| `void ft_table_set_column_width(FtTable table, int32_t col_idx, double width)` | Sets column width in pixels. |
+| `double ft_table_get_column_width(FtTable table, int32_t col_idx)` | Retrieves column width. |
+| `void ft_table_set_column_align(FtTable table, int32_t col_idx, int32_t alignment)` | Sets column text alignment. |
+| `int32_t ft_table_get_column_align(FtTable table, int32_t col_idx)` | Retrieves column text alignment. |
+| `void ft_table_set_column_icon(FtTable table, int32_t col_idx, FtBitmap icon)` | Sets column header icon. |
+| `FtBitmap ft_table_get_column_icon(FtTable table, int32_t col_idx)` | Retrieves column header icon. |
+| `int32_t ft_table_add_row(FtTable table)` | Appends an empty row and returns row index. |
+| `void ft_table_delete_row(FtTable table, int32_t row_idx)` | Deletes row at index. |
+| `void ft_table_clear_rows(FtTable table)` | Deletes all rows while retaining columns. |
+| `void ft_table_clear_all(FtTable table)` | Clears all rows and columns. |
+| `int32_t ft_table_get_row_count(FtTable table)` | Returns current row count. |
+| `void ft_table_set_cell(FtTable table, int32_t row, int32_t col, const char* value)` | Sets cell text content. |
+| `const char* ft_table_get_cell(FtTable table, int32_t row, int32_t col)` | Retrieves cell text content. |
+| `void ft_table_set_cell_icon(FtTable table, int32_t row, int32_t col, FtBitmap icon)` | Sets cell icon image. |
+| `FtBitmap ft_table_get_cell_icon(FtTable table, int32_t row, int32_t col)` | Retrieves cell icon image. |
+| `void ft_table_set_selected_row(FtTable table, int32_t row)` | Selects row at index (`-1` to deselect). |
+| `int32_t ft_table_get_selected_row(FtTable table)` | Returns index of selected row or `-1`. |
+| `void ft_table_set_multi_select(FtTable table, int32_t enabled)` | Enables (`1`) or disables (`0`) multi-row selection. |
+| `int32_t ft_table_get_multi_select(FtTable table)` | Returns `1` if multi-row selection is enabled, `0` otherwise. |
+| `int32_t ft_table_is_row_selected(FtTable table, int32_t row_idx)` | Returns `1` if row is selected, `0` otherwise. |
+| `void ft_table_set_row_selected(FtTable table, int32_t row_idx, int32_t selected)` | Sets selection state of individual row. |
+| `void ft_table_select_all(FtTable table)` | Selects all rows (when `multi_select` enabled). |
+| `void ft_table_clear_selection(FtTable table)` | Deselects all rows. |
+| `int32_t ft_table_get_selected_row_count(FtTable table)` | Returns total count of currently selected rows. |
+| `int32_t ft_table_get_selected_rows(FtTable table, int32_t* out_indices, int32_t max_count)` | Populates buffer with indices of selected rows and returns count. |
+| `void ft_table_set_header_height(FtTable table, double height)` | Sets header row height. |
+| `double ft_table_get_header_height(FtTable table)` | Retrieves header row height. |
+| `void ft_table_set_row_height(FtTable table, double height)` | Sets table row height. |
+| `double ft_table_get_row_height(FtTable table)` | Retrieves table row height. |
+| `void ft_table_set_show_gridlines(FtTable table, int32_t show)` | Toggles gridline separators. |
+| `int32_t ft_table_get_show_gridlines(FtTable table)` | Queries gridline visibility. |
+| `void ft_table_set_zebra_striping(FtTable table, int32_t enabled)` | Toggles alternating row zebra striping. |
+| `int32_t ft_table_get_zebra_striping(FtTable table)` | Queries zebra striping state. |
+| `void ft_table_on_select_row(FtTable table, FtTableRowSelectCallback callback, void* user_data)` | Registers row selection callback. |
+| `void ft_table_on_draw_header(FtTable table, FtTableDrawHeaderCallback callback, void* user_data)` | Registers custom owner-draw header callback. |
+| `void ft_table_on_draw_cell(FtTable table, FtTableDrawCellCallback callback, void* user_data)` | Registers custom owner-draw cell callback. |
 
 ---
 

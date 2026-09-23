@@ -14,6 +14,17 @@ const
   FT_CURSOR_SIZE_V  = 3;
   FT_CURSOR_HAND    = 4;
 
+  FT_KEY_MOD_SHIFT   = 1;
+  FT_KEY_MOD_LOCK    = 2;
+  FT_KEY_MOD_CONTROL = 4;
+  FT_KEY_MOD_ALT     = 8;
+
+var
+  GCurrentKeyboardModifiers: Cardinal = 0;
+
+function FtGetKeyboardModifiers(): Cardinal;
+procedure FtSetKeyboardModifiers(AModifiers: Cardinal);
+
 type
   TFtWidget = class
   private
@@ -547,7 +558,18 @@ begin
   end;
 end;
 
+function FtGetKeyboardModifiers(): Cardinal;
+begin
+  Result := GCurrentKeyboardModifiers;
+end;
+
+procedure FtSetKeyboardModifiers(AModifiers: Cardinal);
+begin
+  GCurrentKeyboardModifiers := AModifiers;
+end;
+
 initialization
+  GCurrentKeyboardModifiers := 0;
   FtSetInvalidateWidgetProc(@InvalidateWidgetAnim);
 
 end.
