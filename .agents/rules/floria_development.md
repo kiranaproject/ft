@@ -49,4 +49,7 @@ When developing or creating examples, widgets, and language bindings for Floria 
   - Evolution must be strictly additive (new APIs/functions added, never altered or removed).
   - All public entities must remain opaque handles (`FtWidget`, `FtMenuItem`), safeguarding foreign language bindings and downstream binary compatibility across releases.
 
+## 9. Tool Call Schema Invariants
+- **`find_by_name` Mandatory `Pattern`**: Always supply `Pattern: "*"` when calling `find_by_name` with `Extensions` or `Type`. The tool schema strictly enforces `Pattern` as a required parameter (`required: ["SearchDirectory", "Pattern", "toolSummary", "toolAction"]`), regardless of documentation text.
+
 
