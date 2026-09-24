@@ -86,6 +86,12 @@ Enrich the desktop control catalog with complex data-driven components:
 - [x] **DataGrid & Table View (`TFtGrid` / `TFtTable`)**:
   - Column headers with alignment (`taLeft`, `taCenter`, `taRight`).
   - Alternating zebra striping, gridlines, and cell selection.
+- [ ] **Virtualized Data Grid (`TFtVirtualGrid` / `TFtVirtualTable`)**:
+  - **Zero Idle CPU Waste (0% Idle)**: Pure event-driven rendering pipeline that sleeps when motionless; during scrolling, dirty region tracking invalidates only moving rows/columns without wasteful whole-window redraws.
+  - **Visible Bounds Virtualization**: Calculates visible row and column slices strictly from scroll viewport offsets (`ScrollX`, `ScrollY`), never instantiating or measuring offscreen items. Capable of effortlessly scrolling 1,000,000+ data rows with flat O(1) memory overhead.
+  - **Reusable "Cell Stamp" Flyweight Pattern**: Instead of creating thousands of heavy `FtWidget` instances for every data cell, employs a single reusable "Cell Stamp" layout and paints the data dynamically as the user scrolls, eliminating memory churn and allocation overhead.
+  - **Pluggable Data Source Adapter**: Callback-driven model (`OnGetRowCount`, `OnGetCellText`, `OnGetCellCustomDraw`) supporting real-time streaming data, SQL result sets, and async data fetchers.
+  - **In-Place Dynamic Cell Editors**: Spawns or overlays lightweight active editors (text entries, checkboxes, dropdowns) exclusively on the currently focused or edited cell, dismissing them back to the flyweight state upon commit/cancel.
 - [x] **Tree View (`TFtTreeView`)**:
   - Hierarchical node rendering with folding glyphs, depth indentation, and selection tracking.
 - [x] **Notebook / Tabbed Container (`TFtNotebook` / `TFtTabs`)**:

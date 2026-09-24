@@ -261,6 +261,9 @@ Inherits from `TFtContainer`:
   - **Ctrl + A**: Selects all rows when `MultiSelect` is enabled.
   - **Escape**: Clears row selection.
 - **Selection API**: `SelectAll()`, `ClearSelection()`, `IsRowSelected(Index)`, `SetRowSelected(Index, Selected)`, `GetSelectedRowCount()`, and `GetSelectedRows()`.
+- **Roadmap: Virtualized Data Grid (`TFtVirtualTable` / `TFtVirtualGrid`)**:
+  - Aiming for **0% idle CPU waste**, rendering strictly the visible row/column slice calculated from scroll viewport offsets.
+  - Replaces per-cell `FtWidget` instances with a single reusable **"Cell Stamp"** flyweight layout, painting data dynamically as the user scrolls to support 1,000,000+ data rows with $O(1)$ memory.
 
 ---
 

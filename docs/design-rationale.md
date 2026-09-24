@@ -16,6 +16,8 @@ This document captures the architectural decisions, design invariants, and lesso
 4. [Graphics Engine: AggPas as the Reference Standard](#4-graphics-engine-aggpas-as-the-reference-standard)
 5. [CSS Engine, Specificity & Semantic Theming](#5-css-engine-specificity--semantic-theming)
 6. [Rendering Pipeline & Partial Invalidation](#6-rendering-pipeline--partial-invalidation)
+   - [Zero CPU Waste at Idle](#zero-cpu-waste-at-idle)
+   - [Virtualized Data Grids & The "Cell Stamp" Flyweight Pattern](#virtualized-data-grids--the-cell-stamp-flyweight-pattern)
 7. [Universal C ABI & Language Bindings](#7-universal-c-abi--language-bindings)
 8. [Modularity & Linker Invariants](#8-modularity--linker-invariants)
 
@@ -118,6 +120,12 @@ Floria Toolkit is engineered to achieve 60 FPS fluidity when animated while drop
 - **Partial Invalidation**: Indeterminate progress bars, glowing buttons, and hover transitions only invalidate the bounding box of the active widget (`InvalidateRect`). The event loop blits only the damaged dirty region to the display.
 - **Paced Event Loop**: The backend loop measures sub-millisecond delta times, sleeping for 16ms between frames while transitions are active, and falling back to kernel event blocking (`poll` / `epoll`) when no animations are running.
 - **Hierarchical Scissor Clipping**: Nested containers maintain a scissor rectangle stack in `TFtCanvasAgg`. Child widgets outside container viewports are clipped mathematically with zero overdraw.
+
+### Virtualized Data Grids & The "Cell Stamp" Flyweight Pattern
+When rendering massive datasets (such as hundreds of thousands or millions of tabular rows):
+- **0% Idle CPU Waste**: The grid does not poll or run continuous background render loops. It updates visible bounds only when scroll offsets change, window resizes occur, or explicit data mutations are signaled.
+- **Visible Bounds Virtualization**: The grid never instantiates, measures, or tracks offscreen data cells. It strictly projects the row and column slice intersecting the current viewport based on scroll position (`ScrollX`, `ScrollY`).
+- **Reusable "Cell Stamp" Flyweight Layout**: Rather than instantiating thousands of heavy `FtWidget` instances for every cell in a dataset, the grid utilizes a single reusable "Cell Stamp" layout and paints the data dynamically as the user scrolls. This maintains flat $O(1)$ memory overhead, eliminates allocation churn, and guarantees microsecond responsiveness even with 1,000,000+ data rows.
 
 ---
 
