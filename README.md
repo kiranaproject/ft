@@ -49,6 +49,10 @@ A lightweight, high-performance native GUI toolkit engineered with Free Pascal, 
 - **First-Class X11 & Pluggable Backends**:
   - Premier native X11/XCB integration with microsecond event dispatch, EWMH window management, and compositor blur protocols.
   - Pluggable `TFtWindow` abstraction ready for future WinAPI, Cocoa, and Wayland backends.
+- **Internationalization, BiDi & Script Shaping**:
+  - Full UTF-8 Unicode text rendering across global writing systems (Latin, Cyrillic, Greek, CJK, Thai, Indic/Devanagari, Arabic, Hebrew).
+  - Unicode Bidirectional Algorithm (UAX #9) visual reordering and bracket mirroring for RTL scripts.
+  - Pure-Pascal contextual Arabic cursive shaping supporting isolated, initial, medial, and final forms and Lam-Alef ligatures.
 - **Universal C ABI & Rock-Solid Stability**:
   - Standalone shared library (`libft.so`) exposing a frozen, append-only C ABI via `include/ft.h`.
   - Adopts the **Windows API standard of stability**: zero ABI churn between minor releases, opaque pointer handles, and permanent backward compatibility across language bindings (C, C++, Python, Rust, Zig, Go, Pascal).
@@ -92,6 +96,10 @@ Comprehensive documentation is available in the [`docs/`](docs/) directory:
 ### 60 FPS CSS Transitions & Animations
 ![CSS Transitions and Animations Showcase](docs/screenshots/floria_css_animation.gif)
 *Smooth 60 FPS CSS transition engine showcasing color morphing, border radius morphing (rectangle to pill), pulsating border outlines, cubic-bezier timing functions, and dynamic inline style transitions with zero CPU usage when idle.*
+
+### Multilingual Typography, BiDi & Script Shaping
+![Multilingual Typography, BiDi and Script Shaping Showcase](docs/screenshots/floria_multilingual.png)
+*Full UTF-8 internationalization featuring CJK (Japanese, Simplified & Traditional Chinese, Korean), Thai, Indic (Hindi), and Right-to-Left (RTL) Bidirectional text layout with contextual Arabic cursive shaping and Hebrew bracket mirroring.*
 
 ---
 
