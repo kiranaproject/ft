@@ -32,3 +32,10 @@ When developing or creating examples, widgets, and language bindings for Floria 
 - **Explicit Image Codec Import**: When using `Floria.Image.Core` or image-related widgets (`TFtImage`, `ft_image_*`, `ft_bitmap_*`), the main library (`ft.pas`), widget unit (`ft.widget.images.pas`), and test runner (`TestRunner.pas`) must explicitly include the desired codec units (`Floria.Image.PNG`, `Floria.Image.BMP`, `Floria.Image.JPEG`) in their `uses` clause.
 - **Initialization Retention**: Pascal image codecs register their handlers dynamically in their unit `initialization` sections. Because `Floria.Image.Core` does not import codecs directly (preventing circular initialization wipes), omitting codec units from consumer `uses` clauses results in smart-linking dropping them, raising `"Unsupported or unrecognized image format"` at runtime.
 
+## 7. Native Popup Surfaces (Tooltips, Menus, Hints) & Compositor Cleanliness
+- **No Software Drop Shadows or Rounded Corners for Native Popups**:
+  Any top-level popup, menu, hint, or tooltip window (`TFtPopupMenu`, `TFtHintWindow`, `ftwtPopupMenu`, `ftwtTooltip`, `ftwtDropdownMenu`) must render as a flat rectangular plate with a 1px border outline (`Canvas.DrawRect` + `Canvas.DrawRoundedRectOutline(..., 0.0, 1.0, ...)`), strictly passing `CustomRadius := 0.0` and never drawing a software drop shadow (`Canvas.DrawShadow`).
+- **Compositor Responsibility**:
+  Modern window managers and compositors (Picom, KWin, Mutter, macOS WindowServer, Windows DWM) already manage window drop shadows and window corner radii natively based on EWMH window types (`_NET_WM_WINDOW_TYPE_POPUP_MENU`, `_NET_WM_WINDOW_TYPE_TOOLTIP`). Rendering software shadows or rounded corners inside the window buffer creates unsightly double shadows, dark corner artifacts, and requires users to write complex compositor hacks.
+
+
