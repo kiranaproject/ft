@@ -470,6 +470,121 @@ begin
     Result := -1;
 end;
 
+procedure ft_button_set_caption(button: Pointer; caption: PChar); cdecl; export;
+begin
+  if Assigned(button) and (TObject(button) is TFtButton) then
+  begin
+    if Assigned(caption) then
+      TFtButton(button).Caption := StrPas(caption)
+    else
+      TFtButton(button).Caption := '';
+    TFtButton(button).Invalidate();
+  end;
+end;
+
+function ft_button_get_caption(button: Pointer): PChar; cdecl; export;
+begin
+  Result := nil;
+  if Assigned(button) and (TObject(button) is TFtButton) then
+    Result := PChar(TFtButton(button).Caption);
+end;
+
+procedure ft_button_set_icon_file(button: Pointer; filepath: PChar); cdecl; export;
+begin
+  if Assigned(button) and (TObject(button) is TFtButton) and Assigned(filepath) then
+    TFtButton(button).LoadIconFromFile(StrPas(filepath));
+end;
+
+procedure ft_button_set_icon_svg(button: Pointer; svg_content: PChar); cdecl; export;
+begin
+  if Assigned(button) and (TObject(button) is TFtButton) and Assigned(svg_content) then
+    TFtButton(button).LoadIconFromSVG(StrPas(svg_content));
+end;
+
+procedure ft_button_set_icon_bitmap(button: Pointer; bmp: Pointer; owns_bitmap: cint32); cdecl; export;
+begin
+  if Assigned(button) and (TObject(button) is TFtButton) then
+    TFtButton(button).SetIconBitmap(TFloriaImage(bmp), owns_bitmap <> 0);
+end;
+
+function ft_button_get_icon_bitmap(button: Pointer): Pointer; cdecl; export;
+begin
+  Result := nil;
+  if Assigned(button) and (TObject(button) is TFtButton) then
+    Result := Pointer(TFtButton(button).Icon);
+end;
+
+procedure ft_button_clear_icon(button: Pointer); cdecl; export;
+begin
+  if Assigned(button) and (TObject(button) is TFtButton) then
+    TFtButton(button).ClearIcon();
+end;
+
+procedure ft_button_set_icon_position(button: Pointer; position: cint32); cdecl; export;
+begin
+  if Assigned(button) and (TObject(button) is TFtButton) then
+    if (position >= 0) and (position <= Ord(High(TFtButtonIconPosition))) then
+      TFtButton(button).IconPosition := TFtButtonIconPosition(position);
+end;
+
+function ft_button_get_icon_position(button: Pointer): cint32; cdecl; export;
+begin
+  Result := 0;
+  if Assigned(button) and (TObject(button) is TFtButton) then
+    Result := Ord(TFtButton(button).IconPosition);
+end;
+
+procedure ft_button_set_icon_size(button: Pointer; width, height: cint32); cdecl; export;
+begin
+  if Assigned(button) and (TObject(button) is TFtButton) then
+  begin
+    TFtButton(button).IconWidth := width;
+    TFtButton(button).IconHeight := height;
+  end;
+end;
+
+procedure ft_button_get_icon_size(button: Pointer; width, height: Pcint32); cdecl; export;
+begin
+  if Assigned(button) and (TObject(button) is TFtButton) then
+  begin
+    if Assigned(width) then width^ := TFtButton(button).IconWidth;
+    if Assigned(height) then height^ := TFtButton(button).IconHeight;
+  end;
+end;
+
+procedure ft_button_set_icon_gap(button: Pointer; gap: cint32); cdecl; export;
+begin
+  if Assigned(button) and (TObject(button) is TFtButton) then
+    TFtButton(button).IconGap := gap;
+end;
+
+function ft_button_get_icon_gap(button: Pointer): cint32; cdecl; export;
+begin
+  Result := 6;
+  if Assigned(button) and (TObject(button) is TFtButton) then
+    Result := TFtButton(button).IconGap;
+end;
+
+procedure ft_button_on_paint_icon(button: Pointer; callback: TFtButtonPaintCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(button) and (TObject(button) is TFtButton) then
+  begin
+    TFtButton(button).OnPaintIcon := callback;
+    TFtButton(button).OnPaintIconUserData := user_data;
+    TFtButton(button).Invalidate();
+  end;
+end;
+
+procedure ft_button_on_paint(button: Pointer; callback: TFtButtonPaintCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(button) and (TObject(button) is TFtButton) then
+  begin
+    TFtButton(button).OnPaint := callback;
+    TFtButton(button).OnPaintUserData := user_data;
+    TFtButton(button).Invalidate();
+  end;
+end;
+
 function ft_window_button_create(parent: Pointer; x, y, w, h: cint32; kind: cint32; style: cint32): Pointer; cdecl; export;
 var
   Btn: TFtWindowButton;
@@ -4079,6 +4194,21 @@ exports
   ft_button_get_corner_radius,
   ft_button_set_shadow,
   ft_button_get_shadow,
+  ft_button_set_caption,
+  ft_button_get_caption,
+  ft_button_set_icon_file,
+  ft_button_set_icon_svg,
+  ft_button_set_icon_bitmap,
+  ft_button_get_icon_bitmap,
+  ft_button_clear_icon,
+  ft_button_set_icon_position,
+  ft_button_get_icon_position,
+  ft_button_set_icon_size,
+  ft_button_get_icon_size,
+  ft_button_set_icon_gap,
+  ft_button_get_icon_gap,
+  ft_button_on_paint_icon,
+  ft_button_on_paint,
   ft_window_button_create,
   ft_window_button_set_kind,
   ft_window_button_get_kind,

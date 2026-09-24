@@ -5,13 +5,26 @@ unit Ft.Widget.Buttons;
 interface
 
 uses
-  ctypes, SysUtils, Classes, Floria.Canvas.Agg, Floria.Font, Ft.Widget, Ft.Theme, Ft.Css, Ft.Animation;
+  ctypes, SysUtils, Classes,
+  Floria.Canvas.Agg, Floria.Font,
+  Floria.Image.Core, Floria.Image.BMP, Floria.Image.PNG, Floria.Image.JPEG,
+  Floria.SVG.DOM, Floria.SVG.Parser, Floria.SVG.Rasterizer,
+  Ft.Widget, Ft.Theme, Ft.Css, Ft.Animation;
 
 type
   TFtClickCallback = procedure(Sender: Pointer; UserData: Pointer); cdecl;
   TFtHoverCallback = procedure(Sender: Pointer; Hovered: cint32; UserData: Pointer); cdecl;
   TFtPressCallback = procedure(Sender: Pointer; Pressed: cint32; UserData: Pointer); cdecl;
   TFtToggleCallback = procedure(Sender: Pointer; Toggled: cint32; UserData: Pointer); cdecl;
+
+  TFtButtonIconPosition = (
+    ftbipLeft = 0,    // Icon to the left of text (default)
+    ftbipRight = 1,   // Icon to the right of text
+    ftbipTop = 2,     // Icon above text
+    ftbipOnly = 3     // Icon only (centered, text hidden/ignored)
+  );
+
+  TFtButtonPaintCallback = procedure(Sender: Pointer; Canvas: Pointer; X, Y, W, H: Double; State: cint32; UserData: Pointer); cdecl;
 
   TFtButton = class(TFtWidget)
   private
@@ -26,13 +39,38 @@ type
     FOnPress: TFtPressCallback;
     FOnToggle: TFtToggleCallback;
     FUserData: Pointer;
+
+    // Icon support
+    FIcon: TFloriaImage;
+    FOwnsIcon: Boolean;
+    FIconPosition: TFtButtonIconPosition;
+    FIconWidth: Integer;
+    FIconHeight: Integer;
+    FIconGap: Integer;
+
+    // Custom drawing callbacks
+    FOnPaintIcon: TFtButtonPaintCallback;
+    FOnPaintIconUserData: Pointer;
+    FOnPaint: TFtButtonPaintCallback;
+    FOnPaintUserData: Pointer;
+
     procedure SetToggled(AValue: Boolean);
     procedure SetCanToggle(AValue: Boolean);
     procedure SetCornerRadius(AValue: Double);
     procedure SetEnableShadow(AValue: Integer);
+    procedure SetIconPosition(AValue: TFtButtonIconPosition);
+    procedure SetIconWidth(AValue: Integer);
+    procedure SetIconHeight(AValue: Integer);
+    procedure SetIconGap(AValue: Integer);
   public
     Caption: string;
     constructor Create(AParent: TFtWidget); override;
+    destructor Destroy(); override;
+
+    procedure ClearIcon();
+    procedure SetIconBitmap(ABitmap: TFloriaImage; AOwnsBitmap: Boolean = False);
+    procedure LoadIconFromFile(const AFilePath: string);
+    procedure LoadIconFromSVG(const ASVGContent: string);
 
     function GetElementType(): string; override;
     function GetStatePseudoClass(): string; override;
@@ -57,6 +95,17 @@ type
     property OnPress: TFtPressCallback read FOnPress write FOnPress;
     property OnToggle: TFtToggleCallback read FOnToggle write FOnToggle;
     property UserData: Pointer read FUserData write FUserData;
+
+    property Icon: TFloriaImage read FIcon;
+    property OwnsIcon: Boolean read FOwnsIcon write FOwnsIcon;
+    property IconPosition: TFtButtonIconPosition read FIconPosition write SetIconPosition;
+    property IconWidth: Integer read FIconWidth write SetIconWidth;
+    property IconHeight: Integer read FIconHeight write SetIconHeight;
+    property IconGap: Integer read FIconGap write SetIconGap;
+    property OnPaintIcon: TFtButtonPaintCallback read FOnPaintIcon write FOnPaintIcon;
+    property OnPaintIconUserData: Pointer read FOnPaintIconUserData write FOnPaintIconUserData;
+    property OnPaint: TFtButtonPaintCallback read FOnPaint write FOnPaint;
+    property OnPaintUserData: Pointer read FOnPaintUserData write FOnPaintUserData;
   end;
 
   TFtToggleButton = class(TFtButton)
@@ -164,6 +213,149 @@ begin
   FOnPress := nil;
   FOnToggle := nil;
   FUserData := nil;
+
+  // Icon defaults
+  FIcon := nil;
+  FOwnsIcon := False;
+  FIconPosition := ftbipLeft;
+  FIconWidth := 0;
+  FIconHeight := 0;
+  FIconGap := 6;
+  FOnPaintIcon := nil;
+  FOnPaintIconUserData := nil;
+  FOnPaint := nil;
+  FOnPaintUserData := nil;
+end;
+
+destructor TFtButton.Destroy();
+begin
+  ClearIcon();
+  inherited Destroy();
+end;
+
+procedure TFtButton.ClearIcon();
+begin
+  if FOwnsIcon and Assigned(FIcon) then
+  begin
+    FIcon.Free();
+    FIcon := nil;
+  end
+  else
+    FIcon := nil;
+  FOwnsIcon := False;
+  Invalidate();
+end;
+
+procedure TFtButton.SetIconBitmap(ABitmap: TFloriaImage; AOwnsBitmap: Boolean = False);
+begin
+  ClearIcon();
+  FIcon := ABitmap;
+  FOwnsIcon := AOwnsBitmap;
+  Invalidate();
+end;
+
+procedure TFtButton.LoadIconFromFile(const AFilePath: string);
+var
+  svgDoc: TSVGDocument;
+  tw, th: Integer;
+begin
+  ClearIcon();
+  if not FileExists(AFilePath) then Exit;
+  if LowerCase(ExtractFileExt(AFilePath)) = '.svg' then
+  begin
+    try
+      svgDoc := TSVGParser.ParseFile(AFilePath);
+      if Assigned(svgDoc) then
+      begin
+        try
+          tw := FIconWidth;
+          th := FIconHeight;
+          if tw <= 0 then tw := 16;
+          if th <= 0 then th := 16;
+          FIcon := TFloriaSVGRenderer.RenderToImage(svgDoc, tw, th);
+          FOwnsIcon := True;
+        finally
+          svgDoc.Free();
+        end;
+      end;
+    except
+      FIcon := nil;
+    end;
+  end
+  else
+  begin
+    try
+      FIcon := TFloriaImage.CreateFromFile(AFilePath);
+      FOwnsIcon := True;
+    except
+      FIcon := nil;
+    end;
+  end;
+  Invalidate();
+end;
+
+procedure TFtButton.LoadIconFromSVG(const ASVGContent: string);
+var
+  svgDoc: TSVGDocument;
+  tw, th: Integer;
+begin
+  ClearIcon();
+  if ASVGContent = '' then Exit;
+  try
+    svgDoc := TSVGParser.ParseString(ASVGContent);
+    if Assigned(svgDoc) then
+    begin
+      try
+        tw := FIconWidth;
+        th := FIconHeight;
+        if tw <= 0 then tw := 16;
+        if th <= 0 then th := 16;
+        FIcon := TFloriaSVGRenderer.RenderToImage(svgDoc, tw, th);
+        FOwnsIcon := True;
+      finally
+        svgDoc.Free();
+      end;
+    end;
+  except
+    FIcon := nil;
+  end;
+  Invalidate();
+end;
+
+procedure TFtButton.SetIconPosition(AValue: TFtButtonIconPosition);
+begin
+  if FIconPosition <> AValue then
+  begin
+    FIconPosition := AValue;
+    Invalidate();
+  end;
+end;
+
+procedure TFtButton.SetIconWidth(AValue: Integer);
+begin
+  if FIconWidth <> AValue then
+  begin
+    FIconWidth := AValue;
+    Invalidate();
+  end;
+end;
+
+procedure TFtButton.SetIconHeight(AValue: Integer);
+begin
+  if FIconHeight <> AValue then
+  begin
+    FIconHeight := AValue;
+    Invalidate();
+  end;
+end;
+
+procedure TFtButton.SetIconGap(AValue: Integer);
+begin
+  if FIconGap <> AValue then
+  begin
+    FIconGap := AValue;
+    Invalidate();
+  end;
 end;
 
 procedure TFtButton.SetCornerRadius(AValue: Double);
@@ -312,12 +504,22 @@ var
   bw: Double;
   txtFont: TFtFont;
   txtR, txtG, txtB: Double;
-  textY: Integer;
   haloR, haloG, haloB: Double;
+  shiftY: Integer;
+  hasIcon, hasCustomIcon, hasText: Boolean;
+  iw, ih, tw, th: Double;
+  totalW, totalH, contentX, contentY: Double;
+  iconX, iconY, textX, textY: Double;
+  gap: Double;
+  iconAlpha: Double;
 begin
   if not Visible then Exit;
 
   st := GetResolvedStyle();
+  hasIcon := Assigned(FIcon) and (FIcon.Width > 0) and (FIcon.Height > 0);
+  hasCustomIcon := Assigned(FOnPaintIcon);
+  hasText := (Caption <> '') and (FIconPosition <> ftbipOnly);
+
   if st.HasBgColor or st.HasBorderColor or st.HasBorderRadius or st.HasTextColor then
   begin
     if st.HasBorderRadius then
@@ -372,28 +574,172 @@ begin
       else if st.HasBgColor then
         Canvas.DrawRoundedRectOutline(X, Y, Width, Height, effRadius, bw, st.BgColor.R * 0.8, st.BgColor.G * 0.8, st.BgColor.B * 0.8, 1.0);
     end;
+  end
+  else
+  begin
+    if hasIcon or hasCustomIcon then
+      FtGetTheme().DrawButtonEx(Canvas, X, Y, Width, Height, FState, FToggled, '', GetFont(), FCornerRadius, FEnableShadow)
+    else
+      FtGetTheme().DrawButtonEx(Canvas, X, Y, Width, Height, FState, FToggled, Caption, GetFont(), FCornerRadius, FEnableShadow);
+  end;
 
-    // 5. Centered text with tactile pressed shift
-    if Caption <> '' then
-    begin
-      txtFont := GetFont();
-      txtR := 1.0; txtG := 1.0; txtB := 1.0;
-      if st.HasTextColor then
-      begin
-        txtR := st.TextColor.R;
-        txtG := st.TextColor.G;
-        txtB := st.TextColor.B;
-      end;
-      textY := Y;
-      if FState = bsPressed then
-        Inc(textY);
-      Canvas.DrawTextCentered(X, textY, Width, Height, Caption, txtFont, txtR, txtG, txtB);
+  shiftY := 0;
+  if FState = bsPressed then
+    shiftY := 1;
+
+  // Resolve text font and color
+  txtFont := GetFont();
+  if not Assigned(txtFont) then
+    txtFont := FtGetSystemFont();
+
+  if st.HasTextColor then
+  begin
+    txtR := st.TextColor.R;
+    txtG := st.TextColor.G;
+    txtB := st.TextColor.B;
+  end
+  else if FToggled then
+  begin
+    txtR := 1.0; txtG := 1.0; txtB := 1.0;
+  end
+  else if FtGetDarkMode() then
+  begin
+    case FState of
+      bsNormal:  begin txtR := 0.85; txtG := 0.87; txtB := 0.90; end;
+      bsHovered: begin txtR := 1.00; txtG := 1.00; txtB := 1.00; end;
+      bsPressed: begin txtR := 0.85; txtG := 0.86; txtB := 0.88; end;
     end;
   end
   else
   begin
-    FtGetTheme().DrawButtonEx(Canvas, X, Y, Width, Height, FState, FToggled, Caption, GetFont(), FCornerRadius, FEnableShadow);
+    case FState of
+      bsNormal:  begin txtR := 0.20; txtG := 0.25; txtB := 0.33; end;
+      bsHovered: begin txtR := 0.11; txtG := 0.30; txtB := 0.85; end;
+      bsPressed: begin txtR := 0.06; txtG := 0.09; txtB := 0.16; end;
+    end;
   end;
+
+  if not FEnabled then
+  begin
+    txtR := (txtR + 0.5) * 0.5;
+    txtG := (txtG + 0.5) * 0.5;
+    txtB := (txtB + 0.5) * 0.5;
+  end;
+
+  // Draw content (Icon and/or Text)
+  if hasIcon or hasCustomIcon then
+  begin
+    // Measure icon dimensions
+    iw := FIconWidth;
+    ih := FIconHeight;
+    if iw <= 0.0 then
+    begin
+      if hasIcon then iw := FIcon.Width else iw := 16.0;
+    end;
+    if ih <= 0.0 then
+    begin
+      if hasIcon then ih := FIcon.Height else ih := 16.0;
+    end;
+    // Scale down icon if it overflows button height
+    if (Height > 10) and (ih > Height - 6.0) then
+    begin
+      iw := iw * ((Height - 6.0) / ih);
+      ih := Height - 6.0;
+    end;
+
+    // Measure text
+    tw := 0.0;
+    th := 14.0;
+    if hasText and Assigned(txtFont) then
+    begin
+      tw := txtFont.GetTextWidth(Caption);
+      th := txtFont.Height;
+    end;
+
+    gap := FIconGap;
+    if gap < 0.0 then gap := 6.0;
+    if not hasText then gap := 0.0;
+
+    iconAlpha := 1.0;
+    if not FEnabled then iconAlpha := 0.45;
+
+    case FIconPosition of
+      ftbipLeft:
+      begin
+        totalW := iw + gap + tw;
+        contentX := X + (Width - totalW) / 2.0;
+        if contentX < X + 4.0 then contentX := X + 4.0;
+        iconX := contentX;
+        iconY := Y + (Height - ih) / 2.0 + shiftY;
+        textX := contentX + iw + gap;
+        textY := Y + shiftY;
+
+        if hasCustomIcon then
+          FOnPaintIcon(Pointer(Self), Pointer(Canvas), iconX, iconY, iw, ih, Ord(FState), FOnPaintIconUserData)
+        else if hasIcon then
+          Canvas.DrawImageScaled(iconX, iconY, iw, ih, FIcon, iconAlpha);
+
+        if hasText then
+          Canvas.DrawTextLeft(textX, textY, Width - (textX - X) - 4.0, Height, Caption, txtFont, txtR, txtG, txtB);
+      end;
+
+      ftbipRight:
+      begin
+        totalW := iw + gap + tw;
+        contentX := X + (Width - totalW) / 2.0;
+        if contentX < X + 4.0 then contentX := X + 4.0;
+        textX := contentX;
+        textY := Y + shiftY;
+        iconX := contentX + tw + gap;
+        iconY := Y + (Height - ih) / 2.0 + shiftY;
+
+        if hasText then
+          Canvas.DrawTextLeft(textX, textY, tw + 2.0, Height, Caption, txtFont, txtR, txtG, txtB);
+
+        if hasCustomIcon then
+          FOnPaintIcon(Pointer(Self), Pointer(Canvas), iconX, iconY, iw, ih, Ord(FState), FOnPaintIconUserData)
+        else if hasIcon then
+          Canvas.DrawImageScaled(iconX, iconY, iw, ih, FIcon, iconAlpha);
+      end;
+
+      ftbipTop:
+      begin
+        totalH := ih + gap + th;
+        contentY := Y + (Height - totalH) / 2.0 + shiftY;
+        iconX := X + (Width - iw) / 2.0;
+        iconY := contentY;
+        textY := contentY + ih + gap;
+
+        if hasCustomIcon then
+          FOnPaintIcon(Pointer(Self), Pointer(Canvas), iconX, iconY, iw, ih, Ord(FState), FOnPaintIconUserData)
+        else if hasIcon then
+          Canvas.DrawImageScaled(iconX, iconY, iw, ih, FIcon, iconAlpha);
+
+        if hasText then
+          Canvas.DrawTextCentered(X, Round(textY), Width, Round(th), Caption, txtFont, txtR, txtG, txtB);
+      end;
+
+      ftbipOnly:
+      begin
+        iconX := X + (Width - iw) / 2.0;
+        iconY := Y + (Height - ih) / 2.0 + shiftY;
+
+        if hasCustomIcon then
+          FOnPaintIcon(Pointer(Self), Pointer(Canvas), iconX, iconY, iw, ih, Ord(FState), FOnPaintIconUserData)
+        else if hasIcon then
+          Canvas.DrawImageScaled(iconX, iconY, iw, ih, FIcon, iconAlpha);
+      end;
+    end;
+  end
+  else if (st.HasBgColor or st.HasBorderColor or st.HasBorderRadius or st.HasTextColor) and (Caption <> '') then
+  begin
+    // CSS-styled button text without icon
+    Canvas.DrawTextCentered(X, Y + shiftY, Width, Height, Caption, txtFont, txtR, txtG, txtB);
+  end;
+
+  // Custom post-draw overlay callback
+  if Assigned(FOnPaint) then
+    FOnPaint(Pointer(Self), Pointer(Canvas), X, Y + shiftY, Width, Height, Ord(FState), FOnPaintUserData);
 
   if FFocused then
   begin

@@ -31,6 +31,7 @@ eval gcc $CFLAGS examples/c/advanced_desktop_widgets.c $LDFLAGS -o target/exampl
 eval gcc $CFLAGS examples/c/window_button.c $LDFLAGS -o target/example_c_window_button
 eval gcc $CFLAGS examples/c/custom_table.c $LDFLAGS -o target/example_c_custom_table
 eval gcc $CFLAGS examples/c/squircle_button.c $LDFLAGS -o target/example_c_squircle_button
+eval gcc $CFLAGS examples/c/button_icons.c $LDFLAGS -o target/example_c_button_icons
 
 echo "[INFO] Successfully built all C examples in target/:"
 ls -lh target/example_c_*

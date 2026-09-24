@@ -3,7 +3,7 @@ program TestRunner;
 {$mode objfpc}{$H+}
 
 uses
-  Classes, SysUtils, Math, Types, fpcunit, testregistry, consoletestrunner,
+  ctypes, Classes, SysUtils, Math, Types, fpcunit, testregistry, consoletestrunner,
   Floria.SVG.DOM, Floria.SVG.Parser,
   Ft.Css, Floria.Image.Core, Floria.Image.BMP, Floria.Image.PNG, Floria.Image.JPEG, Floria.Image.Blur, Floria.Canvas.Agg, Floria.SVG.Rasterizer, Ft.Widget, Ft.Widget.Containers, Ft.Widget.Images,
   Ft.Widget.Tabs, Ft.Widget.Splitters, Ft.Widget.TreeViews, Ft.Widget.Tables, Ft.Widget.Texts, Ft.Widget.Buttons,
@@ -23,6 +23,7 @@ type
     procedure TestSwitch();
     procedure TestHints();
     procedure TestTextWordWrapAndClipping();
+    procedure TestButtonIconAndCustomDrawing();
   end;
 
   TFtSvgTest = class(TTestCase)
@@ -1527,6 +1528,102 @@ begin
     end;
   finally
     txt.Free();
+  end;
+end;
+
+var
+  g_TestIconPainted: Boolean = False;
+  g_TestButtonPainted: Boolean = False;
+  g_TestIconX: Double = 0.0;
+  g_TestIconY: Double = 0.0;
+  g_TestIconW: Double = 0.0;
+  g_TestIconH: Double = 0.0;
+
+procedure TestButtonIconPainter(Sender: Pointer; Canvas: Pointer; X, Y, W, H: Double; State: cint32; UserData: Pointer); cdecl;
+begin
+  g_TestIconPainted := True;
+  g_TestIconX := X;
+  g_TestIconY := Y;
+  g_TestIconW := W;
+  g_TestIconH := H;
+end;
+
+procedure TestButtonOverlayPainter(Sender: Pointer; Canvas: Pointer; X, Y, W, H: Double; State: cint32; UserData: Pointer); cdecl;
+begin
+  g_TestButtonPainted := True;
+end;
+
+procedure TFtDesktopWidgetsTest.TestButtonIconAndCustomDrawing();
+var
+  btn: TFtButton;
+  buf: array[0..99, 0..99] of TBgraPixel;
+  canvas: TFtCanvasAgg;
+begin
+  btn := TFtButton.Create(nil);
+  try
+    btn.X := 10;
+    btn.Y := 10;
+    btn.Width := 120;
+    btn.Height := 40;
+    btn.Caption := 'Save';
+
+    // 1. Icon default state
+    AssertNull('Initial icon is nil', btn.Icon);
+    AssertEquals('Default icon position is ftbipLeft', Ord(ftbipLeft), Ord(btn.IconPosition));
+    AssertEquals('Default icon gap is 6', 6, btn.IconGap);
+
+    // 2. Load icon from SVG
+    btn.LoadIconFromSVG('<svg width="16" height="16"><rect width="16" height="16" fill="#ff0000"/></svg>');
+    AssertNotNull('Icon loaded from SVG', btn.Icon);
+    AssertTrue('Icon width > 0', btn.Icon.Width > 0);
+    AssertTrue('Icon height > 0', btn.Icon.Height > 0);
+
+    // 3. Icon positioning & properties
+    btn.IconPosition := ftbipRight;
+    AssertEquals('Position right', Ord(ftbipRight), Ord(btn.IconPosition));
+    btn.IconPosition := ftbipTop;
+    AssertEquals('Position top', Ord(ftbipTop), Ord(btn.IconPosition));
+    btn.IconPosition := ftbipOnly;
+    AssertEquals('Position only', Ord(ftbipOnly), Ord(btn.IconPosition));
+    btn.IconPosition := ftbipLeft;
+
+    btn.IconWidth := 20;
+    btn.IconHeight := 20;
+    btn.IconGap := 10;
+    AssertEquals('IconWidth is 20', 20, btn.IconWidth);
+    AssertEquals('IconHeight is 20', 20, btn.IconHeight);
+    AssertEquals('IconGap is 10', 10, btn.IconGap);
+
+    // 4. Rendering with icon
+    canvas := TFtCanvasAgg.Create(@buf[0, 0], 100, 100);
+    try
+      btn.Draw(canvas);
+    finally
+      canvas.Free();
+    end;
+
+    // 5. Custom icon paint callback
+    g_TestIconPainted := False;
+    g_TestButtonPainted := False;
+    btn.OnPaintIcon := @TestButtonIconPainter;
+    btn.OnPaint := @TestButtonOverlayPainter;
+
+    canvas := TFtCanvasAgg.Create(@buf[0, 0], 100, 100);
+    try
+      btn.Draw(canvas);
+      AssertTrue('Custom icon paint callback invoked', g_TestIconPainted);
+      AssertTrue('Icon painted within button X bounds', (g_TestIconX >= btn.X) and (g_TestIconX + g_TestIconW <= btn.X + btn.Width));
+      AssertTrue('Icon painted within button Y bounds', (g_TestIconY >= btn.Y) and (g_TestIconY + g_TestIconH <= btn.Y + btn.Height));
+      AssertTrue('Custom overlay paint callback invoked', g_TestButtonPainted);
+    finally
+      canvas.Free();
+    end;
+
+    // 6. Clear icon
+    btn.ClearIcon();
+    AssertNull('Icon cleared', btn.Icon);
+  finally
+    btn.Free();
   end;
 end;
 

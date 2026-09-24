@@ -95,6 +95,21 @@ This document provides a comprehensive reference for the Floria Toolkit C ABI ex
 | `void ft_button_on_toggle(FtWidget btn, FtToggleCallback cb, void* user_data)` | Registers toggle state change callback (`void (*)(FtWidget, int32_t toggled, void*)`). |
 | `void ft_button_set_corner_radius(FtWidget btn, double radius)` | Sets per-widget corner radius (`-1.0` inherits theme). |
 | `void ft_button_set_shadow(FtWidget btn, int32_t enabled)` | Sets per-widget shadow (`-1` inherits theme, `0` = off, `1` = on). |
+| `void ft_button_set_caption(FtWidget btn, const char* caption)` | Dynamically updates the button caption text. |
+| `const char* ft_button_get_caption(FtWidget btn)` | Returns the current button caption string. |
+| `void ft_button_set_icon_file(FtWidget btn, const char* filepath)` | Loads an icon from file (PNG, BMP, JPG, or scalable vector SVG). |
+| `void ft_button_set_icon_svg(FtWidget btn, const char* svg_content)` | Renders an icon directly from an inline SVG XML string. |
+| `void ft_button_set_icon_bitmap(FtWidget btn, FtBitmap bmp, int32_t owns_bitmap)` | Sets an icon from an existing `FtBitmap` handle. |
+| `FtBitmap ft_button_get_icon_bitmap(FtWidget btn)` | Retrieves the underlying icon bitmap handle (`NULL` if none). |
+| `void ft_button_clear_icon(FtWidget btn)` | Removes the active icon and frees owned resources. |
+| `void ft_button_set_icon_position(FtWidget btn, int32_t position)` | Configures icon placement (`FT_BUTTON_ICON_LEFT`, `RIGHT`, `TOP`, `ONLY`). |
+| `int32_t ft_button_get_icon_position(FtWidget btn)` | Returns current icon position mode. |
+| `void ft_button_set_icon_size(FtWidget btn, int32_t width, int32_t height)` | Overrides icon display dimensions in pixels (`0` = auto). |
+| `void ft_button_get_icon_size(FtWidget btn, int32_t* width, int32_t* height)` | Retrieves configured icon dimensions. |
+| `void ft_button_set_icon_gap(FtWidget btn, int32_t gap)` | Sets gap spacing in pixels between icon and caption (default: `6`). |
+| `int32_t ft_button_get_icon_gap(FtWidget btn)` | Returns gap spacing between icon and caption. |
+| `void ft_button_on_paint_icon(FtWidget btn, FtButtonPaintCallback cb, void* user_data)` | Registers custom vector icon drawing callback (`(button, canvas, x, y, w, h, state, user_data)`). |
+| `void ft_button_on_paint(FtWidget btn, FtButtonPaintCallback cb, void* user_data)` | Registers custom button overlay drawing callback (`(button, canvas, x, y, w, h, state, user_data)`). |
 
 ---
 

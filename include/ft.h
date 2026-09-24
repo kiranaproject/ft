@@ -8,6 +8,7 @@ extern "C" {
 #endif
 
 typedef void* FtWidget;
+typedef void* FtBitmap;
 
 /* Callback Types */
 typedef void (*FtClickCallback)(FtWidget widget, void* user_data);
@@ -96,6 +97,39 @@ void ft_button_set_corner_radius(FtWidget button, double radius);
 double ft_button_get_corner_radius(FtWidget button);
 void ft_button_set_shadow(FtWidget button, int32_t enabled);
 int32_t ft_button_get_shadow(FtWidget button);
+
+/* Button Caption */
+void ft_button_set_caption(FtWidget button, const char* caption);
+const char* ft_button_get_caption(FtWidget button);
+
+/* Button Icon Positions */
+typedef enum {
+    FT_BUTTON_ICON_LEFT = 0,    /* Icon to the left of text (default) */
+    FT_BUTTON_ICON_RIGHT = 1,   /* Icon to the right of text */
+    FT_BUTTON_ICON_TOP = 2,     /* Icon above text */
+    FT_BUTTON_ICON_ONLY = 3     /* Icon centered, caption ignored/hidden */
+} FtButtonIconPosition;
+
+/* Button Custom Drawing Callbacks */
+typedef void (*FtButtonPaintCallback)(FtWidget button, void* canvas, double x, double y, double w, double h, int32_t state, void* user_data);
+
+/* Button Icon APIs */
+void ft_button_set_icon_file(FtWidget button, const char* filepath);
+void ft_button_set_icon_svg(FtWidget button, const char* svg_content);
+void ft_button_set_icon_bitmap(FtWidget button, FtBitmap bmp, int32_t owns_bitmap);
+FtBitmap ft_button_get_icon_bitmap(FtWidget button);
+void ft_button_clear_icon(FtWidget button);
+
+void ft_button_set_icon_position(FtWidget button, int32_t position);
+int32_t ft_button_get_icon_position(FtWidget button);
+void ft_button_set_icon_size(FtWidget button, int32_t width, int32_t height);
+void ft_button_get_icon_size(FtWidget button, int32_t* width, int32_t* height);
+void ft_button_set_icon_gap(FtWidget button, int32_t gap);
+int32_t ft_button_get_icon_gap(FtWidget button);
+
+/* Button Custom Drawing APIs */
+void ft_button_on_paint_icon(FtWidget button, FtButtonPaintCallback callback, void* user_data);
+void ft_button_on_paint(FtWidget button, FtButtonPaintCallback callback, void* user_data);
 
 /* Widgets: Window Button (Titlebar, Tabs, Panels) */
 typedef enum {
@@ -474,8 +508,6 @@ int32_t ft_animation_is_running(void);
 /* ========================================================================= */
 /* Bitmaps, Images & Direct Canvas Drawing                                   */
 /* ========================================================================= */
-
-typedef void* FtBitmap;
 
 typedef enum {
     FT_IMAGE_SCALE_FIT = 0,     /* Aspect ratio preserved, centered */
