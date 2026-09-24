@@ -84,3 +84,13 @@ Floria Toolkit decouples widgets and menus from specific windowing systems via `
 - **Opaque Pointers**: Widgets and menu items are represented as opaque handles (`FtWidget`, `FtMenuItem`), protecting internal Pascal objects.
 - **ABI Stability**: Only standard C primitives (`int32_t`, `double`, `const char*`, `void*` function pointers) are exposed across the library boundary.
 - **Zero Overhead**: Direct dynamic linking via `libft.so` allows seamless use from C, Python (`ctypes`), Rust, Zig, Go, and C++.
+
+---
+
+## Further Reading
+
+For an exhaustive analysis of engineering trade-offs, toolkit invariants, compositor cleanliness (avoiding double shadows & clipped corners under Picom/KWin), CSS cascade rules, zero-idle rendering, and FFI guidelines, consult:
+- **[Design Rationale & Architectural Invariants](design-rationale.md)**
+- **[Theming & CSS Architecture](theming.md)**
+- **[Widget Catalog & Custom Widgets](widgets.md)**
+- **[Full C API Reference](api-reference.md)**

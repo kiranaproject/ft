@@ -59,6 +59,7 @@ Comprehensive documentation is available in the [`docs/`](docs/) directory:
 - 🎨 **[Theming & CSS Guide](docs/theming.md)**: Guide to writing CSS stylesheets, selectors, properties, transitions, and dark mode.
 - 🧱 **[Widgets Architecture](docs/widgets.md)**: Widget hierarchy, coordinate systems, container clipping, and design patterns.
 - 🏗️ **[Architecture & Internals](docs/architecture.md)**: Overview of the AGG graphics pipe, X11 backend, animation scheduler, and FFI layer.
+- 💡 **[Design Rationale & Invariants](docs/design-rationale.md)**: Toolkit engineering philosophy, compositor integration invariants, and lessons learned.
 
 ---
 
@@ -202,7 +203,8 @@ floria-toolkit/
 │   ├── api-reference.md      # Full C API Reference
 │   ├── theming.md            # CSS theming & transitions guide
 │   ├── widgets.md            # Widget catalog & architecture
-│   └── architecture.md       # Graphics pipe & backend design
+│   ├── architecture.md       # Graphics pipe & backend design
+│   └── design-rationale.md   # Architectural invariants & design rationale
 ├── include/
 │   └── ft.h                  # C/C++ API header
 ├── src/main/pascal/
