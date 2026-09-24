@@ -111,16 +111,16 @@ SAMPLES = [
     ("Greek (Ελληνικά)", "Γειά σου κόσμε! Καλώς ήρθατε στο Floria", "Ubuntu-11"),
 
     # East Asian (CJK)
-    ("Japanese (Nihongo)", "こんにちは、世界！Floriaへようこそ", "Noto Sans CJK JP-11"),
+    ("Japanese (日本語)", "こんにちは、世界！Floriaへようこそ", "Noto Sans CJK JP-11"),
     ("Chinese Simp (简体中文)", "你好，世界！欢迎使用 Floria Toolkit", "Noto Sans CJK SC-11"),
     ("Chinese Trad (繁體中文)", "你好，世界！歡迎使用 Floria Toolkit", "Noto Sans CJK TC-11"),
     ("Korean (한국어)", "안녕하세요, 세계! Floria에 오신 것을 환영합니다", "Noto Sans CJK KR-11"),
 
     # South/SE Asian, Arabic & Hebrew
-    ("Thai (Phasa Thai)", "สวัสดีชาวโลก! ยินดีต้อนรับสู่ Floria", "Noto Sans Thai-11"),
-    ("Hindi (Hindī)", "नमस्ते दुनिया! Floria Toolkit में स्वागत है", "Noto Sans Devanagari-11"),
-    ("Arabic (Al-Arabiyyah)", "مرحباً بالعالم! أهلاً بكم في Floria", "Noto Sans Arabic-11"),
-    ("Hebrew (Ivrit)", "שלום עולם! ברוכים הבאים ל-Floria", "Noto Sans Hebrew-11"),
+    ("Thai (ภาษาไทย)", "สวัสดีชาวโลก! ยินดีต้อนรับสู่ Floria", "Noto Sans Thai-11"),
+    ("Hindi (हिन्दी)", "नमस्ते दुनिया! Floria Toolkit में स्वागत है", "Noto Sans Devanagari-11"),
+    ("Arabic (العربية)", "مرحباً بالعالم! أهلاً بكم في Floria", "Noto Sans Arabic-11"),
+    ("Hebrew (עברית)", "שלום עולם! ברוכים הבאים ל-Floria", "Noto Sans Hebrew-11"),
 ]
 
 THEMES = ["default", "nord", "dracula", "gruvbox", "gtk2", "classic"]
@@ -220,6 +220,8 @@ def main():
 
         lbl_w = ft.ft_text_create(win, col_x, cur_y, 260, 18, f"{label}:".encode("utf-8"))
         ft.ft_text_set_selectable(lbl_w, 0)
+        if font_name:
+            ft.ft_widget_set_font(lbl_w, font_name.encode("utf-8"))
 
         cb_sample = make_sample_callback(phrase, font_name)
         callbacks.append(cb_sample)
