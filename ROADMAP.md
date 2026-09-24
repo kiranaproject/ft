@@ -110,10 +110,16 @@ Enrich the desktop control catalog with complex data-driven components:
 
 Elevate text handling to meet global typography standards:
 
-- [ ] **HarfBuzz Text Shaping Integration**:
-  - Full support for complex and connecting scripts (Arabic, Devanagari, Thai, etc.).
-- [ ] **Bidirectional Text (BiDi)**:
-  - Unicode BiDi algorithm support for right-to-left (RTL) reading orders.
+- [x] **Core BiDi Algorithm Engine (`florialib` / `Floria.Unicode.BiDi`)**:
+  - Pure Pascal implementation of the Unicode Bidirectional Algorithm (UAX #9).
+  - Paragraph embedding level resolution, weak/neutral classification, bracket pairing, glyph mirroring, and visual run segmentation (`TFloriaBiDiRun`).
+- [x] **Dynamic HarfBuzz Text Shaping Engine (`florialib` / `Floria.Text.HarfBuzz`)**:
+  - Dynamic runtime loading of `libharfbuzz.so.0` via `dynlibs` (zero hard binary dependency; falls back gracefully to 1:1 character metrics if unavailable).
+  - OpenType GSUB & GPOS shaping: ligatures (`liga`, `calt`), cursive Arabic joining, Indic conjuncts & reordering, Thai tone mark stacking, and kerning.
+  - Integration with `Floria.Unicode.BiDi` to shape unidirectional runs with explicit visual direction (`HB_DIRECTION_LTR`, `HB_DIRECTION_RTL`).
+- [ ] **Toolkit Text Widget Integration**:
+  - Wire shaped glyph rendering (`TFloriaShapedGlyph`) into `TFtText`, `TFtEntry`, and `TFtTextArea` rasterization pipelines.
+  - BiDi-aware text selection, caret placement, and visual vs. logical cursor navigation (`Left`/`Right` arrows).
 - [ ] **Input Method Editor (IME)**:
   - Integration with `ibus`, `fcitx5`, and native platform IMEs for East Asian languages (CJK) composition.
 
