@@ -173,7 +173,7 @@ scrollbar:active {
     color: var(--scrollbar-active);
 }
 
-menu {
+menu, tooltip {
     background-color: var(--surface-bg);
     border-color: var(--border-color);
     color: var(--text-color);

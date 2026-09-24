@@ -69,7 +69,7 @@ scrollbar:active {
     color: #505050;
 }
 
-menu {
+menu, tooltip {
     background-color: #ffffff;
     border-color: #858585;
     color: #1f1f1f;

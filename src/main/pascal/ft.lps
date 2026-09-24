@@ -7,9 +7,18 @@
       <Unit>
         <Filename Value="ft.pas"/>
         <IsPartOfProject Value="True"/>
-        <TopLine Value="139"/>
+        <TopLine Value="262"/>
         <CursorPos X="11" Y="150"/>
-        <UsageCount Value="43"/>
+        <UsageCount Value="68"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="ft.window.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Window"/>
+        <EditorIndex Value="1"/>
+        <TopLine Value="112"/>
+        <UsageCount Value="45"/>
         <Loaded Value="True"/>
       </Unit>
       <Unit>
@@ -17,19 +26,113 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="Ft.Backend.X11"/>
         <IsVisibleTab Value="True"/>
-        <EditorIndex Value="13"/>
-        <TopLine Value="136"/>
-        <CursorPos X="35" Y="138"/>
-        <UsageCount Value="43"/>
+        <EditorIndex Value="10"/>
+        <TopLine Value="137"/>
+        <CursorPos Y="147"/>
+        <UsageCount Value="68"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="ft.widget.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Widget"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="92"/>
+        <UsageCount Value="68"/>
+      </Unit>
+      <Unit>
+        <Filename Value="ft.widget.buttons.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Widget.Buttons"/>
+        <EditorIndex Value="3"/>
+        <UsageCount Value="67"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="ft.theme.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Theme"/>
+        <EditorIndex Value="2"/>
+        <CursorPos Y="1120"/>
+        <UsageCount Value="67"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="ft.widget.switches.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Widget.Switches"/>
+        <EditorIndex Value="-1"/>
+        <UsageCount Value="67"/>
+      </Unit>
+      <Unit>
+        <Filename Value="ft.widget.texts.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Widget.Texts"/>
+        <EditorIndex Value="-1"/>
+        <UsageCount Value="67"/>
+      </Unit>
+      <Unit>
+        <Filename Value="ft.widget.entries.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Widget.Entries"/>
+        <EditorIndex Value="-1"/>
+        <UsageCount Value="67"/>
+      </Unit>
+      <Unit>
+        <Filename Value="ft.widget.textareas.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Widget.TextAreas"/>
+        <EditorIndex Value="9"/>
+        <UsageCount Value="67"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="ft.widget.scrollbars.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Widget.ScrollBars"/>
+        <EditorIndex Value="8"/>
+        <UsageCount Value="67"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="ft.widget.containers.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Widget.Containers"/>
+        <EditorIndex Value="7"/>
+        <UsageCount Value="67"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="ft.widget.menus.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Widget.Menus"/>
+        <EditorIndex Value="6"/>
+        <UsageCount Value="67"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="ft.widget.images.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Widget.Images"/>
+        <EditorIndex Value="5"/>
+        <UsageCount Value="65"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="ft.css.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Css"/>
+        <EditorIndex Value="4"/>
+        <CursorPos X="28" Y="9"/>
+        <UsageCount Value="65"/>
         <Loaded Value="True"/>
       </Unit>
       <Unit>
         <Filename Value="ft.backend.xcb.pas"/>
         <UnitName Value="Ft.Backend.XCB"/>
-        <EditorIndex Value="15"/>
+        <EditorIndex Value="-1"/>
         <CursorPos X="64" Y="8"/>
-        <UsageCount Value="40"/>
-        <Loaded Value="True"/>
+        <UsageCount Value="38"/>
       </Unit>
       <Unit>
         <Filename Value="ft.canvas.agg.pas"/>
@@ -37,137 +140,38 @@
         <EditorIndex Value="-1"/>
         <TopLine Value="60"/>
         <CursorPos X="48" Y="71"/>
-        <UsageCount Value="21"/>
-      </Unit>
-      <Unit>
-        <Filename Value="ft.widget.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="Ft.Widget"/>
-        <EditorIndex Value="14"/>
-        <TopLine Value="92"/>
-        <UsageCount Value="43"/>
-        <Loaded Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="ft.widget.buttons.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="Ft.Widget.Buttons"/>
-        <EditorIndex Value="2"/>
-        <UsageCount Value="42"/>
-        <Loaded Value="True"/>
+        <UsageCount Value="19"/>
       </Unit>
       <Unit>
         <Filename Value="ft.font.pas"/>
         <UnitName Value="Ft.Font"/>
-        <UsageCount Value="20"/>
-      </Unit>
-      <Unit>
-        <Filename Value="ft.theme.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="Ft.Theme"/>
-        <EditorIndex Value="1"/>
-        <CursorPos Y="1120"/>
-        <UsageCount Value="42"/>
-        <Loaded Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="ft.widget.switches.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="Ft.Widget.Switches"/>
-        <EditorIndex Value="11"/>
-        <UsageCount Value="42"/>
-        <Loaded Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="ft.widget.texts.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="Ft.Widget.Texts"/>
-        <EditorIndex Value="10"/>
-        <UsageCount Value="42"/>
-        <Loaded Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="ft.widget.entries.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="Ft.Widget.Entries"/>
-        <EditorIndex Value="9"/>
-        <UsageCount Value="42"/>
-        <Loaded Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="ft.widget.textareas.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="Ft.Widget.TextAreas"/>
-        <EditorIndex Value="8"/>
-        <UsageCount Value="42"/>
-        <Loaded Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="ft.widget.scrollbars.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="Ft.Widget.ScrollBars"/>
-        <EditorIndex Value="7"/>
-        <UsageCount Value="42"/>
-        <Loaded Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="ft.widget.containers.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="Ft.Widget.Containers"/>
-        <EditorIndex Value="6"/>
-        <UsageCount Value="42"/>
-        <Loaded Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="ft.widget.menus.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="Ft.Widget.Menus"/>
-        <EditorIndex Value="5"/>
-        <UsageCount Value="42"/>
-        <Loaded Value="True"/>
+        <UsageCount Value="18"/>
       </Unit>
       <Unit>
         <Filename Value="ft.bitmap.pas"/>
         <UnitName Value="Ft.Bitmap"/>
-        <UsageCount Value="18"/>
-      </Unit>
-      <Unit>
-        <Filename Value="ft.widget.images.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="Ft.Widget.Images"/>
-        <EditorIndex Value="4"/>
-        <UsageCount Value="40"/>
-        <Loaded Value="True"/>
+        <UsageCount Value="16"/>
       </Unit>
       <Unit>
         <Filename Value="ft.blur.pas"/>
         <UnitName Value="Ft.Blur"/>
-        <UsageCount Value="18"/>
-      </Unit>
-      <Unit>
-        <Filename Value="ft.css.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="Ft.Css"/>
-        <EditorIndex Value="3"/>
-        <CursorPos X="28" Y="9"/>
-        <UsageCount Value="40"/>
-        <Loaded Value="True"/>
+        <UsageCount Value="16"/>
       </Unit>
       <Unit>
         <Filename Value="ft.svg.pas"/>
         <UnitName Value="Ft.Svg"/>
-        <UsageCount Value="18"/>
+        <UsageCount Value="16"/>
       </Unit>
       <Unit>
         <Filename Value="ft.buttons.pas"/>
         <UnitName Value="Ft.Buttons"/>
-        <UsageCount Value="18"/>
+        <UsageCount Value="16"/>
       </Unit>
       <Unit>
         <Filename Value="ft.lpr"/>
         <EditorIndex Value="-1"/>
         <CursorPos X="3" Y="10"/>
-        <UsageCount Value="18"/>
+        <UsageCount Value="16"/>
       </Unit>
       <Unit>
         <Filename Value="ft.lps"/>
@@ -175,52 +179,54 @@
         <WindowIndex Value="-1"/>
         <TopLine Value="-1"/>
         <CursorPos X="-1" Y="-1"/>
-        <UsageCount Value="18"/>
+        <UsageCount Value="16"/>
         <DefaultSyntaxHighlighter Value="XML"/>
       </Unit>
       <Unit>
         <Filename Value="../../../../../../blaise/fpgui/framework/src/main/pascal/corelib/render/software/agg_basics.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="130"/>
-        <UsageCount Value="8"/>
+        <UsageCount Value="6"/>
       </Unit>
       <Unit>
         <Filename Value="../../../../../../blaise/fpgui/framework/src/main/pascal/corelib/render/software/agg_pixfmt_rgb.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="229"/>
         <CursorPos X="52" Y="229"/>
-        <UsageCount Value="8"/>
+        <UsageCount Value="6"/>
       </Unit>
       <Unit>
         <Filename Value="../../../../florialib/src/main/pascal/Floria.Image.Core.pas"/>
-        <EditorIndex Value="12"/>
-        <TopLine Value="568"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="496"/>
         <CursorPos Y="18"/>
-        <UsageCount Value="20"/>
-        <Loaded Value="True"/>
+        <UsageCount Value="18"/>
       </Unit>
       <Unit>
         <Filename Value="../../../../florialib/src/main/pascal/Floria.XCB.Keysyms.pas"/>
-        <EditorIndex Value="-1"/>
+        <EditorIndex Value="12"/>
         <TopLine Value="18"/>
         <CursorPos X="195" Y="29"/>
-        <UsageCount Value="20"/>
+        <UsageCount Value="32"/>
+        <Loaded Value="True"/>
       </Unit>
       <Unit>
         <Filename Value="../../../../florialib/src/main/pascal/Floria.XCB.Cursor.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="4"/>
         <CursorPos X="155" Y="21"/>
-        <UsageCount Value="10"/>
+        <UsageCount Value="8"/>
       </Unit>
       <Unit>
         <Filename Value="../../../../florialib/src/main/pascal/Floria.XCB.pas"/>
-        <EditorIndex Value="-1"/>
+        <EditorIndex Value="11"/>
+        <TopLine Value="170"/>
         <CursorPos X="62" Y="184"/>
-        <UsageCount Value="10"/>
+        <UsageCount Value="22"/>
+        <Loaded Value="True"/>
       </Unit>
     </Units>
-    <JumpHistory HistoryIndex="9">
+    <JumpHistory HistoryIndex="4">
       <Position>
         <Filename Value="ft.pas"/>
         <Caret Line="61" Column="68" TopLine="14"/>
@@ -236,26 +242,6 @@
       <Position>
         <Filename Value="ft.backend.x11.pas"/>
         <Caret Line="215" Column="63" TopLine="20"/>
-      </Position>
-      <Position>
-        <Filename Value="ft.backend.xcb.pas"/>
-        <Caret Line="11" Column="43"/>
-      </Position>
-      <Position>
-        <Filename Value="ft.backend.xcb.pas"/>
-        <Caret Line="15" Column="38"/>
-      </Position>
-      <Position>
-        <Filename Value="ft.backend.xcb.pas"/>
-        <Caret Line="8" Column="6"/>
-      </Position>
-      <Position>
-        <Filename Value="ft.pas"/>
-        <Caret Line="3530" Column="46" TopLine="4299"/>
-      </Position>
-      <Position>
-        <Filename Value="ft.pas"/>
-        <Caret Line="1926" Column="11" TopLine="4035"/>
       </Position>
       <Position>
         <Filename Value="ft.pas"/>

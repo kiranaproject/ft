@@ -19,21 +19,6 @@ type
   end;
   PMWMHints = ^TMWMHints;
 
-  Pxcb_expose_event_t = ^xcb_expose_event_t;
-  Pxcb_configure_notify_event_t = ^xcb_configure_notify_event_t;
-  Pxcb_motion_notify_event_t = ^xcb_motion_notify_event_t;
-  Pxcb_enter_notify_event_t = ^xcb_enter_notify_event_t;
-  Pxcb_leave_notify_event_t = ^xcb_leave_notify_event_t;
-  Pxcb_button_press_event_t = ^xcb_button_press_event_t;
-  Pxcb_button_release_event_t = ^xcb_button_release_event_t;
-  Pxcb_key_press_event_t = ^xcb_key_press_event_t;
-  Pxcb_key_release_event_t = ^xcb_key_release_event_t;
-  Pxcb_selection_clear_event_t = ^xcb_selection_clear_event_t;
-  Pxcb_selection_request_event_t = ^xcb_selection_request_event_t;
-  Pxcb_selection_notify_event_t = ^xcb_selection_notify_event_t;
-  Pxcb_client_message_event_t = ^xcb_client_message_event_t;
-  Pxcb_destroy_notify_event_t = ^xcb_destroy_notify_event_t;
-
   TFT_pollfd = record
     fd: cint;
     events: cshort;
@@ -112,6 +97,7 @@ type
   public
     constructor Create(AParent: TFtWidget); override;
     destructor Destroy(); override;
+    function GetElementType(): string; override;
     procedure SetHintText(const AText: string);
     procedure ShowAt(AScreenX, AScreenY: Integer);
     procedure Hide();
@@ -159,9 +145,6 @@ uses
   Math, Floria.Font, Ft.Widget.Menus;
 
 procedure c_free(p: Pointer); cdecl; external 'c' name 'free';
-function xcb_cursor_load_cursor(ctx: Pxcb_cursor_context_t; const name: PChar): xcb_cursor_t; cdecl; external 'xcb-cursor' name 'xcb_cursor_load_cursor';
-function xcb_key_press_lookup_keysym(syms: Pxcb_key_symbols_t; event: Pxcb_key_press_event_t; col: Integer): xcb_keysym_t; cdecl; external 'xcb-keysyms' name 'xcb_key_press_lookup_keysym';
-function xcb_key_release_lookup_keysym(syms: Pxcb_key_symbols_t; event: Pxcb_key_release_event_t; col: Integer): xcb_keysym_t; cdecl; external 'xcb-keysyms' name 'xcb_key_release_lookup_keysym';
 
 var
   atomWMProtocols: xcb_atom_t = 0;
@@ -1915,6 +1898,11 @@ begin
   inherited Destroy();
 end;
 
+function TFtHintWindow.GetElementType(): string;
+begin
+  Result := 'tooltip';
+end;
+
 procedure TFtHintWindow.SetHintText(const AText: string);
 var
   fnt: TFtFont;
@@ -1925,6 +1913,7 @@ var
 begin
   FText := AText;
   FLines.Clear();
+  InvalidateStyle();
   if AText = '' then Exit;
   FLines.Text := AText;
   if FLines.Count = 0 then
@@ -1967,6 +1956,8 @@ var
 begin
   if not Assigned(FPopupWindow) or (FText = '') then Exit;
 
+  InvalidateStyle();
+
   screenW := FPopupWindow.ScreenWidth;
   screenH := FPopupWindow.ScreenHeight;
 
@@ -1998,42 +1989,63 @@ end;
 
 procedure TFtHintWindow.Draw(Canvas: TFtCanvasAgg);
 var
+  st: TFtWidgetStyle;
   fnt: TFtFont;
   i: Integer;
   curY, lineH, padX, padY: Double;
-  bgR, bgG, bgB, bgA: Double;
-  bdR, bdG, bdB, bdA: Double;
-  txR, txG, txB: Double;
-  rad: Double;
+  bgCol, bdCol, txCol: TFtRgbColor;
+  bgA, bdA: Double;
+  bw: Double;
 begin
   if not Visible or (FText = '') then Exit;
 
-  rad := 5.0;
-  padX := 8.0;
-  padY := 5.0;
+  st := GetResolvedStyle();
 
-  if FtGetDarkMode() then
+  if st.HasBgColor then
   begin
-    bgR := 0.16; bgG := 0.18; bgB := 0.22; bgA := 0.96;
-    bdR := 0.32; bdG := 0.36; bdB := 0.42; bdA := 0.90;
-    txR := 0.96; txG := 0.97; txB := 0.98;
+    bgCol := MakeRgbColor(st.BgColor.R, st.BgColor.G, st.BgColor.B);
+    bgA := st.BgColor.A;
   end
   else
   begin
-    bgR := 0.18; bgG := 0.20; bgB := 0.24; bgA := 0.94;
-    bdR := 0.28; bdG := 0.30; bdB := 0.35; bdA := 0.80;
-    txR := 1.0;  txG := 1.0;  txB := 1.0;
+    bgCol := FtGetTheme().GetTooltipBackground();
+    bgA := 1.0;
   end;
 
-  Canvas.DrawShadow(X, Y, Width, Height, rad, 0.0, 2.0, 4.0, 0.0, 0.0, 0.0, 0.25);
-  Canvas.DrawRoundedRect(X, Y, Width, Height, rad, bgR, bgG, bgB, bgA);
-  Canvas.DrawRoundedRectOutline(X, Y, Width, Height, rad, 1.0, bdR, bdG, bdB, bdA);
+  if st.HasBorderColor then
+  begin
+    bdCol := MakeRgbColor(st.BorderColor.R, st.BorderColor.G, st.BorderColor.B);
+    bdA := st.BorderColor.A;
+  end
+  else
+  begin
+    bdCol := FtGetTheme().GetTooltipBorder();
+    bdA := 1.0;
+  end;
+
+  if st.HasTextColor then
+    txCol := MakeRgbColor(st.TextColor.R, st.TextColor.G, st.TextColor.B)
+  else
+    txCol := FtGetTheme().GetTooltipTextColor();
+
+  if st.HasBorderWidth then
+    bw := st.BorderWidth
+  else
+    bw := 1.0;
+
+  { Flat rectangular plate (rounded corners & shadows handled natively by WM / compositor, like Menus) }
+  Canvas.DrawRect(0, 0, Width, Height, bgCol.R, bgCol.G, bgCol.B, bgA);
+  if bw > 0.0 then
+    Canvas.DrawRoundedRectOutline(0, 0, Width, Height, 0.0, bw, bdCol.R, bdCol.G, bdCol.B, bdA);
 
   fnt := FtGetSystemFont();
   lineH := 16.0;
   if Assigned(fnt) then
     lineH := fnt.Height;
   if lineH < 14.0 then lineH := 14.0;
+
+  padX := 8.0;
+  padY := 5.0;
 
   curY := Y + padY;
   if Assigned(fnt) then
@@ -2044,9 +2056,9 @@ begin
   for i := 0 to FLines.Count - 1 do
   begin
     if Assigned(fnt) then
-      Canvas.DrawText(X + padX, curY, FLines[i], fnt, txR, txG, txB)
+      Canvas.DrawText(X + padX, curY, FLines[i], fnt, txCol.R, txCol.G, txCol.B)
     else
-      Canvas.DrawTextLeft(X + padX, curY - 12.0, Width - padX * 2.0, lineH, FLines[i], nil, txR, txG, txB);
+      Canvas.DrawTextLeft(X + padX, curY - 12.0, Width - padX * 2.0, lineH, FLines[i], nil, txCol.R, txCol.G, txCol.B);
     curY := curY + lineH + 2.0;
   end;
 end;

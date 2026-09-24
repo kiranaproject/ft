@@ -94,6 +94,10 @@ type
                                 const Caption, Shortcut: string; Font: TFtFont; 
                                 Hovered, Enabled, Checked, HasSubMenu: Boolean); virtual;
     procedure DrawMenuSeparator(Canvas: TFtCanvasAgg; X, Y, W: Integer); virtual;
+    function GetTooltipBackground(): TFtRgbColor; virtual;
+    function GetTooltipBorder(): TFtRgbColor; virtual;
+    function GetTooltipTextColor(): TFtRgbColor; virtual;
+    procedure DrawTooltipPlate(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; CustomRadius: Double = 0.0); virtual;
 
     property Name: string read GetName write SetName;
     property DarkMode: Boolean read GetDarkMode write SetDarkMode;
@@ -939,9 +943,74 @@ begin
   if CustomRadius >= 0.0 then rad := CustomRadius else rad := 6.0;
   bg := GetMenuBackground();
   bd := GetMenuBorder();
-  Canvas.DrawShadow(X, Y, W, H, rad, 0.0, 3.0, 8.0, 0.0, 0.0, 0.0, 0.25);
-  Canvas.DrawRoundedRect(X, Y, W, H, rad, bg.R, bg.G, bg.B);
-  Canvas.DrawRoundedRectOutline(X, Y, W, H, rad, 1.0, bd.R, bd.G, bd.B);
+  if rad > 0.0 then
+  begin
+    Canvas.DrawShadow(X, Y, W, H, rad, 0.0, 3.0, 8.0, 0.0, 0.0, 0.0, 0.25);
+    Canvas.DrawRoundedRect(X, Y, W, H, rad, bg.R, bg.G, bg.B);
+    Canvas.DrawRoundedRectOutline(X, Y, W, H, rad, 1.0, bd.R, bd.G, bd.B);
+  end
+  else
+  begin
+    Canvas.DrawRect(X, Y, W, H, bg.R, bg.G, bg.B);
+    Canvas.DrawRoundedRectOutline(X, Y, W, H, 0.0, 1.0, bd.R, bd.G, bd.B);
+  end;
+end;
+
+function TFtTheme.GetTooltipBackground(): TFtRgbColor;
+var
+  st: TFtWidgetStyle;
+  cls: string;
+begin
+  if FDarkMode then cls := 'dark' else cls := '';
+  st := FtGetStyleSheet().ResolveStyle('tooltip', '', cls, '', '');
+  if st.HasBgColor then
+    Exit(MakeRgb(st.BgColor.R, st.BgColor.G, st.BgColor.B));
+  Result := GetMenuBackground();
+end;
+
+function TFtTheme.GetTooltipBorder(): TFtRgbColor;
+var
+  st: TFtWidgetStyle;
+  cls: string;
+begin
+  if FDarkMode then cls := 'dark' else cls := '';
+  st := FtGetStyleSheet().ResolveStyle('tooltip', '', cls, '', '');
+  if st.HasBorderColor then
+    Exit(MakeRgb(st.BorderColor.R, st.BorderColor.G, st.BorderColor.B));
+  Result := GetMenuBorder();
+end;
+
+function TFtTheme.GetTooltipTextColor(): TFtRgbColor;
+var
+  st: TFtWidgetStyle;
+  cls: string;
+begin
+  if FDarkMode then cls := 'dark' else cls := '';
+  st := FtGetStyleSheet().ResolveStyle('tooltip', '', cls, '', '');
+  if st.HasTextColor then
+    Exit(MakeRgb(st.TextColor.R, st.TextColor.G, st.TextColor.B));
+  Result := GetTextColor();
+end;
+
+procedure TFtTheme.DrawTooltipPlate(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; CustomRadius: Double);
+var
+  bg, bd: TFtRgbColor;
+  rad: Double;
+begin
+  if CustomRadius >= 0.0 then rad := CustomRadius else rad := 0.0;
+  bg := GetTooltipBackground();
+  bd := GetTooltipBorder();
+  if rad > 0.0 then
+  begin
+    Canvas.DrawShadow(X, Y, W, H, rad, 0.0, 2.0, 4.0, 0.0, 0.0, 0.0, 0.25);
+    Canvas.DrawRoundedRect(X, Y, W, H, rad, bg.R, bg.G, bg.B);
+    Canvas.DrawRoundedRectOutline(X, Y, W, H, rad, 1.0, bd.R, bd.G, bd.B);
+  end
+  else
+  begin
+    Canvas.DrawRect(X, Y, W, H, bg.R, bg.G, bg.B);
+    Canvas.DrawRoundedRectOutline(X, Y, W, H, 0.0, 1.0, bd.R, bd.G, bd.B);
+  end;
 end;
 
 procedure TFtTheme.DrawPopupMenuItem(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 

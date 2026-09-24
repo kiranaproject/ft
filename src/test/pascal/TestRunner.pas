@@ -1401,6 +1401,14 @@ begin
   FtSetHintDelay(350);
   AssertEquals('Updated hint delay is 350ms', 350, FtGetHintDelay());
   FtSetHintDelay(500); // restore default
+
+  // 8. Tooltip theme integration
+  AssertTrue('Tooltip background color has valid brightness',
+             (FtGetTheme().GetTooltipBackground().R >= 0.0) and
+             (FtGetTheme().GetTooltipBackground().R <= 1.0));
+  AssertTrue('Tooltip text color has valid brightness',
+             (FtGetTheme().GetTooltipTextColor().R >= 0.0) and
+             (FtGetTheme().GetTooltipTextColor().R <= 1.0));
 end;
 
 procedure TFtDesktopWidgetsTest.TestTextWordWrapAndClipping();
