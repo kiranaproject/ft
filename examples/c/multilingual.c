@@ -26,16 +26,16 @@ static const LangSample s_samples[] = {
     {"Greek (Ελληνικά)", "Γειά σου κόσμε! Καλώς ήρθατε στο Floria", "Ubuntu-11"},
 
     // East Asian (CJK)
-    {"Japanese (日本語)", "こんにちは、世界！Floriaへようこそ", "Noto Sans CJK JP-11"},
+    {"Japanese (Nihongo)", "こんにちは、世界！Floriaへようこそ", "Noto Sans CJK JP-11"},
     {"Chinese Simp (简体中文)", "你好，世界！欢迎使用 Floria Toolkit", "Noto Sans CJK SC-11"},
     {"Chinese Trad (繁體中文)", "你好，世界！歡迎使用 Floria Toolkit", "Noto Sans CJK TC-11"},
     {"Korean (한국어)", "안녕하세요, 세계! Floria에 오신 것을 환영합니다", "Noto Sans CJK KR-11"},
 
-    // South/SE Asian & Middle Eastern
-    {"Thai (Thailand)", "สวัสดีชาวโลก! ยินดีต้อนรับสู่ Floria", "Noto Sans Thai-11"},
-    {"Hindi (Devanagari)", "नमस्ते दुनिया! Floria Toolkit में स्वागत है", "Noto Sans Devanagari-11"},
-    {"Arabic (Middle East)", "مرحباً بالعالم! أهلاً بكم في Floria", "Noto Sans Arabic-11"},
-    {"Hebrew (Israel)", "שלום עולם! ברוכים הבאים ל-Floria", "Noto Sans Hebrew-11"},
+    // South/SE Asian, Arabic & Hebrew
+    {"Thai (Phasa Thai)", "สวัสดีชาวโลก! ยินดีต้อนรับสู่ Floria", "Noto Sans Thai-11"},
+    {"Hindi (Hindī)", "नमस्ते दुनिया! Floria Toolkit में स्वागत है", "Noto Sans Devanagari-11"},
+    {"Arabic (Al-Arabiyyah)", "مرحباً بالعالم! أهلاً بكم في Floria", "Noto Sans Arabic-11"},
+    {"Hebrew (Ivrit)", "שלום עולם! ברוכים הבאים ל-Floria", "Noto Sans Hebrew-11"},
 };
 
 static const int s_sample_count = sizeof(s_samples) / sizeof(s_samples[0]);
@@ -98,7 +98,7 @@ int main(void) {
 
     // Header Subtitle
     FtWidget lbl_sub = ft_text_create(win, 24, 38, 832, 20, 
-                                      "Full UTF-8 support across Latin, Cyrillic, Greek, CJK (Chinese/Japanese/Korean), Thai, Devanagari & Middle Eastern scripts.");
+                                      "Full UTF-8 support across Latin, Cyrillic, Greek, CJK (Chinese/Japanese/Korean), Thai, Indic & BiDi/RTL scripts.");
     ft_text_set_selectable(lbl_sub, 0);
 
     // Top Controls Bar
