@@ -5,7 +5,12 @@ This document captures the architectural decisions, design invariants, and lesso
 ---
 
 ## Table of Contents
-1. [Core Philosophy](#1-core-philosophy)
+1. [Core Philosophy & Stability Guarantees](#1-core-philosophy--stability-guarantees)
+   - [Desktop-First Priority: No Tablet/Hybrid Compromises](#11-desktop-first-priority-no-tablethybrid-compromises)
+   - [First-Class X11 Commitment](#12-first-class-x11-commitment)
+   - [Avoiding the GTK Churn: The Windows API Standard of Stability](#13-avoiding-the-gtk-churn-the-windows-api-standard-of-stability)
+   - [Zero Heavy Runtime Dependencies](#14-zero-heavy-runtime-dependencies)
+   - [Subpixel Vector Fidelity & Clean Separation](#15-subpixel-vector-fidelity--clean-separation)
 2. [Native Windowing & Compositor Cleanliness](#2-native-windowing--compositor-cleanliness)
 3. [Window Abstraction Layer (`TFtWindow`)](#3-window-abstraction-layer-tftwindow)
 4. [Graphics Engine: AggPas as the Reference Standard](#4-graphics-engine-aggpas-as-the-reference-standard)
@@ -16,12 +21,40 @@ This document captures the architectural decisions, design invariants, and lesso
 
 ---
 
-## 1. Core Philosophy
+## 1. Core Philosophy & Stability Guarantees
 
-Floria Toolkit is designed to solve common frustrations in modern cross-platform GUI development:
-- **Zero Heavy Runtime Dependencies**: Unlike Web/Electron stacks (heavy RAM, high latency) or large C++ frameworks (complex toolchains, fragile ABI boundaries), Floria Toolkit compiles down to a compact, standalone native shared object (`libft.so` / `libft.dll`) using modern Free Pascal.
-- **True Subpixel Vector Fidelity**: Rather than relying on lowest-common-denominator OS 2D drawing primitives, all curves, rounded corners, text glyphs, and elevation shadows are rendered with subpixel-accurate Anti-Grain Geometry (`AGG`).
-- **Clean Separation of Concerns**: Widget mechanics (event routing, focus traversal, geometry) are strictly decoupled from visual styling (CSS stylesheets) and platform windowing (back-end abstraction).
+Floria Toolkit (`Ft`) is engineered to solve fundamental frustrations in modern desktop and cross-platform GUI development:
+
+### 1.1 Desktop-First Priority: No Tablet/Hybrid Compromises
+Modern UI design trends have repeatedly compromised desktop productivity by chasing unified phone/tablet "hybrid" interfaces. This trend has introduced oversized touch padding, drastically reduced information density, hidden or disappearing scrollbars, awkward hamburger menus, modal drawer navigations, and tablet gestures that handicap desktop mouse-and-keyboard workflows.
+
+Floria Toolkit is **unapologetically desktop-first**:
+- **High Information Density**: Built specifically for data-rich desktop applications requiring compact data grids, hierarchical trees, docking splitters, toolbars, and notebook tabs.
+- **Precision Cursor Ergonomics**: Engineered for high-precision mouse pointer interactions, pixel-perfect hover states, instant tooltips, standard context menus, and mouse wheel navigation.
+- **Comprehensive Keyboard Navigation**: Deep support for keyboard accessibility, including standard tab traversal (`FocusNext`), mnemonic accelerators, menu shortcuts, and directional navigation.
+- **Traditional Desktop Paradigms**: Real menu bars, dockable toolbars, persistent scrollbars, status bars, and coordinated multi-window workflows are foundational, first-class features.
+
+### 1.2 First-Class X11 Commitment
+While providing a clean window abstraction layer for future backends (Wayland, WinAPI, Cocoa), **X11/XCB is treated as a premier, first-class citizen**—not a legacy burden slated for deprecation or treated with hostile neglect.
+
+X11 has decades of proven stability, battle-tested network transparency, robust remote display protocols, comprehensive window management standards (ICCCM/EWMH), and an enormous installed base across technical, engineering, scientific, and enterprise environments. Floria Toolkit natively targets modern XCB (`libxcb`) with microsecond event dispatch, zero bloated intermediate libraries, and full support for EWMH window types, native window hints, and compositor blur protocols (`_KDE_NET_WM_BLUR_BEHIND_REGION`).
+
+### 1.3 Avoiding the GTK Churn: The Windows API Standard of Stability
+The Linux desktop development ecosystem has suffered from severe fragmentation and developer fatigue driven by the incessant churn, behavioral shifts, and architectural resets between GTK2, GTK3, and GTK4:
+- **Frequent ABI & API Breakage**: Minor and major releases frequently altered function signatures, removed public APIs, broke language bindings, and required continuous application refactoring.
+- **Disruption of Theming & Conventions**: Theme engines and CSS rules were repeatedly invalidated between point releases. Established desktop conventions (such as notification tray icons, submenus, standard file dialogs, and native window frame integration) were deprecated or stripped in favor of forced Client-Side Decorations (CSD).
+- **The Windows API Standard**: In contrast, the classic Microsoft Windows API (Win32) established the industry standard for long-term binary stability: software compiled against Win32 decades ago continues to run, link, and render reliably on modern operating systems.
+- **Floria Toolkit's Stability Invariant**: Floria Toolkit adopts the **Windows API standard of stability**. Our C ABI (`include/ft.h`, `libft.so`) is designed to be permanent, dependable, and strictly backward-compatible:
+  - **No ABI churn**: We do not break binary or API compatibility every two minor releases.
+  - **Opaque Handle Architecture**: All public entities ([`FtWidget`](file:///home/afumi/Documents/projects/floria-toolkit/include/ft.h), [`FtMenuItem`](file:///home/afumi/Documents/projects/floria-toolkit/include/ft.h)) are opaque handles. Internal Pascal classes, memory layouts, and virtual method tables remain hidden behind the C boundary.
+  - **Append-Only Evolution**: New features and parameters are introduced through new, additive functions without altering or removing existing symbols.
+  - **Reliable Long-Term Platform**: Developers writing software in C, C++, Python, Rust, Zig, Go, or Pascal can rely on `libft.so` as a rock-solid, permanent foundation that will not break underneath them.
+
+### 1.4 Zero Heavy Runtime Dependencies
+Unlike Web/Electron/Chromium wrappers (which consume hundreds of megabytes of memory and introduce noticeable event loop latency) or monolithic C++ frameworks (with fragile compiler-specific ABIs and gigabyte-scale toolchains), Floria Toolkit compiles down to a compact, standalone native shared object (`libft.so` / `libft.dll`) using modern Free Pascal. It starts up in microseconds and maintains a near-zero idle CPU and memory footprint.
+
+### 1.5 Subpixel Vector Fidelity & Clean Separation
+Rather than relying on lowest-common-denominator OS 2D drawing primitives, all curves, rounded corners, text glyphs, and elevation shadows are rendered with subpixel-accurate Anti-Grain Geometry (`AGG`). Widget mechanics (layout, focus traversal, event routing) are strictly decoupled from visual styling (CSS stylesheet engine) and windowing backends.
 
 ---
 

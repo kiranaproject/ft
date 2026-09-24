@@ -38,4 +38,15 @@ When developing or creating examples, widgets, and language bindings for Floria 
 - **Compositor Responsibility**:
   Modern window managers and compositors (Picom, KWin, Mutter, macOS WindowServer, Windows DWM) already manage window drop shadows and window corner radii natively based on EWMH window types (`_NET_WM_WINDOW_TYPE_POPUP_MENU`, `_NET_WM_WINDOW_TYPE_TOOLTIP`). Rendering software shadows or rounded corners inside the window buffer creates unsightly double shadows, dark corner artifacts, and requires users to write complex compositor hacks.
 
+## 8. Desktop-First Priority & Rock-Solid ABI Stability (Win32 Standard vs. GTK Churn)
+- **Desktop-First Ergonomics**:
+  Prioritize dense desktop layouts, precise mouse interactions, keyboard navigation, mnemonic accelerators, menu bars, persistent scrollbars, and multi-window workflows. Never compromise desktop usability for tablet/mobile hybrid conventions (e.g., avoid oversized touch padding, disappearing scrollbars, or forced mobile modals).
+- **First-Class X11 Commitment**:
+  Treat X11/XCB as a premier, first-class citizen with microsecond event dispatch and full EWMH support, not a legacy target slated for deprecation.
+- **The Windows API Standard of Stability**:
+  Strictly avoid the churn, breakage, and ecosystem disruptions seen across GTK2, GTK3, and GTK4. Maintain long-term binary stability modeled after the Windows API (Win32):
+  - Never break or mutate existing exported C function signatures in `include/ft.h` and `ft.pas`.
+  - Evolution must be strictly additive (new APIs/functions added, never altered or removed).
+  - All public entities must remain opaque handles (`FtWidget`, `FtMenuItem`), safeguarding foreign language bindings and downstream binary compatibility across releases.
+
 

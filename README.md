@@ -43,11 +43,15 @@ A lightweight, high-performance native GUI toolkit engineered with Free Pascal, 
   - **Image (`TFtImage`)**: Raster image decoding (BMP, PNG, JPG) and scalable vector SVG rendering with scaling modes (`fit`, `fill`, `stretch`, `center`).
   - **ScrollBar**: Standalone vector scrollbars with proportional thumb sizing and drag physics.
   - **Container**: Scrolled viewport frame with automatic scrollbars and AGG scissor clipping.
-  - **Menus**: Top-level Window Main Menu bar and floating popup context menus extending past window borders.
-- **GTK-Style Keyboard Navigation**:
-  - Full keyboard focus traversal (`Tab` / `Shift+Tab`) with theme focus rings.
-- **Universal C ABI**:
-  - Standalone shared library (`libft.so`) exposing a clean C interface via `include/ft.h`.
+- **Desktop-First Ergonomics & Productivity**:
+  - Unapologetically desktop-first: dense data layouts, high-precision cursor interactions, menu bars, dockable splitters, and persistent scrollbars (no tablet/mobile hybrid compromises).
+  - Full keyboard focus traversal (`Tab` / `Shift+Tab`) with theme focus rings and mnemonic accelerators.
+- **First-Class X11 & Pluggable Backends**:
+  - Premier native X11/XCB integration with microsecond event dispatch, EWMH window management, and compositor blur protocols.
+  - Pluggable `TFtWindow` abstraction ready for future WinAPI, Cocoa, and Wayland backends.
+- **Universal C ABI & Rock-Solid Stability**:
+  - Standalone shared library (`libft.so`) exposing a frozen, append-only C ABI via `include/ft.h`.
+  - Adopts the **Windows API standard of stability**: zero ABI churn between minor releases, opaque pointer handles, and permanent backward compatibility across language bindings (C, C++, Python, Rust, Zig, Go, Pascal).
 
 ---
 
@@ -59,7 +63,7 @@ Comprehensive documentation is available in the [`docs/`](docs/) directory:
 - 🎨 **[Theming & CSS Guide](docs/theming.md)**: Guide to writing CSS stylesheets, selectors, properties, transitions, and dark mode.
 - 🧱 **[Widgets Architecture](docs/widgets.md)**: Widget hierarchy, coordinate systems, container clipping, and design patterns.
 - 🏗️ **[Architecture & Internals](docs/architecture.md)**: Overview of the AGG graphics pipe, X11 backend, animation scheduler, and FFI layer.
-- 💡 **[Design Rationale & Invariants](docs/design-rationale.md)**: Toolkit engineering philosophy, compositor integration invariants, and lessons learned.
+- 💡 **[Design Rationale & Invariants](docs/design-rationale.md)**: Desktop-first philosophy, first-class X11 priority, Win32-grade ABI stability (avoiding GTK churn), and compositor integration invariants.
 
 ---
 

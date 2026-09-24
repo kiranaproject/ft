@@ -81,9 +81,10 @@ Floria Toolkit decouples widgets and menus from specific windowing systems via `
 - **Automatic Frame Refresh**: Notifies the backend to schedule repaints until all active transitions complete.
 
 ### 6. Universal C FFI Layer (`ft.pas`, `include/ft.h`)
-- **Opaque Pointers**: Widgets and menu items are represented as opaque handles (`FtWidget`, `FtMenuItem`), protecting internal Pascal objects.
-- **ABI Stability**: Only standard C primitives (`int32_t`, `double`, `const char*`, `void*` function pointers) are exposed across the library boundary.
-- **Zero Overhead**: Direct dynamic linking via `libft.so` allows seamless use from C, Python (`ctypes`), Rust, Zig, Go, and C++.
+- **Rock-Solid ABI Stability (The Windows API Standard)**: Rejecting the frequent API/ABI breakage and deprecation churn common in modern toolkits (such as the transitions between GTK2, GTK3, and GTK4), Floria Toolkit treats its C ABI as frozen, permanent, and strictly append-only.
+- **Opaque Pointers**: Widgets and menu items are represented as opaque handles (`FtWidget`, `FtMenuItem`), protecting internal Pascal objects and VMT layouts from leaking across the FFI boundary.
+- **ABI Stability**: Only standard C primitives (`int32_t`, `double`, `const char*`, `void*` function pointers) and standard calling conventions (`cdecl`) are exposed.
+- **Zero Overhead**: Direct dynamic linking via `libft.so` allows seamless, zero-bloat interoperability from C, Python (`ctypes`), Rust, Zig, Go, and C++.
 
 ---
 
