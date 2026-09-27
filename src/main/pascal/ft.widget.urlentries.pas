@@ -366,7 +366,7 @@ begin
   begin
     fnt := GetFont();
     if not Assigned(fnt) then fnt := FtGetSystemFont();
-    badgeW := 22.0 + fnt.GetTextWidth('Not secure') + 8.0;
+    badgeW := 25.0 + fnt.GetTextWidth('Not secure') + 10.0;
     AW := badgeW;
   end
   else
@@ -590,7 +590,7 @@ end;
 procedure TFtUrlEntry.DrawSecurityChip(Canvas: TFtCanvasAgg);
 var
   cX, cY, cW, cH: Double;
-  midX, midY: Double;
+  midX, midY, triX: Double;
   curTheme: TFtTheme;
   txtCol: TFtRgbColor;
   accentCol: TFtRgbColor;
@@ -631,45 +631,51 @@ begin
       // Padlock icon: shackle (curved arch) + body
       Canvas.DrawRoundedRectOutline(midX - 3.5, midY - 6.0, 7.0, 6.0, 3.5, 3.5, txtCol.R, txtCol.G, txtCol.B, 0.85);
       Canvas.DrawRoundedRect(midX - 4.5, midY - 2.0, 9.0, 8.0, 1.5, txtCol.R, txtCol.G, txtCol.B, 0.90);
-      // Keyhole dot
-      Canvas.DrawCircle(midX, midY + 1.5, 1.2, 0.15, 0.15, 0.15, 1.0);
+      // Keyhole (dot + stem) in high-contrast color matching theme
+      if isDark then
+      begin
+        Canvas.DrawCircle(midX, midY + 1.0, 1.1, 0.12, 0.12, 0.12, 1.0);
+        Canvas.DrawLine(midX, midY + 1.0, midX, midY + 3.2, 1.1, 0.12, 0.12, 0.12, 1.0);
+      end
+      else
+      begin
+        Canvas.DrawCircle(midX, midY + 1.0, 1.1, 1.0, 1.0, 1.0, 1.0);
+        Canvas.DrawLine(midX, midY + 1.0, midX, midY + 3.2, 1.1, 1.0, 1.0, 1.0, 1.0);
+      end;
     end;
 
     ussInsecure:
     begin
-      // Warning triangle with exclamation mark (amber / danger red)
-      // Triangle path: top (midX, midY - 6), bottom-right (midX + 6, midY + 5), bottom-left (midX - 6, midY + 5)
-      Canvas.DrawLine(midX, midY - 6.0, midX + 6.0, midY + 5.0, 1.6, 0.85, 0.25, 0.20, 1.0);
-      Canvas.DrawLine(midX + 6.0, midY + 5.0, midX - 6.0, midY + 5.0, 1.6, 0.85, 0.25, 0.20, 1.0);
-      Canvas.DrawLine(midX - 6.0, midY + 5.0, midX, midY - 6.0, 1.6, 0.85, 0.25, 0.20, 1.0);
-      // Exclamation bar + dot
-      Canvas.DrawLine(midX, midY - 2.5, midX, midY + 1.0, 1.4, 0.85, 0.25, 0.20, 1.0);
-      Canvas.DrawCircle(midX, midY + 3.2, 0.7, 0.85, 0.25, 0.20, 1.0);
+      if FShowSecurityBadgeText then
+        triX := cX + 12.0
+      else
+        triX := midX;
 
-      // Badge text "Not secure" if enabled
+      // Warning triangle with exclamation mark (amber / danger red)
+      // Triangle path: top (triX, midY - 5.5), bottom-right (triX + 5.5, midY + 5.0), bottom-left (triX - 5.5, midY + 5.0)
+      Canvas.DrawLine(triX, midY - 5.5, triX + 5.5, midY + 5.0, 1.6, 0.85, 0.25, 0.20, 1.0);
+      Canvas.DrawLine(triX + 5.5, midY + 5.0, triX - 5.5, midY + 5.0, 1.6, 0.85, 0.25, 0.20, 1.0);
+      Canvas.DrawLine(triX - 5.5, midY + 5.0, triX, midY - 5.5, 1.6, 0.85, 0.25, 0.20, 1.0);
+      // Exclamation bar + dot
+      Canvas.DrawLine(triX, midY - 2.5, triX, midY + 1.0, 1.4, 0.85, 0.25, 0.20, 1.0);
+      Canvas.DrawCircle(triX, midY + 3.2, 0.7, 0.85, 0.25, 0.20, 1.0);
+
+      // Badge text "Not secure" if enabled (spaced properly after the triangle)
       if FShowSecurityBadgeText then
       begin
         fnt := GetFont();
         if not Assigned(fnt) then fnt := FtGetSystemFont();
-        Canvas.DrawText(cX + 20.0, midY + (fnt.Ascent - fnt.Descent) / 2.0, 'Not secure', fnt, 0.85, 0.25, 0.20);
+        Canvas.DrawText(cX + 24.5, midY + (fnt.Ascent - fnt.Descent) / 2.0, 'Not secure', fnt, 0.85, 0.25, 0.20);
       end;
     end;
 
-    ussInternal:
+    ussInternal, ussFile:
     begin
-      // Browser internal page symbol: gear / compass / globe stylized circle with crosshair
-      Canvas.DrawCircleOutline(midX, midY, 5.5, 1.2, txtCol.R, txtCol.G, txtCol.B, 0.80);
-      Canvas.DrawLine(midX - 4.0, midY, midX + 4.0, midY, 1.2, txtCol.R, txtCol.G, txtCol.B, 0.70);
-      Canvas.DrawLine(midX, midY - 4.0, midX, midY + 4.0, 1.2, txtCol.R, txtCol.G, txtCol.B, 0.70);
-    end;
-
-    ussFile:
-    begin
-      // Document sheet icon with folded top-right corner
-      Canvas.DrawRoundedRectOutline(midX - 4.0, midY - 6.0, 8.0, 12.0, 1.0, 1.0, txtCol.R, txtCol.G, txtCol.B, 0.80);
-      Canvas.DrawLine(midX - 2.0, midY - 2.0, midX + 2.0, midY - 2.0, 1.0, txtCol.R, txtCol.G, txtCol.B, 0.60);
-      Canvas.DrawLine(midX - 2.0, midY + 1.0, midX + 2.0, midY + 1.0, 1.0, txtCol.R, txtCol.G, txtCol.B, 0.60);
-      Canvas.DrawLine(midX - 2.0, midY + 4.0, midX + 1.0, midY + 4.0, 1.0, txtCol.R, txtCol.G, txtCol.B, 0.60);
+      // Document sheet icon with text lines
+      Canvas.DrawRoundedRectOutline(midX - 4.5, midY - 6.0, 9.0, 12.0, 1.2, 1.2, txtCol.R, txtCol.G, txtCol.B, 0.80);
+      Canvas.DrawLine(midX - 2.5, midY - 2.5, midX + 2.5, midY - 2.5, 1.0, txtCol.R, txtCol.G, txtCol.B, 0.60);
+      Canvas.DrawLine(midX - 2.5, midY + 0.5, midX + 2.5, midY + 0.5, 1.0, txtCol.R, txtCol.G, txtCol.B, 0.60);
+      Canvas.DrawLine(midX - 2.5, midY + 3.5, midX + 1.0, midY + 3.5, 1.0, txtCol.R, txtCol.G, txtCol.B, 0.60);
     end;
 
     ussCustom:

@@ -157,7 +157,7 @@ int main(int argc, char* argv[]) {
     ft_url_entry_on_security_click(s_url_insecure, on_security_clicked, NULL);
 
     /* 3. Internal Browser Page */
-    FtWidget lbl3 = ft_text_create(win, 24, 366, 672, 20, "3. Internal Floria Page (Custom Internal Page Icon):");
+    FtWidget lbl3 = ft_text_create(win, 24, 366, 672, 20, "3. Internal Floria Page (File/Document Security Chip):");
     ft_widget_set_font(lbl3, "Sans Bold 11");
 
     s_url_internal = ft_url_entry_create(win, 24, 390, 420, 38, "floria://settings/security/passwords");
