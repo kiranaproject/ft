@@ -1386,6 +1386,53 @@ begin
     Result := 0;
 end;
 
+procedure ft_url_entry_set_loading(url_entry: Pointer; loading: cint32); cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+    TFtUrlEntry(url_entry).Loading := (loading <> 0);
+end;
+
+function ft_url_entry_get_loading(url_entry: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+  begin
+    if TFtUrlEntry(url_entry).Loading then
+      Result := 1
+    else
+      Result := 0;
+  end
+  else
+    Result := 0;
+end;
+
+procedure ft_url_entry_set_show_stop_button(url_entry: Pointer; show_stop: cint32); cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+    TFtUrlEntry(url_entry).ShowStopButton := (show_stop <> 0);
+end;
+
+function ft_url_entry_get_show_stop_button(url_entry: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+  begin
+    if TFtUrlEntry(url_entry).ShowStopButton then
+      Result := 1
+    else
+      Result := 0;
+  end
+  else
+    Result := 0;
+end;
+
+procedure ft_url_entry_on_stop_click(url_entry: Pointer; callback: TFtUrlEntryStopClickCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+  begin
+    TFtUrlEntry(url_entry).OnStopClick := callback;
+    TFtUrlEntry(url_entry).UserData := user_data;
+  end;
+end;
+
 procedure ft_url_entry_set_show_copy_button(url_entry: Pointer; show_button: cint32); cdecl; export;
 begin
   if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
@@ -5055,6 +5102,10 @@ exports
   ft_url_entry_get_show_security_badge_text,
   ft_url_entry_set_show_bookmark_button,
   ft_url_entry_get_show_bookmark_button,
+  ft_url_entry_set_loading,
+  ft_url_entry_get_loading,
+  ft_url_entry_set_show_stop_button,
+  ft_url_entry_get_show_stop_button,
   ft_url_entry_set_show_copy_button,
   ft_url_entry_get_show_copy_button,
   ft_url_entry_set_show_clear_button,
@@ -5069,6 +5120,7 @@ exports
   ft_url_entry_on_security_click,
   ft_url_entry_on_bookmark_click,
   ft_url_entry_on_action_click,
+  ft_url_entry_on_stop_click,
   ft_url_entry_get_entry;
 
 begin

@@ -20,13 +20,15 @@ type
   TFtUrlActionId = (
     uaBookmark = 1,
     uaCopy = 2,
-    uaClear = 3
+    uaClear = 3,
+    uaStop = 4
   );
 
   TFtUrlEntrySubmitCallback = procedure(Sender: Pointer; const AUrl: PChar; UserData: Pointer); cdecl;
   TFtUrlEntrySecurityClickCallback = procedure(Sender: Pointer; ASecurityState: cint32; UserData: Pointer); cdecl;
   TFtUrlEntryBookmarkClickCallback = procedure(Sender: Pointer; ABookmarked: cint32; UserData: Pointer); cdecl;
   TFtUrlEntryActionClickCallback = procedure(Sender: Pointer; AActionId: cint32; UserData: Pointer); cdecl;
+  TFtUrlEntryStopClickCallback = procedure(Sender: Pointer; UserData: Pointer); cdecl;
 
   TFtUrlParts = record
     Scheme: string;
@@ -63,6 +65,8 @@ type
     FShowSecurityBadgeText: Boolean;
     FBookmarked: Boolean;
     FShowBookmarkButton: Boolean;
+    FLoading: Boolean;
+    FShowStopButton: Boolean;
     FShowClearButton: Boolean;
     FShowCopyButton: Boolean;
     FAutoPrefixHttps: Boolean;
@@ -71,6 +75,8 @@ type
     FPressedChip: Boolean;
     FHoverBookmark: Boolean;
     FPressedBookmark: Boolean;
+    FHoverStop: Boolean;
+    FPressedStop: Boolean;
     FHoverCopy: Boolean;
     FPressedCopy: Boolean;
     FHoverClear: Boolean;
@@ -80,6 +86,7 @@ type
     FOnSecurityClick: TFtUrlEntrySecurityClickCallback;
     FOnBookmarkClick: TFtUrlEntryBookmarkClickCallback;
     FOnActionClick: TFtUrlEntryActionClickCallback;
+    FOnStopClick: TFtUrlEntryStopClickCallback;
 
     procedure SetUrl(const AValue: string);
     procedure SetSecurityState(AValue: TFtUrlSecurityState);
@@ -87,6 +94,8 @@ type
     procedure SetShowSecurityChip(AValue: Boolean);
     procedure SetShowSecurityBadgeText(AValue: Boolean);
     procedure SetShowBookmarkButton(AValue: Boolean);
+    procedure SetLoading(AValue: Boolean);
+    procedure SetShowStopButton(AValue: Boolean);
     procedure SetShowClearButton(AValue: Boolean);
     procedure SetShowCopyButton(AValue: Boolean);
 
@@ -95,6 +104,7 @@ type
 
     function GetSecurityChipRect(out AX, AY, AW, AH: Double): Boolean;
     function GetBookmarkButtonRect(out AX, AY, AW, AH: Double): Boolean;
+    function GetStopButtonRect(out AX, AY, AW, AH: Double): Boolean;
     function GetCopyButtonRect(out AX, AY, AW, AH: Double): Boolean;
     function GetClearButtonRect(out AX, AY, AW, AH: Double): Boolean;
 
@@ -127,6 +137,8 @@ type
     property ShowSecurityChip: Boolean read FShowSecurityChip write SetShowSecurityChip;
     property ShowSecurityBadgeText: Boolean read FShowSecurityBadgeText write SetShowSecurityBadgeText;
     property ShowBookmarkButton: Boolean read FShowBookmarkButton write SetShowBookmarkButton;
+    property Loading: Boolean read FLoading write SetLoading;
+    property ShowStopButton: Boolean read FShowStopButton write SetShowStopButton;
     property ShowClearButton: Boolean read FShowClearButton write SetShowClearButton;
     property ShowCopyButton: Boolean read FShowCopyButton write SetShowCopyButton;
     property AutoPrefixHttps: Boolean read FAutoPrefixHttps write FAutoPrefixHttps;
@@ -137,6 +149,7 @@ type
     property OnSecurityClick: TFtUrlEntrySecurityClickCallback read FOnSecurityClick write FOnSecurityClick;
     property OnBookmarkClick: TFtUrlEntryBookmarkClickCallback read FOnBookmarkClick write FOnBookmarkClick;
     property OnActionClick: TFtUrlEntryActionClickCallback read FOnActionClick write FOnActionClick;
+    property OnStopClick: TFtUrlEntryStopClickCallback read FOnStopClick write FOnStopClick;
   end;
 
 implementation
@@ -291,6 +304,26 @@ begin
   end;
 end;
 
+procedure TFtUrlEntry.SetLoading(AValue: Boolean);
+begin
+  if FLoading <> AValue then
+  begin
+    FLoading := AValue;
+    UpdateSubEntryBounds();
+    Invalidate();
+  end;
+end;
+
+procedure TFtUrlEntry.SetShowStopButton(AValue: Boolean);
+begin
+  if FShowStopButton <> AValue then
+  begin
+    FShowStopButton := AValue;
+    UpdateSubEntryBounds();
+    Invalidate();
+  end;
+end;
+
 procedure TFtUrlEntry.SetShowClearButton(AValue: Boolean);
 begin
   if FShowClearButton <> AValue then
@@ -422,7 +455,7 @@ var
   btnSize: Double;
   rightX: Double;
 begin
-  if not FShowClearButton or not FIsEditing or (FUrl = '') then
+  if not FShowClearButton or not FIsEditing or not Assigned(FSubEntry) or (FSubEntry.Text = '') then
   begin
     AX := 0.0; AY := 0.0; AW := 0.0; AH := 0.0;
     Exit(False);
@@ -431,8 +464,6 @@ begin
   btnSize := Math.Max(16.0, Height - (FPaddingY * 2.0));
   rightX := X + Width - FPaddingX - btnSize - 2.0;
 
-  if FShowBookmarkButton then
-    rightX := rightX - btnSize - 4.0;
   if FShowCopyButton then
     rightX := rightX - btnSize - 4.0;
 
@@ -446,9 +477,45 @@ end;
 function TFtUrlEntry.GetCopyButtonRect(out AX, AY, AW, AH: Double): Boolean;
 var
   btnSize: Double;
+begin
+  if not FShowCopyButton or not FIsEditing then
+  begin
+    AX := 0.0; AY := 0.0; AW := 0.0; AH := 0.0;
+    Exit(False);
+  end;
+
+  btnSize := Math.Max(16.0, Height - (FPaddingY * 2.0));
+  AX := X + Width - FPaddingX - btnSize - 2.0;
+  AY := Y + (Height - btnSize) / 2.0;
+  AW := btnSize;
+  AH := btnSize;
+  Result := True;
+end;
+
+function TFtUrlEntry.GetBookmarkButtonRect(out AX, AY, AW, AH: Double): Boolean;
+var
+  btnSize: Double;
+begin
+  if not FShowBookmarkButton or FIsEditing then
+  begin
+    AX := 0.0; AY := 0.0; AW := 0.0; AH := 0.0;
+    Exit(False);
+  end;
+
+  btnSize := Math.Max(16.0, Height - (FPaddingY * 2.0));
+  AX := X + Width - FPaddingX - btnSize - 2.0;
+  AY := Y + (Height - btnSize) / 2.0;
+  AW := btnSize;
+  AH := btnSize;
+  Result := True;
+end;
+
+function TFtUrlEntry.GetStopButtonRect(out AX, AY, AW, AH: Double): Boolean;
+var
+  btnSize: Double;
   rightX: Double;
 begin
-  if not FShowCopyButton then
+  if FIsEditing or not (FLoading or FShowStopButton) then
   begin
     AX := 0.0; AY := 0.0; AW := 0.0; AH := 0.0;
     Exit(False);
@@ -467,29 +534,12 @@ begin
   Result := True;
 end;
 
-function TFtUrlEntry.GetBookmarkButtonRect(out AX, AY, AW, AH: Double): Boolean;
-var
-  btnSize: Double;
-begin
-  if not FShowBookmarkButton then
-  begin
-    AX := 0.0; AY := 0.0; AW := 0.0; AH := 0.0;
-    Exit(False);
-  end;
-
-  btnSize := Math.Max(16.0, Height - (FPaddingY * 2.0));
-  AX := X + Width - FPaddingX - btnSize - 2.0;
-  AY := Y + (Height - btnSize) / 2.0;
-  AW := btnSize;
-  AH := btnSize;
-  Result := True;
-end;
-
 procedure TFtUrlEntry.UpdateSubEntryBounds();
 var
   chipX, chipY, chipW, chipH: Double;
   leftX, rightX: Double;
   bmX, bmY, bmW, bmH: Double;
+  stpX, stpY, stpW, stpH: Double;
   cpX, cpY, cpW, cpH: Double;
   clX, clY, clW, clH: Double;
 begin
@@ -502,6 +552,8 @@ begin
   rightX := X + Width - FPaddingX;
   if GetBookmarkButtonRect(bmX, bmY, bmW, bmH) then
     rightX := Math.Min(rightX, bmX - 4.0);
+  if GetStopButtonRect(stpX, stpY, stpW, stpH) then
+    rightX := Math.Min(rightX, stpX - 4.0);
   if GetCopyButtonRect(cpX, cpY, cpW, cpH) then
     rightX := Math.Min(rightX, cpX - 4.0);
   if GetClearButtonRect(clX, clY, clW, clH) then
@@ -575,14 +627,21 @@ begin
 end;
 
 procedure TFtUrlEntry.CopyToClipboard();
+var
+  copyText: string;
 begin
-  if FUrl <> '' then
-    FtClaimPrimarySelection(FUrl);
+  if FIsEditing and Assigned(FSubEntry) then
+    copyText := FSubEntry.Text
+  else
+    copyText := FUrl;
+
+  if copyText <> '' then
+    FtClaimPrimarySelection(copyText);
 end;
 
 function TFtUrlEntry.GetCursor(): Integer;
 begin
-  if FHoverChip or FHoverBookmark or FHoverCopy or FHoverClear then
+  if FHoverChip or FHoverBookmark or FHoverStop or FHoverCopy or FHoverClear then
     Exit(FT_CURSOR_HAND);
 
   if not FIsEditing then
@@ -593,22 +652,24 @@ end;
 
 procedure TFtUrlEntry.MouseMove(AX, AY: Integer);
 var
-  oldChip, oldBm, oldCp, oldCl: Boolean;
+  oldChip, oldBm, oldStp, oldCp, oldCl: Boolean;
   cX, cY, cW, cH: Double;
 begin
   inherited MouseMove(AX, AY);
 
   oldChip := FHoverChip;
   oldBm := FHoverBookmark;
+  oldStp := FHoverStop;
   oldCp := FHoverCopy;
   oldCl := FHoverClear;
 
   FHoverChip := GetSecurityChipRect(cX, cY, cW, cH) and (AX >= cX) and (AX <= cX + cW) and (AY >= cY) and (AY <= cY + cH);
   FHoverBookmark := GetBookmarkButtonRect(cX, cY, cW, cH) and (AX >= cX) and (AX <= cX + cW) and (AY >= cY) and (AY <= cY + cH);
+  FHoverStop := GetStopButtonRect(cX, cY, cW, cH) and (AX >= cX) and (AX <= cX + cW) and (AY >= cY) and (AY <= cY + cH);
   FHoverCopy := GetCopyButtonRect(cX, cY, cW, cH) and (AX >= cX) and (AX <= cX + cW) and (AY >= cY) and (AY <= cY + cH);
   FHoverClear := GetClearButtonRect(cX, cY, cW, cH) and (AX >= cX) and (AX <= cX + cW) and (AY >= cY) and (AY <= cY + cH);
 
-  if (oldChip <> FHoverChip) or (oldBm <> FHoverBookmark) or
+  if (oldChip <> FHoverChip) or (oldBm <> FHoverBookmark) or (oldStp <> FHoverStop) or
      (oldCp <> FHoverCopy) or (oldCl <> FHoverClear) then
     Invalidate();
 end;
@@ -616,10 +677,11 @@ end;
 procedure TFtUrlEntry.MouseLeave();
 begin
   inherited MouseLeave();
-  if FHoverChip or FHoverBookmark or FHoverCopy or FHoverClear then
+  if FHoverChip or FHoverBookmark or FHoverStop or FHoverCopy or FHoverClear then
   begin
     FHoverChip := False;
     FHoverBookmark := False;
+    FHoverStop := False;
     FHoverCopy := False;
     FHoverClear := False;
     Invalidate();
@@ -653,6 +715,20 @@ begin
       FOnBookmarkClick(Self, cint32(Ord(FBookmarked)), FUserData);
     if Assigned(FOnActionClick) then
       FOnActionClick(Self, cint32(Ord(uaBookmark)), FUserData);
+    Exit;
+  end;
+
+  // Stop loading button click
+  if GetStopButtonRect(cX, cY, cW, cH) and (AX >= cX) and (AX <= cX + cW) and (AY >= cY) and (AY <= cY + cH) then
+  begin
+    FPressedStop := True;
+    FLoading := False;
+    FShowStopButton := False;
+    Invalidate();
+    if Assigned(FOnStopClick) then
+      FOnStopClick(Self, FUserData);
+    if Assigned(FOnActionClick) then
+      FOnActionClick(Self, cint32(Ord(uaStop)), FUserData);
     Exit;
   end;
 
@@ -690,6 +766,7 @@ begin
 
   FPressedChip := False;
   FPressedBookmark := False;
+  FPressedStop := False;
   FPressedCopy := False;
   FPressedClear := False;
   Invalidate();
@@ -872,7 +949,34 @@ begin
     end;
   end;
 
-  // 2. Copy URL Button
+  // 2. Stop Loading Button
+  if GetStopButtonRect(bX, bY, bW, bH) then
+  begin
+    btnRad := Math.Min(6.0, bH / 2.0);
+    if FPressedStop then
+    begin
+      if isDark then
+        Canvas.DrawRoundedRect(bX, bY, bW, bH, btnRad, 1.0, 1.0, 1.0, 0.20)
+      else
+        Canvas.DrawRoundedRect(bX, bY, bW, bH, btnRad, 0.0, 0.0, 0.0, 0.14);
+    end
+    else if FHoverStop then
+    begin
+      if isDark then
+        Canvas.DrawRoundedRect(bX, bY, bW, bH, btnRad, 1.0, 1.0, 1.0, 0.10)
+      else
+        Canvas.DrawRoundedRect(bX, bY, bW, bH, btnRad, 0.0, 0.0, 0.0, 0.06);
+    end;
+
+    midX := bX + (bW / 2.0);
+    midY := bY + (bH / 2.0);
+
+    Canvas.DrawCircleOutline(midX, midY, 5.5, 1.2, txtCol.R, txtCol.G, txtCol.B, 0.70);
+    Canvas.DrawLine(midX - 2.2, midY - 2.2, midX + 2.2, midY + 2.2, 1.3, txtCol.R, txtCol.G, txtCol.B, 0.75);
+    Canvas.DrawLine(midX + 2.2, midY - 2.2, midX - 2.2, midY + 2.2, 1.3, txtCol.R, txtCol.G, txtCol.B, 0.75);
+  end;
+
+  // 3. Copy URL Button
   if GetCopyButtonRect(bX, bY, bW, bH) then
   begin
     btnRad := Math.Min(6.0, bH / 2.0);
@@ -903,7 +1007,7 @@ begin
     Canvas.DrawRoundedRectOutline(midX - 2.5, midY - 2.5, 7.0, 8.0, 1.2, 1.2, txtCol.R, txtCol.G, txtCol.B, 0.75);
   end;
 
-  // 3. Clear (✕) Button
+  // 4. Clear (✕) Button
   if GetClearButtonRect(bX, bY, bW, bH) then
   begin
     btnRad := Math.Min(6.0, bH / 2.0);
@@ -955,6 +1059,8 @@ begin
 
   rightX := X + Width - FPaddingX;
   if GetBookmarkButtonRect(bmX, bmY, bmW, bmH) then
+    rightX := Math.Min(rightX, bmX - 4.0);
+  if GetStopButtonRect(bmX, bmY, bmW, bmH) then
     rightX := Math.Min(rightX, bmX - 4.0);
   if GetCopyButtonRect(cpX, cpY, cpW, cpH) then
     rightX := Math.Min(rightX, cpX - 4.0);

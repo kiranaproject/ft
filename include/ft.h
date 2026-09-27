@@ -277,13 +277,15 @@ typedef enum {
 typedef enum {
     FT_URL_ACTION_BOOKMARK = 1,
     FT_URL_ACTION_COPY = 2,
-    FT_URL_ACTION_CLEAR = 3
+    FT_URL_ACTION_CLEAR = 3,
+    FT_URL_ACTION_STOP = 4
 } FtUrlActionId;
 
 typedef void (*FtUrlEntrySubmitCallback)(FtWidget url_entry, const char* url, void* user_data);
 typedef void (*FtUrlEntrySecurityClickCallback)(FtWidget url_entry, int32_t security_state, void* user_data);
 typedef void (*FtUrlEntryBookmarkClickCallback)(FtWidget url_entry, int32_t bookmarked, void* user_data);
 typedef void (*FtUrlEntryActionClickCallback)(FtWidget url_entry, int32_t action_id, void* user_data);
+typedef void (*FtUrlEntryStopClickCallback)(FtWidget url_entry, void* user_data);
 
 FtWidget ft_url_entry_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, const char* initial_url);
 void ft_url_entry_set_url(FtWidget url_entry, const char* url);
@@ -298,6 +300,10 @@ void ft_url_entry_set_show_security_badge_text(FtWidget url_entry, int32_t show_
 int32_t ft_url_entry_get_show_security_badge_text(FtWidget url_entry);
 void ft_url_entry_set_show_bookmark_button(FtWidget url_entry, int32_t show_button);
 int32_t ft_url_entry_get_show_bookmark_button(FtWidget url_entry);
+void ft_url_entry_set_loading(FtWidget url_entry, int32_t loading);
+int32_t ft_url_entry_get_loading(FtWidget url_entry);
+void ft_url_entry_set_show_stop_button(FtWidget url_entry, int32_t show_stop);
+int32_t ft_url_entry_get_show_stop_button(FtWidget url_entry);
 void ft_url_entry_set_show_copy_button(FtWidget url_entry, int32_t show_button);
 int32_t ft_url_entry_get_show_copy_button(FtWidget url_entry);
 void ft_url_entry_set_show_clear_button(FtWidget url_entry, int32_t show_button);
@@ -313,6 +319,7 @@ void ft_url_entry_on_submit(FtWidget url_entry, FtUrlEntrySubmitCallback callbac
 void ft_url_entry_on_security_click(FtWidget url_entry, FtUrlEntrySecurityClickCallback callback, void* user_data);
 void ft_url_entry_on_bookmark_click(FtWidget url_entry, FtUrlEntryBookmarkClickCallback callback, void* user_data);
 void ft_url_entry_on_action_click(FtWidget url_entry, FtUrlEntryActionClickCallback callback, void* user_data);
+void ft_url_entry_on_stop_click(FtWidget url_entry, FtUrlEntryStopClickCallback callback, void* user_data);
 FtWidget ft_url_entry_get_entry(FtWidget url_entry);
 
 /* Widgets: TextArea (Multi-Line Text Area / TextView) */
