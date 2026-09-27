@@ -34,7 +34,8 @@ uses
   Ft.Widget.Splitters,
   Ft.Widget.TreeViews,
   Ft.Widget.Tables,
-  Ft.Widget.PathBars;
+  Ft.Widget.PathBars,
+  Ft.Widget.UrlEntries;
 
 var
   gLastSystemFontDesc: AnsiString;
@@ -51,6 +52,7 @@ var
   gLastEntryPlaceholder: AnsiString;
   gLastPathBarPath: AnsiString;
   gLastPathBarRootName: AnsiString;
+  gLastUrlEntryUrl: AnsiString;
   gLastTextAreaText: AnsiString;
   gLastTextAreaPlaceholder: AnsiString;
   gLastMenuCaption: AnsiString;
@@ -1245,6 +1247,277 @@ begin
     Result := TFtPathBar(pathbar).CornerRadius
   else
     Result := 0.0;
+end;
+
+{ UrlEntry Widgets (Google Chrome-Style Omnibox / URL Bar) }
+
+function ft_url_entry_create(parent: Pointer; x, y, w, h: cint32; initial_url: PChar): Pointer; cdecl; export;
+var
+  strUrl: string;
+  ue: TFtUrlEntry;
+begin
+  if Assigned(initial_url) then
+    strUrl := StrPas(initial_url)
+  else
+    strUrl := '';
+  AdjustChildCoordinates(parent, x, y);
+  ue := TFtUrlEntry.Create(TFtWidget(parent), strUrl);
+  ue.X := x;
+  ue.Y := y;
+  ue.Width := w;
+  ue.Height := h;
+  if Assigned(parent) and (TObject(parent) is TFtContainer) then
+    TFtContainer(parent).UpdateScrollBars();
+  Result := Pointer(ue);
+end;
+
+procedure ft_url_entry_set_url(url_entry: Pointer; url: PChar); cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+  begin
+    if Assigned(url) then
+      TFtUrlEntry(url_entry).Url := StrPas(url)
+    else
+      TFtUrlEntry(url_entry).Url := '';
+  end;
+end;
+
+function ft_url_entry_get_url(url_entry: Pointer): PChar; cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+  begin
+    gLastUrlEntryUrl := TFtUrlEntry(url_entry).Url;
+    Result := PChar(gLastUrlEntryUrl);
+  end
+  else
+    Result := nil;
+end;
+
+procedure ft_url_entry_set_security_state(url_entry: Pointer; security_state: cint32); cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+  begin
+    if (security_state >= 0) and (security_state <= Ord(High(TFtUrlSecurityState))) then
+      TFtUrlEntry(url_entry).SecurityState := TFtUrlSecurityState(security_state);
+  end;
+end;
+
+function ft_url_entry_get_security_state(url_entry: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+    Result := Ord(TFtUrlEntry(url_entry).SecurityState)
+  else
+    Result := 0;
+end;
+
+procedure ft_url_entry_set_bookmarked(url_entry: Pointer; bookmarked: cint32); cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+    TFtUrlEntry(url_entry).Bookmarked := (bookmarked <> 0);
+end;
+
+function ft_url_entry_get_bookmarked(url_entry: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+  begin
+    if TFtUrlEntry(url_entry).Bookmarked then
+      Result := 1
+    else
+      Result := 0;
+  end
+  else
+    Result := 0;
+end;
+
+procedure ft_url_entry_set_show_security_chip(url_entry: Pointer; show_chip: cint32); cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+    TFtUrlEntry(url_entry).ShowSecurityChip := (show_chip <> 0);
+end;
+
+function ft_url_entry_get_show_security_chip(url_entry: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+  begin
+    if TFtUrlEntry(url_entry).ShowSecurityChip then
+      Result := 1
+    else
+      Result := 0;
+  end
+  else
+    Result := 0;
+end;
+
+procedure ft_url_entry_set_show_security_badge_text(url_entry: Pointer; show_badge_text: cint32); cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+    TFtUrlEntry(url_entry).ShowSecurityBadgeText := (show_badge_text <> 0);
+end;
+
+function ft_url_entry_get_show_security_badge_text(url_entry: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+  begin
+    if TFtUrlEntry(url_entry).ShowSecurityBadgeText then
+      Result := 1
+    else
+      Result := 0;
+  end
+  else
+    Result := 0;
+end;
+
+procedure ft_url_entry_set_show_bookmark_button(url_entry: Pointer; show_button: cint32); cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+    TFtUrlEntry(url_entry).ShowBookmarkButton := (show_button <> 0);
+end;
+
+function ft_url_entry_get_show_bookmark_button(url_entry: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+  begin
+    if TFtUrlEntry(url_entry).ShowBookmarkButton then
+      Result := 1
+    else
+      Result := 0;
+  end
+  else
+    Result := 0;
+end;
+
+procedure ft_url_entry_set_show_copy_button(url_entry: Pointer; show_button: cint32); cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+    TFtUrlEntry(url_entry).ShowCopyButton := (show_button <> 0);
+end;
+
+function ft_url_entry_get_show_copy_button(url_entry: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+  begin
+    if TFtUrlEntry(url_entry).ShowCopyButton then
+      Result := 1
+    else
+      Result := 0;
+  end
+  else
+    Result := 0;
+end;
+
+procedure ft_url_entry_set_show_clear_button(url_entry: Pointer; show_button: cint32); cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+    TFtUrlEntry(url_entry).ShowClearButton := (show_button <> 0);
+end;
+
+function ft_url_entry_get_show_clear_button(url_entry: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+  begin
+    if TFtUrlEntry(url_entry).ShowClearButton then
+      Result := 1
+    else
+      Result := 0;
+  end
+  else
+    Result := 0;
+end;
+
+procedure ft_url_entry_set_auto_prefix_https(url_entry: Pointer; auto_prefix: cint32); cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+    TFtUrlEntry(url_entry).AutoPrefixHttps := (auto_prefix <> 0);
+end;
+
+function ft_url_entry_get_auto_prefix_https(url_entry: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+  begin
+    if TFtUrlEntry(url_entry).AutoPrefixHttps then
+      Result := 1
+    else
+      Result := 0;
+  end
+  else
+    Result := 0;
+end;
+
+procedure ft_url_entry_set_corner_radius(url_entry: Pointer; radius: Double); cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+    TFtUrlEntry(url_entry).CornerRadius := radius;
+end;
+
+function ft_url_entry_get_corner_radius(url_entry: Pointer): Double; cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+    Result := TFtUrlEntry(url_entry).CornerRadius
+  else
+    Result := 0.0;
+end;
+
+procedure ft_url_entry_set_editing(url_entry: Pointer; editing: cint32); cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+    TFtUrlEntry(url_entry).IsEditing := (editing <> 0);
+end;
+
+function ft_url_entry_get_editing(url_entry: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+  begin
+    if TFtUrlEntry(url_entry).IsEditing then
+      Result := 1
+    else
+      Result := 0;
+  end
+  else
+    Result := 0;
+end;
+
+procedure ft_url_entry_on_submit(url_entry: Pointer; callback: TFtUrlEntrySubmitCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+  begin
+    TFtUrlEntry(url_entry).OnSubmit := callback;
+    TFtUrlEntry(url_entry).UserData := user_data;
+  end;
+end;
+
+procedure ft_url_entry_on_security_click(url_entry: Pointer; callback: TFtUrlEntrySecurityClickCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+  begin
+    TFtUrlEntry(url_entry).OnSecurityClick := callback;
+    TFtUrlEntry(url_entry).UserData := user_data;
+  end;
+end;
+
+procedure ft_url_entry_on_bookmark_click(url_entry: Pointer; callback: TFtUrlEntryBookmarkClickCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+  begin
+    TFtUrlEntry(url_entry).OnBookmarkClick := callback;
+    TFtUrlEntry(url_entry).UserData := user_data;
+  end;
+end;
+
+procedure ft_url_entry_on_action_click(url_entry: Pointer; callback: TFtUrlEntryActionClickCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+  begin
+    TFtUrlEntry(url_entry).OnActionClick := callback;
+    TFtUrlEntry(url_entry).UserData := user_data;
+  end;
+end;
+
+function ft_url_entry_get_entry(url_entry: Pointer): Pointer; cdecl; export;
+begin
+  if Assigned(url_entry) and (TObject(url_entry) is TFtUrlEntry) then
+    Result := Pointer(TFtUrlEntry(url_entry).SubEntry)
+  else
+    Result := nil;
 end;
 
 { TextArea Widgets (Multi-line) }
@@ -4766,7 +5039,37 @@ exports
   ft_path_bar_set_root_display_name,
   ft_path_bar_get_root_display_name,
   ft_path_bar_set_corner_radius,
-  ft_path_bar_get_corner_radius;
+  ft_path_bar_get_corner_radius,
+
+  // UrlEntry
+  ft_url_entry_create,
+  ft_url_entry_set_url,
+  ft_url_entry_get_url,
+  ft_url_entry_set_security_state,
+  ft_url_entry_get_security_state,
+  ft_url_entry_set_bookmarked,
+  ft_url_entry_get_bookmarked,
+  ft_url_entry_set_show_security_chip,
+  ft_url_entry_get_show_security_chip,
+  ft_url_entry_set_show_security_badge_text,
+  ft_url_entry_get_show_security_badge_text,
+  ft_url_entry_set_show_bookmark_button,
+  ft_url_entry_get_show_bookmark_button,
+  ft_url_entry_set_show_copy_button,
+  ft_url_entry_get_show_copy_button,
+  ft_url_entry_set_show_clear_button,
+  ft_url_entry_get_show_clear_button,
+  ft_url_entry_set_auto_prefix_https,
+  ft_url_entry_get_auto_prefix_https,
+  ft_url_entry_set_corner_radius,
+  ft_url_entry_get_corner_radius,
+  ft_url_entry_set_editing,
+  ft_url_entry_get_editing,
+  ft_url_entry_on_submit,
+  ft_url_entry_on_security_click,
+  ft_url_entry_on_bookmark_click,
+  ft_url_entry_on_action_click,
+  ft_url_entry_get_entry;
 
 begin
 end.

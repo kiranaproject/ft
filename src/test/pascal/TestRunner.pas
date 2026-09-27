@@ -7,7 +7,7 @@ uses
   Floria.SVG.DOM, Floria.SVG.Parser,
   Ft.Css, Floria.Image.Core, Floria.Image.BMP, Floria.Image.PNG, Floria.Image.JPEG, Floria.Image.Blur, Floria.Canvas.Agg, Floria.SVG.Rasterizer, Ft.Widget, Ft.Widget.Containers, Ft.Widget.Images,
   Ft.Widget.Tabs, Ft.Widget.Splitters, Ft.Widget.TreeViews, Ft.Widget.Tables, Ft.Widget.Texts, Ft.Widget.Buttons,
-  Ft.Widget.Switches, Ft.Widget.Selectors, Ft.Widget.PathBars, Ft.Backend.X11, Ft.Theme, Floria.Font;
+  Ft.Widget.Switches, Ft.Widget.Selectors, Ft.Widget.PathBars, Ft.Widget.UrlEntries, Ft.Backend.X11, Ft.Theme, Floria.Font;
 
 type
   TFtDesktopWidgetsTest = class(TTestCase)
@@ -25,6 +25,7 @@ type
     procedure TestTextWordWrapAndClipping();
     procedure TestButtonIconAndCustomDrawing();
     procedure TestPathBar();
+    procedure TestUrlEntry();
   end;
 
   TFtSvgTest = class(TTestCase)
@@ -1741,6 +1742,139 @@ begin
     AssertTrue('Entry visible after empty space click', pb.Entry.Visible);
   finally
     pb.Free();
+  end;
+end;
+
+var
+  g_TestUrlSubmitted: Boolean = False;
+  g_TestUrlSubmitValue: string = '';
+  g_TestUrlSecurityClicked: Boolean = False;
+  g_TestUrlSecurityValue: cint32 = -1;
+  g_TestUrlBookmarkClicked: Boolean = False;
+  g_TestUrlBookmarkValue: cint32 = -1;
+
+procedure TestUrlEntrySubmitCallback(Sender: Pointer; const AUrl: PChar; UserData: Pointer); cdecl;
+begin
+  g_TestUrlSubmitted := True;
+  if Assigned(AUrl) then
+    g_TestUrlSubmitValue := StrPas(AUrl)
+  else
+    g_TestUrlSubmitValue := '';
+end;
+
+procedure TestUrlEntrySecurityClickCallback(Sender: Pointer; ASecurityState: cint32; UserData: Pointer); cdecl;
+begin
+  g_TestUrlSecurityClicked := True;
+  g_TestUrlSecurityValue := ASecurityState;
+end;
+
+procedure TestUrlEntryBookmarkClickCallback(Sender: Pointer; ABookmarked: cint32; UserData: Pointer); cdecl;
+begin
+  g_TestUrlBookmarkClicked := True;
+  g_TestUrlBookmarkValue := ABookmarked;
+end;
+
+procedure TFtDesktopWidgetsTest.TestUrlEntry();
+var
+  ue: TFtUrlEntry;
+  canvas: TFtCanvasAgg;
+  buf: array[0..39, 0..499] of TBgraPixel;
+  cursorType: Integer;
+begin
+  g_TestUrlSubmitted := False;
+  g_TestUrlSubmitValue := '';
+  g_TestUrlSecurityClicked := False;
+  g_TestUrlSecurityValue := -1;
+  g_TestUrlBookmarkClicked := False;
+  g_TestUrlBookmarkValue := -1;
+
+  ue := TFtUrlEntry.Create(nil, 'https://github.com/floria/floria-toolkit');
+  try
+    ue.X := 10;
+    ue.Y := 10;
+    ue.Width := 500;
+    ue.Height := 36;
+    ue.OnSubmit := @TestUrlEntrySubmitCallback;
+    ue.OnSecurityClick := @TestUrlEntrySecurityClickCallback;
+    ue.OnBookmarkClick := @TestUrlEntryBookmarkClickCallback;
+
+    // 1. Initial State & Defaults
+    AssertEquals('Initial URL', 'https://github.com/floria/floria-toolkit', ue.Url);
+    AssertEquals('Security state is ussSecure', Ord(ussSecure), Ord(ue.SecurityState));
+    AssertFalse('Default not bookmarked', ue.Bookmarked);
+    AssertTrue('ShowSecurityChip default True', ue.ShowSecurityChip);
+    AssertTrue('ShowBookmarkButton default True', ue.ShowBookmarkButton);
+    AssertTrue('ShowCopyButton default True', ue.ShowCopyButton);
+    AssertTrue('ShowClearButton default True', ue.ShowClearButton);
+    AssertTrue('AutoPrefixHttps default True', ue.AutoPrefixHttps);
+    AssertFalse('Default not editing', ue.IsEditing);
+    AssertNotNull('Internal SubEntry exists', ue.SubEntry);
+    AssertFalse('SubEntry hidden initially', ue.SubEntry.Visible);
+    AssertEquals('CornerRadius is 18.0 (pill)', 18.0, ue.CornerRadius);
+
+    // 2. Render in Display Mode (Domain Contrast)
+    canvas := TFtCanvasAgg.Create(@buf[0, 0], 500, 40);
+    try
+      ue.Draw(canvas);
+    finally
+      canvas.Free();
+    end;
+
+    // 3. Cursor over URL area is FT_CURSOR_IBEAM
+    cursorType := ue.GetCursor();
+    AssertEquals('URL area cursor is I-Beam', FT_CURSOR_IBEAM, cursorType);
+
+    // 4. Enter edit mode
+    ue.IsEditing := True;
+    AssertTrue('IsEditing is True', ue.IsEditing);
+    AssertTrue('SubEntry is visible in edit mode', ue.SubEntry.Visible);
+    AssertEquals('SubEntry text matches URL', 'https://github.com/floria/floria-toolkit', ue.SubEntry.Text);
+
+    // 5. Render in Edit Mode
+    canvas := TFtCanvasAgg.Create(@buf[0, 0], 500, 40);
+    try
+      ue.Draw(canvas);
+    finally
+      canvas.Free();
+    end;
+
+    // 6. Commit edit with AutoPrefixHttps
+    ue.SubEntry.Text := 'gitlab.com/projects';
+    ue.CommitEdit();
+    AssertFalse('IsEditing returned to False after commit', ue.IsEditing);
+    AssertFalse('SubEntry hidden after commit', ue.SubEntry.Visible);
+    AssertEquals('AutoPrefix applied https://', 'https://gitlab.com/projects', ue.Url);
+    AssertTrue('OnSubmit callback triggered', g_TestUrlSubmitted);
+    AssertEquals('Submitted URL', 'https://gitlab.com/projects', g_TestUrlSubmitValue);
+
+    // 7. Cancel edit restores previous URL
+    ue.IsEditing := True;
+    ue.SubEntry.Text := 'discarded-typing';
+    ue.CancelEdit();
+    AssertFalse('IsEditing False after cancel', ue.IsEditing);
+    AssertEquals('URL restored after cancel', 'https://gitlab.com/projects', ue.Url);
+
+    // 8. Protocol parsing and security states
+    ue.Url := 'http://insecure.site';
+    AssertEquals('Insecure protocol detected', Ord(ussInsecure), Ord(ue.SecurityState));
+
+    ue.Url := 'file:///home/afumi/test.txt';
+    AssertEquals('File protocol detected', Ord(ussFile), Ord(ue.SecurityState));
+
+    ue.Url := 'floria://settings';
+    AssertEquals('Internal protocol detected', Ord(ussInternal), Ord(ue.SecurityState));
+
+    // 9. Bookmark toggling
+    ue.Bookmarked := True;
+    AssertTrue('Bookmarked is True', ue.Bookmarked);
+
+    // 10. Click on text area switches to editing
+    ue.IsEditing := False;
+    ue.MouseDown(200, 20, 1);
+    AssertTrue('Clicking text area switches to edit mode', ue.IsEditing);
+    AssertTrue('SubEntry visible after click', ue.SubEntry.Visible);
+  finally
+    ue.Free();
   end;
 end;
 

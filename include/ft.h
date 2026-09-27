@@ -265,6 +265,56 @@ const char* ft_path_bar_get_root_display_name(FtWidget pathbar);
 void ft_path_bar_set_corner_radius(FtWidget pathbar, double radius);
 double ft_path_bar_get_corner_radius(FtWidget pathbar);
 
+/* Widgets: UrlEntry (Google Chrome-Style Omnibox / URL Bar) */
+typedef enum {
+    FT_URL_SECURITY_SECURE = 0,     /* HTTPS / padlock icon */
+    FT_URL_SECURITY_INSECURE = 1,   /* HTTP / warning triangle */
+    FT_URL_SECURITY_INTERNAL = 2,   /* floria:// or chrome:// page icon */
+    FT_URL_SECURITY_FILE = 3,       /* file:/// document icon */
+    FT_URL_SECURITY_CUSTOM = 4      /* custom badge */
+} FtUrlSecurityState;
+
+typedef enum {
+    FT_URL_ACTION_BOOKMARK = 1,
+    FT_URL_ACTION_COPY = 2,
+    FT_URL_ACTION_CLEAR = 3
+} FtUrlActionId;
+
+typedef void (*FtUrlEntrySubmitCallback)(FtWidget url_entry, const char* url, void* user_data);
+typedef void (*FtUrlEntrySecurityClickCallback)(FtWidget url_entry, int32_t security_state, void* user_data);
+typedef void (*FtUrlEntryBookmarkClickCallback)(FtWidget url_entry, int32_t bookmarked, void* user_data);
+typedef void (*FtUrlEntryActionClickCallback)(FtWidget url_entry, int32_t action_id, void* user_data);
+
+FtWidget ft_url_entry_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, const char* initial_url);
+void ft_url_entry_set_url(FtWidget url_entry, const char* url);
+const char* ft_url_entry_get_url(FtWidget url_entry);
+void ft_url_entry_set_security_state(FtWidget url_entry, int32_t security_state);
+int32_t ft_url_entry_get_security_state(FtWidget url_entry);
+void ft_url_entry_set_bookmarked(FtWidget url_entry, int32_t bookmarked);
+int32_t ft_url_entry_get_bookmarked(FtWidget url_entry);
+void ft_url_entry_set_show_security_chip(FtWidget url_entry, int32_t show_chip);
+int32_t ft_url_entry_get_show_security_chip(FtWidget url_entry);
+void ft_url_entry_set_show_security_badge_text(FtWidget url_entry, int32_t show_badge_text);
+int32_t ft_url_entry_get_show_security_badge_text(FtWidget url_entry);
+void ft_url_entry_set_show_bookmark_button(FtWidget url_entry, int32_t show_button);
+int32_t ft_url_entry_get_show_bookmark_button(FtWidget url_entry);
+void ft_url_entry_set_show_copy_button(FtWidget url_entry, int32_t show_button);
+int32_t ft_url_entry_get_show_copy_button(FtWidget url_entry);
+void ft_url_entry_set_show_clear_button(FtWidget url_entry, int32_t show_button);
+int32_t ft_url_entry_get_show_clear_button(FtWidget url_entry);
+void ft_url_entry_set_auto_prefix_https(FtWidget url_entry, int32_t auto_prefix);
+int32_t ft_url_entry_get_auto_prefix_https(FtWidget url_entry);
+void ft_url_entry_set_corner_radius(FtWidget url_entry, double radius);
+double ft_url_entry_get_corner_radius(FtWidget url_entry);
+void ft_url_entry_set_editing(FtWidget url_entry, int32_t editing);
+int32_t ft_url_entry_get_editing(FtWidget url_entry);
+
+void ft_url_entry_on_submit(FtWidget url_entry, FtUrlEntrySubmitCallback callback, void* user_data);
+void ft_url_entry_on_security_click(FtWidget url_entry, FtUrlEntrySecurityClickCallback callback, void* user_data);
+void ft_url_entry_on_bookmark_click(FtWidget url_entry, FtUrlEntryBookmarkClickCallback callback, void* user_data);
+void ft_url_entry_on_action_click(FtWidget url_entry, FtUrlEntryActionClickCallback callback, void* user_data);
+FtWidget ft_url_entry_get_entry(FtWidget url_entry);
+
 /* Widgets: TextArea (Multi-Line Text Area / TextView) */
 FtWidget ft_textarea_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, const char* text);
 void ft_textarea_set_text(FtWidget textarea, const char* text);
