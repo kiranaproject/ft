@@ -119,6 +119,7 @@ type
 
     function GetElementType(): string; override;
     function GetCursor(): Integer; override;
+    procedure GotFocus(); override;
 
     procedure MouseDown(AX, AY: Integer; AButton: Integer); override;
     procedure MouseMove(AX, AY: Integer); override;
@@ -188,10 +189,27 @@ begin
 end;
 
 procedure TFtUrlSubEntry.LostFocus();
+var
+  root: TFtWidget;
+  win: TFtWindow;
+  newFocus: TFtWidget;
 begin
   inherited LostFocus();
   if Assigned(FUrlEntry) and not FUrlEntry.FSwitchingEdit then
-    FUrlEntry.CommitEdit();
+  begin
+    root := FUrlEntry.GetRootWidget();
+    if (root is TFtWindow) then
+    begin
+      win := TFtWindow(root);
+      newFocus := win.FocusedWidget;
+      if (newFocus = FUrlEntry) or (newFocus = Self) then
+        Exit;
+    end;
+
+    // In a browser Omnibox, losing focus cancels/reverts uncommitted edits.
+    // It NEVER submits/navigates!
+    FUrlEntry.CancelEdit();
+  end;
 end;
 
 { TFtUrlEntry }
@@ -215,7 +233,7 @@ begin
   FShowSecurityBadgeText := False;
   FBookmarked := False;
   FShowBookmarkButton := True;
-  FShowClearButton := True;
+  FShowClearButton := False; { Desktop Chrome Omnibox has no clear 'X' button }
   FShowCopyButton := True;
   FAutoPrefixHttps := True;
 
@@ -466,6 +484,8 @@ begin
 
   if FShowCopyButton then
     rightX := rightX - btnSize - 4.0;
+  if FLoading or FShowStopButton then
+    rightX := rightX - btnSize - 4.0;
 
   AX := rightX;
   AY := Y + (Height - btnSize) / 2.0;
@@ -515,7 +535,7 @@ var
   btnSize: Double;
   rightX: Double;
 begin
-  if FIsEditing or not (FLoading or FShowStopButton) then
+  if not (FLoading or FShowStopButton) then
   begin
     AX := 0.0; AY := 0.0; AW := 0.0; AH := 0.0;
     Exit(False);
@@ -524,8 +544,16 @@ begin
   btnSize := Math.Max(16.0, Height - (FPaddingY * 2.0));
   rightX := X + Width - FPaddingX - btnSize - 2.0;
 
-  if FShowBookmarkButton then
-    rightX := rightX - btnSize - 4.0;
+  if FIsEditing then
+  begin
+    if FShowCopyButton then
+      rightX := rightX - btnSize - 4.0;
+  end
+  else
+  begin
+    if FShowBookmarkButton then
+      rightX := rightX - btnSize - 4.0;
+  end;
 
   AX := rightX;
   AY := Y + (Height - btnSize) / 2.0;
@@ -650,6 +678,15 @@ begin
   Result := FT_CURSOR_DEFAULT;
 end;
 
+procedure TFtUrlEntry.GotFocus();
+begin
+  inherited GotFocus();
+  if not FIsEditing then
+    SetEditing(True)
+  else if Assigned(FSubEntry) then
+    FSubEntry.SetFocus();
+end;
+
 procedure TFtUrlEntry.MouseMove(AX, AY: Integer);
 var
   oldChip, oldBm, oldStp, oldCp, oldCl: Boolean;
@@ -729,6 +766,8 @@ begin
       FOnStopClick(Self, FUserData);
     if Assigned(FOnActionClick) then
       FOnActionClick(Self, cint32(Ord(uaStop)), FUserData);
+    if FIsEditing and Assigned(FSubEntry) then
+      FSubEntry.SetFocus();
     Exit;
   end;
 
@@ -739,17 +778,21 @@ begin
     CopyToClipboard();
     if Assigned(FOnActionClick) then
       FOnActionClick(Self, cint32(Ord(uaCopy)), FUserData);
+    if FIsEditing and Assigned(FSubEntry) then
+      FSubEntry.SetFocus();
     Invalidate();
     Exit;
   end;
 
-  // Clear button click
+  // Clear button click (only active if explicitly enabled)
   if GetClearButtonRect(cX, cY, cW, cH) and (AX >= cX) and (AX <= cX + cW) and (AY >= cY) and (AY <= cY + cH) then
   begin
     FPressedClear := True;
     FSubEntry.Text := '';
     if Assigned(FOnActionClick) then
       FOnActionClick(Self, cint32(Ord(uaClear)), FUserData);
+    if FIsEditing and Assigned(FSubEntry) then
+      FSubEntry.SetFocus();
     Invalidate();
     Exit;
   end;
@@ -1007,7 +1050,7 @@ begin
     Canvas.DrawRoundedRectOutline(midX - 2.5, midY - 2.5, 7.0, 8.0, 1.2, 1.2, txtCol.R, txtCol.G, txtCol.B, 0.75);
   end;
 
-  // 4. Clear (✕) Button
+  // 4. Clear Button (only active if explicitly enabled)
   if GetClearButtonRect(bX, bY, bW, bH) then
   begin
     btnRad := Math.Min(6.0, bH / 2.0);
@@ -1029,8 +1072,13 @@ begin
     midX := bX + (bW / 2.0);
     midY := bY + (bH / 2.0);
 
-    Canvas.DrawLine(midX - 3.5, midY - 3.5, midX + 3.5, midY + 3.5, 1.5, txtCol.R, txtCol.G, txtCol.B, 0.70);
-    Canvas.DrawLine(midX + 3.5, midY - 3.5, midX - 3.5, midY + 3.5, 1.5, txtCol.R, txtCol.G, txtCol.B, 0.70);
+    // Subtle filled circle with small cross (standard text field clear badge)
+    if isDark then
+      Canvas.DrawCircle(midX, midY, 5.0, 1.0, 1.0, 1.0, 0.25)
+    else
+      Canvas.DrawCircle(midX, midY, 5.0, 0.0, 0.0, 0.20);
+    Canvas.DrawLine(midX - 2.0, midY - 2.0, midX + 2.0, midY + 2.0, 1.2, txtCol.R, txtCol.G, txtCol.B, 0.85);
+    Canvas.DrawLine(midX + 2.0, midY - 2.0, midX - 2.0, midY + 2.0, 1.2, txtCol.R, txtCol.G, txtCol.B, 0.85);
   end;
 end;
 
@@ -1042,6 +1090,7 @@ var
   chipX, chipY, chipW, chipH: Double;
   leftX, rightX, textAvailW: Double;
   bmX, bmY, bmW, bmH: Double;
+  stpX, stpY, stpW, stpH: Double;
   cpX, cpY, cpW, cpH: Double;
   curX, textY: Double;
   schemeW, hostW: Double;
@@ -1060,8 +1109,8 @@ begin
   rightX := X + Width - FPaddingX;
   if GetBookmarkButtonRect(bmX, bmY, bmW, bmH) then
     rightX := Math.Min(rightX, bmX - 4.0);
-  if GetStopButtonRect(bmX, bmY, bmW, bmH) then
-    rightX := Math.Min(rightX, bmX - 4.0);
+  if GetStopButtonRect(stpX, stpY, stpW, stpH) then
+    rightX := Math.Min(rightX, stpX - 4.0);
   if GetCopyButtonRect(cpX, cpY, cpW, cpH) then
     rightX := Math.Min(rightX, cpX - 4.0);
 

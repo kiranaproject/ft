@@ -1815,7 +1815,7 @@ begin
     AssertTrue('ShowSecurityChip default True', ue.ShowSecurityChip);
     AssertTrue('ShowBookmarkButton default True', ue.ShowBookmarkButton);
     AssertTrue('ShowCopyButton default True', ue.ShowCopyButton);
-    AssertTrue('ShowClearButton default True', ue.ShowClearButton);
+    AssertFalse('ShowClearButton default False', ue.ShowClearButton);
     AssertTrue('AutoPrefixHttps default True', ue.AutoPrefixHttps);
     AssertFalse('Default not editing', ue.IsEditing);
     AssertNotNull('Internal SubEntry exists', ue.SubEntry);

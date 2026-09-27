@@ -136,7 +136,7 @@ int main(int argc, char* argv[]) {
     ft_widget_set_font(desc1, "Sans 10");
 
     FtWidget desc2 = ft_text_create(win, 24, 66, 672, 18, 
-        "Click the URL to edit (copy/clear icons appear); click Simulate Load to show programmatic stop button.");
+        "Click the URL to edit (copy icon appears); click Simulate Page Load to toggle stop button.");
     ft_widget_set_font(desc2, "Sans 10");
 
     /* 1. Main Secure HTTPS URL Bar */
@@ -172,7 +172,7 @@ int main(int argc, char* argv[]) {
     FtWidget btn_bm = ft_button_create(win, 251, 236, 115, 32, "Toggle Star ★");
     ft_button_on_click(btn_bm, on_toggle_star, NULL);
 
-    FtWidget btn_load = ft_button_create(win, 372, 236, 145, 32, "Simulate Load ✕");
+    FtWidget btn_load = ft_button_create(win, 372, 236, 145, 32, "Simulate Page Load");
     ft_button_on_click(btn_load, on_simulate_load, NULL);
 
     FtWidget btn_theme = ft_button_create(win, 523, 236, 173, 32, "Toggle Theme");
@@ -209,7 +209,7 @@ int main(int argc, char* argv[]) {
     ft_widget_set_font(tip1, "Sans 9");
 
     FtWidget tip2 = ft_text_create(note_card, 16, 46, 640, 18,
-        "• Edit mode: Full text selection, trailing copy URL button (📋), and clear button (✕).");
+        "• Edit mode: Full text selection, trailing copy URL button, and press Enter to commit navigation.");
     ft_widget_set_font(tip2, "Sans 9");
 
     FtWidget tip3 = ft_text_create(note_card, 16, 64, 640, 18,
