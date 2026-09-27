@@ -836,10 +836,20 @@ begin
 
   if FMode = pbmBreadcrumbs then
   begin
-    // Edit icon: clean slanted vector pencil/marker
-    Canvas.DrawLine(midX - 4.0, midY + 4.0, midX + 3.0, midY - 3.0, 2.0, txtCol.R, txtCol.G, txtCol.B, 0.70);
-    Canvas.DrawLine(midX + 3.0, midY - 3.0, midX + 5.0, midY - 1.0, 2.0, txtCol.R, txtCol.G, txtCol.B, 0.70);
-    Canvas.DrawLine(midX - 5.0, midY + 5.0, midX - 3.0, midY + 5.0, 1.5, txtCol.R, txtCol.G, txtCol.B, 0.70);
+    // Edit icon: clean, unmistakable slanted vector pencil
+    // 1. Conical tip & graphite point
+    Canvas.DrawLine(midX - 5.0, midY + 5.0, midX - 5.0, midY + 2.0, 1.3, txtCol.R, txtCol.G, txtCol.B, 0.75);
+    Canvas.DrawLine(midX - 5.0, midY + 5.0, midX - 2.0, midY + 5.0, 1.3, txtCol.R, txtCol.G, txtCol.B, 0.75);
+    Canvas.DrawLine(midX - 5.0, midY + 2.0, midX - 2.0, midY + 5.0, 1.2, txtCol.R, txtCol.G, txtCol.B, 0.60);
+    Canvas.DrawLine(midX - 5.0, midY + 5.0, midX - 3.8, midY + 3.8, 1.6, txtCol.R, txtCol.G, txtCol.B, 0.90);
+
+    // 2. Shaft sides
+    Canvas.DrawLine(midX - 5.0, midY + 2.0, midX + 2.0, midY - 5.0, 1.3, txtCol.R, txtCol.G, txtCol.B, 0.75);
+    Canvas.DrawLine(midX - 2.0, midY + 5.0, midX + 5.0, midY - 2.0, 1.3, txtCol.R, txtCol.G, txtCol.B, 0.75);
+
+    // 3. Top end & eraser band
+    Canvas.DrawLine(midX + 2.0, midY - 5.0, midX + 5.0, midY - 2.0, 1.3, txtCol.R, txtCol.G, txtCol.B, 0.75);
+    Canvas.DrawLine(midX + 0.6, midY - 3.6, midX + 3.6, midY - 0.6, 1.0, txtCol.R, txtCol.G, txtCol.B, 0.50);
   end
   else
   begin
