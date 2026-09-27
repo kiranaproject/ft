@@ -1752,7 +1752,6 @@ var
   g_TestUrlSecurityValue: cint32 = -1;
   g_TestUrlBookmarkClicked: Boolean = False;
   g_TestUrlBookmarkValue: cint32 = -1;
-  g_TestUrlStopClicked: Boolean = False;
 
 procedure TestUrlEntrySubmitCallback(Sender: Pointer; const AUrl: PChar; UserData: Pointer); cdecl;
 begin
@@ -1775,11 +1774,6 @@ begin
   g_TestUrlBookmarkValue := ABookmarked;
 end;
 
-procedure TestUrlEntryStopClickCallback(Sender: Pointer; UserData: Pointer); cdecl;
-begin
-  g_TestUrlStopClicked := True;
-end;
-
 procedure TFtDesktopWidgetsTest.TestUrlEntry();
 var
   ue: TFtUrlEntry;
@@ -1793,7 +1787,6 @@ begin
   g_TestUrlSecurityValue := -1;
   g_TestUrlBookmarkClicked := False;
   g_TestUrlBookmarkValue := -1;
-  g_TestUrlStopClicked := False;
 
   ue := TFtUrlEntry.Create(nil, 'https://github.com/floria/floria-toolkit');
   try
@@ -1804,18 +1797,13 @@ begin
     ue.OnSubmit := @TestUrlEntrySubmitCallback;
     ue.OnSecurityClick := @TestUrlEntrySecurityClickCallback;
     ue.OnBookmarkClick := @TestUrlEntryBookmarkClickCallback;
-    ue.OnStopClick := @TestUrlEntryStopClickCallback;
 
     // 1. Initial State & Defaults
     AssertEquals('Initial URL', 'https://github.com/floria/floria-toolkit', ue.Url);
     AssertEquals('Security state is ussSecure', Ord(ussSecure), Ord(ue.SecurityState));
     AssertFalse('Default not bookmarked', ue.Bookmarked);
-    AssertFalse('Default not loading', ue.Loading);
-    AssertFalse('Default show stop button false', ue.ShowStopButton);
     AssertTrue('ShowSecurityChip default True', ue.ShowSecurityChip);
     AssertTrue('ShowBookmarkButton default True', ue.ShowBookmarkButton);
-    AssertTrue('ShowCopyButton default True', ue.ShowCopyButton);
-    AssertFalse('ShowClearButton default False', ue.ShowClearButton);
     AssertTrue('AutoPrefixHttps default True', ue.AutoPrefixHttps);
     AssertFalse('Default not editing', ue.IsEditing);
     AssertNotNull('Internal SubEntry exists', ue.SubEntry);
@@ -1883,43 +1871,6 @@ begin
     ue.MouseDown(200, 20, 1);
     AssertTrue('Clicking text area switches to edit mode', ue.IsEditing);
     AssertTrue('SubEntry visible after click', ue.SubEntry.Visible);
-
-    // 11. Copy button visibility logic:
-    // In edit mode, copy button is at far right (~480, 20)
-    // Clicking copy in edit mode should copy subentry text
-    ue.SubEntry.Text := 'https://custom-edited.com';
-    ue.MouseDown(480, 20, 1); // Click copy button
-    ue.MouseUp(480, 20, 1);
-
-    // Return to display mode: Copy button must be hidden, Bookmark button at far right
-    ue.IsEditing := False;
-    g_TestUrlBookmarkClicked := False;
-    ue.Bookmarked := False;
-    ue.MouseDown(480, 20, 1); // Click bookmark button at far right in display mode
-    ue.MouseUp(480, 20, 1);
-    AssertTrue('Bookmark clicked in display mode at far right', g_TestUrlBookmarkClicked);
-    AssertTrue('Bookmarked toggled to True', ue.Bookmarked);
-
-    // 12. Programmatic Page Loading & Stop Button
-    AssertFalse('Not loading initially', ue.Loading);
-    ue.Loading := True;
-    AssertTrue('Loading is True', ue.Loading);
-
-    // In display mode with Loading=True, Stop button appears next to Bookmark button (~454, 20)
-    g_TestUrlStopClicked := False;
-    ue.MouseDown(454, 20, 1); // Click Stop button
-    ue.MouseUp(454, 20, 1);
-    AssertTrue('Stop callback fired on Stop button click', g_TestUrlStopClicked);
-    AssertFalse('Loading reset to False after Stop click', ue.Loading);
-
-    // Programmatic ShowStopButton toggle
-    ue.ShowStopButton := True;
-    AssertTrue('ShowStopButton is True', ue.ShowStopButton);
-    g_TestUrlStopClicked := False;
-    ue.MouseDown(454, 20, 1); // Click Stop button
-    ue.MouseUp(454, 20, 1);
-    AssertTrue('Stop callback fired on ShowStopButton click', g_TestUrlStopClicked);
-    AssertFalse('ShowStopButton reset to False after Stop click', ue.ShowStopButton);
   finally
     ue.Free();
   end;

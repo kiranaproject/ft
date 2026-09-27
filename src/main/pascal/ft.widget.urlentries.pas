@@ -18,17 +18,13 @@ type
   );
 
   TFtUrlActionId = (
-    uaBookmark = 1,
-    uaCopy = 2,
-    uaClear = 3,
-    uaStop = 4
+    uaBookmark = 1
   );
 
   TFtUrlEntrySubmitCallback = procedure(Sender: Pointer; const AUrl: PChar; UserData: Pointer); cdecl;
   TFtUrlEntrySecurityClickCallback = procedure(Sender: Pointer; ASecurityState: cint32; UserData: Pointer); cdecl;
   TFtUrlEntryBookmarkClickCallback = procedure(Sender: Pointer; ABookmarked: cint32; UserData: Pointer); cdecl;
   TFtUrlEntryActionClickCallback = procedure(Sender: Pointer; AActionId: cint32; UserData: Pointer); cdecl;
-  TFtUrlEntryStopClickCallback = procedure(Sender: Pointer; UserData: Pointer); cdecl;
 
   TFtUrlParts = record
     Scheme: string;
@@ -44,6 +40,7 @@ type
   private
     FUrlEntry: TFtUrlEntry;
   protected
+    procedure DrawBackground(Canvas: TFtCanvasAgg); override;
     procedure KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string); override;
     procedure LostFocus(); override;
   public
@@ -65,28 +62,17 @@ type
     FShowSecurityBadgeText: Boolean;
     FBookmarked: Boolean;
     FShowBookmarkButton: Boolean;
-    FLoading: Boolean;
-    FShowStopButton: Boolean;
-    FShowClearButton: Boolean;
-    FShowCopyButton: Boolean;
     FAutoPrefixHttps: Boolean;
 
     FHoverChip: Boolean;
     FPressedChip: Boolean;
     FHoverBookmark: Boolean;
     FPressedBookmark: Boolean;
-    FHoverStop: Boolean;
-    FPressedStop: Boolean;
-    FHoverCopy: Boolean;
-    FPressedCopy: Boolean;
-    FHoverClear: Boolean;
-    FPressedClear: Boolean;
 
     FOnSubmit: TFtUrlEntrySubmitCallback;
     FOnSecurityClick: TFtUrlEntrySecurityClickCallback;
     FOnBookmarkClick: TFtUrlEntryBookmarkClickCallback;
     FOnActionClick: TFtUrlEntryActionClickCallback;
-    FOnStopClick: TFtUrlEntryStopClickCallback;
 
     procedure SetUrl(const AValue: string);
     procedure SetSecurityState(AValue: TFtUrlSecurityState);
@@ -94,19 +80,12 @@ type
     procedure SetShowSecurityChip(AValue: Boolean);
     procedure SetShowSecurityBadgeText(AValue: Boolean);
     procedure SetShowBookmarkButton(AValue: Boolean);
-    procedure SetLoading(AValue: Boolean);
-    procedure SetShowStopButton(AValue: Boolean);
-    procedure SetShowClearButton(AValue: Boolean);
-    procedure SetShowCopyButton(AValue: Boolean);
 
     procedure ParseUrlString(const AUrl: string);
     procedure UpdateSubEntryBounds();
 
     function GetSecurityChipRect(out AX, AY, AW, AH: Double): Boolean;
     function GetBookmarkButtonRect(out AX, AY, AW, AH: Double): Boolean;
-    function GetStopButtonRect(out AX, AY, AW, AH: Double): Boolean;
-    function GetCopyButtonRect(out AX, AY, AW, AH: Double): Boolean;
-    function GetClearButtonRect(out AX, AY, AW, AH: Double): Boolean;
 
     procedure DrawSecurityChip(Canvas: TFtCanvasAgg);
     procedure DrawDomainContrastText(Canvas: TFtCanvasAgg);
@@ -119,7 +98,6 @@ type
 
     function GetElementType(): string; override;
     function GetCursor(): Integer; override;
-    procedure GotFocus(); override;
 
     procedure MouseDown(AX, AY: Integer; AButton: Integer); override;
     procedure MouseMove(AX, AY: Integer); override;
@@ -138,10 +116,6 @@ type
     property ShowSecurityChip: Boolean read FShowSecurityChip write SetShowSecurityChip;
     property ShowSecurityBadgeText: Boolean read FShowSecurityBadgeText write SetShowSecurityBadgeText;
     property ShowBookmarkButton: Boolean read FShowBookmarkButton write SetShowBookmarkButton;
-    property Loading: Boolean read FLoading write SetLoading;
-    property ShowStopButton: Boolean read FShowStopButton write SetShowStopButton;
-    property ShowClearButton: Boolean read FShowClearButton write SetShowClearButton;
-    property ShowCopyButton: Boolean read FShowCopyButton write SetShowCopyButton;
     property AutoPrefixHttps: Boolean read FAutoPrefixHttps write FAutoPrefixHttps;
     property IsEditing: Boolean read FIsEditing write SetEditing;
     property SubEntry: TFtUrlSubEntry read FSubEntry;
@@ -150,7 +124,6 @@ type
     property OnSecurityClick: TFtUrlEntrySecurityClickCallback read FOnSecurityClick write FOnSecurityClick;
     property OnBookmarkClick: TFtUrlEntryBookmarkClickCallback read FOnBookmarkClick write FOnBookmarkClick;
     property OnActionClick: TFtUrlEntryActionClickCallback read FOnActionClick write FOnActionClick;
-    property OnStopClick: TFtUrlEntryStopClickCallback read FOnStopClick write FOnStopClick;
   end;
 
 implementation
@@ -167,18 +140,20 @@ begin
   Visible := False;
 end;
 
+procedure TFtUrlSubEntry.DrawBackground(Canvas: TFtCanvasAgg);
+begin
+  // Seamless inside TFtUrlEntry pill container: do not draw separate background or frame
+end;
+
 procedure TFtUrlSubEntry.KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string);
 begin
-  // Enter ($FF0D / $FF8D) -> commit edit & submit
-  if (AKeySym = $FF0D) or (AKeySym = $FF8D) then
+  if (AKeySym = 65293) or (AKeySym = 65421) or (AKeySym = 13) or (AKeySym = 10) then
   begin
     if Assigned(FUrlEntry) then
       FUrlEntry.CommitEdit();
     Exit;
-  end;
-
-  // Escape ($FF1B) -> cancel edit & revert
-  if (AKeySym = $FF1B) then
+  end
+  else if (AKeySym = 65307) or (AKeySym = 27) then
   begin
     if Assigned(FUrlEntry) then
       FUrlEntry.CancelEdit();
@@ -189,27 +164,11 @@ begin
 end;
 
 procedure TFtUrlSubEntry.LostFocus();
-var
-  root: TFtWidget;
-  win: TFtWindow;
-  newFocus: TFtWidget;
 begin
   inherited LostFocus();
+  // In a browser Omnibox, losing focus reverts uncommitted text
   if Assigned(FUrlEntry) and not FUrlEntry.FSwitchingEdit then
-  begin
-    root := FUrlEntry.GetRootWidget();
-    if (root is TFtWindow) then
-    begin
-      win := TFtWindow(root);
-      newFocus := win.FocusedWidget;
-      if (newFocus = FUrlEntry) or (newFocus = Self) then
-        Exit;
-    end;
-
-    // In a browser Omnibox, losing focus cancels/reverts uncommitted edits.
-    // It NEVER submits/navigates!
     FUrlEntry.CancelEdit();
-  end;
 end;
 
 { TFtUrlEntry }
@@ -217,34 +176,23 @@ end;
 constructor TFtUrlEntry.Create(AParent: TFtWidget; const AInitialUrl: string);
 begin
   inherited Create(AParent);
-  FFocusable := True;
-  FDrawFrame := True;
-  FDrawFocusRing := True;
-  FPaddingX := 8.0;
-  FPaddingY := 3.0;
-  FCornerRadius := 18.0; { Signature Chrome full pill curve }
-  FScrollBarMode := ftSbModeNone;
-  FIsEditing := False;
-  FSwitchingEdit := False;
-  FLastCommitTime := 0;
+  Height := 36;
+  CornerRadius := 18.0;
+  FPaddingX := 8;
+  FPaddingY := 3;
+  ScrollBarMode := ftSbModeNone;
 
   FSecurityState := ussSecure;
   FShowSecurityChip := True;
   FShowSecurityBadgeText := False;
   FBookmarked := False;
   FShowBookmarkButton := True;
-  FShowClearButton := False; { Desktop Chrome Omnibox has no clear 'X' button }
-  FShowCopyButton := True;
   FAutoPrefixHttps := True;
 
   FHoverChip := False;
   FPressedChip := False;
   FHoverBookmark := False;
   FPressedBookmark := False;
-  FHoverCopy := False;
-  FPressedCopy := False;
-  FHoverClear := False;
-  FPressedClear := False;
 
   FOnSubmit := nil;
   FOnSecurityClick := nil;
@@ -322,128 +270,87 @@ begin
   end;
 end;
 
-procedure TFtUrlEntry.SetLoading(AValue: Boolean);
-begin
-  if FLoading <> AValue then
-  begin
-    FLoading := AValue;
-    UpdateSubEntryBounds();
-    Invalidate();
-  end;
-end;
-
-procedure TFtUrlEntry.SetShowStopButton(AValue: Boolean);
-begin
-  if FShowStopButton <> AValue then
-  begin
-    FShowStopButton := AValue;
-    UpdateSubEntryBounds();
-    Invalidate();
-  end;
-end;
-
-procedure TFtUrlEntry.SetShowClearButton(AValue: Boolean);
-begin
-  if FShowClearButton <> AValue then
-  begin
-    FShowClearButton := AValue;
-    UpdateSubEntryBounds();
-    Invalidate();
-  end;
-end;
-
-procedure TFtUrlEntry.SetShowCopyButton(AValue: Boolean);
-begin
-  if FShowCopyButton <> AValue then
-  begin
-    FShowCopyButton := AValue;
-    UpdateSubEntryBounds();
-    Invalidate();
-  end;
-end;
-
 procedure TFtUrlEntry.ParseUrlString(const AUrl: string);
 var
-  clean: string;
-  schemePos: Integer;
-  schemePart: string;
-  rest: string;
-  slashPos: Integer;
+  colonPos, slashPos, pathStart: Integer;
+  remaining: string;
 begin
-  clean := Trim(AUrl);
   FParts.Scheme := '';
   FParts.Host := '';
   FParts.PathEtc := '';
+  FParts.SecurityState := ussInsecure;
 
-  if clean = '' then
+  if AUrl = '' then
   begin
-    FParts.SecurityState := ussSecure;
     FSecurityState := ussSecure;
     Exit;
   end;
 
-  schemePos := Pos('://', clean);
-  if schemePos > 0 then
+  colonPos := Pos('://', AUrl);
+  if colonPos > 0 then
   begin
-    schemePart := Copy(clean, 1, schemePos + 2);
-    rest := Copy(clean, schemePos + 3, Length(clean));
-    FParts.Scheme := schemePart;
+    FParts.Scheme := Copy(AUrl, 1, colonPos + 2); // includes '://'
+    remaining := Copy(AUrl, colonPos + 3, Length(AUrl));
 
-    if LowerCase(schemePart) = 'https://' then
+    if LowerCase(Copy(AUrl, 1, colonPos - 1)) = 'https' then
       FParts.SecurityState := ussSecure
-    else if LowerCase(schemePart) = 'http://' then
+    else if LowerCase(Copy(AUrl, 1, colonPos - 1)) = 'http' then
       FParts.SecurityState := ussInsecure
-    else if LowerCase(schemePart) = 'file://' then
+    else if LowerCase(Copy(AUrl, 1, colonPos - 1)) = 'file' then
       FParts.SecurityState := ussFile
     else
       FParts.SecurityState := ussInternal;
   end
-  else if (Pos('about:', clean) = 1) or (Pos('floria:', clean) = 1) or (Pos('chrome:', clean) = 1) then
-  begin
-    schemePos := Pos(':', clean);
-    FParts.Scheme := Copy(clean, 1, schemePos);
-    rest := Copy(clean, schemePos + 1, Length(clean));
-    FParts.SecurityState := ussInternal;
-  end
   else
   begin
-    rest := clean;
-    FParts.SecurityState := ussSecure;
-  end;
-
-  FSecurityState := FParts.SecurityState;
-
-  // Split rest into Host and PathEtc
-  slashPos := Pos('/', rest);
-  if slashPos > 0 then
-  begin
-    FParts.Host := Copy(rest, 1, slashPos - 1);
-    FParts.PathEtc := Copy(rest, slashPos, Length(rest));
-  end
-  else
-  begin
-    // Check for query or anchor if no slash
-    slashPos := Pos('?', rest);
-    if slashPos = 0 then
-      slashPos := Pos('#', rest);
-
-    if slashPos > 0 then
+    colonPos := Pos(':', AUrl);
+    if colonPos > 0 then
     begin
-      FParts.Host := Copy(rest, 1, slashPos - 1);
-      FParts.PathEtc := Copy(rest, slashPos, Length(rest));
+      FParts.Scheme := Copy(AUrl, 1, colonPos);
+      remaining := Copy(AUrl, colonPos + 1, Length(AUrl));
+      if (LowerCase(FParts.Scheme) = 'about:') or (LowerCase(FParts.Scheme) = 'floria:') then
+        FParts.SecurityState := ussInternal
+      else
+        FParts.SecurityState := ussCustom;
     end
     else
     begin
-      FParts.Host := rest;
+      remaining := AUrl;
+      FParts.SecurityState := ussSecure;
+    end;
+  end;
+
+  slashPos := Pos('/', remaining);
+  if slashPos > 0 then
+  begin
+    FParts.Host := Copy(remaining, 1, slashPos - 1);
+    FParts.PathEtc := Copy(remaining, slashPos, Length(remaining));
+  end
+  else
+  begin
+    pathStart := Pos('?', remaining);
+    if pathStart = 0 then
+      pathStart := Pos('#', remaining);
+
+    if pathStart > 0 then
+    begin
+      FParts.Host := Copy(remaining, 1, pathStart - 1);
+      FParts.PathEtc := Copy(remaining, pathStart, Length(remaining));
+    end
+    else
+    begin
+      FParts.Host := remaining;
       FParts.PathEtc := '';
     end;
   end;
+
+  FSecurityState := FParts.SecurityState;
 end;
 
 function TFtUrlEntry.GetSecurityChipRect(out AX, AY, AW, AH: Double): Boolean;
 var
-  chipH, chipW: Double;
   fnt: TFtFont;
+  badgeW: Double;
 begin
   if not FShowSecurityChip then
   begin
@@ -451,64 +358,22 @@ begin
     Exit(False);
   end;
 
-  chipH := Math.Max(18.0, Height - (FPaddingY * 2.0));
-  chipW := 28.0;
+  AX := X + FPaddingX;
+  AY := Y + (Height - (Height - (FPaddingY * 2.0))) / 2.0;
+  AH := Math.Max(16.0, Height - (FPaddingY * 2.0));
 
   if FShowSecurityBadgeText and (FSecurityState = ussInsecure) then
   begin
     fnt := GetFont();
     if not Assigned(fnt) then fnt := FtGetSystemFont();
-    chipW := 28.0 + fnt.GetTextWidth('Not secure') + 8.0;
-  end;
-
-  AX := X + FPaddingX + 2.0;
-  AY := Y + (Height - chipH) / 2.0;
-  AW := chipW;
-  AH := chipH;
-  Result := True;
-end;
-
-function TFtUrlEntry.GetClearButtonRect(out AX, AY, AW, AH: Double): Boolean;
-var
-  btnSize: Double;
-  rightX: Double;
-begin
-  if not FShowClearButton or not FIsEditing or not Assigned(FSubEntry) or (FSubEntry.Text = '') then
+    badgeW := 22.0 + fnt.GetTextWidth('Not secure') + 8.0;
+    AW := badgeW;
+  end
+  else
   begin
-    AX := 0.0; AY := 0.0; AW := 0.0; AH := 0.0;
-    Exit(False);
+    AW := AH + 2.0;
   end;
 
-  btnSize := Math.Max(16.0, Height - (FPaddingY * 2.0));
-  rightX := X + Width - FPaddingX - btnSize - 2.0;
-
-  if FShowCopyButton then
-    rightX := rightX - btnSize - 4.0;
-  if FLoading or FShowStopButton then
-    rightX := rightX - btnSize - 4.0;
-
-  AX := rightX;
-  AY := Y + (Height - btnSize) / 2.0;
-  AW := btnSize;
-  AH := btnSize;
-  Result := True;
-end;
-
-function TFtUrlEntry.GetCopyButtonRect(out AX, AY, AW, AH: Double): Boolean;
-var
-  btnSize: Double;
-begin
-  if not FShowCopyButton or not FIsEditing then
-  begin
-    AX := 0.0; AY := 0.0; AW := 0.0; AH := 0.0;
-    Exit(False);
-  end;
-
-  btnSize := Math.Max(16.0, Height - (FPaddingY * 2.0));
-  AX := X + Width - FPaddingX - btnSize - 2.0;
-  AY := Y + (Height - btnSize) / 2.0;
-  AW := btnSize;
-  AH := btnSize;
   Result := True;
 end;
 
@@ -516,7 +381,7 @@ function TFtUrlEntry.GetBookmarkButtonRect(out AX, AY, AW, AH: Double): Boolean;
 var
   btnSize: Double;
 begin
-  if not FShowBookmarkButton or FIsEditing then
+  if not FShowBookmarkButton then
   begin
     AX := 0.0; AY := 0.0; AW := 0.0; AH := 0.0;
     Exit(False);
@@ -524,38 +389,6 @@ begin
 
   btnSize := Math.Max(16.0, Height - (FPaddingY * 2.0));
   AX := X + Width - FPaddingX - btnSize - 2.0;
-  AY := Y + (Height - btnSize) / 2.0;
-  AW := btnSize;
-  AH := btnSize;
-  Result := True;
-end;
-
-function TFtUrlEntry.GetStopButtonRect(out AX, AY, AW, AH: Double): Boolean;
-var
-  btnSize: Double;
-  rightX: Double;
-begin
-  if not (FLoading or FShowStopButton) then
-  begin
-    AX := 0.0; AY := 0.0; AW := 0.0; AH := 0.0;
-    Exit(False);
-  end;
-
-  btnSize := Math.Max(16.0, Height - (FPaddingY * 2.0));
-  rightX := X + Width - FPaddingX - btnSize - 2.0;
-
-  if FIsEditing then
-  begin
-    if FShowCopyButton then
-      rightX := rightX - btnSize - 4.0;
-  end
-  else
-  begin
-    if FShowBookmarkButton then
-      rightX := rightX - btnSize - 4.0;
-  end;
-
-  AX := rightX;
   AY := Y + (Height - btnSize) / 2.0;
   AW := btnSize;
   AH := btnSize;
@@ -567,9 +400,6 @@ var
   chipX, chipY, chipW, chipH: Double;
   leftX, rightX: Double;
   bmX, bmY, bmW, bmH: Double;
-  stpX, stpY, stpW, stpH: Double;
-  cpX, cpY, cpW, cpH: Double;
-  clX, clY, clW, clH: Double;
 begin
   if not Assigned(FSubEntry) then Exit;
 
@@ -580,12 +410,6 @@ begin
   rightX := X + Width - FPaddingX;
   if GetBookmarkButtonRect(bmX, bmY, bmW, bmH) then
     rightX := Math.Min(rightX, bmX - 4.0);
-  if GetStopButtonRect(stpX, stpY, stpW, stpH) then
-    rightX := Math.Min(rightX, stpX - 4.0);
-  if GetCopyButtonRect(cpX, cpY, cpW, cpH) then
-    rightX := Math.Min(rightX, cpX - 4.0);
-  if GetClearButtonRect(clX, clY, clW, clH) then
-    rightX := Math.Min(rightX, clX - 4.0);
 
   FSubEntry.X := Round(leftX);
   FSubEntry.Y := Round(Y + FPaddingY);
@@ -655,21 +479,14 @@ begin
 end;
 
 procedure TFtUrlEntry.CopyToClipboard();
-var
-  copyText: string;
 begin
-  if FIsEditing and Assigned(FSubEntry) then
-    copyText := FSubEntry.Text
-  else
-    copyText := FUrl;
-
-  if copyText <> '' then
-    FtClaimPrimarySelection(copyText);
+  if FUrl <> '' then
+    FtClaimPrimarySelection(FUrl);
 end;
 
 function TFtUrlEntry.GetCursor(): Integer;
 begin
-  if FHoverChip or FHoverBookmark or FHoverStop or FHoverCopy or FHoverClear then
+  if FHoverChip or FHoverBookmark then
     Exit(FT_CURSOR_HAND);
 
   if not FIsEditing then
@@ -678,49 +495,30 @@ begin
   Result := FT_CURSOR_DEFAULT;
 end;
 
-procedure TFtUrlEntry.GotFocus();
-begin
-  inherited GotFocus();
-  if not FIsEditing then
-    SetEditing(True)
-  else if Assigned(FSubEntry) then
-    FSubEntry.SetFocus();
-end;
-
 procedure TFtUrlEntry.MouseMove(AX, AY: Integer);
 var
-  oldChip, oldBm, oldStp, oldCp, oldCl: Boolean;
+  oldChip, oldBm: Boolean;
   cX, cY, cW, cH: Double;
 begin
   inherited MouseMove(AX, AY);
 
   oldChip := FHoverChip;
   oldBm := FHoverBookmark;
-  oldStp := FHoverStop;
-  oldCp := FHoverCopy;
-  oldCl := FHoverClear;
 
   FHoverChip := GetSecurityChipRect(cX, cY, cW, cH) and (AX >= cX) and (AX <= cX + cW) and (AY >= cY) and (AY <= cY + cH);
   FHoverBookmark := GetBookmarkButtonRect(cX, cY, cW, cH) and (AX >= cX) and (AX <= cX + cW) and (AY >= cY) and (AY <= cY + cH);
-  FHoverStop := GetStopButtonRect(cX, cY, cW, cH) and (AX >= cX) and (AX <= cX + cW) and (AY >= cY) and (AY <= cY + cH);
-  FHoverCopy := GetCopyButtonRect(cX, cY, cW, cH) and (AX >= cX) and (AX <= cX + cW) and (AY >= cY) and (AY <= cY + cH);
-  FHoverClear := GetClearButtonRect(cX, cY, cW, cH) and (AX >= cX) and (AX <= cX + cW) and (AY >= cY) and (AY <= cY + cH);
 
-  if (oldChip <> FHoverChip) or (oldBm <> FHoverBookmark) or (oldStp <> FHoverStop) or
-     (oldCp <> FHoverCopy) or (oldCl <> FHoverClear) then
+  if (oldChip <> FHoverChip) or (oldBm <> FHoverBookmark) then
     Invalidate();
 end;
 
 procedure TFtUrlEntry.MouseLeave();
 begin
   inherited MouseLeave();
-  if FHoverChip or FHoverBookmark or FHoverStop or FHoverCopy or FHoverClear then
+  if FHoverChip or FHoverBookmark then
   begin
     FHoverChip := False;
     FHoverBookmark := False;
-    FHoverStop := False;
-    FHoverCopy := False;
-    FHoverClear := False;
     Invalidate();
   end;
 end;
@@ -743,7 +541,7 @@ begin
     Exit;
   end;
 
-  // Bookmark button click
+  // Bookmark button click (only button on the right side)
   if GetBookmarkButtonRect(cX, cY, cW, cH) and (AX >= cX) and (AX <= cX + cW) and (AY >= cY) and (AY <= cY + cH) then
   begin
     FPressedBookmark := True;
@@ -752,47 +550,6 @@ begin
       FOnBookmarkClick(Self, cint32(Ord(FBookmarked)), FUserData);
     if Assigned(FOnActionClick) then
       FOnActionClick(Self, cint32(Ord(uaBookmark)), FUserData);
-    Exit;
-  end;
-
-  // Stop loading button click
-  if GetStopButtonRect(cX, cY, cW, cH) and (AX >= cX) and (AX <= cX + cW) and (AY >= cY) and (AY <= cY + cH) then
-  begin
-    FPressedStop := True;
-    FLoading := False;
-    FShowStopButton := False;
-    Invalidate();
-    if Assigned(FOnStopClick) then
-      FOnStopClick(Self, FUserData);
-    if Assigned(FOnActionClick) then
-      FOnActionClick(Self, cint32(Ord(uaStop)), FUserData);
-    if FIsEditing and Assigned(FSubEntry) then
-      FSubEntry.SetFocus();
-    Exit;
-  end;
-
-  // Copy button click
-  if GetCopyButtonRect(cX, cY, cW, cH) and (AX >= cX) and (AX <= cX + cW) and (AY >= cY) and (AY <= cY + cH) then
-  begin
-    FPressedCopy := True;
-    CopyToClipboard();
-    if Assigned(FOnActionClick) then
-      FOnActionClick(Self, cint32(Ord(uaCopy)), FUserData);
-    if FIsEditing and Assigned(FSubEntry) then
-      FSubEntry.SetFocus();
-    Invalidate();
-    Exit;
-  end;
-
-  // Clear button click (only active if explicitly enabled)
-  if GetClearButtonRect(cX, cY, cW, cH) and (AX >= cX) and (AX <= cX + cW) and (AY >= cY) and (AY <= cY + cH) then
-  begin
-    FPressedClear := True;
-    FSubEntry.Text := '';
-    if Assigned(FOnActionClick) then
-      FOnActionClick(Self, cint32(Ord(uaClear)), FUserData);
-    if FIsEditing and Assigned(FSubEntry) then
-      FSubEntry.SetFocus();
     Invalidate();
     Exit;
   end;
@@ -809,9 +566,6 @@ begin
 
   FPressedChip := False;
   FPressedBookmark := False;
-  FPressedStop := False;
-  FPressedCopy := False;
-  FPressedClear := False;
   Invalidate();
 end;
 
@@ -868,62 +622,59 @@ begin
       Canvas.DrawRoundedRect(cX, cY, cW, cH, chipRad, 0.0, 0.0, 0.0, 0.06);
   end;
 
-  if FShowSecurityBadgeText and (FSecurityState = ussInsecure) then
-    midX := cX + 14.0
-  else
-    midX := cX + (cW / 2.0);
+  midX := cX + (Math.Min(cW, cH + 2.0) / 2.0);
   midY := cY + (cH / 2.0);
 
   case FSecurityState of
     ussSecure:
     begin
-      // Padlock shackle
-      Canvas.DrawRoundedRectOutline(midX - 3.5, midY - 6.0, 7.0, 7.0, 3.5, 1.3, txtCol.R, txtCol.G, txtCol.B, 0.75);
-      // Padlock body
-      Canvas.DrawRoundedRect(midX - 5.0, midY - 1.5, 10.0, 8.0, 2.0, txtCol.R, txtCol.G, txtCol.B, 0.85);
+      // Padlock icon: shackle (curved arch) + body
+      Canvas.DrawRoundedRectOutline(midX - 3.5, midY - 6.0, 7.0, 6.0, 3.5, 3.5, txtCol.R, txtCol.G, txtCol.B, 0.85);
+      Canvas.DrawRoundedRect(midX - 4.5, midY - 2.0, 9.0, 8.0, 1.5, txtCol.R, txtCol.G, txtCol.B, 0.90);
       // Keyhole dot
-      if isDark then
-        Canvas.DrawCircle(midX, midY + 2.0, 1.1, 0.15, 0.15, 0.15, 1.0)
-      else
-        Canvas.DrawCircle(midX, midY + 2.0, 1.1, 0.95, 0.95, 0.95, 1.0);
+      Canvas.DrawCircle(midX, midY + 1.5, 1.2, 0.15, 0.15, 0.15, 1.0);
     end;
 
     ussInsecure:
     begin
-      // Amber Warning Triangle
-      Canvas.DrawLine(midX, midY - 6.0, midX - 6.0, midY + 5.0, 1.5, 0.96, 0.62, 0.04, 1.0);
-      Canvas.DrawLine(midX - 6.0, midY + 5.0, midX + 6.0, midY + 5.0, 1.5, 0.96, 0.62, 0.04, 1.0);
-      Canvas.DrawLine(midX + 6.0, midY + 5.0, midX, midY - 6.0, 1.5, 0.96, 0.62, 0.04, 1.0);
-      // Exclamation point
-      Canvas.DrawLine(midX, midY - 2.5, midX, midY + 1.0, 1.5, 0.96, 0.62, 0.04, 1.0);
-      Canvas.DrawCircle(midX, midY + 3.2, 0.8, 0.96, 0.62, 0.04, 1.0);
+      // Warning triangle with exclamation mark (amber / danger red)
+      // Triangle path: top (midX, midY - 6), bottom-right (midX + 6, midY + 5), bottom-left (midX - 6, midY + 5)
+      Canvas.DrawLine(midX, midY - 6.0, midX + 6.0, midY + 5.0, 1.6, 0.85, 0.25, 0.20, 1.0);
+      Canvas.DrawLine(midX + 6.0, midY + 5.0, midX - 6.0, midY + 5.0, 1.6, 0.85, 0.25, 0.20, 1.0);
+      Canvas.DrawLine(midX - 6.0, midY + 5.0, midX, midY - 6.0, 1.6, 0.85, 0.25, 0.20, 1.0);
+      // Exclamation bar + dot
+      Canvas.DrawLine(midX, midY - 2.5, midX, midY + 1.0, 1.4, 0.85, 0.25, 0.20, 1.0);
+      Canvas.DrawCircle(midX, midY + 3.2, 0.7, 0.85, 0.25, 0.20, 1.0);
 
+      // Badge text "Not secure" if enabled
       if FShowSecurityBadgeText then
       begin
         fnt := GetFont();
         if not Assigned(fnt) then fnt := FtGetSystemFont();
-        Canvas.DrawText(cX + 24.0, midY + (fnt.Ascent - fnt.Descent) / 2.0, 'Not secure', fnt, 0.96, 0.62, 0.04);
+        Canvas.DrawText(cX + 20.0, midY + (fnt.Ascent - fnt.Descent) / 2.0, 'Not secure', fnt, 0.85, 0.25, 0.20);
       end;
-    end;
-
-    ussFile:
-    begin
-      // Document / File icon
-      Canvas.DrawRoundedRectOutline(midX - 4.5, midY - 6.0, 9.0, 12.0, 1.5, 1.3, txtCol.R, txtCol.G, txtCol.B, 0.75);
-      Canvas.DrawLine(midX - 2.5, midY - 2.0, midX + 2.5, midY - 2.0, 1.2, txtCol.R, txtCol.G, txtCol.B, 0.75);
-      Canvas.DrawLine(midX - 2.5, midY + 1.5, midX + 2.5, midY + 1.5, 1.2, txtCol.R, txtCol.G, txtCol.B, 0.75);
     end;
 
     ussInternal:
     begin
-      // Compass / Gear circle for internal browser pages
-      Canvas.DrawCircleOutline(midX, midY, 5.5, 1.3, txtCol.R, txtCol.G, txtCol.B, 0.75);
-      Canvas.DrawLine(midX - 3.0, midY + 3.0, midX + 3.0, midY - 3.0, 1.2, txtCol.R, txtCol.G, txtCol.B, 0.75);
+      // Browser internal page symbol: gear / compass / globe stylized circle with crosshair
+      Canvas.DrawCircleOutline(midX, midY, 5.5, 1.2, txtCol.R, txtCol.G, txtCol.B, 0.80);
+      Canvas.DrawLine(midX - 4.0, midY, midX + 4.0, midY, 1.2, txtCol.R, txtCol.G, txtCol.B, 0.70);
+      Canvas.DrawLine(midX, midY - 4.0, midX, midY + 4.0, 1.2, txtCol.R, txtCol.G, txtCol.B, 0.70);
+    end;
+
+    ussFile:
+    begin
+      // Document sheet icon with folded top-right corner
+      Canvas.DrawRoundedRectOutline(midX - 4.0, midY - 6.0, 8.0, 12.0, 1.0, 1.0, txtCol.R, txtCol.G, txtCol.B, 0.80);
+      Canvas.DrawLine(midX - 2.0, midY - 2.0, midX + 2.0, midY - 2.0, 1.0, txtCol.R, txtCol.G, txtCol.B, 0.60);
+      Canvas.DrawLine(midX - 2.0, midY + 1.0, midX + 2.0, midY + 1.0, 1.0, txtCol.R, txtCol.G, txtCol.B, 0.60);
+      Canvas.DrawLine(midX - 2.0, midY + 4.0, midX + 1.0, midY + 4.0, 1.0, txtCol.R, txtCol.G, txtCol.B, 0.60);
     end;
 
     ussCustom:
     begin
-      Canvas.DrawCircle(midX, midY, 4.0, accentCol.R, accentCol.G, accentCol.B, 0.85);
+      Canvas.DrawCircle(midX, midY, 4.0, accentCol.R, accentCol.G, accentCol.B, 0.80);
     end;
   end;
 end;
@@ -944,7 +695,7 @@ begin
   isDark := curTheme.DarkMode;
   txtCol := curTheme.GetTextColor();
 
-  // 1. Bookmark / Star Button
+  // Bookmark / Star Button (the only button on the right side)
   if GetBookmarkButtonRect(bX, bY, bW, bH) then
   begin
     btnRad := Math.Min(6.0, bH / 2.0);
@@ -991,95 +742,6 @@ begin
         Canvas.DrawLine(starPts[pt, 0], starPts[pt, 1], starPts[(pt + 1) mod 10, 0], starPts[(pt + 1) mod 10, 1], 1.3, txtCol.R, txtCol.G, txtCol.B, 0.65);
     end;
   end;
-
-  // 2. Stop Loading Button
-  if GetStopButtonRect(bX, bY, bW, bH) then
-  begin
-    btnRad := Math.Min(6.0, bH / 2.0);
-    if FPressedStop then
-    begin
-      if isDark then
-        Canvas.DrawRoundedRect(bX, bY, bW, bH, btnRad, 1.0, 1.0, 1.0, 0.20)
-      else
-        Canvas.DrawRoundedRect(bX, bY, bW, bH, btnRad, 0.0, 0.0, 0.0, 0.14);
-    end
-    else if FHoverStop then
-    begin
-      if isDark then
-        Canvas.DrawRoundedRect(bX, bY, bW, bH, btnRad, 1.0, 1.0, 1.0, 0.10)
-      else
-        Canvas.DrawRoundedRect(bX, bY, bW, bH, btnRad, 0.0, 0.0, 0.0, 0.06);
-    end;
-
-    midX := bX + (bW / 2.0);
-    midY := bY + (bH / 2.0);
-
-    Canvas.DrawCircleOutline(midX, midY, 5.5, 1.2, txtCol.R, txtCol.G, txtCol.B, 0.70);
-    Canvas.DrawLine(midX - 2.2, midY - 2.2, midX + 2.2, midY + 2.2, 1.3, txtCol.R, txtCol.G, txtCol.B, 0.75);
-    Canvas.DrawLine(midX + 2.2, midY - 2.2, midX - 2.2, midY + 2.2, 1.3, txtCol.R, txtCol.G, txtCol.B, 0.75);
-  end;
-
-  // 3. Copy URL Button
-  if GetCopyButtonRect(bX, bY, bW, bH) then
-  begin
-    btnRad := Math.Min(6.0, bH / 2.0);
-    if FPressedCopy then
-    begin
-      if isDark then
-        Canvas.DrawRoundedRect(bX, bY, bW, bH, btnRad, 1.0, 1.0, 1.0, 0.20)
-      else
-        Canvas.DrawRoundedRect(bX, bY, bW, bH, btnRad, 0.0, 0.0, 0.0, 0.14);
-    end
-    else if FHoverCopy then
-    begin
-      if isDark then
-        Canvas.DrawRoundedRect(bX, bY, bW, bH, btnRad, 1.0, 1.0, 1.0, 0.10)
-      else
-        Canvas.DrawRoundedRect(bX, bY, bW, bH, btnRad, 0.0, 0.0, 0.0, 0.06);
-    end;
-
-    midX := bX + (bW / 2.0);
-    midY := bY + (bH / 2.0);
-
-    // Two overlapping sheets
-    Canvas.DrawRoundedRectOutline(midX - 4.5, midY - 4.5, 7.0, 8.0, 1.2, 1.2, txtCol.R, txtCol.G, txtCol.B, 0.60);
-    if isDark then
-      Canvas.DrawRoundedRect(midX - 2.5, midY - 2.5, 7.0, 8.0, 1.2, 0.18, 0.18, 0.18, 1.0)
-    else
-      Canvas.DrawRoundedRect(midX - 2.5, midY - 2.5, 7.0, 8.0, 1.2, 0.96, 0.96, 0.96, 1.0);
-    Canvas.DrawRoundedRectOutline(midX - 2.5, midY - 2.5, 7.0, 8.0, 1.2, 1.2, txtCol.R, txtCol.G, txtCol.B, 0.75);
-  end;
-
-  // 4. Clear Button (only active if explicitly enabled)
-  if GetClearButtonRect(bX, bY, bW, bH) then
-  begin
-    btnRad := Math.Min(6.0, bH / 2.0);
-    if FPressedClear then
-    begin
-      if isDark then
-        Canvas.DrawRoundedRect(bX, bY, bW, bH, btnRad, 1.0, 1.0, 1.0, 0.20)
-      else
-        Canvas.DrawRoundedRect(bX, bY, bW, bH, btnRad, 0.0, 0.0, 0.0, 0.14);
-    end
-    else if FHoverClear then
-    begin
-      if isDark then
-        Canvas.DrawRoundedRect(bX, bY, bW, bH, btnRad, 1.0, 1.0, 1.0, 0.10)
-      else
-        Canvas.DrawRoundedRect(bX, bY, bW, bH, btnRad, 0.0, 0.0, 0.0, 0.06);
-    end;
-
-    midX := bX + (bW / 2.0);
-    midY := bY + (bH / 2.0);
-
-    // Subtle filled circle with small cross (standard text field clear badge)
-    if isDark then
-      Canvas.DrawCircle(midX, midY, 5.0, 1.0, 1.0, 1.0, 0.25)
-    else
-      Canvas.DrawCircle(midX, midY, 5.0, 0.0, 0.0, 0.20);
-    Canvas.DrawLine(midX - 2.0, midY - 2.0, midX + 2.0, midY + 2.0, 1.2, txtCol.R, txtCol.G, txtCol.B, 0.85);
-    Canvas.DrawLine(midX + 2.0, midY - 2.0, midX - 2.0, midY + 2.0, 1.2, txtCol.R, txtCol.G, txtCol.B, 0.85);
-  end;
 end;
 
 procedure TFtUrlEntry.DrawDomainContrastText(Canvas: TFtCanvasAgg);
@@ -1090,8 +752,6 @@ var
   chipX, chipY, chipW, chipH: Double;
   leftX, rightX, textAvailW: Double;
   bmX, bmY, bmW, bmH: Double;
-  stpX, stpY, stpW, stpH: Double;
-  cpX, cpY, cpW, cpH: Double;
   curX, textY: Double;
   schemeW, hostW: Double;
 begin
@@ -1109,10 +769,6 @@ begin
   rightX := X + Width - FPaddingX;
   if GetBookmarkButtonRect(bmX, bmY, bmW, bmH) then
     rightX := Math.Min(rightX, bmX - 4.0);
-  if GetStopButtonRect(stpX, stpY, stpW, stpH) then
-    rightX := Math.Min(rightX, stpX - 4.0);
-  if GetCopyButtonRect(cpX, cpY, cpW, cpH) then
-    rightX := Math.Min(rightX, cpX - 4.0);
 
   textAvailW := Math.Max(0.0, rightX - leftX);
   if textAvailW <= 0.0 then Exit;
@@ -1120,7 +776,7 @@ begin
   curX := leftX;
   textY := Y + (Height / 2.0) + (fnt.Ascent - fnt.Descent) / 2.0;
 
-  // Clip text smoothly between security chip and action buttons
+  // Clip text smoothly between security chip and bookmark button
   Canvas.PushClipRoundedRect(leftX, Y + 1.0, textAvailW, Height - 2.0, 0.0);
   try
     // 1. Scheme (subtly dimmed ~55%)
@@ -1144,10 +800,10 @@ begin
       curX := curX + hostW;
     end;
 
-    // 3. Path, query, and fragment (subtly dimmed ~65%)
+    // 3. Path, Query, Anchor (subtly dimmed ~60%)
     if FParts.PathEtc <> '' then
     begin
-      Canvas.PushAlpha(0.65);
+      Canvas.PushAlpha(0.60);
       try
         Canvas.DrawText(curX, textY, FParts.PathEtc, fnt, txtCol.R, txtCol.G, txtCol.B);
       finally

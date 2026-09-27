@@ -44,26 +44,11 @@ static void on_bookmark_clicked(FtWidget url_entry, int32_t bookmarked, void* us
     printf("[UrlEntry] %s\n", buf);
 }
 
-static void on_stop_clicked(FtWidget url_entry, void* user_data) {
-    (void)url_entry; (void)user_data;
-    char buf[256];
-    snprintf(buf, sizeof(buf), "Event: Page Loading Stopped (Stop Button Clicked)");
-    if (s_lbl_event)
-        ft_text_set_text(s_lbl_event, buf);
-    printf("[UrlEntry] %s\n", buf);
-}
-
 static void on_action_clicked(FtWidget url_entry, int32_t action_id, void* user_data) {
     (void)url_entry; (void)user_data;
     const char* act_name = "Unknown";
     if (action_id == FT_URL_ACTION_BOOKMARK)
         act_name = "Bookmark";
-    else if (action_id == FT_URL_ACTION_COPY)
-        act_name = "Copy URL to Clipboard";
-    else if (action_id == FT_URL_ACTION_CLEAR)
-        act_name = "Clear Text";
-    else if (action_id == FT_URL_ACTION_STOP)
-        act_name = "Stop Page Loading";
 
     char buf[256];
     snprintf(buf, sizeof(buf), "Event: Action Clicked -> %s", act_name);
@@ -97,19 +82,6 @@ static void on_toggle_star(FtWidget btn, void* user_data) {
     }
 }
 
-static void on_simulate_load(FtWidget btn, void* user_data) {
-    (void)btn; (void)user_data;
-    if (s_url_main) {
-        int32_t loading = ft_url_entry_get_loading(s_url_main);
-        ft_url_entry_set_loading(s_url_main, !loading);
-        char buf[256];
-        snprintf(buf, sizeof(buf), "Event: Page Loading %s", !loading ? "Started (Stop button shown)" : "Stopped");
-        if (s_lbl_event)
-            ft_text_set_text(s_lbl_event, buf);
-        printf("[UrlEntry] %s\n", buf);
-    }
-}
-
 static void on_theme_toggle(FtWidget btn, void* user_data) {
     (void)btn; (void)user_data;
     int is_dark = ft_theme_get_dark_mode();
@@ -136,7 +108,7 @@ int main(int argc, char* argv[]) {
     ft_widget_set_font(desc1, "Sans 10");
 
     FtWidget desc2 = ft_text_create(win, 24, 66, 672, 18, 
-        "Click the URL to edit (copy icon appears); click Simulate Page Load to toggle stop button.");
+        "Click the URL to edit with inline selection, or click the lock chip or trailing bookmark star.");
     ft_widget_set_font(desc2, "Sans 10");
 
     /* 1. Main Secure HTTPS URL Bar */
@@ -148,7 +120,6 @@ int main(int argc, char* argv[]) {
     ft_url_entry_on_submit(s_url_main, on_url_submitted, NULL);
     ft_url_entry_on_security_click(s_url_main, on_security_clicked, NULL);
     ft_url_entry_on_bookmark_click(s_url_main, on_bookmark_clicked, NULL);
-    ft_url_entry_on_stop_click(s_url_main, on_stop_clicked, NULL);
     ft_url_entry_on_action_click(s_url_main, on_action_clicked, NULL);
 
     /* Event status indicators */
@@ -163,19 +134,16 @@ int main(int argc, char* argv[]) {
     FtWidget lbl_presets = ft_text_create(win, 24, 212, 672, 20, "Quick Presets & Actions:");
     ft_widget_set_font(lbl_presets, "Sans Bold 11");
 
-    FtWidget btn_gh = ft_button_create(win, 24, 236, 105, 32, "GitHub Repo");
+    FtWidget btn_gh = ft_button_create(win, 24, 236, 115, 32, "GitHub Repo");
     ft_button_on_click(btn_gh, on_load_github, NULL);
 
-    FtWidget btn_int = ft_button_create(win, 135, 236, 110, 32, "Internal Page");
+    FtWidget btn_int = ft_button_create(win, 147, 236, 120, 32, "Internal Page");
     ft_button_on_click(btn_int, on_load_internal, NULL);
 
-    FtWidget btn_bm = ft_button_create(win, 251, 236, 115, 32, "Toggle Star ★");
+    FtWidget btn_bm = ft_button_create(win, 275, 236, 130, 32, "Toggle Star ★");
     ft_button_on_click(btn_bm, on_toggle_star, NULL);
 
-    FtWidget btn_load = ft_button_create(win, 372, 236, 145, 32, "Simulate Page Load");
-    ft_button_on_click(btn_load, on_simulate_load, NULL);
-
-    FtWidget btn_theme = ft_button_create(win, 523, 236, 173, 32, "Toggle Theme");
+    FtWidget btn_theme = ft_button_create(win, 413, 236, 185, 32, "Toggle Dark/Light Mode");
     ft_button_on_click(btn_theme, on_theme_toggle, NULL);
 
     /* 2. Insecure HTTP URL Bar (Warning Triangle + 'Not secure' badge) */
@@ -205,15 +173,15 @@ int main(int argc, char* argv[]) {
     ft_widget_set_font(tip_title, "Sans Bold 10");
 
     FtWidget tip1 = ft_text_create(note_card, 16, 28, 640, 18,
-        "• Unfocused state: High-contrast domain pop, bookmark star, and stop button (when page loading).");
+        "• Unfocused state: Scheme & path parameters are subtly dimmed (~60%) so the host domain stands out.");
     ft_widget_set_font(tip1, "Sans 9");
 
     FtWidget tip2 = ft_text_create(note_card, 16, 46, 640, 18,
-        "• Edit mode: Full text selection, trailing copy URL button, and press Enter to commit navigation.");
+        "• Click into URL: instantly focuses and selects all text for quick replacement or editing.");
     ft_widget_set_font(tip2, "Sans 9");
 
     FtWidget tip3 = ft_text_create(note_card, 16, 64, 640, 18,
-        "• Programmatic loading: Page loading state and stop button can be shown/hidden via C API or clicked to stop.");
+        "• Action buttons: Leading lock chip (site info/security) and trailing bookmark star.");
     ft_widget_set_font(tip3, "Sans 9");
 
     ft_widget_show(win);
