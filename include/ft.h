@@ -241,6 +241,30 @@ void ft_entry_on_change(FtWidget entry, FtEntryChangeCallback callback, void* us
 void ft_entry_on_submit(FtWidget entry, FtEntrySubmitCallback callback, void* user_data);
 void ft_entry_set_corner_radius(FtWidget entry, double radius);
 
+/* Widgets: PathBar (Nautilus-Style Breadcrumb Path Entry) */
+typedef enum {
+    FT_PATH_BAR_MODE_BREADCRUMBS = 0,
+    FT_PATH_BAR_MODE_EDIT = 1
+} FtPathBarMode;
+
+typedef void (*FtPathBarNavigateCallback)(FtWidget pathbar, const char* path, void* user_data);
+typedef void (*FtPathBarModeChangeCallback)(FtWidget pathbar, int32_t mode, void* user_data);
+
+FtWidget ft_path_bar_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, const char* initial_path);
+void ft_path_bar_set_path(FtWidget pathbar, const char* path);
+const char* ft_path_bar_get_path(FtWidget pathbar);
+void ft_path_bar_set_mode(FtWidget pathbar, int32_t mode);
+int32_t ft_path_bar_get_mode(FtWidget pathbar);
+void ft_path_bar_on_navigate(FtWidget pathbar, FtPathBarNavigateCallback callback, void* user_data);
+void ft_path_bar_on_mode_change(FtWidget pathbar, FtPathBarModeChangeCallback callback, void* user_data);
+FtWidget ft_path_bar_get_entry(FtWidget pathbar);
+void ft_path_bar_set_show_edit_button(FtWidget pathbar, int32_t show_button);
+int32_t ft_path_bar_get_show_edit_button(FtWidget pathbar);
+void ft_path_bar_set_root_display_name(FtWidget pathbar, const char* display_name);
+const char* ft_path_bar_get_root_display_name(FtWidget pathbar);
+void ft_path_bar_set_corner_radius(FtWidget pathbar, double radius);
+double ft_path_bar_get_corner_radius(FtWidget pathbar);
+
 /* Widgets: TextArea (Multi-Line Text Area / TextView) */
 FtWidget ft_textarea_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, const char* text);
 void ft_textarea_set_text(FtWidget textarea, const char* text);

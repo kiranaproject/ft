@@ -7,7 +7,7 @@ uses
   Floria.SVG.DOM, Floria.SVG.Parser,
   Ft.Css, Floria.Image.Core, Floria.Image.BMP, Floria.Image.PNG, Floria.Image.JPEG, Floria.Image.Blur, Floria.Canvas.Agg, Floria.SVG.Rasterizer, Ft.Widget, Ft.Widget.Containers, Ft.Widget.Images,
   Ft.Widget.Tabs, Ft.Widget.Splitters, Ft.Widget.TreeViews, Ft.Widget.Tables, Ft.Widget.Texts, Ft.Widget.Buttons,
-  Ft.Widget.Switches, Ft.Widget.Selectors, Ft.Backend.X11, Ft.Theme, Floria.Font;
+  Ft.Widget.Switches, Ft.Widget.Selectors, Ft.Widget.PathBars, Ft.Backend.X11, Ft.Theme, Floria.Font;
 
 type
   TFtDesktopWidgetsTest = class(TTestCase)
@@ -24,6 +24,7 @@ type
     procedure TestHints();
     procedure TestTextWordWrapAndClipping();
     procedure TestButtonIconAndCustomDrawing();
+    procedure TestPathBar();
   end;
 
   TFtSvgTest = class(TTestCase)
@@ -1624,6 +1625,122 @@ begin
     AssertNull('Icon cleared', btn.Icon);
   finally
     btn.Free();
+  end;
+end;
+
+var
+  g_TestPathBarNavigated: Boolean = False;
+  g_TestPathBarNavPath: string = '';
+  g_TestPathBarModeChanged: Boolean = False;
+  g_TestPathBarNewMode: cint32 = -1;
+
+procedure TestPathBarNavigateCallback(Sender: Pointer; const APath: PChar; UserData: Pointer); cdecl;
+begin
+  g_TestPathBarNavigated := True;
+  if Assigned(APath) then
+    g_TestPathBarNavPath := StrPas(APath)
+  else
+    g_TestPathBarNavPath := '';
+end;
+
+procedure TestPathBarModeChangeCallback(Sender: Pointer; AMode: cint32; UserData: Pointer); cdecl;
+begin
+  g_TestPathBarModeChanged := True;
+  g_TestPathBarNewMode := AMode;
+end;
+
+procedure TFtDesktopWidgetsTest.TestPathBar();
+var
+  pb: TFtPathBar;
+  canvas: TFtCanvasAgg;
+  buf: array[0..39, 0..399] of TBgraPixel;
+  cursorType: Integer;
+begin
+  g_TestPathBarNavigated := False;
+  g_TestPathBarNavPath := '';
+  g_TestPathBarModeChanged := False;
+  g_TestPathBarNewMode := -1;
+
+  pb := TFtPathBar.Create(nil, '/home/afumi/Documents/projects');
+  try
+    pb.X := 10;
+    pb.Y := 10;
+    pb.Width := 400;
+    pb.Height := 36;
+    pb.OnNavigate := @TestPathBarNavigateCallback;
+    pb.OnModeChange := @TestPathBarModeChangeCallback;
+
+    // 1. Initial State & Defaults
+    AssertEquals('Initial mode is pbmBreadcrumbs', Ord(pbmBreadcrumbs), Ord(pb.Mode));
+    AssertEquals('Initial path', '/home/afumi/Documents/projects', pb.Path);
+    AssertNotNull('Internal entry exists', pb.Entry);
+    AssertFalse('Entry hidden in breadcrumbs mode', pb.Entry.Visible);
+    AssertEquals('Entry text matches path', '/home/afumi/Documents/projects', pb.Entry.Text);
+    AssertTrue('ShowEditButton default True', pb.ShowEditButton);
+
+    // 2. Render in Breadcrumbs Mode
+    canvas := TFtCanvasAgg.Create(@buf[0, 0], 400, 40);
+    try
+      pb.Draw(canvas);
+    finally
+      canvas.Free();
+    end;
+
+    // 3. Cursor in Breadcrumbs Mode: empty area should be FT_CURSOR_IBEAM
+    cursorType := pb.GetCursor();
+    AssertEquals('Empty area cursor is I-Beam', FT_CURSOR_IBEAM, cursorType);
+
+    // 4. Mode Switching to Edit Mode
+    pb.Mode := pbmEdit;
+    AssertEquals('Mode is pbmEdit', Ord(pbmEdit), Ord(pb.Mode));
+    AssertTrue('Entry visible in edit mode', pb.Entry.Visible);
+    AssertTrue('Mode change callback triggered', g_TestPathBarModeChanged);
+    AssertEquals('New mode in callback', Ord(pbmEdit), g_TestPathBarNewMode);
+
+    // 5. Render in Edit Mode
+    canvas := TFtCanvasAgg.Create(@buf[0, 0], 400, 40);
+    try
+      pb.Draw(canvas);
+    finally
+      canvas.Free();
+    end;
+
+    // 6. Inline editing and CommitEdit
+    pb.Entry.Text := '/var/log/syslog';
+    pb.CommitEdit();
+    AssertEquals('Mode returned to pbmBreadcrumbs', Ord(pbmBreadcrumbs), Ord(pb.Mode));
+    AssertFalse('Entry hidden again', pb.Entry.Visible);
+    AssertEquals('Path updated to committed text', '/var/log/syslog', pb.Path);
+    AssertTrue('OnNavigate called on commit', g_TestPathBarNavigated);
+    AssertEquals('Navigated path', '/var/log/syslog', g_TestPathBarNavPath);
+
+    // 7. CancelEdit
+    pb.Mode := pbmEdit;
+    pb.Entry.Text := '/tmp/unsaved';
+    pb.CancelEdit();
+    AssertEquals('Mode returned to pbmBreadcrumbs after cancel', Ord(pbmBreadcrumbs), Ord(pb.Mode));
+    AssertEquals('Path preserved unchanged on cancel', '/var/log/syslog', pb.Path);
+    AssertEquals('Entry text reverted to path', '/var/log/syslog', pb.Entry.Text);
+
+    // 8. Direct Navigation
+    g_TestPathBarNavigated := False;
+    pb.NavigateTo('/home/afumi');
+    AssertEquals('Path updated by NavigateTo', '/home/afumi', pb.Path);
+    AssertTrue('OnNavigate called by NavigateTo', g_TestPathBarNavigated);
+    AssertEquals('Navigated to /home/afumi', '/home/afumi', g_TestPathBarNavPath);
+
+    // 9. Root Display Name customization
+    pb.RootDisplayName := 'Filesystem';
+    AssertEquals('RootDisplayName updated', 'Filesystem', pb.RootDisplayName);
+
+    // 10. Mouse click on empty space switches to edit mode
+    pb.Mode := pbmBreadcrumbs;
+    // MouseDown at empty space (e.g. x = 380, y = 20 is past segments)
+    pb.MouseDown(350, 20, 1);
+    AssertEquals('Clicking empty area switches to edit mode', Ord(pbmEdit), Ord(pb.Mode));
+    AssertTrue('Entry visible after empty space click', pb.Entry.Visible);
+  finally
+    pb.Free();
   end;
 end;
 

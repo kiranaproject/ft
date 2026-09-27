@@ -33,7 +33,8 @@ uses
   Ft.Widget.Tabs,
   Ft.Widget.Splitters,
   Ft.Widget.TreeViews,
-  Ft.Widget.Tables;
+  Ft.Widget.Tables,
+  Ft.Widget.PathBars;
 
 var
   gLastSystemFontDesc: AnsiString;
@@ -48,6 +49,8 @@ var
   gLastClipboardText: AnsiString;
   gLastEntryText: AnsiString;
   gLastEntryPlaceholder: AnsiString;
+  gLastPathBarPath: AnsiString;
+  gLastPathBarRootName: AnsiString;
   gLastTextAreaText: AnsiString;
   gLastTextAreaPlaceholder: AnsiString;
   gLastMenuCaption: AnsiString;
@@ -1100,6 +1103,148 @@ procedure ft_entry_set_corner_radius(entry_widget: Pointer; radius: Double); cde
 begin
   if Assigned(entry_widget) and (TObject(entry_widget) is TFtEntry) then
     TFtEntry(entry_widget).CornerRadius := radius;
+end;
+
+{ PathBar Widgets (Nautilus-Style Breadcrumb Path Entry) }
+
+function ft_path_bar_create(parent: Pointer; x, y, w, h: cint32; initial_path: PChar): Pointer; cdecl; export;
+var
+  strPath: string;
+  pb: TFtPathBar;
+begin
+  if Assigned(initial_path) then
+    strPath := StrPas(initial_path)
+  else
+    strPath := '';
+  AdjustChildCoordinates(parent, x, y);
+  pb := TFtPathBar.Create(TFtWidget(parent), strPath);
+  pb.X := x;
+  pb.Y := y;
+  pb.Width := w;
+  pb.Height := h;
+  if Assigned(parent) and (TObject(parent) is TFtContainer) then
+    TFtContainer(parent).UpdateScrollBars();
+  Result := Pointer(pb);
+end;
+
+procedure ft_path_bar_set_path(pathbar: Pointer; path: PChar); cdecl; export;
+begin
+  if Assigned(pathbar) and (TObject(pathbar) is TFtPathBar) then
+  begin
+    if Assigned(path) then
+      TFtPathBar(pathbar).Path := StrPas(path)
+    else
+      TFtPathBar(pathbar).Path := '';
+  end;
+end;
+
+function ft_path_bar_get_path(pathbar: Pointer): PChar; cdecl; export;
+begin
+  if Assigned(pathbar) and (TObject(pathbar) is TFtPathBar) then
+  begin
+    gLastPathBarPath := TFtPathBar(pathbar).Path;
+    Result := PChar(gLastPathBarPath);
+  end
+  else
+    Result := nil;
+end;
+
+procedure ft_path_bar_set_mode(pathbar: Pointer; mode: cint32); cdecl; export;
+begin
+  if Assigned(pathbar) and (TObject(pathbar) is TFtPathBar) then
+  begin
+    if (mode >= 0) and (mode <= Ord(High(TFtPathBarMode))) then
+      TFtPathBar(pathbar).Mode := TFtPathBarMode(mode);
+  end;
+end;
+
+function ft_path_bar_get_mode(pathbar: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(pathbar) and (TObject(pathbar) is TFtPathBar) then
+    Result := Ord(TFtPathBar(pathbar).Mode)
+  else
+    Result := 0;
+end;
+
+procedure ft_path_bar_on_navigate(pathbar: Pointer; callback: TFtPathBarNavigateCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(pathbar) and (TObject(pathbar) is TFtPathBar) then
+  begin
+    TFtPathBar(pathbar).OnNavigate := callback;
+    TFtPathBar(pathbar).UserData := user_data;
+  end;
+end;
+
+procedure ft_path_bar_on_mode_change(pathbar: Pointer; callback: TFtPathBarModeChangeCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(pathbar) and (TObject(pathbar) is TFtPathBar) then
+  begin
+    TFtPathBar(pathbar).OnModeChange := callback;
+    TFtPathBar(pathbar).UserData := user_data;
+  end;
+end;
+
+function ft_path_bar_get_entry(pathbar: Pointer): Pointer; cdecl; export;
+begin
+  if Assigned(pathbar) and (TObject(pathbar) is TFtPathBar) then
+    Result := Pointer(TFtPathBar(pathbar).Entry)
+  else
+    Result := nil;
+end;
+
+procedure ft_path_bar_set_show_edit_button(pathbar: Pointer; show_button: cint32); cdecl; export;
+begin
+  if Assigned(pathbar) and (TObject(pathbar) is TFtPathBar) then
+    TFtPathBar(pathbar).ShowEditButton := (show_button <> 0);
+end;
+
+function ft_path_bar_get_show_edit_button(pathbar: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(pathbar) and (TObject(pathbar) is TFtPathBar) then
+  begin
+    if TFtPathBar(pathbar).ShowEditButton then
+      Result := 1
+    else
+      Result := 0;
+  end
+  else
+    Result := 0;
+end;
+
+procedure ft_path_bar_set_root_display_name(pathbar: Pointer; display_name: PChar); cdecl; export;
+begin
+  if Assigned(pathbar) and (TObject(pathbar) is TFtPathBar) then
+  begin
+    if Assigned(display_name) then
+      TFtPathBar(pathbar).RootDisplayName := StrPas(display_name)
+    else
+      TFtPathBar(pathbar).RootDisplayName := '';
+  end;
+end;
+
+function ft_path_bar_get_root_display_name(pathbar: Pointer): PChar; cdecl; export;
+begin
+  if Assigned(pathbar) and (TObject(pathbar) is TFtPathBar) then
+  begin
+    gLastPathBarRootName := TFtPathBar(pathbar).RootDisplayName;
+    Result := PChar(gLastPathBarRootName);
+  end
+  else
+    Result := nil;
+end;
+
+procedure ft_path_bar_set_corner_radius(pathbar: Pointer; radius: Double); cdecl; export;
+begin
+  if Assigned(pathbar) and (TObject(pathbar) is TFtPathBar) then
+    TFtPathBar(pathbar).CornerRadius := radius;
+end;
+
+function ft_path_bar_get_corner_radius(pathbar: Pointer): Double; cdecl; export;
+begin
+  if Assigned(pathbar) and (TObject(pathbar) is TFtPathBar) then
+    Result := TFtPathBar(pathbar).CornerRadius
+  else
+    Result := 0.0;
 end;
 
 { TextArea Widgets (Multi-line) }
@@ -4605,7 +4750,23 @@ exports
   ft_table_get_zebra_striping,
   ft_table_on_select_row,
   ft_table_on_draw_header,
-  ft_table_on_draw_cell;
+  ft_table_on_draw_cell,
+
+  // PathBar
+  ft_path_bar_create,
+  ft_path_bar_set_path,
+  ft_path_bar_get_path,
+  ft_path_bar_set_mode,
+  ft_path_bar_get_mode,
+  ft_path_bar_on_navigate,
+  ft_path_bar_on_mode_change,
+  ft_path_bar_get_entry,
+  ft_path_bar_set_show_edit_button,
+  ft_path_bar_get_show_edit_button,
+  ft_path_bar_set_root_display_name,
+  ft_path_bar_get_root_display_name,
+  ft_path_bar_set_corner_radius,
+  ft_path_bar_get_corner_radius;
 
 begin
 end.
