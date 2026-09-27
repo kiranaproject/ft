@@ -32,6 +32,7 @@ type
   private
     FPathBar: TFtPathBar;
   protected
+    procedure DrawBackground(Canvas: TFtCanvasAgg); override;
     procedure KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string); override;
     procedure LostFocus(); override;
   public
@@ -110,6 +111,11 @@ begin
   DrawFocusRing := False;
   ScrollBarMode := ftSbModeNone;
   Visible := False;
+end;
+
+procedure TFtPathBarEntry.DrawBackground(Canvas: TFtCanvasAgg);
+begin
+  // Seamless inside TFtPathBar: do not draw separate background or frame
 end;
 
 procedure TFtPathBarEntry.KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string);
@@ -853,11 +859,12 @@ begin
   end
   else
   begin
-    // Breadcrumbs icon: two small connected breadcrumb dots/pills ▪›▪
-    Canvas.DrawRoundedRect(midX - 6.0, midY - 2.5, 4.0, 5.0, 1.0, txtCol.R, txtCol.G, txtCol.B, 0.70);
-    Canvas.DrawLine(midX - 0.5, midY - 2.5, midX + 1.5, midY, 1.2, txtCol.R, txtCol.G, txtCol.B, 0.60);
-    Canvas.DrawLine(midX + 1.5, midY, midX - 0.5, midY + 2.5, 1.2, txtCol.R, txtCol.G, txtCol.B, 0.60);
-    Canvas.DrawRoundedRect(midX + 3.5, midY - 2.5, 4.0, 5.0, 1.0, txtCol.R, txtCol.G, txtCol.B, 0.70);
+    // Save/Commit icon: clean, crisp checkmark / checklist mark
+    Canvas.DrawLine(midX - 5.0, midY + 0.5, midX - 1.5, midY + 4.0, 2.0, txtCol.R, txtCol.G, txtCol.B, 0.85);
+    Canvas.DrawLine(midX - 1.5, midY + 4.0, midX + 5.0, midY - 3.5, 2.0, txtCol.R, txtCol.G, txtCol.B, 0.85);
+    Canvas.DrawCircle(midX - 5.0, midY + 0.5, 1.0, txtCol.R, txtCol.G, txtCol.B, 0.85);
+    Canvas.DrawCircle(midX - 1.5, midY + 4.0, 1.0, txtCol.R, txtCol.G, txtCol.B, 0.85);
+    Canvas.DrawCircle(midX + 5.0, midY - 3.5, 1.0, txtCol.R, txtCol.G, txtCol.B, 0.85);
   end;
 end;
 
