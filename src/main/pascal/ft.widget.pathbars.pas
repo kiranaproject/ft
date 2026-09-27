@@ -34,9 +34,10 @@ type
   protected
     procedure DrawBackground(Canvas: TFtCanvasAgg); override;
     procedure KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string); override;
-    procedure LostFocus(); override;
   public
     constructor Create(APathBar: TFtPathBar); reintroduce;
+    procedure GotFocus(); override;
+    procedure LostFocus(); override;
   end;
 
   { Nautilus-style dual-mode breadcrumb path entry widget }
@@ -77,6 +78,7 @@ type
     destructor Destroy(); override;
 
     function GetElementType(): string; override;
+    function IsFocusedForDrawing(): Boolean; override;
     function GetCursor(): Integer; override;
 
     procedure MouseDown(AX, AY: Integer; AButton: Integer); override;
@@ -139,11 +141,26 @@ begin
   inherited KeyDown(AKeySym, AState, AChar);
 end;
 
+procedure TFtPathBarEntry.GotFocus();
+begin
+  inherited GotFocus();
+  if Assigned(FPathBar) then
+  begin
+    FPathBar.InvalidateStyle();
+    FPathBar.Invalidate();
+  end;
+end;
+
 procedure TFtPathBarEntry.LostFocus();
 begin
   inherited LostFocus();
-  if Assigned(FPathBar) and not FPathBar.IsSwitchingMode then
-    FPathBar.CommitEdit();
+  if Assigned(FPathBar) then
+  begin
+    if not FPathBar.IsSwitchingMode then
+      FPathBar.CommitEdit();
+    FPathBar.InvalidateStyle();
+    FPathBar.Invalidate();
+  end;
 end;
 
 { TFtPathBar }
@@ -156,7 +173,7 @@ begin
   FDrawFocusRing := True;
   FPaddingX := 6.0;
   FPaddingY := 3.0;
-  FCornerRadius := 6.0;
+  FCornerRadius := -1.0;
   FScrollBarMode := ftSbModeNone;
   FMode := pbmBreadcrumbs;
   FHoverSegment := -1;
@@ -184,6 +201,11 @@ end;
 function TFtPathBar.GetElementType(): string;
 begin
   Result := 'pathbar';
+end;
+
+function TFtPathBar.IsFocusedForDrawing(): Boolean;
+begin
+  Result := FFocused or (FMode = pbmEdit) or (Assigned(FEntry) and FEntry.Focused);
 end;
 
 procedure TFtPathBar.SetPath(const AValue: string);
@@ -219,6 +241,7 @@ begin
     finally
       FSwitchingMode := False;
     end;
+    InvalidateStyle();
     Invalidate();
     if Assigned(FOnModeChange) then
       FOnModeChange(Self, cint32(FMode), FUserData);
@@ -746,13 +769,18 @@ var
   isDark: Boolean;
   bgAlpha: Double;
   isPressed, isHovered: Boolean;
+  st: TFtWidgetStyle;
 begin
   count := Length(FSegments);
   if count = 0 then Exit;
 
   curTheme := FtGetTheme();
   isDark := curTheme.DarkMode;
-  txtCol := curTheme.GetTextColor();
+  st := GetResolvedStyle();
+  if st.HasTextColor then
+    txtCol := MakeRgbColor(st.TextColor.R, st.TextColor.G, st.TextColor.B)
+  else
+    txtCol := curTheme.GetTextColor();
   accentCol := curTheme.GetAccentColor();
   fnt := GetFont();
   if not Assigned(fnt) then
@@ -821,12 +849,17 @@ var
   txtCol: TFtRgbColor;
   isDark: Boolean;
   pillRad: Double;
+  st: TFtWidgetStyle;
 begin
   if not GetToggleRect(togX, togY, togW, togH) then Exit;
 
   curTheme := FtGetTheme();
   isDark := curTheme.DarkMode;
-  txtCol := curTheme.GetTextColor();
+  st := GetResolvedStyle();
+  if st.HasTextColor then
+    txtCol := MakeRgbColor(st.TextColor.R, st.TextColor.G, st.TextColor.B)
+  else
+    txtCol := curTheme.GetTextColor();
   pillRad := Math.Min(4.0, togH / 2.0);
 
   if FHoverToggle then

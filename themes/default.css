@@ -128,7 +128,7 @@ button:disabled {
     opacity: 0.6;
 }
 
-entry, textarea {
+entry, textarea, pathbar, urlentry {
     background-color: var(--surface-bg);
     color: var(--text-dark);
     border-color: var(--border-color);
@@ -138,7 +138,11 @@ entry, textarea {
     transition: border-color 150ms ease;
 }
 
-entry:focus, textarea:focus {
+urlentry, urlentry.dark {
+    border-radius: 9999px;
+}
+
+entry:focus, textarea:focus, pathbar:focus, urlentry:focus {
     border-color: var(--accent-focus);
 }
 

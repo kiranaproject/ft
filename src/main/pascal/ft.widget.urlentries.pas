@@ -42,9 +42,10 @@ type
   protected
     procedure DrawBackground(Canvas: TFtCanvasAgg); override;
     procedure KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string); override;
-    procedure LostFocus(); override;
   public
     constructor Create(AUrlEntry: TFtUrlEntry); reintroduce;
+    procedure GotFocus(); override;
+    procedure LostFocus(); override;
   end;
 
   { Google Chrome-Style Omnibox / URL Entry with security chip & domain contrast }
@@ -97,8 +98,11 @@ type
     destructor Destroy(); override;
 
     function GetElementType(): string; override;
+    function GetEffectiveCornerRadius(): Double; override;
+    function IsFocusedForDrawing(): Boolean; override;
     function GetCursor(): Integer; override;
 
+    procedure GotFocus(); override;
     procedure MouseDown(AX, AY: Integer; AButton: Integer); override;
     procedure MouseMove(AX, AY: Integer); override;
     procedure MouseUp(AX, AY: Integer; AButton: Integer); override;
@@ -163,12 +167,27 @@ begin
   inherited KeyDown(AKeySym, AState, AChar);
 end;
 
+procedure TFtUrlSubEntry.GotFocus();
+begin
+  inherited GotFocus();
+  if Assigned(FUrlEntry) then
+  begin
+    FUrlEntry.InvalidateStyle();
+    FUrlEntry.Invalidate();
+  end;
+end;
+
 procedure TFtUrlSubEntry.LostFocus();
 begin
   inherited LostFocus();
   // In a browser Omnibox, losing focus reverts uncommitted text
-  if Assigned(FUrlEntry) and not FUrlEntry.FSwitchingEdit then
-    FUrlEntry.CancelEdit();
+  if Assigned(FUrlEntry) then
+  begin
+    if not FUrlEntry.FSwitchingEdit then
+      FUrlEntry.CancelEdit();
+    FUrlEntry.InvalidateStyle();
+    FUrlEntry.Invalidate();
+  end;
 end;
 
 { TFtUrlEntry }
@@ -176,8 +195,9 @@ end;
 constructor TFtUrlEntry.Create(AParent: TFtWidget; const AInitialUrl: string);
 begin
   inherited Create(AParent);
+  FFocusable := True;
   Height := 36;
-  CornerRadius := 18.0;
+  FCornerRadius := 18.0;
   FPaddingX := 8;
   FPaddingY := 3;
   ScrollBarMode := ftSbModeNone;
@@ -211,6 +231,36 @@ end;
 function TFtUrlEntry.GetElementType(): string;
 begin
   Result := 'urlentry';
+end;
+
+function TFtUrlEntry.IsFocusedForDrawing(): Boolean;
+begin
+  Result := FFocused or FIsEditing or (Assigned(FSubEntry) and FSubEntry.Focused);
+end;
+
+function TFtUrlEntry.GetEffectiveCornerRadius(): Double;
+var
+  st: TFtWidgetStyle;
+  maxRad: Double;
+begin
+  maxRad := Math.Min(Width / 2.0, Height / 2.0);
+  st := GetResolvedStyle();
+  if st.HasBorderRadius then
+    Result := st.BorderRadius
+  else if FCornerRadius >= 0.0 then
+    Result := FCornerRadius
+  else
+    Result := maxRad;
+
+  if Result > maxRad then
+    Result := maxRad;
+end;
+
+procedure TFtUrlEntry.GotFocus();
+begin
+  inherited GotFocus();
+  if not FIsEditing then
+    SetEditing(True);
 end;
 
 procedure TFtUrlEntry.SetUrl(const AValue: string);
@@ -441,6 +491,7 @@ begin
     finally
       FSwitchingEdit := False;
     end;
+    InvalidateStyle();
     Invalidate();
   end;
 end;
@@ -597,12 +648,17 @@ var
   isDark: Boolean;
   chipRad: Double;
   fnt: TFtFont;
+  st: TFtWidgetStyle;
 begin
   if not GetSecurityChipRect(cX, cY, cW, cH) then Exit;
 
   curTheme := FtGetTheme();
   isDark := curTheme.DarkMode;
-  txtCol := curTheme.GetTextColor();
+  st := GetResolvedStyle();
+  if st.HasTextColor then
+    txtCol := MakeRgbColor(st.TextColor.R, st.TextColor.G, st.TextColor.B)
+  else
+    txtCol := curTheme.GetTextColor();
   accentCol := curTheme.GetAccentColor();
   chipRad := Math.Min(6.0, cH / 2.0);
 
@@ -696,10 +752,15 @@ var
   pt: Integer;
   r, ang: Double;
   starPts: array[0..9, 0..1] of Double;
+  st: TFtWidgetStyle;
 begin
   curTheme := FtGetTheme();
   isDark := curTheme.DarkMode;
-  txtCol := curTheme.GetTextColor();
+  st := GetResolvedStyle();
+  if st.HasTextColor then
+    txtCol := MakeRgbColor(st.TextColor.R, st.TextColor.G, st.TextColor.B)
+  else
+    txtCol := curTheme.GetTextColor();
 
   // Bookmark / Star Button (the only button on the right side)
   if GetBookmarkButtonRect(bX, bY, bW, bH) then
@@ -760,11 +821,16 @@ var
   bmX, bmY, bmW, bmH: Double;
   curX, textY: Double;
   schemeW, hostW: Double;
+  st: TFtWidgetStyle;
 begin
   if FIsEditing then Exit;
 
   curTheme := FtGetTheme();
-  txtCol := curTheme.GetTextColor();
+  st := GetResolvedStyle();
+  if st.HasTextColor then
+    txtCol := MakeRgbColor(st.TextColor.R, st.TextColor.G, st.TextColor.B)
+  else
+    txtCol := curTheme.GetTextColor();
   fnt := GetFont();
   if not Assigned(fnt) then fnt := FtGetSystemFont();
 

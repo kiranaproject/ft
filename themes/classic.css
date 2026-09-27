@@ -27,7 +27,7 @@ button:active {
     color: #1a2028;
 }
 
-entry, textarea {
+entry, textarea, pathbar, urlentry {
     background-color: #ffffff;
     color: #262e38;
     border-color: #b0b6c2;
@@ -35,7 +35,11 @@ entry, textarea {
     border-radius: 4px;
 }
 
-entry:focus, textarea:focus {
+urlentry, urlentry.dark {
+    border-radius: 9999px;
+}
+
+entry:focus, textarea:focus, pathbar:focus, urlentry:focus {
     border-color: #38a082;
 }
 
@@ -113,13 +117,13 @@ button.dark:active {
     color: #e6eaf2;
 }
 
-entry.dark, textarea.dark {
+entry.dark, textarea.dark, pathbar.dark, urlentry.dark {
     background-color: #16181d;
     color: #e6eaf2;
     border-color: #3e4654;
 }
 
-entry.dark:focus, textarea.dark:focus {
+entry.dark:focus, textarea.dark:focus, pathbar.dark:focus, urlentry.dark:focus {
     border-color: #38a082;
 }
 

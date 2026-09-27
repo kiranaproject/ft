@@ -27,7 +27,7 @@ button:active {
     color: #fabd2f;
 }
 
-entry, textarea {
+entry, textarea, pathbar, urlentry {
     background-color: #3c3836;
     color: #ebdbb2;
     border-color: #504945;
@@ -36,7 +36,11 @@ entry, textarea {
     transition: border-color 150ms ease;
 }
 
-entry:focus, textarea:focus {
+urlentry, urlentry.dark {
+    border-radius: 9999px;
+}
+
+entry:focus, textarea:focus, pathbar:focus, urlentry:focus {
     border-color: #fabd2f;
 }
 

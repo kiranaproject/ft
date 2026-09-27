@@ -1677,7 +1677,8 @@ begin
     AssertNotNull('Internal entry exists', pb.Entry);
     AssertFalse('Entry hidden in breadcrumbs mode', pb.Entry.Visible);
     AssertEquals('Entry text matches path', '/home/afumi/Documents/projects', pb.Entry.Text);
-    AssertTrue('ShowEditButton default True', pb.ShowEditButton);
+    AssertEquals('PathBar CornerRadius matches entry (5.0)', 5.0, pb.CornerRadius);
+    AssertEquals('Unfocused PathBar pseudo-class is empty', '', pb.GetStatePseudoClass());
 
     // 2. Render in Breadcrumbs Mode
     canvas := TFtCanvasAgg.Create(@buf[0, 0], 400, 40);
@@ -1697,6 +1698,8 @@ begin
     AssertTrue('Entry visible in edit mode', pb.Entry.Visible);
     AssertTrue('Mode change callback triggered', g_TestPathBarModeChanged);
     AssertEquals('New mode in callback', Ord(pbmEdit), g_TestPathBarNewMode);
+    AssertEquals('Edit mode PathBar pseudo-class is :focus', ':focus', pb.GetStatePseudoClass());
+    AssertTrue('Edit mode IsFocusedForDrawing is true', pb.IsFocusedForDrawing());
 
     // 5. Render in Edit Mode
     canvas := TFtCanvasAgg.Create(@buf[0, 0], 400, 40);
@@ -1809,6 +1812,7 @@ begin
     AssertNotNull('Internal SubEntry exists', ue.SubEntry);
     AssertFalse('SubEntry hidden initially', ue.SubEntry.Visible);
     AssertEquals('CornerRadius is 18.0 (pill)', 18.0, ue.CornerRadius);
+    AssertEquals('Unfocused UrlEntry pseudo-class is empty', '', ue.GetStatePseudoClass());
 
     // 2. Render in Display Mode (Domain Contrast)
     canvas := TFtCanvasAgg.Create(@buf[0, 0], 500, 40);
@@ -1827,6 +1831,8 @@ begin
     AssertTrue('IsEditing is True', ue.IsEditing);
     AssertTrue('SubEntry is visible in edit mode', ue.SubEntry.Visible);
     AssertEquals('SubEntry text matches URL', 'https://github.com/floria/floria-toolkit', ue.SubEntry.Text);
+    AssertEquals('Edit mode UrlEntry pseudo-class is :focus', ':focus', ue.GetStatePseudoClass());
+    AssertTrue('Edit mode IsFocusedForDrawing is true', ue.IsFocusedForDrawing());
 
     // 5. Render in Edit Mode
     canvas := TFtCanvasAgg.Create(@buf[0, 0], 500, 40);
@@ -1836,10 +1842,17 @@ begin
       canvas.Free();
     end;
 
-    // 6. Commit edit with AutoPrefixHttps
+    // 6. Adaptive pill shape on height change
+    ue.Height := 44;
+    AssertEquals('CornerRadius adapts to 22.0 pill for 44px height', 22.0, ue.CornerRadius);
+    ue.Height := 36;
+    AssertEquals('CornerRadius reverts to 18.0 pill for 36px height', 18.0, ue.CornerRadius);
+
+    // 7. Commit edit with AutoPrefixHttps
     ue.SubEntry.Text := 'gitlab.com/projects';
     ue.CommitEdit();
     AssertFalse('IsEditing returned to False after commit', ue.IsEditing);
+    AssertEquals('UrlEntry pseudo-class reverts to empty after commit', '', ue.GetStatePseudoClass());
     AssertFalse('SubEntry hidden after commit', ue.SubEntry.Visible);
     AssertEquals('AutoPrefix applied https://', 'https://gitlab.com/projects', ue.Url);
     AssertTrue('OnSubmit callback triggered', g_TestUrlSubmitted);

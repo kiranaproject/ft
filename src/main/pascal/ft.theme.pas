@@ -212,7 +212,7 @@ const
     'windowbutton {' + LineEnding +
     '    transition: all 180ms ease-out;' + LineEnding +
     '}' + LineEnding +
-    'entry, textarea {' + LineEnding +
+    'entry, textarea, pathbar, urlentry {' + LineEnding +
     '    background-color: #ffffff;' + LineEnding +
     '    color: #0f172a;' + LineEnding +
     '    border-color: #cbd5e1;' + LineEnding +
@@ -221,15 +221,18 @@ const
     '    box-shadow: 0;' + LineEnding +
     '    transition: border-color 150ms ease;' + LineEnding +
     '}' + LineEnding +
-    'entry:focus, textarea:focus {' + LineEnding +
+    'urlentry, urlentry.dark {' + LineEnding +
+    '    border-radius: 9999px;' + LineEnding +
+    '}' + LineEnding +
+    'entry:focus, textarea:focus, pathbar:focus, urlentry:focus {' + LineEnding +
     '    border-color: #3b82f6;' + LineEnding +
     '}' + LineEnding +
-    'entry.dark, textarea.dark {' + LineEnding +
+    'entry.dark, textarea.dark, pathbar.dark, urlentry.dark {' + LineEnding +
     '    background-color: #27272a;' + LineEnding +
     '    color: #f4f4f5;' + LineEnding +
     '    border-color: #3f3f46;' + LineEnding +
     '}' + LineEnding +
-    'entry.dark:focus, textarea.dark:focus {' + LineEnding +
+    'entry.dark:focus, textarea.dark:focus, pathbar.dark:focus, urlentry.dark:focus {' + LineEnding +
     '    border-color: #60a5fa;' + LineEnding +
     '}' + LineEnding +
     'switch {' + LineEnding +
