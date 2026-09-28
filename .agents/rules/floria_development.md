@@ -49,7 +49,31 @@ When developing or creating examples, widgets, and language bindings for Floria 
   - Evolution must be strictly additive (new APIs/functions added, never altered or removed).
   - All public entities must remain opaque handles (`FtWidget`, `FtMenuItem`), safeguarding foreign language bindings and downstream binary compatibility across releases.
 
-## 9. Tool Call Schema Invariants
+## 9. Multilingual Typography, Script Endonyms & Geopolitical Neutrality
+- **Native Script Endonyms for Language Samples**:
+  - In multilingual demos, samples, language selectors, and documentation, always identify languages using their authentic native script endonyms alongside their English name:
+    - `Japanese (日本語)`
+    - `Chinese Simp (简体中文)` / `Chinese Trad (繁體中文)`
+    - `Korean (한국어)`
+    - `Thai (ภาษาไทย)`
+    - `Hindi (हिन्दी)`
+    - `Arabic (العربية)`
+    - `Hebrew (עברית)`
+    - `Russian (Русский)`
+    - `Greek (Ελληνικά)`
+  - Never substitute country names (e.g., "Israel", "Thailand"), geographical regions (e.g., "Middle East"), or script names (e.g., "Devanagari") in place of the language's own endonym.
+- **Geopolitical Neutrality & Sensitivity**:
+  - Strictly avoid politically sensitive or controversial state/country names (specifically "Israel", which carries strong political sensitivities and potential controversy in Indonesian and Malaysian developer ecosystems where the author resides).
+  - Always maintain strictly linguistic and cultural nomenclature (e.g., `Hebrew (עברית)` / `Ivrit` for the Hebrew language, `Arabic (العربية)` for Arabic, `Thai (ภาษาไทย)` for Thai).
+- **IME Awareness & Transliterated User Input**:
+  - When the user types an endonym in Latin transliteration (e.g., "Nihongo", "Phasa Thai", "Ivrit"), recognize that the user may lack an input method editor (IME) on their machine to type non-Latin scripts directly.
+  - Always translate and expand the transliterated name into its authentic native script (e.g., "Nihongo" -> `日本語`, "Phasa Thai" -> `ภาษาไทย`, "Ivrit" -> `עברית`, "Al-Arabiyyah" -> `العربية`, "Hindi" -> `हिन्दी`) when generating code, UI text, or documentation.
+- **Label Widget Font Inheritance**:
+  - When a label or header widget includes non-Latin native script characters (CJK, Thai, Devanagari, Arabic, Hebrew), always set the corresponding font family on the label widget itself (`ft_widget_set_font(lbl, font_name)`).
+  - Standard system fonts (like `Ubuntu` or `DejaVu Sans`) often lack glyphs for CJK or complex scripts; assigning the targeted Noto font (`Noto Sans CJK`, `Noto Sans Thai`, `Noto Sans Devanagari`, `Noto Sans Arabic`, `Noto Sans Hebrew`) ensures crisp rendering of both the English label and the native script glyphs without blank or missing character artifacts.
+
+## 10. Tool Call Schema Invariants
 - **`find_by_name` Mandatory `Pattern`**: Always supply `Pattern: "*"` when calling `find_by_name` with `Extensions` or `Type`. The tool schema strictly enforces `Pattern` as a required parameter (`required: ["SearchDirectory", "Pattern", "toolSummary", "toolAction"]`), regardless of documentation text.
+
 
 

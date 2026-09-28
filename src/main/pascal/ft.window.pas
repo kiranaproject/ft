@@ -18,6 +18,15 @@ type
     ftwtUtility = 5
   );
 
+const
+  mrNone = 0;
+  mrOk = 1;
+  mrCancel = 2;
+  mrYes = 3;
+  mrNo = 4;
+
+type
+  TFtWindowResizeEvent = procedure(Sender: TObject; NewWidth, NewHeight: Integer) of object;
   TFtSelectionLostHandler = procedure();
 
   TFtWindow = class(TFtWidget)
@@ -43,6 +52,9 @@ type
     FFullRepaint: Boolean;
     FPixelBuffer: PByte;
     FCanvas: TFtCanvasAgg;
+    FModalResult: Integer;
+    FIsModal: Boolean;
+    FOnResize: TFtWindowResizeEvent;
 
     procedure OnThemeChanged(); virtual;
     procedure OnStyleSheetChanged(); virtual;
@@ -93,6 +105,8 @@ type
     procedure FocusNext(ABackward: Boolean = False); virtual;
     procedure SetActivePopup(APopup: TFtWidget); virtual;
     procedure ClearActivePopup(); virtual;
+    procedure Close(); virtual;
+    function ShowModal(): Integer; virtual;
 
     property Canvas: TFtCanvasAgg read FCanvas;
     property PixelBuffer: PByte read FPixelBuffer;
@@ -117,6 +131,9 @@ type
     property DirtyTop: Integer read FDirtyTop write FDirtyTop;
     property DirtyRight: Integer read FDirtyRight write FDirtyRight;
     property DirtyBottom: Integer read FDirtyBottom write FDirtyBottom;
+    property ModalResult: Integer read FModalResult write FModalResult;
+    property IsModal: Boolean read FIsModal write FIsModal;
+    property OnResize: TFtWindowResizeEvent read FOnResize write FOnResize;
   end;
 
   TFtWindowClass = class of TFtWindow;
@@ -126,6 +143,7 @@ var
   GActiveWindow: TFtWindow = nil;
   GDefaultWindowClass: TFtWindowClass = nil;
   GGrabbedPopup: TFtWidget = nil;
+  GModalWindow: TFtWindow = nil;
   gClipboardText: string = '';
   gPrimarySelectionText: string = '';
   gOnPrimarySelectionLost: TFtSelectionLostHandler = nil;
@@ -145,6 +163,16 @@ procedure FtGrabMenuInput(AWindow: TFtWindow);
 procedure FtUngrabMenuInput(AWindow: TFtWindow);
 
 function FindFocusableWidget(AWidget: TFtWidget): TFtWidget;
+
+{ Backend hook: the X11 backend registers FtBackendProcessEvents here so
+  TFtWindow.ShowModal can call it without a circular unit dependency. }
+type
+  TFtProcessEventsProc = procedure();
+
+procedure FtRegisterProcessEventsProc(AProc: TFtProcessEventsProc);
+
+var
+  GProcessEventsProc: TFtProcessEventsProc = nil;
 
 implementation
 
@@ -193,6 +221,11 @@ begin
   Result := nil;
 end;
 
+procedure FtRegisterProcessEventsProc(AProc: TFtProcessEventsProc);
+begin
+  GProcessEventsProc := AProc;
+end;
+
 { TFtWindow }
 
 constructor TFtWindow.Create(W, H: Integer; const ATitle: string);
@@ -219,6 +252,9 @@ begin
   FNeedsRepaint := True;
   FFullRepaint := True;
   FHasDirtyRect := False;
+  FModalResult := mrNone;
+  FIsModal := False;
+  FOnResize := nil;
 
   if (Width > 0) and (Height > 0) then
   begin
@@ -424,7 +460,41 @@ begin
   FillChar(FPixelBuffer^, Width * Height * 4, 0);
   FCanvas := TFtCanvasAgg.Create(FPixelBuffer, Width, Height);
 
+  if Assigned(FOnResize) then
+    FOnResize(Self, Width, Height);
+
   Invalidate();
+end;
+
+procedure TFtWindow.Close();
+begin
+  Hide();
+  if FIsModal then
+  begin
+    FModalResult := mrCancel;
+    if GModalWindow = Self then
+      GModalWindow := nil;
+  end;
+end;
+
+function TFtWindow.ShowModal(): Integer;
+var
+  prevModal: TFtWindow;
+begin
+  prevModal := GModalWindow;
+  FModalResult := mrNone;
+  FIsModal := True;
+  GModalWindow := Self;
+  Show();
+  while (FModalResult = mrNone) and Visible do
+  begin
+    if Assigned(GProcessEventsProc) then
+      GProcessEventsProc();
+    Sleep(5);
+  end;
+  FIsModal := False;
+  GModalWindow := prevModal;
+  Result := FModalResult;
 end;
 
 procedure TFtWindow.SetPosition(NewX, NewY: Integer);

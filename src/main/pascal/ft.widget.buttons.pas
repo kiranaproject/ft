@@ -75,6 +75,7 @@ type
     function GetElementType(): string; override;
     function GetStatePseudoClass(): string; override;
     function GetEffectiveHint(): string; override;
+    procedure SetEnabled(AValue: Boolean); override;
     procedure Draw(Canvas: TFtCanvasAgg); override;
     procedure Click(); override;
     procedure MouseEnter(); override;
@@ -438,8 +439,24 @@ begin
     Result := '';
 end;
 
+procedure TFtButton.SetEnabled(AValue: Boolean);
+begin
+  if FEnabled <> AValue then
+  begin
+    inherited SetEnabled(AValue);
+    if not FEnabled then
+    begin
+      FState := bsNormal;
+      FIsMouseDown := False;
+    end;
+    InvalidateStyle();
+    Invalidate();
+  end;
+end;
+
 procedure TFtButton.MouseEnter();
 begin
+  if not FEnabled then Exit;
   if FIsMouseDown then
     FState := bsPressed
   else
@@ -452,6 +469,7 @@ end;
 
 procedure TFtButton.MouseLeave();
 begin
+  if not FEnabled then Exit;
   FState := bsNormal;
   InvalidateStyle();
   Invalidate();
@@ -461,6 +479,7 @@ end;
 
 procedure TFtButton.MouseDown(AX, AY: Integer; AButton: Integer);
 begin
+  if not FEnabled then Exit;
   inherited MouseDown(AX, AY, AButton);
   if AButton = 1 then
   begin
@@ -475,6 +494,7 @@ end;
 
 procedure TFtButton.MouseUp(AX, AY: Integer; AButton: Integer);
 begin
+  if not FEnabled then Exit;
   if AButton = 1 then
   begin
     FIsMouseDown := False;
@@ -491,6 +511,7 @@ end;
 
 procedure TFtButton.Click();
 begin
+  if not FEnabled then Exit;
   if FCanToggle then
     SetToggled(not FToggled);
   if Assigned(FOnClick) then
@@ -757,6 +778,7 @@ end;
 
 procedure TFtButton.KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string);
 begin
+  if not FEnabled then Exit;
   inherited KeyDown(AKeySym, AState, AChar);
   if (AKeySym = $20) then // Space
   begin
@@ -775,6 +797,7 @@ end;
 
 procedure TFtButton.KeyUp(AKeySym: Cardinal; AState: Cardinal);
 begin
+  if not FEnabled then Exit;
   inherited KeyUp(AKeySym, AState);
   if (AKeySym = $20) then // Space
   begin

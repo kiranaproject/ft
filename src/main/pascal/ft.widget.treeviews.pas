@@ -69,12 +69,15 @@ type
     function NodeAtPosition(AY: Integer; out InArrow: Boolean): TFtTreeNode;
   protected
     procedure DrawContent(Canvas: TFtCanvasAgg); override;
+    procedure GetRenderArea(out AX, AY, AW, AH, ARadius: Double); override;
+    procedure SetScrollY(AValue: Double); override;
   public
     constructor Create(AParent: TFtWidget); override;
     destructor Destroy(); override;
     function GetElementType(): string; override;
 
     procedure RebuildVisibleNodes();
+    procedure ScrollIntoView(ANode: TFtTreeNode);
     function AddNode(const AText: string; AParentNode: TFtTreeNode = nil): TFtTreeNode;
     procedure Clear();
 
@@ -204,6 +207,8 @@ begin
   FVisibleNodes := TFPList.Create();
   FSelectedNode := nil;
   FHoveredNode := nil;
+  FPaddingX := 4.0;
+  FPaddingY := 6.0;
   FItemHeight := 24.0;
   FIndentWidth := 18.0;
   FFocusable := True;
@@ -289,6 +294,8 @@ begin
   if FSelectedNode <> AValue then
   begin
     FSelectedNode := AValue;
+    if Assigned(FSelectedNode) then
+      ScrollIntoView(FSelectedNode);
     Invalidate();
 
     if Assigned(FOnSelect) then
@@ -298,6 +305,64 @@ begin
   end;
 end;
 
+procedure TFtTreeView.GetRenderArea(out AX, AY, AW, AH, ARadius: Double);
+var
+  bw: Double;
+  st: TFtWidgetStyle;
+  vBarW, hBarH: Double;
+begin
+  vBarW := 0.0;
+  hBarH := 0.0;
+  if Assigned(FVScrollBar) and FVScrollBar.Visible then
+    vBarW := FVScrollBar.Width + 2.0;
+  if Assigned(FHScrollBar) and FHScrollBar.Visible then
+    hBarH := FHScrollBar.Height + 2.0;
+
+  bw := 0.0;
+  if FDrawFrame then
+  begin
+    st := GetResolvedStyle();
+    bw := 1.0;
+    if st.HasBorderWidth then bw := st.BorderWidth;
+  end;
+
+  AX := X + bw;
+  AY := Y + bw;
+  AW := Math.Max(0.0, Width - (bw * 2.0) - vBarW);
+  AH := Math.Max(0.0, Height - (bw * 2.0) - hBarH);
+  ARadius := Math.Max(0.0, GetEffectiveCornerRadius() - bw);
+end;
+
+procedure TFtTreeView.SetScrollY(AValue: Double);
+var
+  maxScroll, viewH: Double;
+begin
+  viewH := Math.Max(0.0, Height - (FPaddingY * 2.0));
+  maxScroll := Math.Max(0.0, FContentHeight - viewH);
+  if AValue > maxScroll then AValue := maxScroll;
+  if AValue < 0.0 then AValue := 0.0;
+  inherited SetScrollY(AValue);
+end;
+
+procedure TFtTreeView.ScrollIntoView(ANode: TFtTreeNode);
+var
+  idx: Integer;
+  nodeTop, nodeBottom, viewH: Double;
+begin
+  if not Assigned(ANode) then Exit;
+  idx := FVisibleNodes.IndexOf(ANode);
+  if idx < 0 then Exit;
+
+  nodeTop := idx * FItemHeight;
+  nodeBottom := nodeTop + FItemHeight;
+  viewH := Math.Max(0.0, Height - (FPaddingY * 2.0));
+
+  if nodeTop < FScrollY then
+    SetScrollY(nodeTop)
+  else if nodeBottom > FScrollY + viewH then
+    SetScrollY(nodeBottom - viewH);
+end;
+
 function TFtTreeView.NodeAtPosition(AY: Integer; out InArrow: Boolean): TFtTreeNode;
 var
   relY: Double;
@@ -305,7 +370,7 @@ var
 begin
   InArrow := False;
   Result := nil;
-  relY := (AY - Y) + FScrollY;
+  relY := (AY - (Y + FPaddingY)) + FScrollY;
   if relY < 0.0 then Exit;
 
   idx := Trunc(relY / FItemHeight);
@@ -320,43 +385,44 @@ var
   i: Integer;
   node: TFtTreeNode;
   nodeY, nodeX: Double;
-  viewTop, viewBottom: Double;
   isSelected, isHovered: Boolean;
   arrowCX, arrowCY: Double;
   textR, textG, textB: Double;
   textStartX, iconW, iconH, iconY: Double;
+  vBarW: Double;
 begin
   theme := FtGetTheme();
   accent := theme.GetAccentColor();
 
-  viewTop := FScrollY;
-  viewBottom := FScrollY + Height;
+  vBarW := 0.0;
+  if Assigned(FVScrollBar) and FVScrollBar.Visible then
+    vBarW := FVScrollBar.Width + 2.0;
 
   for i := 0 to FVisibleNodes.Count - 1 do
   begin
     node := TFtTreeNode(FVisibleNodes[i]);
-    nodeY := Y + (i * FItemHeight) - FScrollY;
+    nodeY := Y + FPaddingY + (i * FItemHeight) - FScrollY;
 
     // Viewport culling
     if (nodeY + FItemHeight < Y) or (nodeY > Y + Height) then
       Continue;
 
-    nodeX := X + 8.0 + (node.Level * FIndentWidth);
+    nodeX := X + FPaddingX + 4.0 + (node.Level * FIndentWidth);
     isSelected := (node = FSelectedNode);
     isHovered := (node = FHoveredNode);
 
     // Row selection background
     if isSelected then
     begin
-      Canvas.DrawRoundedRect(X + 2.0, nodeY + 1.0, Width - 4.0, FItemHeight - 2.0, 4.0, accent.R, accent.G, accent.B, 0.85);
+      Canvas.DrawRoundedRect(X + FPaddingX, nodeY + 1.0, Width - (FPaddingX * 2.0) - vBarW, FItemHeight - 2.0, 4.0, accent.R, accent.G, accent.B, 0.85);
       textR := 1.0; textG := 1.0; textB := 1.0;
     end
     else if isHovered then
     begin
       if theme.DarkMode then
-        Canvas.DrawRoundedRect(X + 2.0, nodeY + 1.0, Width - 4.0, FItemHeight - 2.0, 4.0, 0.25, 0.26, 0.32, 0.6)
+        Canvas.DrawRoundedRect(X + FPaddingX, nodeY + 1.0, Width - (FPaddingX * 2.0) - vBarW, FItemHeight - 2.0, 4.0, 0.25, 0.26, 0.32, 0.6)
       else
-        Canvas.DrawRoundedRect(X + 2.0, nodeY + 1.0, Width - 4.0, FItemHeight - 2.0, 4.0, 0.88, 0.90, 0.94, 0.6);
+        Canvas.DrawRoundedRect(X + FPaddingX, nodeY + 1.0, Width - (FPaddingX * 2.0) - vBarW, FItemHeight - 2.0, 4.0, 0.88, 0.90, 0.94, 0.6);
       if theme.DarkMode then
       begin textR := 0.9; textG := 0.9; textB := 0.9; end
       else
@@ -400,7 +466,7 @@ begin
       textStartX := textStartX + iconW + 4.0;
     end;
 
-    Canvas.DrawTextLeft(textStartX, nodeY + 2.0, Width - (textStartX + 4.0 - X), FItemHeight - 4.0, node.Text, Font, textR, textG, textB);
+    Canvas.DrawTextLeft(textStartX, nodeY + 2.0, Width - (textStartX + FPaddingX - X) - vBarW, FItemHeight - 4.0, node.Text, Font, textR, textG, textB);
   end;
 end;
 
@@ -417,7 +483,7 @@ begin
     node := NodeAtPosition(AY, inArrow);
     if Assigned(node) then
     begin
-      nodeX := X + 8.0 + (node.Level * FIndentWidth);
+      nodeX := X + FPaddingX + 4.0 + (node.Level * FIndentWidth);
       // Check if click was on arrow (within 16px of node start)
       if node.HasChildren() and (AX >= nodeX - 2.0) and (AX <= nodeX + 14.0) then
       begin

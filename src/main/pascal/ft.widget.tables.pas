@@ -40,6 +40,8 @@ type
   TFtTableRowSelectEvent = procedure(Sender: TObject; RowIndex: Integer) of object;
   TFtTableColumnClickEvent = procedure(Sender: TObject; ColumnIndex: Integer) of object;
   TFtTableRowSelectCallback = procedure(Sender: Pointer; RowIndex: Integer; UserData: Pointer); cdecl;
+  TFtTableRowDoubleClickEvent = procedure(Sender: TObject; RowIndex: Integer) of object;
+  TFtTableRowDoubleClickCallback = procedure(Sender: Pointer; RowIndex: Integer; UserData: Pointer); cdecl;
 
   TFtTableDrawHeaderEvent = function(Sender: TObject; Canvas: TFtCanvasAgg; ColumnIndex: Integer;
     AX, AY, AW, AH: Double; ASortOrder: TFtSortOrder): Boolean of object;
@@ -58,14 +60,19 @@ type
     FSelectedRow: Integer;
     FSelAnchorRow: Integer;
     FHoveredRow: Integer;
+    FLastClickTime: QWord;
+    FLastClickRow: Integer;
     FHeaderHeight: Double;
     FRowHeight: Double;
     FShowGridLines: Boolean;
     FZebraStriping: Boolean;
     FMultiSelect: Boolean;
     FOnSelectRow: TFtTableRowSelectEvent;
+    FOnRowDoubleClick: TFtTableRowDoubleClickEvent;
     FOnColumnClick: TFtTableColumnClickEvent;
     FOnSelectRowCb: TFtTableRowSelectCallback;
+    FOnRowDoubleClickCb: TFtTableRowDoubleClickCallback;
+    FOnRowDoubleClickUserData: Pointer;
     FOnDrawHeader: TFtTableDrawHeaderEvent;
     FOnDrawHeaderCb: TFtTableDrawHeaderCallback;
     FOnDrawHeaderUserData: Pointer;
@@ -87,12 +94,17 @@ type
     procedure DrawBackground(Canvas: TFtCanvasAgg); override;
     procedure DrawContent(Canvas: TFtCanvasAgg); override;
     procedure DrawHeader(Canvas: TFtCanvasAgg); virtual;
+    procedure GetRenderArea(out AX, AY, AW, AH, ARadius: Double); override;
+    procedure SetScrollX(AValue: Double); override;
+    procedure SetScrollY(AValue: Double); override;
   public
     constructor Create(AParent: TFtWidget); override;
     destructor Destroy(); override;
     function GetElementType(): string; override;
 
     procedure RecalculateMetrics();
+    procedure UpdateScrollBars(); override;
+    procedure ScrollIntoView(ARow: Integer);
     function AddColumn(const ATitle: string; AWidth: Double = 100.0; AAlign: TFtTextAlign = taLeft): Integer;
     function AddRow(const AValues: array of string): Integer;
     procedure SetCell(ARow, ACol: Integer; const AValue: string);
@@ -103,6 +115,7 @@ type
     function GetCellIcon(ARow, ACol: Integer): TFloriaImage;
     procedure SetOnDrawHeaderCb(ACallback: TFtTableDrawHeaderCallback; AUserData: Pointer);
     procedure SetOnDrawCellCb(ACallback: TFtTableDrawCellCallback; AUserData: Pointer);
+    procedure SetOnRowDoubleClickCb(ACallback: TFtTableRowDoubleClickCallback; AUserData: Pointer);
     procedure DeleteRow(AIndex: Integer);
     procedure ClearRows();
     procedure ClearAll();
@@ -131,8 +144,11 @@ type
     property ShowGridLines: Boolean read FShowGridLines write FShowGridLines;
     property ZebraStriping: Boolean read FZebraStriping write FZebraStriping;
     property OnSelectRow: TFtTableRowSelectEvent read FOnSelectRow write FOnSelectRow;
+    property OnRowDoubleClick: TFtTableRowDoubleClickEvent read FOnRowDoubleClick write FOnRowDoubleClick;
     property OnColumnClick: TFtTableColumnClickEvent read FOnColumnClick write FOnColumnClick;
     property OnSelectRowCb: TFtTableRowSelectCallback read FOnSelectRowCb write FOnSelectRowCb;
+    property OnRowDoubleClickCb: TFtTableRowDoubleClickCallback read FOnRowDoubleClickCb write FOnRowDoubleClickCb;
+    property OnRowDoubleClickUserData: Pointer read FOnRowDoubleClickUserData write FOnRowDoubleClickUserData;
     property OnDrawHeader: TFtTableDrawHeaderEvent read FOnDrawHeader write FOnDrawHeader;
     property OnDrawHeaderCb: TFtTableDrawHeaderCallback read FOnDrawHeaderCb write FOnDrawHeaderCb;
     property OnDrawCell: TFtTableDrawCellEvent read FOnDrawCell write FOnDrawCell;
@@ -214,6 +230,11 @@ begin
   FOnDrawCell := nil;
   FOnDrawCellCb := nil;
   FOnDrawCellUserData := nil;
+  FLastClickTime := 0;
+  FLastClickRow := -1;
+  FOnRowDoubleClick := nil;
+  FOnRowDoubleClickCb := nil;
+  FOnRowDoubleClickUserData := nil;
 end;
 
 destructor TFtTable.Destroy();
@@ -392,6 +413,12 @@ begin
   FOnDrawCellUserData := AUserData;
 end;
 
+procedure TFtTable.SetOnRowDoubleClickCb(ACallback: TFtTableRowDoubleClickCallback; AUserData: Pointer);
+begin
+  FOnRowDoubleClickCb := ACallback;
+  FOnRowDoubleClickUserData := AUserData;
+end;
+
 procedure TFtTable.DeleteRow(AIndex: Integer);
 var
   row: TFtTableRow;
@@ -477,6 +504,9 @@ begin
 
   for i := 0 to FRows.Count - 1 do
     TFtTableRow(FRows[i]).Selected := (i = FSelectedRow);
+
+  if (FSelectedRow >= 0) then
+    ScrollIntoView(FSelectedRow);
 
   Invalidate();
 
@@ -686,6 +716,167 @@ begin
   end;
 end;
 
+procedure TFtTable.GetRenderArea(out AX, AY, AW, AH, ARadius: Double);
+var
+  bw: Double;
+  st: TFtWidgetStyle;
+begin
+  bw := 0.0;
+  if FDrawFrame then
+  begin
+    st := GetResolvedStyle();
+    bw := 1.0;
+    if st.HasBorderWidth then bw := st.BorderWidth;
+  end;
+
+  AX := X + bw;
+  AY := Y + bw;
+  AW := Math.Max(0.0, Width - (bw * 2.0));
+  AH := Math.Max(0.0, Height - (bw * 2.0));
+  ARadius := Math.Max(0.0, GetEffectiveCornerRadius() - bw);
+end;
+
+procedure TFtTable.SetScrollX(AValue: Double);
+var
+  maxScroll, viewW, barThickness: Double;
+begin
+  barThickness := 9.0;
+  viewW := Math.Max(0.0, Width - (FPaddingX * 2.0));
+  if Assigned(FVScrollBar) and FVScrollBar.Visible then
+    viewW := Math.Max(0.0, viewW - barThickness - 2.0);
+  maxScroll := Math.Max(0.0, FContentWidth - viewW);
+  if AValue > maxScroll then AValue := maxScroll;
+  if AValue < 0.0 then AValue := 0.0;
+  inherited SetScrollX(AValue);
+end;
+
+procedure TFtTable.SetScrollY(AValue: Double);
+var
+  maxScroll, viewH: Double;
+begin
+  viewH := Math.Max(0.0, Height - FHeaderHeight - (FPaddingY * 2.0));
+  maxScroll := Math.Max(0.0, FContentHeight - viewH);
+  if AValue > maxScroll then AValue := maxScroll;
+  if AValue < 0.0 then AValue := 0.0;
+  inherited SetScrollY(AValue);
+end;
+
+procedure TFtTable.ScrollIntoView(ARow: Integer);
+var
+  rowTop, rowBottom, viewH: Double;
+begin
+  if (ARow < 0) or (ARow >= FRows.Count) then Exit;
+  rowTop := ARow * FRowHeight;
+  rowBottom := rowTop + FRowHeight;
+  viewH := Math.Max(0.0, Height - FHeaderHeight - (FPaddingY * 2.0));
+
+  if rowTop < FScrollY then
+    SetScrollY(rowTop)
+  else if rowBottom > FScrollY + viewH then
+    SetScrollY(rowBottom - viewH);
+end;
+
+procedure TFtTable.UpdateScrollBars();
+var
+  barThickness: Double;
+  vNeeded, hNeeded: Boolean;
+  viewW, viewH: Double;
+begin
+  if (not Assigned(FVScrollBar)) or (not Assigned(FHScrollBar)) then Exit;
+
+  barThickness := 9.0;
+  viewW := Math.Max(0.0, Width - (FPaddingX * 2.0));
+  viewH := Math.Max(0.0, Height - FHeaderHeight - (FPaddingY * 2.0));
+
+  vNeeded := False;
+  hNeeded := False;
+
+  case FScrollBarMode of
+    ftSbModeNone:
+    begin
+      vNeeded := False;
+      hNeeded := False;
+    end;
+    ftSbModeHorizontalOnly:
+    begin
+      hNeeded := FContentWidth > viewW;
+    end;
+    ftSbModeVerticalOnly:
+    begin
+      vNeeded := FContentHeight > viewH;
+    end;
+    ftSbModeAutoBoth:
+    begin
+      vNeeded := FContentHeight > viewH;
+      if vNeeded then
+        hNeeded := FContentWidth > (viewW - barThickness - 2.0)
+      else
+        hNeeded := FContentWidth > viewW;
+
+      if hNeeded and not vNeeded then
+        vNeeded := FContentHeight > (viewH - barThickness - 2.0);
+    end;
+  end;
+
+  if vNeeded then
+    viewW := Math.Max(0.0, viewW - barThickness - 2.0);
+  if hNeeded then
+    viewH := Math.Max(0.0, viewH - barThickness - 2.0);
+
+  // Clamp scroll positions
+  if FContentHeight > viewH then
+  begin
+    if FScrollY > FContentHeight - viewH then
+      SetScrollY(FContentHeight - viewH);
+  end
+  else
+    SetScrollY(0.0);
+
+  if FContentWidth > viewW then
+  begin
+    if FScrollX > FContentWidth - viewW then
+      SetScrollX(FContentWidth - viewW);
+  end
+  else
+    SetScrollX(0.0);
+
+  // Configure VScrollBar
+  if FVScrollBar.Visible <> vNeeded then
+    FVScrollBar.Visible := vNeeded;
+  if vNeeded then
+  begin
+    FVScrollBar.X := X + Width - Round(barThickness) - 3;
+    FVScrollBar.Y := Round(Y + FHeaderHeight + 2.0);
+    FVScrollBar.Width := Round(barThickness);
+    if hNeeded then
+      FVScrollBar.Height := Round(Height - FHeaderHeight - 4.0 - barThickness - 2.0)
+    else
+      FVScrollBar.Height := Round(Height - FHeaderHeight - 5.0);
+    FVScrollBar.SetRange(0.0, Math.Max(0.0, FContentHeight - viewH), viewH);
+    if Abs(FVScrollBar.Value - FScrollY) > 1e-4 then
+      FVScrollBar.Value := FScrollY;
+    FVScrollBar.Step := FRowHeight;
+  end;
+
+  // Configure HScrollBar
+  if FHScrollBar.Visible <> hNeeded then
+    FHScrollBar.Visible := hNeeded;
+  if hNeeded then
+  begin
+    FHScrollBar.X := X + 3;
+    FHScrollBar.Y := Y + Height - Round(barThickness) - 3;
+    if vNeeded then
+      FHScrollBar.Width := Width - 6 - Round(barThickness) - 2
+    else
+      FHScrollBar.Width := Width - 6;
+    FHScrollBar.Height := Round(barThickness);
+    FHScrollBar.SetRange(0.0, Math.Max(0.0, FContentWidth - viewW), viewW);
+    if Abs(FHScrollBar.Value - FScrollX) > 1e-4 then
+      FHScrollBar.Value := FScrollX;
+    FHScrollBar.Step := 25.0;
+  end;
+end;
+
 procedure TFtTable.DrawBackground(Canvas: TFtCanvasAgg);
 begin
   inherited DrawBackground(Canvas);
@@ -818,10 +1009,15 @@ var
   cellIcon: TFloriaImage;
   handled: Boolean;
   textStartX, textAvailW, iconW, iconH, iconY: Double;
+  vBarW: Double;
 begin
   theme := FtGetTheme();
   accent := theme.GetAccentColor();
   bodyY := Y + FHeaderHeight;
+
+  vBarW := 0.0;
+  if Assigned(FVScrollBar) and FVScrollBar.Visible then
+    vBarW := FVScrollBar.Width + 2.0;
 
   // Clip content to table body area below header
   Canvas.PushClipRect(Round(X + 1.0), Round(bodyY), Round(Width - 2.0), Round(Height - FHeaderHeight - 1.0));
@@ -840,15 +1036,15 @@ begin
 
       if isSelected then
       begin
-        Canvas.DrawRoundedRect(X + 2.0, rowY + 1.0, Width - 4.0, FRowHeight - 2.0, 4.0, accent.R, accent.G, accent.B, 0.85);
+        Canvas.DrawRoundedRect(X + 2.0, rowY + 1.0, Width - 4.0 - vBarW, FRowHeight - 2.0, 4.0, accent.R, accent.G, accent.B, 0.85);
         textR := 1.0; textG := 1.0; textB := 1.0;
       end
       else if isHovered then
       begin
         if theme.DarkMode then
-          Canvas.DrawRoundedRect(X + 2.0, rowY + 1.0, Width - 4.0, FRowHeight - 2.0, 4.0, 0.24, 0.25, 0.32, 0.6)
+          Canvas.DrawRoundedRect(X + 2.0, rowY + 1.0, Width - 4.0 - vBarW, FRowHeight - 2.0, 4.0, 0.24, 0.25, 0.32, 0.6)
         else
-          Canvas.DrawRoundedRect(X + 2.0, rowY + 1.0, Width - 4.0, FRowHeight - 2.0, 4.0, 0.88, 0.90, 0.95, 0.6);
+          Canvas.DrawRoundedRect(X + 2.0, rowY + 1.0, Width - 4.0 - vBarW, FRowHeight - 2.0, 4.0, 0.88, 0.90, 0.95, 0.6);
         if theme.DarkMode then
         begin textR := 0.9; textG := 0.9; textB := 0.9; end
         else
@@ -859,9 +1055,9 @@ begin
         if FZebraStriping and (r mod 2 = 1) then
         begin
           if theme.DarkMode then
-            Canvas.DrawRect(X + 1, Round(rowY), Width - 2, Round(FRowHeight), 0.16, 0.17, 0.22, 0.5)
+            Canvas.DrawRect(X + 1, Round(rowY), Width - 2 - Round(vBarW), Round(FRowHeight), 0.16, 0.17, 0.22, 0.5)
           else
-            Canvas.DrawRect(X + 1, Round(rowY), Width - 2, Round(FRowHeight), 0.95, 0.96, 0.98, 0.6);
+            Canvas.DrawRect(X + 1, Round(rowY), Width - 2 - Round(vBarW), Round(FRowHeight), 0.95, 0.96, 0.98, 0.6);
         end;
 
         if theme.DarkMode then
@@ -937,9 +1133,9 @@ begin
       if FShowGridLines and not isSelected then
       begin
         if theme.DarkMode then
-          Canvas.DrawLine(X + 1, rowY + FRowHeight - 1.0, X + Width - 1, rowY + FRowHeight - 1.0, 1.0, 0.22, 0.23, 0.28, 0.4)
+          Canvas.DrawLine(X + 1, rowY + FRowHeight - 1.0, X + Width - 1 - vBarW, rowY + FRowHeight - 1.0, 1.0, 0.22, 0.23, 0.28, 0.4)
         else
-          Canvas.DrawLine(X + 1, rowY + FRowHeight - 1.0, X + Width - 1, rowY + FRowHeight - 1.0, 1.0, 0.85, 0.86, 0.89, 0.4);
+          Canvas.DrawLine(X + 1, rowY + FRowHeight - 1.0, X + Width - 1 - vBarW, rowY + FRowHeight - 1.0, 1.0, 0.85, 0.86, 0.89, 0.4);
       end;
     end;
   finally
@@ -992,6 +1188,8 @@ var
   mods: Cardinal;
   hasCtrl, hasShift: Boolean;
   minIdx, maxIdx, i: Integer;
+  nowTime: QWord;
+  isDblClick: Boolean;
 begin
   inherited MouseDown(AX, AY, AButton);
 
@@ -1012,6 +1210,14 @@ begin
       rowIdx := RowAtPosition(AY);
       if rowIdx >= 0 then
       begin
+        nowTime := GetTickCount64();
+        isDblClick := (rowIdx = FLastClickRow) and ((nowTime - FLastClickTime) < 400);
+        if isDblClick then
+          FLastClickTime := 0
+        else
+          FLastClickTime := nowTime;
+        FLastClickRow := rowIdx;
+
         mods := FtGetKeyboardModifiers();
         hasCtrl := (mods and FT_KEY_MOD_CONTROL) <> 0;
         hasShift := (mods and FT_KEY_MOD_SHIFT) <> 0;
@@ -1074,6 +1280,14 @@ begin
               FOnSelectRowCb(Pointer(Self), FSelectedRow, FUserData);
           end;
         end;
+
+        if isDblClick then
+        begin
+          if Assigned(FOnRowDoubleClick) then
+            FOnRowDoubleClick(Self, rowIdx);
+          if Assigned(FOnRowDoubleClickCb) then
+            FOnRowDoubleClickCb(Pointer(Self), rowIdx, FOnRowDoubleClickUserData);
+        end;
       end;
     end;
   end;
@@ -1112,6 +1326,16 @@ begin
 
   hasCtrl := (AState and FT_KEY_MOD_CONTROL) <> 0;
   hasShift := (AState and FT_KEY_MOD_SHIFT) <> 0;
+
+  // Return / Enter ($FF0D, $FF8D): Trigger double-click on selected row
+  if ((AKeySym = $FF0D) or (AKeySym = $FF8D)) and (FSelectedRow >= 0) and (FSelectedRow < FRows.Count) then
+  begin
+    if Assigned(FOnRowDoubleClick) then
+      FOnRowDoubleClick(Self, FSelectedRow);
+    if Assigned(FOnRowDoubleClickCb) then
+      FOnRowDoubleClickCb(Pointer(Self), FSelectedRow, FOnRowDoubleClickUserData);
+    Exit;
+  end;
 
   // Ctrl + A: Select All (only when MultiSelect is True)
   if FMultiSelect and hasCtrl and ((AKeySym = $61) or (AKeySym = $41) or (AChar = 'a') or (AChar = 'A')) then

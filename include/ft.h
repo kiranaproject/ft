@@ -740,6 +740,7 @@ int32_t ft_treenode_get_tag(FtTreeNode node);
 typedef void* FtTable;
 
 typedef void (*FtTableRowSelectCallback)(FtTable table, int32_t row_index, void* user_data);
+typedef void (*FtTableRowDoubleClickCallback)(FtTable table, int32_t row_index, void* user_data);
 
 typedef int32_t (*FtTableDrawHeaderCallback)(FtTable table, void* canvas, int32_t col_idx,
                                              double x, double y, double w, double h,
@@ -794,8 +795,36 @@ void ft_table_set_zebra_striping(FtTable table, int32_t enabled);
 int32_t ft_table_get_zebra_striping(FtTable table);
 
 void ft_table_on_select_row(FtTable table, FtTableRowSelectCallback callback, void* user_data);
+void ft_table_on_row_double_click(FtTable table, FtTableRowDoubleClickCallback callback, void* user_data);
 void ft_table_on_draw_header(FtTable table, FtTableDrawHeaderCallback callback, void* user_data);
 void ft_table_on_draw_cell(FtTable table, FtTableDrawCellCallback callback, void* user_data);
+
+/* ─── File Dialogs ─────────────────────────────────────────────────────── */
+
+typedef void* FtFileDialog;
+
+/* Dialog types */
+enum {
+  FT_DIALOG_OPEN_FILE     = 0,
+  FT_DIALOG_SAVE_FILE     = 1,
+  FT_DIALOG_SELECT_FOLDER = 2
+};
+
+/* Handle-based object API */
+FtFileDialog ft_file_dialog_create(int32_t dialog_type);
+void         ft_file_dialog_set_directory(FtFileDialog dlg, const char* dir);
+const char*  ft_file_dialog_get_directory(FtFileDialog dlg);
+void         ft_file_dialog_set_default_name(FtFileDialog dlg, const char* name);
+void         ft_file_dialog_set_filter(FtFileDialog dlg, const char* filter);
+void         ft_file_dialog_set_show_hidden(FtFileDialog dlg, int32_t show_hidden);
+int32_t      ft_file_dialog_show_modal(FtFileDialog dlg);
+const char*  ft_file_dialog_get_selected_path(FtFileDialog dlg);
+void         ft_file_dialog_destroy(FtFileDialog dlg);
+
+/* Convenience one-shot functions (returns selected path or NULL on cancel) */
+const char* ft_dialog_open_file(const char* title, const char* default_dir, const char* filter);
+const char* ft_dialog_save_file(const char* title, const char* default_dir, const char* default_name, const char* filter);
+const char* ft_dialog_select_folder(const char* title, const char* default_dir);
 
 #ifdef __cplusplus
 }

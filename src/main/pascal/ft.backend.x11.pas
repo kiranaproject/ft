@@ -441,6 +441,7 @@ var
   i: Integer;
   nowMs: QWord;
   shouldResize: Boolean;
+  animator: TFtAnimator;
 begin
   while Assigned(GConnection) do
   begin
@@ -465,6 +466,21 @@ begin
     end;
 
     win := FindWindowByHandle(winId);
+
+    { Modal input blocking: when a modal window is active, discard
+      mouse, keyboard, and motion events targeting other windows. }
+    if Assigned(GModalWindow) and Assigned(win) and (win <> GModalWindow) then
+    begin
+      if evType in [XCB_BUTTON_PRESS, XCB_BUTTON_RELEASE,
+                    XCB_KEY_PRESS, XCB_KEY_RELEASE,
+                    XCB_MOTION_NOTIFY,
+                    XCB_ENTER_NOTIFY, XCB_LEAVE_NOTIFY] then
+      begin
+        c_free(ev);
+        Continue;
+      end;
+    end;
+
     if Assigned(win) then
       win.HandleGenericEvent(ev)
     else
@@ -482,6 +498,10 @@ begin
   if Assigned(GWindows) then
   begin
     nowMs := GetTickCount64();
+    animator := FtGetAnimator();
+    if Assigned(animator) and animator.HasActiveAnimations() then
+      animator.Tick(nowMs);
+
     for i := GWindows.Count - 1 downto 0 do
     begin
       if i < GWindows.Count then
@@ -1836,9 +1856,16 @@ begin
       begin
         if FWindowType in [ftwtNormal, ftwtDialog] then
         begin
-          Self.Free();
-          if not HasMainWindows() then
-            GRunning := False;
+          if FIsModal then
+          begin
+            Close();
+          end
+          else
+          begin
+            Self.Free();
+            if not HasMainWindows() then
+              GRunning := False;
+          end;
         end
         else
           Hide();
@@ -2105,6 +2132,7 @@ end;
 
 initialization
   FtRegisterWindowClass(TFtX11Window);
+  FtRegisterProcessEventsProc(@FtBackendProcessEvents);
 
 finalization
   if Assigned(GHintWindow) then

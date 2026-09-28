@@ -35,7 +35,8 @@ uses
   Ft.Widget.TreeViews,
   Ft.Widget.Tables,
   Ft.Widget.PathBars,
-  Ft.Widget.UrlEntries;
+  Ft.Widget.UrlEntries,
+  Ft.Dialogs;
 
 var
   gLastSystemFontDesc: AnsiString;
@@ -4468,6 +4469,15 @@ begin
   tbl.UserData := user_data;
 end;
 
+procedure ft_table_on_row_double_click(table: Pointer; callback: TFtTableRowDoubleClickCallback; user_data: Pointer); cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  tbl.SetOnRowDoubleClickCb(callback, user_data);
+end;
+
 procedure ft_table_set_column_icon(table: Pointer; col_idx: cint32; icon: Pointer); cdecl; export;
 var
   tbl: TFtTable;
@@ -4522,6 +4532,122 @@ begin
   if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
   tbl := TFtTable(table);
   tbl.SetOnDrawCellCb(callback, user_data);
+end;
+
+{ ──────────────────────── File Dialogs ────────────────────────────────── }
+
+{ Handle-based object API }
+
+function ft_file_dialog_create(dialog_type: cint32): Pointer; cdecl; export;
+begin
+  try
+    Result := Pointer(TFtFileDialog.Create(TFtDialogType(dialog_type)));
+  except
+    Result := nil;
+  end;
+end;
+
+procedure ft_file_dialog_set_directory(dlg: Pointer; dir: PChar); cdecl; export;
+begin
+  if Assigned(dlg) and (TObject(dlg) is TFtFileDialog) then
+    TFtFileDialog(dlg).Directory := string(dir);
+end;
+
+function ft_file_dialog_get_directory(dlg: Pointer): PChar; cdecl; export;
+begin
+  if Assigned(dlg) and (TObject(dlg) is TFtFileDialog) then
+  begin
+    gLastPathBarPath := AnsiString(TFtFileDialog(dlg).Directory);
+    Result := PChar(gLastPathBarPath);
+  end
+  else
+    Result := nil;
+end;
+
+procedure ft_file_dialog_set_default_name(dlg: Pointer; name: PChar); cdecl; export;
+begin
+  if Assigned(dlg) and (TObject(dlg) is TFtFileDialog) then
+    TFtFileDialog(dlg).DefaultName := string(name);
+end;
+
+procedure ft_file_dialog_set_filter(dlg: Pointer; filter: PChar); cdecl; export;
+begin
+  if Assigned(dlg) and (TObject(dlg) is TFtFileDialog) then
+    TFtFileDialog(dlg).Filter := string(filter);
+end;
+
+procedure ft_file_dialog_set_show_hidden(dlg: Pointer; show_hidden: cint32); cdecl; export;
+begin
+  if Assigned(dlg) and (TObject(dlg) is TFtFileDialog) then
+    TFtFileDialog(dlg).ShowHiddenFiles := (show_hidden <> 0);
+end;
+
+function ft_file_dialog_show_modal(dlg: Pointer): cint32; cdecl; export;
+begin
+  Result := 0;
+  if Assigned(dlg) and (TObject(dlg) is TFtFileDialog) then
+  begin
+    if TFtFileDialog(dlg).Execute() then
+      Result := 1;
+  end;
+end;
+
+function ft_file_dialog_get_selected_path(dlg: Pointer): PChar; cdecl; export;
+begin
+  if Assigned(dlg) and (TObject(dlg) is TFtFileDialog) then
+  begin
+    gLastPathBarPath := AnsiString(TFtFileDialog(dlg).SelectedPath);
+    Result := PChar(gLastPathBarPath);
+  end
+  else
+    Result := nil;
+end;
+
+procedure ft_file_dialog_destroy(dlg: Pointer); cdecl; export;
+begin
+  if Assigned(dlg) and (TObject(dlg) is TFtFileDialog) then
+    TFtFileDialog(dlg).Free();
+end;
+
+{ Convenience one-shot functions }
+
+function ft_dialog_open_file(title: PChar; default_dir: PChar; filter: PChar): PChar; cdecl; export;
+var
+  res: string;
+begin
+  try
+    res := FtDialogOpenFile(string(title), string(default_dir), string(filter));
+    gLastPathBarPath := AnsiString(res);
+    Result := PChar(gLastPathBarPath);
+  except
+    Result := nil;
+  end;
+end;
+
+function ft_dialog_save_file(title: PChar; default_dir: PChar; default_name: PChar; filter: PChar): PChar; cdecl; export;
+var
+  res: string;
+begin
+  try
+    res := FtDialogSaveFile(string(title), string(default_dir), string(default_name), string(filter));
+    gLastPathBarPath := AnsiString(res);
+    Result := PChar(gLastPathBarPath);
+  except
+    Result := nil;
+  end;
+end;
+
+function ft_dialog_select_folder(title: PChar; default_dir: PChar): PChar; cdecl; export;
+var
+  res: string;
+begin
+  try
+    res := FtDialogSelectFolder(string(title), string(default_dir));
+    gLastPathBarPath := AnsiString(res);
+    Result := PChar(gLastPathBarPath);
+  except
+    Result := nil;
+  end;
 end;
 
 exports
@@ -4984,6 +5110,7 @@ exports
   ft_table_set_zebra_striping,
   ft_table_get_zebra_striping,
   ft_table_on_select_row,
+  ft_table_on_row_double_click,
   ft_table_on_draw_header,
   ft_table_on_draw_cell,
 
@@ -5027,7 +5154,21 @@ exports
   ft_url_entry_on_security_click,
   ft_url_entry_on_bookmark_click,
   ft_url_entry_on_action_click,
-  ft_url_entry_get_entry;
+  ft_url_entry_get_entry,
+
+  // File Dialogs
+  ft_file_dialog_create,
+  ft_file_dialog_set_directory,
+  ft_file_dialog_get_directory,
+  ft_file_dialog_set_default_name,
+  ft_file_dialog_set_filter,
+  ft_file_dialog_set_show_hidden,
+  ft_file_dialog_show_modal,
+  ft_file_dialog_get_selected_path,
+  ft_file_dialog_destroy,
+  ft_dialog_open_file,
+  ft_dialog_save_file,
+  ft_dialog_select_folder;
 
 begin
 end.

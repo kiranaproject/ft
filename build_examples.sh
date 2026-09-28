@@ -34,6 +34,7 @@ eval gcc $CFLAGS examples/c/squircle_button.c $LDFLAGS -o target/example_c_squir
 eval gcc $CFLAGS examples/c/button_icons.c $LDFLAGS -o target/example_c_button_icons
 eval gcc $CFLAGS examples/c/pathbar.c $LDFLAGS -o target/example_c_pathbar
 eval gcc $CFLAGS examples/c/url_entry.c $LDFLAGS -o target/example_c_url_entry
+eval gcc $CFLAGS examples/c/file_dialog.c $LDFLAGS -o target/example_c_file_dialog
 
 echo "[INFO] Successfully built all C examples in target/:"
 ls -lh target/example_c_*
