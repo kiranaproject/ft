@@ -314,3 +314,10 @@ Unlike viral copyleft licenses (such as GPL) or restrictive library licenses (su
 - **Keep Your Application Proprietary or Open Source**: The MPL 2.0 explicitly treats your application code as a "Larger Work". You are **not required** to release or open-source your own application code, business logic, or proprietary assets.
 - **File-Level Copyleft**: The copyleft requirements apply solely to the source files of Floria Toolkit itself. If you modify any existing Floria Toolkit source files (`src/main/pascal/*`), you must make those modified Floria source files available under the MPL 2.0. Any new, separate files you author for your application remain entirely under your own license terms.
 - **Commercial & Proprietary Friendly**: Floria Toolkit is fully suited for commercial products, closed-source enterprise software, indie games, open-source projects, and desktop environments alike.
+
+### Support This Project
+
+If you find this project useful and want to support its ongoing development, consider buying me a coffee! Your support helps me dedicate more time to maintaining the project, fixing bugs, and adding new features.
+
+[![Buy Me a Coffee](https://ko-fi.com)](https://ko-fi.com/afumi)
+
