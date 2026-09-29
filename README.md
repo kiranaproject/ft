@@ -319,5 +319,7 @@ Unlike viral copyleft licenses (such as GPL) or restrictive library licenses (su
 
 If you find this project useful and want to support its ongoing development, consider buying me a coffee! Your support helps me dedicate more time to maintaining the project, fixing bugs, and adding new features.
 
-[![Buy Me a Coffee](https://ko-fi.com)](https://ko-fi.com/afumi)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Buy%20Me%20a%20Coffee-F16061?style=for-the-badge&logo=ko-fi&logoColor=white)](https://Ko-fi.com/afumi)
+[![PayPal](https://img.shields.io/badge/PayPal-Donate-00457C?style=for-the-badge&logo=paypal&logoColor=white)](https://paypal.me/afuriza)
+
 
