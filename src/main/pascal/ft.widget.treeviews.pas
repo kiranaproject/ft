@@ -492,7 +492,15 @@ begin
       end
       else
       begin
-        SelectedNode := node;
+        if FSelectedNode = node then
+        begin
+          if Assigned(FOnSelect) then
+            FOnSelect(Self, FSelectedNode);
+          if Assigned(FOnSelectCb) then
+            FOnSelectCb(Pointer(Self), Pointer(FSelectedNode), FUserData);
+        end
+        else
+          SelectedNode := node;
       end;
     end;
   end;

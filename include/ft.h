@@ -55,9 +55,26 @@ void ft_window_set_background_opacity(FtWidget window, double opacity);
 double ft_window_get_background_opacity(FtWidget window);
 void ft_window_set_background_blur(FtWidget window, int32_t blur);
 int32_t ft_window_get_background_blur(FtWidget window);
+int32_t ft_window_show_modal(FtWidget window);
+void ft_window_bring_to_front(FtWidget window);
+
+/* Hardware Acceleration & EGL Backend */
+int32_t ft_egl_is_available(void);
+int32_t ft_backend_enable_egl(int32_t enable);
+int32_t ft_backend_is_egl_enabled(void);
+FtWidget ft_egl_window_create(int32_t width, int32_t height, const char* title);
+int32_t ft_window_is_hardware_accelerated(FtWidget window);
+void ft_window_set_hardware_accelerated(FtWidget window, int32_t accelerated);
+void ft_window_set_swap_interval(FtWidget window, int32_t interval);
+int32_t ft_window_make_current(FtWidget window);
+void ft_window_release_current(FtWidget window);
+typedef void (*FtWindowGLDrawCallback)(FtWidget window, int32_t width, int32_t height, void* user_data);
+void ft_window_on_gl_draw(FtWidget window, FtWindowGLDrawCallback callback, void* user_data);
 
 void ft_widget_show(FtWidget widget);
 void ft_widget_hide(FtWidget widget);
+void ft_widget_invalidate(FtWidget widget);
+void ft_window_repaint(FtWidget window);
 void ft_widget_set_focus(FtWidget widget);
 int32_t ft_widget_has_focus(FtWidget widget);
 void ft_widget_set_focusable(FtWidget widget, int32_t focusable);
@@ -825,6 +842,26 @@ void         ft_file_dialog_destroy(FtFileDialog dlg);
 const char* ft_dialog_open_file(const char* title, const char* default_dir, const char* filter);
 const char* ft_dialog_save_file(const char* title, const char* default_dir, const char* default_name, const char* filter);
 const char* ft_dialog_select_folder(const char* title, const char* default_dir);
+
+/* ─── Icons & Icon Theming ─────────────────────────────────────────────── */
+
+/* Retrieve SVG markup by name. If dark_mode is non-zero, adapts monochrome strokes.
+   Returns NULL if the icon name is not found. */
+const char* ft_icon_get_svg(const char* name, int32_t dark_mode);
+
+/* Render an icon directly to an FtBitmap image with the specified dimensions.
+   Returns NULL on failure or if the icon is not found. */
+FtBitmap    ft_icon_get_bitmap(const char* name, int32_t width, int32_t height, int32_t dark_mode);
+
+/* Register or override an icon with SVG string content.
+   svg_dark can be NULL to enable automatic dark mode monochrome stroke adaptation. */
+void        ft_icon_register(const char* name, const char* svg_light, const char* svg_dark);
+
+/* Check if an icon is registered (returns 1 if found, 0 otherwise) */
+int32_t     ft_icon_has(const char* name);
+
+/* Customize the monochrome stroke palette used for light and dark modes (hex colors, e.g. "#64748b") */
+void        ft_icon_set_monochrome_colors(const char* light_color, const char* dark_color);
 
 #ifdef __cplusplus
 }

@@ -22,3 +22,16 @@
 
 - **`find_by_name` Requires `Pattern`**: In `find_by_name`, the `Pattern` property is strictly required by the tool validator schema (`required: ["SearchDirectory", "Pattern", "toolSummary", "toolAction"]`). Never omit `Pattern`, even when specifying `Extensions` or `Type`. When searching by extension or listing directory contents, always explicitly set `Pattern: "*"`.
 - **Required Metadata**: Every tool call must include both `toolSummary` (2–5 word noun phrase) and `toolAction` (2–5 word verb phrase).
+
+## GUI Test Execution & Process Lifecycles
+
+- **Guaranteed Termination for Subprocesses**: Never issue a bare `wait $PID` when running interactive GUI programs, X11 apps, or modal dialogs in background subshells. Always ensure guaranteed termination:
+  1. Follow interactions/screenshots immediately with `kill -9 $PID 2>/dev/null || true` before issuing `wait $PID 2>/dev/null || true`.
+  2. Or wrap commands in `timeout <N>s`.
+- **Process Pattern Matching (`pkill -f`)**: Standard `pkill <name>` limits process name matching to 15 characters, causing hard failures on longer binary or script names. Always use `pkill -f <pattern>` when terminating test scripts or binaries by name.
+
+## Pascal Widget Unit Naming Invariant
+
+- **Pluralized Widget Filenames**: In `src/main/pascal/`, widget implementation units are strictly pluralized:
+  `ft.widget.buttons.pas`, `ft.widget.containers.pas`, `ft.widget.entries.pas`, `ft.widget.meters.pas`, `ft.widget.pathbars.pas`, `ft.widget.selectors.pas`, `ft.widget.splitters.pas`, `ft.widget.switches.pas`, `ft.widget.tables.pas`, `ft.widget.tabs.pas`, `ft.widget.textareas.pas`, `ft.widget.texts.pas`, `ft.widget.treeviews.pas`, `ft.widget.urlentries.pas`.
+  Never look for or target singular filenames like `ft.widget.treeview.pas` or `ft.widget.splitter.pas`.

@@ -198,6 +198,7 @@ begin
   FFocusable := True;
   Height := 36;
   FCornerRadius := 18.0;
+  FBackdropBlur := 0.0;
   FPaddingX := 8;
   FPaddingY := 3;
   ScrollBarMode := ftSbModeNone;

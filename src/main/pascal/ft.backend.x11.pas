@@ -25,6 +25,8 @@ type
     revents: cshort;
   end;
 
+  Pxcb_map_notify_event_t = ^xcb_map_notify_event_t;
+
 function libc_poll(fds: Pointer; nfds: culong; timeout: cint): cint; cdecl; external 'c' name 'poll';
 
 const
@@ -32,7 +34,7 @@ const
 
 type
   TFtX11Window = class(TFtWindow)
-  private
+  protected
     FConnection: Pxcb_connection_t;
     FWindow: xcb_window_t;
     FGC: xcb_gcontext_t;
@@ -49,7 +51,9 @@ type
     FLastResizeRenderTime: QWord;
     FCurrentCursor: xcb_cursor_t;
 
+    procedure UpdateNetWmState();
     procedure UpdateBlurBehindRegion();
+    procedure PresentPixels(dirtyX, dirtyY, dirtyW, dirtyH: Integer; isPartial: Boolean); virtual;
   public
     function GetScreenWidth(): Integer; override;
     function GetScreenHeight(): Integer; override;
@@ -59,6 +63,8 @@ type
     procedure SetTitle(const ATitle: string); override;
     procedure SetBorderless(ABorderless: Boolean); override;
     procedure SetSkipTaskbar(ASkip: Boolean); override;
+    procedure SetIsModal(AValue: Boolean); override;
+    procedure BringToFront(); override;
     procedure SetWindowType(AType: TFtWindowType); override;
     procedure SetWindowOpacity(AOpacity: Double); override;
     procedure SetBackgroundBlur(AValue: Boolean); override;
@@ -170,6 +176,10 @@ var
   atomNetWmWindowOpacity: xcb_atom_t = 0;
   atomBlurRegionNet: xcb_atom_t = 0;
   atomBlurRegionKde: xcb_atom_t = 0;
+  atomWMTransientFor: xcb_atom_t = 0;
+  atomNetActiveWindow: xcb_atom_t = 0;
+  atomNetWmStateModal: xcb_atom_t = 0;
+  atomNetWmStateAbove: xcb_atom_t = 0;
 
   GHintWindow: TFtHintWindow = nil;
   GHintTargetWidget: TFtWidget = nil;
@@ -210,6 +220,12 @@ begin
   atomNetWmState := InternAtom('_NET_WM_STATE');
   atomNetWmStateSkipTaskbar := InternAtom('_NET_WM_STATE_SKIP_TASKBAR');
   atomNetWmStateSkipPager := InternAtom('_NET_WM_STATE_SKIP_PAGER');
+  atomNetWmStateModal := InternAtom('_NET_WM_STATE_MODAL');
+  atomNetWmStateAbove := InternAtom('_NET_WM_STATE_ABOVE');
+  atomNetActiveWindow := InternAtom('_NET_ACTIVE_WINDOW');
+  atomWMTransientFor := InternAtom('WM_TRANSIENT_FOR');
+  if atomWMTransientFor = 0 then
+    atomWMTransientFor := XCB_ATOM_WM_TRANSIENT_FOR;
   atomNetWmWindowType := InternAtom('_NET_WM_WINDOW_TYPE');
   atomNetWmWindowTypeNormal := InternAtom('_NET_WM_WINDOW_TYPE_NORMAL');
   atomNetWmWindowTypeDialog := InternAtom('_NET_WM_WINDOW_TYPE_DIALOG');
@@ -454,6 +470,7 @@ begin
     case evType of
       XCB_EXPOSE: winId := Pxcb_expose_event_t(ev)^.window;
       XCB_CONFIGURE_NOTIFY: winId := Pxcb_configure_notify_event_t(ev)^.window;
+      XCB_MAP_NOTIFY: winId := Pxcb_map_notify_event_t(ev)^.window;
       XCB_MOTION_NOTIFY: winId := Pxcb_motion_notify_event_t(ev)^.event;
       XCB_ENTER_NOTIFY, XCB_LEAVE_NOTIFY: winId := Pxcb_enter_notify_event_t(ev)^.event;
       XCB_BUTTON_PRESS, XCB_BUTTON_RELEASE: winId := Pxcb_button_press_event_t(ev)^.event;
@@ -476,6 +493,8 @@ begin
                     XCB_MOTION_NOTIFY,
                     XCB_ENTER_NOTIFY, XCB_LEAVE_NOTIFY] then
       begin
+        if evType = XCB_BUTTON_PRESS then
+          GModalWindow.BringToFront();
         c_free(ev);
         Continue;
       end;
@@ -515,8 +534,8 @@ begin
               win.FHasPendingResize := False
             else
             begin
-              shouldResize := ((nowMs - win.FLastConfigureTime) >= 25) or
-                              ((nowMs - win.FLastResizeRenderTime) >= 30);
+              shouldResize := ((nowMs - win.FLastConfigureTime) >= 12) or
+                              ((nowMs - win.FLastResizeRenderTime) >= 16);
               if shouldResize then
               begin
                 win.FHasPendingResize := False;
@@ -568,35 +587,24 @@ begin
   begin
     frameStartMs := GetTickCount64();
 
-    if animator.HasActiveAnimations() then
-      animator.Tick(frameStartMs);
-
     FtBackendProcessEvents();
 
     if animator.HasActiveAnimations() then
     begin
       nowMs := GetTickCount64();
       elapsedMs := Integer(nowMs - frameStartMs);
-      if animator.HasActiveTransitions() or IsAnyWindowResizing(nowMs) then
-      begin
-        if elapsedMs < 16 then
-          Sleep(16 - elapsedMs)
-        else
-          Sleep(1);
-      end
+      if IsAnyWindowResizing(nowMs) then
+        Sleep(1)
+      else if elapsedMs < 16 then
+        Sleep(16 - elapsedMs)
       else
-      begin
-        if elapsedMs < 33 then
-          Sleep(33 - elapsedMs)
-        else
-          Sleep(1);
-      end;
+        Sleep(1);
     end
     else
     begin
       nowMs := GetTickCount64();
       if IsAnyWindowResizing(nowMs) then
-        Sleep(8)
+        Sleep(1)
       else if Assigned(GConnection) then
       begin
         xcb_flush(GConnection);
@@ -709,9 +717,19 @@ var
   valList: xcb_create_window_value_list_t;
 begin
   inherited Create(W, H, ATitle);
+  if (GConnection = nil) and (GetEnvironmentVariable('DISPLAY') <> '') then
+  begin
+    try
+      FtBackendInit();
+    except
+    end;
+  end;
   FConnection := GConnection;
   FScratchBuffer := nil;
   FScratchBufferSize := 0;
+
+  if not Assigned(FConnection) or not Assigned(GScreen) then
+    Exit;
 
   vis32 := FindVisual(GScreen, 32);
   if vis32 <> 0 then
@@ -818,21 +836,135 @@ begin
   xcb_flush(FConnection);
 end;
 
-procedure TFtX11Window.SetSkipTaskbar(ASkip: Boolean);
+procedure TFtX11Window.UpdateNetWmState();
 var
-  atoms: array[0..1] of xcb_atom_t;
+  stateAtoms: array[0..3] of xcb_atom_t;
+  count: Integer;
 begin
-  inherited SetSkipTaskbar(ASkip);
   if (FWindow = 0) or (FConnection = nil) then Exit;
-
-  if ASkip then
+  count := 0;
+  if FSkipTaskbar then
   begin
-    atoms[0] := atomNetWmStateSkipTaskbar;
-    atoms[1] := atomNetWmStateSkipPager;
-    xcb_change_property(FConnection, XCB_PROP_MODE_REPLACE, FWindow, atomNetWmState, XCB_ATOM_ATOM, 32, 2, @atoms[0]);
-  end
+    if atomNetWmStateSkipTaskbar <> 0 then
+    begin
+      stateAtoms[count] := atomNetWmStateSkipTaskbar;
+      Inc(count);
+    end;
+    if atomNetWmStateSkipPager <> 0 then
+    begin
+      stateAtoms[count] := atomNetWmStateSkipPager;
+      Inc(count);
+    end;
+  end;
+  if FIsModal then
+  begin
+    if atomNetWmStateModal <> 0 then
+    begin
+      stateAtoms[count] := atomNetWmStateModal;
+      Inc(count);
+    end;
+    if atomNetWmStateAbove <> 0 then
+    begin
+      stateAtoms[count] := atomNetWmStateAbove;
+      Inc(count);
+    end;
+  end;
+
+  if count > 0 then
+    xcb_change_property(FConnection, XCB_PROP_MODE_REPLACE, FWindow, atomNetWmState, XCB_ATOM_ATOM, 32, count, @stateAtoms[0])
   else
     xcb_delete_property(FConnection, FWindow, atomNetWmState);
+
+  xcb_flush(FConnection);
+end;
+
+procedure TFtX11Window.SetSkipTaskbar(ASkip: Boolean);
+begin
+  inherited SetSkipTaskbar(ASkip);
+  UpdateNetWmState();
+end;
+
+procedure TFtX11Window.SetIsModal(AValue: Boolean);
+begin
+  if FIsModal <> AValue then
+  begin
+    inherited SetIsModal(AValue);
+    UpdateNetWmState();
+  end;
+end;
+
+procedure TFtX11Window.BringToFront();
+var
+  valStack: Cardinal;
+  cm: xcb_client_message_event_t;
+  data32: PCardinal;
+  parentWin: TFtX11Window;
+  parentHandle: xcb_window_t;
+  i: Integer;
+  w: TFtWindow;
+begin
+  inherited BringToFront();
+  if (FWindow = 0) or (FConnection = nil) then Exit;
+
+  if FIsModal or (FWindowType = ftwtDialog) then
+  begin
+    parentWin := nil;
+    if Assigned(GWindows) then
+    begin
+      for i := GWindows.Count - 1 downto 0 do
+      begin
+        w := TFtWindow(GWindows[i]);
+        if (w <> Self) and w.Visible and not w.IsModal and (w is TFtX11Window) then
+        begin
+          parentWin := TFtX11Window(w);
+          Break;
+        end;
+      end;
+      if not Assigned(parentWin) then
+      begin
+        for i := GWindows.Count - 1 downto 0 do
+        begin
+          w := TFtWindow(GWindows[i]);
+          if (w <> Self) and w.Visible and (w is TFtX11Window) then
+          begin
+            parentWin := TFtX11Window(w);
+            Break;
+          end;
+        end;
+      end;
+    end;
+
+    if Assigned(parentWin) and (parentWin.FWindow <> 0) then
+    begin
+      parentHandle := parentWin.FWindow;
+      xcb_change_property(FConnection, XCB_PROP_MODE_REPLACE, FWindow,
+                          atomWMTransientFor, XCB_ATOM_WINDOW, 32, 1, @parentHandle);
+    end;
+
+    UpdateNetWmState();
+  end;
+
+  valStack := XCB_STACK_MODE_ABOVE;
+  xcb_configure_window(FConnection, FWindow, XCB_CONFIG_WINDOW_STACK_MODE, @valStack);
+
+  xcb_set_input_focus(FConnection, XCB_INPUT_FOCUS_POINTER_ROOT, FWindow, XCB_CURRENT_TIME);
+
+  if (atomNetActiveWindow <> 0) and Assigned(GScreen) then
+  begin
+    FillChar(cm, SizeOf(cm), 0);
+    cm.response_type := XCB_CLIENT_MESSAGE;
+    cm.format := 32;
+    cm.window := FWindow;
+    cm.type_ := atomNetActiveWindow;
+    data32 := PCardinal(@cm.data.raw[0]);
+    data32[0] := 1; // 1 = application request
+    data32[1] := XCB_CURRENT_TIME;
+    data32[2] := 0;
+    xcb_send_event(FConnection, 0, GScreen^.root,
+                   XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT or XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY,
+                   PChar(@cm));
+  end;
+
   xcb_flush(FConnection);
 end;
 
@@ -1063,6 +1195,8 @@ begin
     xcb_map_window(FConnection, FWindow);
     FNeedsRepaint := True;
     xcb_flush(FConnection);
+    if FIsModal or (FWindowType in [ftwtDialog, ftwtPopupMenu, ftwtDropdownMenu, ftwtUtility]) then
+      BringToFront();
   end;
 end;
 
@@ -1103,6 +1237,13 @@ begin
   end;
 
   inherited Repaint();
+
+  PresentPixels(dirtyX, dirtyY, dirtyW, dirtyH, isPartial);
+end;
+
+procedure TFtX11Window.PresentPixels(dirtyX, dirtyY, dirtyW, dirtyH: Integer; isPartial: Boolean);
+begin
+  if (FWindow = 0) or not Assigned(FConnection) then Exit;
 
   if isPartial then
   begin
@@ -1534,6 +1675,12 @@ begin
       FLastConfigureTime := GetTickCount64();
     end;
 
+    XCB_MAP_NOTIFY:
+    begin
+      if FIsModal or (FWindowType in [ftwtDialog, ftwtPopupMenu, ftwtDropdownMenu, ftwtUtility]) then
+        BringToFront();
+    end;
+
     XCB_MOTION_NOTIFY:
     begin
       mp := Pxcb_motion_notify_event_t(Event);
@@ -1778,6 +1925,10 @@ begin
       else if (keysym = XK_Tab) or (keysym = XK_ISO_Left_Tab) then
       begin
         FocusNext((keysym = XK_ISO_Left_Tab) or ((kp^.state and 1) <> 0));
+      end
+      else if (keysym = XK_Escape) and (FWindowType = ftwtDialog) and FIsModal then
+      begin
+        Close();
       end
       else if Assigned(FFocusedWidget) then
         FFocusedWidget.KeyDown(keysym, kp^.state, strUtf8);
@@ -2130,9 +2281,15 @@ begin
   Result := GHintDelayMs;
 end;
 
+function X11IsWindowResizing(): Boolean;
+begin
+  Result := IsAnyWindowResizing(GetTickCount64());
+end;
+
 initialization
   FtRegisterWindowClass(TFtX11Window);
   FtRegisterProcessEventsProc(@FtBackendProcessEvents);
+  GIsWindowResizingFunc := @X11IsWindowResizing;
 
 finalization
   if Assigned(GHintWindow) then

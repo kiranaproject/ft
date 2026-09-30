@@ -82,10 +82,12 @@ type
     procedure SetBorderless(ABorderless: Boolean); virtual;
     procedure SetSkipTaskbar(ASkip: Boolean); virtual;
     procedure SetWindowType(AType: TFtWindowType); virtual;
+    procedure SetIsModal(AValue: Boolean); virtual;
     procedure SetWindowOpacity(AOpacity: Double); virtual;
     procedure SetOpacity(AValue: Double); override;
     procedure SetBackgroundOpacity(AValue: Double); virtual;
     procedure SetBackgroundBlur(AValue: Boolean); virtual;
+    procedure BringToFront(); virtual;
     procedure UpdateCursor(); virtual;
     procedure ClaimClipboard(); virtual;
     procedure ClaimPrimarySelection(const AText: string); virtual;
@@ -132,7 +134,7 @@ type
     property DirtyRight: Integer read FDirtyRight write FDirtyRight;
     property DirtyBottom: Integer read FDirtyBottom write FDirtyBottom;
     property ModalResult: Integer read FModalResult write FModalResult;
-    property IsModal: Boolean read FIsModal write FIsModal;
+    property IsModal: Boolean read FIsModal write SetIsModal;
     property OnResize: TFtWindowResizeEvent read FOnResize write FOnResize;
   end;
 
@@ -168,13 +170,24 @@ function FindFocusableWidget(AWidget: TFtWidget): TFtWidget;
   TFtWindow.ShowModal can call it without a circular unit dependency. }
 type
   TFtProcessEventsProc = procedure();
+  TFtIsWindowResizingFunc = function(): Boolean;
 
 procedure FtRegisterProcessEventsProc(AProc: TFtProcessEventsProc);
+function FtIsWindowResizing(): Boolean;
 
 var
   GProcessEventsProc: TFtProcessEventsProc = nil;
+  GIsWindowResizingFunc: TFtIsWindowResizingFunc = nil;
 
 implementation
+
+function FtIsWindowResizing(): Boolean;
+begin
+  if Assigned(GIsWindowResizingFunc) then
+    Result := GIsWindowResizingFunc()
+  else
+    Result := False;
+end;
 
 type
   TFtWindowBroadcaster = class
@@ -200,6 +213,8 @@ procedure TFtWindowBroadcaster.HandleStyleSheetChanged();
 var
   i: Integer;
 begin
+  if Assigned(FtGetTheme()) then
+    FtGetTheme().InvalidateColorCache();
   if Assigned(GWindows) then
   begin
     for i := 0 to GWindows.Count - 1 do
@@ -483,17 +498,22 @@ var
 begin
   prevModal := GModalWindow;
   FModalResult := mrNone;
-  FIsModal := True;
+  SetIsModal(True);
   GModalWindow := Self;
   Show();
+  BringToFront();
   while (FModalResult = mrNone) and Visible do
   begin
     if Assigned(GProcessEventsProc) then
       GProcessEventsProc();
     Sleep(5);
   end;
-  FIsModal := False;
+  SetIsModal(False);
   GModalWindow := prevModal;
+  if Assigned(prevModal) then
+    prevModal.BringToFront()
+  else if Assigned(GActiveWindow) and (GActiveWindow <> Self) then
+    GActiveWindow.BringToFront();
   Result := FModalResult;
 end;
 
@@ -541,6 +561,11 @@ begin
   FWindowType := AType;
 end;
 
+procedure TFtWindow.SetIsModal(AValue: Boolean);
+begin
+  FIsModal := AValue;
+end;
+
 procedure TFtWindow.SetWindowOpacity(AOpacity: Double);
 begin
   if AOpacity < 0.0 then AOpacity := 0.0;
@@ -576,6 +601,11 @@ begin
     FBackgroundBlur := AValue;
     Invalidate();
   end;
+end;
+
+procedure TFtWindow.BringToFront();
+begin
+  GActiveWindow := Self;
 end;
 
 procedure TFtWindow.UpdateCursor();
@@ -618,14 +648,64 @@ begin
 end;
 
 procedure TFtWindow.Invalidate();
+
+  procedure InvalidateAllCaches(AWidget: TFtWidget);
+  var
+    i: Integer;
+  begin
+    if not Assigned(AWidget) then Exit;
+    AWidget.InvalidateBackdropCache();
+    for i := 0 to AWidget.Children.Count - 1 do
+      InvalidateAllCaches(TFtWidget(AWidget.Children[i]));
+  end;
+
 begin
   FFullRepaint := True;
   FNeedsRepaint := True;
+  InvalidateAllCaches(Self);
 end;
 
 procedure TFtWindow.InvalidateRect(AX, AY, AW, AH: Integer);
+
+  procedure CheckBlurredContainers(AWidget: TFtWidget; var x1, y1, x2, y2: Integer; var expanded: Boolean);
+  var
+    i: Integer;
+    w: TFtWidget;
+    bx1, by1, bx2, by2: Integer;
+    intersects, strictlyInside: Boolean;
+  begin
+    if not Assigned(AWidget) or not AWidget.Visible then Exit;
+    if AWidget.HasBackdropBlur() then
+    begin
+      bx1 := AWidget.X - 6;
+      by1 := AWidget.Y - 6;
+      bx2 := AWidget.X + AWidget.Width + 6;
+      by2 := AWidget.Y + AWidget.Height + 6;
+      intersects := (x1 < bx2) and (x2 > bx1) and (y1 < by2) and (y2 > by1);
+      if intersects then
+      begin
+        strictlyInside := (x1 >= AWidget.X - 6) and (y1 >= AWidget.Y - 6) and
+                          (x2 <= AWidget.X + AWidget.Width + 6) and (y2 <= AWidget.Y + AWidget.Height + 6);
+        if not strictlyInside or not AWidget.IsBackdropCacheValid() then
+        begin
+          AWidget.InvalidateBackdropCache();
+          if bx1 < x1 then begin x1 := bx1; expanded := True; end;
+          if by1 < y1 then begin y1 := by1; expanded := True; end;
+          if bx2 > x2 then begin x2 := bx2; expanded := True; end;
+          if by2 > y2 then begin y2 := by2; expanded := True; end;
+        end;
+      end;
+    end;
+    for i := 0 to AWidget.Children.Count - 1 do
+    begin
+      w := TFtWidget(AWidget.Children[i]);
+      CheckBlurredContainers(w, x1, y1, x2, y2, expanded);
+    end;
+  end;
+
 var
   cx1, cy1, cx2, cy2: Integer;
+  expanded: Boolean;
 begin
   if not Visible or (Width <= 0) or (Height <= 0) then Exit;
   if (AW <= 0) or (AH <= 0) then Exit;
@@ -661,6 +741,16 @@ begin
     if cx2 > FDirtyRight then FDirtyRight := cx2;
     if cy2 > FDirtyBottom then FDirtyBottom := cy2;
   end;
+
+  repeat
+    expanded := False;
+    CheckBlurredContainers(Self, FDirtyLeft, FDirtyTop, FDirtyRight, FDirtyBottom, expanded);
+  until not expanded;
+
+  if FDirtyLeft < 0 then FDirtyLeft := 0;
+  if FDirtyTop < 0 then FDirtyTop := 0;
+  if FDirtyRight > Width then FDirtyRight := Width;
+  if FDirtyBottom > Height then FDirtyBottom := Height;
 
   FNeedsRepaint := True;
 end;

@@ -11,7 +11,7 @@ uses
   Ft.Widget, Ft.Widget.Buttons, Ft.Widget.Entries, Ft.Widget.Texts,
   Ft.Widget.Containers, Ft.Widget.Splitters, Ft.Widget.TreeViews,
   Ft.Widget.Tables, Ft.Widget.Selectors, Ft.Widget.PathBars,
-  Ft.Window, Ft.Theme;
+  Ft.Window, Ft.Theme, Ft.Icons;
 
 type
   TFtDialogType = (
@@ -86,8 +86,10 @@ type
     procedure GoUp();
     procedure CommitSelection();
     procedure UpdateNavButtons();
+    procedure UpdateToolbarIcons();
     procedure UpdateLayout();
     procedure OnWindowResize(Sender: TObject; NewWidth, NewHeight: Integer);
+    procedure HandleSplitterChange(Sender: TObject; Position: Double);
 
     { Callbacks - static cdecl wrappers }
     class procedure CbBtnBack(Sender: Pointer; UserData: Pointer); cdecl; static;
@@ -100,6 +102,7 @@ type
     class procedure CbFileSelect(Sender: Pointer; RowIndex: Integer; UserData: Pointer); cdecl; static;
     class procedure CbBtnAction(Sender: Pointer; UserData: Pointer); cdecl; static;
     class procedure CbBtnCancel(Sender: Pointer; UserData: Pointer); cdecl; static;
+    class procedure CbEntrySubmit(Sender: Pointer; Text: PChar; UserData: Pointer); cdecl; static;
     procedure HandleColumnClick(Sender: TObject; ColumnIndex: Integer);
     procedure HandleFileDoubleClick(Sender: TObject; RowIndex: Integer);
   public
@@ -178,112 +181,51 @@ end;
 
 { ───────────────────────────── SVG Icons ────────────────────────────────── }
 
+function GetNavBackSvg(ADark: Boolean): string;
+begin
+  Result := FtGetIconSvg('nav-back', ADark);
+end;
+
+function GetNavForwardSvg(ADark: Boolean): string;
+begin
+  Result := FtGetIconSvg('nav-forward', ADark);
+end;
+
+function GetNavUpSvg(ADark: Boolean): string;
+begin
+  Result := FtGetIconSvg('nav-up', ADark);
+end;
+
+function GetNewFolderSvg(ADark: Boolean): string;
+begin
+  Result := FtGetIconSvg('new-folder', ADark);
+end;
+
+function GetHiddenSvg(ADark: Boolean): string;
+begin
+  Result := FtGetIconSvg('hidden', ADark);
+end;
+
 const
-  SVG_NAV_BACK =
-    '<svg viewBox="0 0 16 16" width="16" height="16">' +
-    '<path d="M 10 3 L 5 8 L 10 13" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
-    '</svg>';
+  SVG_NAV_BACK        = FT_ICON_NAV_BACK;
+  SVG_NAV_FORWARD     = FT_ICON_NAV_FORWARD;
+  SVG_NAV_UP          = FT_ICON_NAV_UP;
+  SVG_NEW_FOLDER      = FT_ICON_NEW_FOLDER;
+  SVG_HIDDEN          = FT_ICON_HIDDEN;
 
-  SVG_NAV_FORWARD =
-    '<svg viewBox="0 0 16 16" width="16" height="16">' +
-    '<path d="M 6 3 L 11 8 L 6 13" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
-    '</svg>';
+  SVG_FOLDER          = FT_ICON_FOLDER;
+  SVG_FILE            = FT_ICON_FILE;
+  SVG_FILE_IMAGE      = FT_ICON_FILE_IMAGE;
+  SVG_FILE_CODE       = FT_ICON_FILE_CODE;
+  SVG_FILE_ARCHIVE    = FT_ICON_FILE_ARCHIVE;
 
-  SVG_NAV_UP =
-    '<svg viewBox="0 0 16 16" width="16" height="16">' +
-    '<path d="M 3 10 L 8 5 L 13 10" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
-    '</svg>';
-
-  SVG_NEW_FOLDER =
-    '<svg viewBox="0 0 16 16" width="16" height="16">' +
-    '<path d="M 1 3.5 C 1 2.7 1.7 2 2.5 2 L 6 2 L 7.5 3.5 L 13.5 3.5 C 14.3 3.5 15 4.2 15 5 L 15 12.5 C 15 13.3 14.3 14 13.5 14 L 2.5 14 C 1.7 14 1 13.3 1 12.5 Z" fill="#eab308"/>' +
-    '<path d="M 8 7 L 8 11 M 6 9 L 10 9" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round"/>' +
-    '</svg>';
-
-  SVG_HIDDEN =
-    '<svg viewBox="0 0 16 16" width="16" height="16">' +
-    '<path d="M 1 8 C 3 4 5.5 2.5 8 2.5 C 10.5 2.5 13 4 15 8 C 13 12 10.5 13.5 8 13.5 C 5.5 13.5 3 12 1 8 Z" fill="none" stroke="#64748b" stroke-width="1.5"/>' +
-    '<circle cx="8" cy="8" r="2.5" fill="#64748b"/>' +
-    '</svg>';
-
-  SVG_FOLDER =
-    '<svg viewBox="0 0 16 16" width="16" height="16">' +
-    '<path d="M 1 3.5 C 1 2.7 1.7 2 2.5 2 L 6 2 L 7.5 3.5 L 13.5 3.5 C 14.3 3.5 15 4.2 15 5 L 15 12.5 C 15 13.3 14.3 14 13.5 14 L 2.5 14 C 1.7 14 1 13.3 1 12.5 Z" fill="#eab308"/>' +
-    '</svg>';
-
-  SVG_FILE =
-    '<svg viewBox="0 0 16 16" width="16" height="16">' +
-    '<path d="M 3 1.5 C 3 1.2 3.2 1 3.5 1 L 9.5 1 L 13 4.5 L 13 14.5 C 13 14.8 12.8 15 12.5 15 L 3.5 15 C 3.2 15 3 14.8 3 14.5 Z" fill="#94a3b8"/>' +
-    '<path d="M 9.5 1 L 9.5 4.5 L 13 4.5 Z" fill="#cbd5e1"/>' +
-    '</svg>';
-
-  SVG_FILE_IMAGE =
-    '<svg viewBox="0 0 16 16" width="16" height="16">' +
-    '<path d="M 3 1.5 C 3 1.2 3.2 1 3.5 1 L 9.5 1 L 13 4.5 L 13 14.5 C 13 14.8 12.8 15 12.5 15 L 3.5 15 C 3.2 15 3 14.8 3 14.5 Z" fill="#38bdf8"/>' +
-    '<path d="M 9.5 1 L 9.5 4.5 L 13 4.5 Z" fill="#bae6fd"/>' +
-    '<circle cx="5.5" cy="6.5" r="1.2" fill="#ffffff"/>' +
-    '<path d="M 4 12 L 6.5 8.5 L 8.5 10.5 L 10.5 7.5 L 12 12 Z" fill="#ffffff"/>' +
-    '</svg>';
-
-  SVG_FILE_CODE =
-    '<svg viewBox="0 0 16 16" width="16" height="16">' +
-    '<path d="M 3 1.5 C 3 1.2 3.2 1 3.5 1 L 9.5 1 L 13 4.5 L 13 14.5 C 13 14.8 12.8 15 12.5 15 L 3.5 15 C 3.2 15 3 14.8 3 14.5 Z" fill="#6366f1"/>' +
-    '<path d="M 9.5 1 L 9.5 4.5 L 13 4.5 Z" fill="#c7d2fe"/>' +
-    '<path d="M 6 8 L 4.5 9.5 L 6 11 M 10 8 L 11.5 9.5 L 10 11" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round" fill="none"/>' +
-    '</svg>';
-
-  SVG_FILE_ARCHIVE =
-    '<svg viewBox="0 0 16 16" width="16" height="16">' +
-    '<path d="M 3 1.5 C 3 1.2 3.2 1 3.5 1 L 9.5 1 L 13 4.5 L 13 14.5 C 13 14.8 12.8 15 12.5 15 L 3.5 15 C 3.2 15 3 14.8 3 14.5 Z" fill="#f97316"/>' +
-    '<path d="M 9.5 1 L 9.5 4.5 L 13 4.5 Z" fill="#fed7aa"/>' +
-    '<rect x="7" y="6" width="2" height="1" fill="#ffffff"/>' +
-    '<rect x="7" y="8" width="2" height="1" fill="#ffffff"/>' +
-    '<rect x="6.5" y="10" width="3" height="3" rx="0.5" fill="#ffffff"/>' +
-    '</svg>';
-
-  SVG_PLACE_HOME =
-    '<svg viewBox="0 0 16 16" width="16" height="16">' +
-    '<path d="M 2 7 L 8 2 L 14 7 L 14 13.5 C 14 13.8 13.8 14 13.5 14 L 9.5 14 L 9.5 9.5 L 6.5 9.5 L 6.5 14 L 2.5 14 C 2.2 14 2 13.8 2 13.5 Z" fill="#3b82f6"/>' +
-    '</svg>';
-
-  SVG_PLACE_DESKTOP =
-    '<svg viewBox="0 0 16 16" width="16" height="16">' +
-    '<rect x="1.5" y="2" width="13" height="9" rx="1" fill="none" stroke="#64748b" stroke-width="1.4"/>' +
-    '<path d="M 5 14 L 11 14 M 8 11 L 8 14" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/>' +
-    '</svg>';
-
-  SVG_PLACE_DOCS =
-    '<svg viewBox="0 0 16 16" width="16" height="16">' +
-    '<path d="M 3 1.5 C 3 1.2 3.2 1 3.5 1 L 9.5 1 L 13 4.5 L 13 14.5 C 13 14.8 12.8 15 12.5 15 L 3.5 15 C 3.2 15 3 14.8 3 14.5 Z" fill="#0ea5e9"/>' +
-    '<path d="M 9.5 1 L 9.5 4.5 L 13 4.5 Z" fill="#bae6fd"/>' +
-    '<path d="M 5.5 7 L 10.5 7 M 5.5 9.5 L 10.5 9.5 M 5.5 12 L 9 12" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round"/>' +
-    '</svg>';
-
-  SVG_PLACE_DOWNLOADS =
-    '<svg viewBox="0 0 16 16" width="16" height="16">' +
-    '<circle cx="8" cy="8" r="7" fill="#10b981"/>' +
-    '<path d="M 8 4 L 8 10.5 M 5.5 8.5 L 8 11 L 10.5 8.5" fill="none" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' +
-    '</svg>';
-
-  SVG_PLACE_PICTURES =
-    '<svg viewBox="0 0 16 16" width="16" height="16">' +
-    '<rect x="1.5" y="2" width="13" height="11" rx="1.5" fill="#8b5cf6"/>' +
-    '<circle cx="5" cy="5.5" r="1.2" fill="#ffffff"/>' +
-    '<path d="M 3 11 L 6.5 7 L 9 9.5 L 11 7.5 L 13 10 L 13 12 C 13 12.5 12.5 13 12 13 L 4 13 C 3.5 13 3 12.5 3 12 Z" fill="#ffffff"/>' +
-    '</svg>';
-
-  SVG_PLACE_MUSIC =
-    '<svg viewBox="0 0 16 16" width="16" height="16">' +
-    '<circle cx="8" cy="8" r="7" fill="#ec4899"/>' +
-    '<path d="M 6 10 C 6 10.8 5.3 11.5 4.5 11.5 C 3.7 11.5 3 10.8 3 10 C 3 9.2 3.7 8.5 4.5 8.5 C 4.8 8.5 5 8.6 5.2 8.7 L 5.2 4.5 L 11 3.5 L 11 8 C 11 8.8 10.3 9.5 9.5 9.5 C 8.7 9.5 8 8.8 8 8 C 8 7.2 8.7 6.5 9.5 6.5 C 9.8 6.5 10 6.6 10.2 6.7 L 10.2 4.5 L 6 5.2 Z" fill="#ffffff"/>' +
-    '</svg>';
-
-  SVG_PLACE_DRIVE =
-    '<svg viewBox="0 0 16 16" width="16" height="16">' +
-    '<rect x="1.5" y="4" width="13" height="8" rx="1.5" fill="#64748b"/>' +
-    '<circle cx="11.5" cy="8" r="1" fill="#22c55e"/>' +
-    '<path d="M 3.5 8 L 8.5 8" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round"/>' +
-    '</svg>';
+  SVG_PLACE_HOME      = FT_ICON_OUTLINE_HOME;
+  SVG_PLACE_DESKTOP   = FT_ICON_OUTLINE_DESKTOP;
+  SVG_PLACE_DOCS      = FT_ICON_OUTLINE_DOCUMENTS;
+  SVG_PLACE_DOWNLOADS = FT_ICON_OUTLINE_DOWNLOADS;
+  SVG_PLACE_PICTURES  = FT_ICON_OUTLINE_PICTURES;
+  SVG_PLACE_MUSIC     = FT_ICON_OUTLINE_MUSIC;
+  SVG_PLACE_DRIVE     = FT_ICON_OUTLINE_DRIVE;
 
 function SvgToImage(const ASvg: string; AW, AH: Integer): TFloriaImage;
 var
@@ -314,19 +256,22 @@ var
 { ─────────────────────── TFtFileDialog ─────────────────────────────────── }
 
 procedure TFtFileDialog.InitIcons();
+var
+  isDark: Boolean;
 begin
-  FIconFolder    := SvgToImage(SVG_FOLDER, 16, 16);
-  FIconFile      := SvgToImage(SVG_FILE, 16, 16);
-  FIconImage     := SvgToImage(SVG_FILE_IMAGE, 16, 16);
-  FIconCode      := SvgToImage(SVG_FILE_CODE, 16, 16);
-  FIconArchive   := SvgToImage(SVG_FILE_ARCHIVE, 16, 16);
-  FIconHome      := SvgToImage(SVG_PLACE_HOME, 16, 16);
-  FIconDesktop   := SvgToImage(SVG_PLACE_DESKTOP, 16, 16);
-  FIconDocuments := SvgToImage(SVG_PLACE_DOCS, 16, 16);
-  FIconDownloads := SvgToImage(SVG_PLACE_DOWNLOADS, 16, 16);
-  FIconPictures  := SvgToImage(SVG_PLACE_PICTURES, 16, 16);
-  FIconMusic     := SvgToImage(SVG_PLACE_MUSIC, 16, 16);
-  FIconDrive     := SvgToImage(SVG_PLACE_DRIVE, 16, 16);
+  isDark := FtGetDarkMode();
+  FIconFolder    := FtGetIconBitmap('folder', 16, 16);
+  FIconFile      := FtGetIconBitmap('file', 16, 16);
+  FIconImage     := FtGetIconBitmap('file-image', 16, 16);
+  FIconCode      := FtGetIconBitmap('file-code', 16, 16);
+  FIconArchive   := FtGetIconBitmap('file-archive', 16, 16);
+  FIconHome      := FtGetIconBitmap('outline-home', 16, 16, isDark);
+  FIconDesktop   := FtGetIconBitmap('outline-desktop', 16, 16, isDark);
+  FIconDocuments := FtGetIconBitmap('outline-documents', 16, 16, isDark);
+  FIconDownloads := FtGetIconBitmap('outline-downloads', 16, 16, isDark);
+  FIconPictures  := FtGetIconBitmap('outline-pictures', 16, 16, isDark);
+  FIconMusic     := FtGetIconBitmap('outline-music', 16, 16, isDark);
+  FIconDrive     := FtGetIconBitmap('outline-drive', 16, 16, isDark);
 end;
 
 procedure TFtFileDialog.FreeIcons();
@@ -404,18 +349,35 @@ begin
   FWindow.SetWindowType(ftwtDialog);
   FWindow.OnResize := @OnWindowResize;
 
-  { ── Navigation header ── }
+  { ── Splitter between Sidebar and Right Content ── }
+  splitterX := 180;
+  FSplitter := TFtSplitter.Create(FWindow);
+  FSplitter.Orientation := soHorizontal;
+  FSplitter.SplitterPos := splitterX;
+  FSplitter.SplitterSize := 4.0;
+  FSplitter.MinPane1Size := 130;
+  FSplitter.MinPane2Size := 380;
+  FSplitter.OnPositionChange := @HandleSplitterChange;
+  FSplitter.UserData := Self;
+
+  { ── Places Sidebar (Borderless, smooth left, full height like macOS) ── }
+  FPlacesTree := TFtTreeView.Create(FWindow);
+  FPlacesTree.DrawFrame := False;
+  FPlacesTree.PaddingX := 12;
+  FPlacesTree.PaddingY := 14;
+  FPlacesTree.ItemHeight := 28;
+  FPlacesTree.IndentWidth := 16;
+  FPlacesTree.OnSelectCb := @CbPlaceSelect;
+  FPlacesTree.UserData := Self;
+
+  { ── Right Pane Controls: Navigation header on top of file list ── }
   FBtnBack := TFtButton.Create(FWindow);
   FBtnBack.Caption := '';
   FBtnBack.Hint := 'Go Back';
   FBtnBack.IconPosition := ftbipOnly;
   FBtnBack.IconWidth := 16;
   FBtnBack.IconHeight := 16;
-  FBtnBack.LoadIconFromSVG(SVG_NAV_BACK);
-  FBtnBack.X := MARGIN_X;
-  FBtnBack.Y := PADDING;
-  FBtnBack.Width := 30;
-  FBtnBack.Height := 32;
+  FBtnBack.LoadIconFromSVG(GetNavBackSvg(FtGetDarkMode()));
   FBtnBack.OnClick := @CbBtnBack;
   FBtnBack.UserData := Self;
 
@@ -425,11 +387,7 @@ begin
   FBtnForward.IconPosition := ftbipOnly;
   FBtnForward.IconWidth := 16;
   FBtnForward.IconHeight := 16;
-  FBtnForward.LoadIconFromSVG(SVG_NAV_FORWARD);
-  FBtnForward.X := MARGIN_X + 34;
-  FBtnForward.Y := PADDING;
-  FBtnForward.Width := 30;
-  FBtnForward.Height := 32;
+  FBtnForward.LoadIconFromSVG(GetNavForwardSvg(FtGetDarkMode()));
   FBtnForward.OnClick := @CbBtnForward;
   FBtnForward.UserData := Self;
 
@@ -439,11 +397,7 @@ begin
   FBtnUp.IconPosition := ftbipOnly;
   FBtnUp.IconWidth := 16;
   FBtnUp.IconHeight := 16;
-  FBtnUp.LoadIconFromSVG(SVG_NAV_UP);
-  FBtnUp.X := MARGIN_X + 68;
-  FBtnUp.Y := PADDING;
-  FBtnUp.Width := 30;
-  FBtnUp.Height := 32;
+  FBtnUp.LoadIconFromSVG(GetNavUpSvg(FtGetDarkMode()));
   FBtnUp.OnClick := @CbBtnUp;
   FBtnUp.UserData := Self;
 
@@ -455,11 +409,7 @@ begin
   FBtnHidden.IconPosition := ftbipOnly;
   FBtnHidden.IconWidth := 16;
   FBtnHidden.IconHeight := 16;
-  FBtnHidden.LoadIconFromSVG(SVG_HIDDEN);
-  FBtnHidden.X := DIALOG_W - MARGIN_X - 30;
-  FBtnHidden.Y := PADDING;
-  FBtnHidden.Width := 30;
-  FBtnHidden.Height := 32;
+  FBtnHidden.LoadIconFromSVG(GetHiddenSvg(FtGetDarkMode()));
   FBtnHidden.OnToggle := @CbBtnHidden;
   FBtnHidden.UserData := Self;
 
@@ -469,48 +419,28 @@ begin
   FBtnNewFolder.IconPosition := ftbipOnly;
   FBtnNewFolder.IconWidth := 16;
   FBtnNewFolder.IconHeight := 16;
-  FBtnNewFolder.LoadIconFromSVG(SVG_NEW_FOLDER);
-  FBtnNewFolder.X := DIALOG_W - MARGIN_X - 66;
-  FBtnNewFolder.Y := PADDING;
-  FBtnNewFolder.Width := 30;
-  FBtnNewFolder.Height := 32;
+  FBtnNewFolder.LoadIconFromSVG(GetNewFolderSvg(FtGetDarkMode()));
   FBtnNewFolder.OnClick := @CbBtnNewFolder;
   FBtnNewFolder.UserData := Self;
 
   FPathBar := TFtPathBar.Create(FWindow, FCurrentDir);
-  FPathBar.X := MARGIN_X + 104;
-  FPathBar.Y := PADDING;
-  FPathBar.Width := (FBtnNewFolder.X - 8) - FPathBar.X;
-  FPathBar.Height := 32;
   FPathBar.OnNavigate := @CbPathBarNavigate;
   FPathBar.UserData := Self;
 
-  { ── Content area ── }
-  splitterX := 180;
+  { ── File Name input (also on the right, on top of file list) ── }
+  FLabelName := TFtLabel.Create(FWindow);
+  case FDialogType of
+    fdtSaveFile:     FLabelName.Text := 'Save as:';
+    fdtSelectFolder: FLabelName.Text := 'Folder:';
+    else             FLabelName.Text := 'File name:';
+  end;
 
-  FSplitter := TFtSplitter.Create(FWindow);
-  FSplitter.Orientation := soHorizontal;
-  FSplitter.X := MARGIN_X;
-  FSplitter.Y := HEADER_H;
-  FSplitter.Width := DIALOG_W - (MARGIN_X * 2);
-  FSplitter.Height := DIALOG_H - HEADER_H - BOTTOM_H;
-  FSplitter.SplitterPos := splitterX;
-  FSplitter.MinPane1Size := 120;
-  FSplitter.MinPane2Size := 300;
+  FEntryName := TFtEntry.Create(FWindow, FDefaultName);
+  FEntryName.OnSubmit := @CbEntrySubmit;
+  FEntryName.UserData := Self;
 
-  FPlacesTree := TFtTreeView.Create(FSplitter);
-  FPlacesTree.X := MARGIN_X;
-  FPlacesTree.Y := HEADER_H;
-  FPlacesTree.Width := splitterX;
-  FPlacesTree.Height := DIALOG_H - HEADER_H - BOTTOM_H;
-  FPlacesTree.OnSelectCb := @CbPlaceSelect;
-  FPlacesTree.UserData := Self;
-
-  FFileTable := TFtTable.Create(FSplitter);
-  FFileTable.X := MARGIN_X + splitterX;
-  FFileTable.Y := HEADER_H;
-  FFileTable.Width := FSplitter.Width - splitterX;
-  FFileTable.Height := DIALOG_H - HEADER_H - BOTTOM_H;
+  { ── File Table ── }
+  FFileTable := TFtTable.Create(FWindow);
   FFileTable.ZebraStriping := True;
   FFileTable.ShowGridLines := False;
   FFileTable.OnSelectRowCb := @CbFileSelect;
@@ -519,61 +449,33 @@ begin
   FFileTable.OnRowDoubleClick := @HandleFileDoubleClick;
 
   { Add columns: Name, Size, Modified, Type }
-  FFileTable.AddColumn('Name', 320, taLeft);
+  FFileTable.AddColumn('Name', 300, taLeft);
   FFileTable.AddColumn('Size', 80, taRight);
   FFileTable.AddColumn('Modified', 130, taLeft);
   FFileTable.AddColumn('Type', 80, taLeft);
 
-  FSplitter.SetPanes(FPlacesTree, FFileTable);
-
   { ── Bottom bar ── }
   FBtnCancel := TFtButton.Create(FWindow);
   FBtnCancel.Caption := 'Cancel';
-  FBtnCancel.X := DIALOG_W - MARGIN_X - 80;
-  FBtnCancel.Y := DIALOG_H - BOTTOM_H + 10;
-  FBtnCancel.Width := 80;
-  FBtnCancel.Height := 32;
   FBtnCancel.OnClick := @CbBtnCancel;
   FBtnCancel.UserData := Self;
 
   FBtnAction := TFtButton.Create(FWindow);
   FBtnAction.Caption := actionCaption;
-  FBtnAction.X := FBtnCancel.X - 10 - 84;
-  FBtnAction.Y := DIALOG_H - BOTTOM_H + 10;
-  FBtnAction.Width := 84;
-  FBtnAction.Height := 32;
   FBtnAction.OnClick := @CbBtnAction;
   FBtnAction.UserData := Self;
-
-  FLabelName := TFtLabel.Create(FWindow);
-  FLabelName.Text := 'File name:';
-  FLabelName.X := MARGIN_X;
-  FLabelName.Y := DIALOG_H - BOTTOM_H + 14;
-  FLabelName.Width := 74;
-  FLabelName.Height := 24;
-
-  FEntryName := TFtEntry.Create(FWindow, FDefaultName);
-  FEntryName.X := MARGIN_X + 78;
-  FEntryName.Y := DIALOG_H - BOTTOM_H + 8;
-  FEntryName.Width := (FBtnAction.X - 16) - FEntryName.X;
-  FEntryName.Height := 32;
 
   { Filter row }
   FLabelType := TFtLabel.Create(FWindow);
   FLabelType.Text := 'Files of type:';
-  FLabelType.X := MARGIN_X;
-  FLabelType.Y := DIALOG_H - BOTTOM_H + 38 + 10;
-  FLabelType.Width := 74;
-  FLabelType.Height := 24;
   FLabelType.Visible := False;
 
   FCmbFilter := TFtComboBox.Create(FWindow);
-  FCmbFilter.X := FEntryName.X;
-  FCmbFilter.Y := DIALOG_H - BOTTOM_H + 36 + 8;
-  FCmbFilter.Width := FEntryName.Width;
-  FCmbFilter.Height := 28;
   FCmbFilter.Visible := False;
   FCmbFilter.AddItem('All Files (*.*)');
+
+  { Apply initial positions and layout }
+  UpdateLayout();
 
   { Initialize navigation history with the initial directory }
   FHistory.Clear();
@@ -594,6 +496,7 @@ var
   homeDir: string;
   node: TFtTreeNode;
   buf: PChar;
+  i: Integer;
 
   procedure AddPlace(const ALabel, APath: string; AIcon: TFloriaImage);
   var
@@ -610,6 +513,18 @@ var
   end;
 
 begin
+  if Assigned(FPlacesTree.Root) then
+  begin
+    for i := 0 to FPlacesTree.Root.ChildCount - 1 do
+    begin
+      node := FPlacesTree.Root.Children[i];
+      if Assigned(node) and Assigned(node.Data) then
+      begin
+        FreeMem(node.Data);
+        node.Data := nil;
+      end;
+    end;
+  end;
   FPlacesTree.Clear();
   homeDir := GetEnvironmentVariable('HOME');
   if homeDir = '' then
@@ -623,12 +538,7 @@ begin
   AddPlace('Music',     homeDir + '/Music', FIconMusic);
 
   { Root }
-  node := FPlacesTree.AddNode('/');
-  node.Icon := FIconDrive;
-  GetMem(buf, 2);
-  buf[0] := '/';
-  buf[1] := #0;
-  node.Data := buf;
+  AddPlace('File System', '/', FIconDrive);
 
   FPlacesTree.RebuildVisibleNodes();
 end;
@@ -842,46 +752,144 @@ begin
   FBtnUp.Invalidate();
 end;
 
+procedure TFtFileDialog.UpdateToolbarIcons();
+var
+  isDark: Boolean;
+begin
+  isDark := FtGetDarkMode();
+  if Assigned(FBtnBack) then FBtnBack.LoadIconFromSVG(GetNavBackSvg(isDark));
+  if Assigned(FBtnForward) then FBtnForward.LoadIconFromSVG(GetNavForwardSvg(isDark));
+  if Assigned(FBtnUp) then FBtnUp.LoadIconFromSVG(GetNavUpSvg(isDark));
+  if Assigned(FBtnHidden) then FBtnHidden.LoadIconFromSVG(GetHiddenSvg(isDark));
+  if Assigned(FBtnNewFolder) then FBtnNewFolder.LoadIconFromSVG(GetNewFolderSvg(isDark));
+
+  { Refresh outline place icons with new dark mode palette }
+  FreeIcons();
+  InitIcons();
+  PopulatePlaces();
+  UpdateLayout();
+end;
+
+procedure TFtFileDialog.HandleSplitterChange(Sender: TObject; Position: Double);
+begin
+  UpdateLayout();
+end;
+
 procedure TFtFileDialog.UpdateLayout();
 var
   W, H: Integer;
+  sidebarW: Integer;
+  contentX, contentW: Integer;
+  tableY, tableH: Integer;
+  bottomBarH: Integer;
+  isDark: Boolean;
 begin
   if not Assigned(FWindow) then Exit;
   W := FWindow.Width;
   H := FWindow.Height;
+  isDark := FtGetDarkMode();
 
-  { Header }
-  FBtnBack.X      := MARGIN_X;
-  FBtnForward.X   := MARGIN_X + 34;
-  FBtnUp.X        := MARGIN_X + 68;
-  FPathBar.X      := MARGIN_X + 104;
+  sidebarW := Round(FSplitter.SplitterPos);
+  if sidebarW < 130 then sidebarW := 130;
+  if sidebarW > W - 380 then sidebarW := W - 380;
+
+  { 1. Left Sidebar: borderless, expands to top, smooth left }
+  FPlacesTree.X := 0;
+  FPlacesTree.Y := 0;
+  FPlacesTree.Width := sidebarW;
+  FPlacesTree.Height := H;
+  if isDark then
+    FPlacesTree.InlineStyle := 'background-color: #18181b; border: none; border-radius: 0px;'
+  else
+    FPlacesTree.InlineStyle := 'background-color: #f6f8fa; border: none; border-radius: 0px;';
+
+  { 2. Splitter divider between sidebar and right content }
+  FSplitter.X := 0;
+  FSplitter.Y := 0;
+  FSplitter.Width := W;
+  FSplitter.Height := H;
+
+  { 3. Right Pane Controls (placed on top of the file list) }
+  contentX := sidebarW + Round(FSplitter.SplitterSize) + 8;
+  contentW := W - contentX - MARGIN_X;
+  if contentW < 200 then contentW := 200;
+
+  { Row 1: Navigation & Actions toolbar }
+  FBtnBack.X      := contentX;
+  FBtnBack.Y      := 10;
+  FBtnBack.Width  := 30;
+  FBtnBack.Height := 30;
+
+  FBtnForward.X   := contentX + 34;
+  FBtnForward.Y   := 10;
+  FBtnForward.Width := 30;
+  FBtnForward.Height := 30;
+
+  FBtnUp.X        := contentX + 68;
+  FBtnUp.Y        := 10;
+  FBtnUp.Width    := 30;
+  FBtnUp.Height   := 30;
+
   FBtnHidden.X    := W - MARGIN_X - 30;
-  FBtnNewFolder.X := W - MARGIN_X - 66;
+  FBtnHidden.Y    := 10;
+  FBtnHidden.Width := 30;
+  FBtnHidden.Height := 30;
+
+  FBtnNewFolder.X := FBtnHidden.X - 34;
+  FBtnNewFolder.Y := 10;
+  FBtnNewFolder.Width := 30;
+  FBtnNewFolder.Height := 30;
+
+  FPathBar.X      := contentX + 104;
+  FPathBar.Y      := 10;
   FPathBar.Width  := (FBtnNewFolder.X - 8) - FPathBar.X;
+  FPathBar.Height := 30;
 
-  { Content splitter }
-  FSplitter.X      := MARGIN_X;
-  FSplitter.Width  := W - (MARGIN_X * 2);
-  FSplitter.Height := H - HEADER_H - BOTTOM_H;
-  FSplitter.UpdateLayout();
+  { Row 2: File Name input on top of file list }
+  FLabelName.X    := contentX;
+  FLabelName.Y    := 50;
+  FLabelName.Width := 76;
+  FLabelName.Height := 24;
 
-  { Bottom bar }
-  FBtnCancel.X := W - MARGIN_X - 80;
-  FBtnCancel.Y := H - BOTTOM_H + 10;
-  FBtnAction.X := FBtnCancel.X - 10 - 84;
-  FBtnAction.Y := H - BOTTOM_H + 10;
+  FEntryName.X    := contentX + 80;
+  FEntryName.Y    := 46;
+  FEntryName.Width := (W - MARGIN_X) - FEntryName.X;
+  FEntryName.Height := 30;
 
-  FLabelName.X := MARGIN_X;
-  FLabelName.Y := H - BOTTOM_H + 14;
-  FEntryName.X := MARGIN_X + 78;
-  FEntryName.Y := H - BOTTOM_H + 8;
-  FEntryName.Width := (FBtnAction.X - 16) - FEntryName.X;
+  { Row 3: File Table }
+  tableY := 84;
+  bottomBarH := 46;
+  tableH := (H - bottomBarH) - tableY;
+  if tableH < 100 then tableH := 100;
 
-  FLabelType.X := MARGIN_X;
-  FLabelType.Y := H - BOTTOM_H + 38 + 10;
-  FCmbFilter.X := FEntryName.X;
-  FCmbFilter.Width := FEntryName.Width;
-  FCmbFilter.Y := H - BOTTOM_H + 36 + 8;
+  FFileTable.X      := contentX;
+  FFileTable.Y      := tableY;
+  FFileTable.Width  := contentW;
+  FFileTable.Height := tableH;
+
+  { Row 4: Bottom bar (macOS style: Cancel on left, Primary Action on right) }
+  FBtnAction.X := W - MARGIN_X - 84;
+  FBtnAction.Y := H - bottomBarH + 7;
+  FBtnAction.Width := 84;
+  FBtnAction.Height := 30;
+
+  FBtnCancel.X := FBtnAction.X - 10 - 80;
+  FBtnCancel.Y := H - bottomBarH + 7;
+  FBtnCancel.Width := 80;
+  FBtnCancel.Height := 30;
+
+  if Assigned(FCmbFilter) and FCmbFilter.Visible then
+  begin
+    FLabelType.X := contentX;
+    FLabelType.Y := H - bottomBarH + 11;
+    FLabelType.Width := 76;
+    FLabelType.Height := 24;
+
+    FCmbFilter.X := contentX + 80;
+    FCmbFilter.Y := H - bottomBarH + 7;
+    FCmbFilter.Width := (FBtnCancel.X - 16) - FCmbFilter.X;
+    FCmbFilter.Height := 30;
+  end;
 
   FWindow.Invalidate();
 end;
@@ -1047,13 +1055,21 @@ begin
   dlg.FWindow.Hide();
 end;
 
+class procedure TFtFileDialog.CbEntrySubmit(Sender: Pointer;
+  Text: PChar; UserData: Pointer); cdecl;
+begin
+  TFtFileDialog(UserData).CommitSelection();
+end;
+
 { ── Execute ── }
 
 function TFtFileDialog.Execute(): Boolean;
 var
   prevModal: TFtWindow;
+  lastDarkMode: Boolean;
 begin
   BuildUI();
+  lastDarkMode := FtGetDarkMode();
   FPendingNavigate := '';
   FWindow.SetPosition(
     (FWindow.ScreenWidth  - DIALOG_W) div 2,
@@ -1066,10 +1082,17 @@ begin
   FWindow.IsModal := True;
   GModalWindow := FWindow;
   FWindow.Show();
+  FWindow.BringToFront();
   while (FWindow.ModalResult = mrNone) and FWindow.Visible do
   begin
     if Assigned(GProcessEventsProc) then
       GProcessEventsProc();
+
+    if FtGetDarkMode() <> lastDarkMode then
+    begin
+      lastDarkMode := FtGetDarkMode();
+      UpdateToolbarIcons();
+    end;
 
     { Process deferred directory navigation }
     if FPendingNavigate <> '' then
@@ -1082,6 +1105,10 @@ begin
   end;
   FWindow.IsModal := False;
   GModalWindow := prevModal;
+  if Assigned(prevModal) then
+    prevModal.BringToFront()
+  else if Assigned(GActiveWindow) and (GActiveWindow <> FWindow) then
+    GActiveWindow.BringToFront();
 
   Result := (FWindow.ModalResult = mrOk) and (FSelectedPath <> '');
 end;

@@ -1008,7 +1008,7 @@ begin
 
   // Drop Shadow
   if (st.HasShadow and st.EnableShadow) or (not st.HasShadow and FtGetTheme().EnableShadow) then
-    Canvas.DrawShadow(X, Y, Width, Height, rad, 0.0, 1.5, 3.0, 0.0, 0.0, 0.0, 0.10);
+    Canvas.DrawShadow(X, Y, Width, Height, rad, 0.0, 1.5, 5.0, 0.0, 0.0, 0.0, 0.06);
 
   // Background plate
   Canvas.DrawRoundedRect(X, Y, Width, Height, rad, bgR, bgG, bgB, bgA);

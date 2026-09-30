@@ -24,7 +24,7 @@ static void update_status_label(const char* name) {
 static void on_cycle_click(FtWidget widget, void* user_data) {
     (void)widget;
     (void)user_data;
-    s_theme_step = (s_theme_step + 1) % 7;
+    s_theme_step = (s_theme_step + 1) % 9;
 
     switch (s_theme_step) {
         case 0:
@@ -40,30 +40,42 @@ static void on_cycle_click(FtWidget widget, void* user_data) {
             update_status_label("Default (Dark Mode)");
             break;
         case 2:
+            printf("Switching to Amamizu (雨水 Liquid Glass - Morning Rain)\n");
+            ft_theme_set_dark_mode(0);
+            ft_theme_set("amamizu");
+            update_status_label("Amamizu (雨水 Liquid Glass Light)");
+            break;
+        case 3:
+            printf("Switching to Amamizu (雨水 Liquid Glass - Midnight Rain)\n");
+            ft_theme_set_dark_mode(1);
+            ft_theme_set("amamizu");
+            update_status_label("Amamizu (雨水 Liquid Glass Dark)");
+            break;
+        case 4:
             printf("Switching to Dracula\n");
             ft_theme_set_dark_mode(0);
             ft_theme_set("dracula");
             update_status_label("Dracula");
             break;
-        case 3:
+        case 5:
             printf("Switching to Nord\n");
             ft_theme_set_dark_mode(0);
             ft_theme_set("nord");
             update_status_label("Nord");
             break;
-        case 4:
+        case 6:
             printf("Switching to Gruvbox\n");
             ft_theme_set_dark_mode(0);
             ft_theme_set("gruvbox");
             update_status_label("Gruvbox");
             break;
-        case 5:
+        case 7:
             printf("Switching to GTK2\n");
             ft_theme_set_dark_mode(0);
             ft_theme_set("gtk2");
             update_status_label("GTK2 Classic");
             break;
-        case 6:
+        case 8:
             printf("Switching to Classic\n");
             ft_theme_set_dark_mode(0);
             ft_theme_set("classic");

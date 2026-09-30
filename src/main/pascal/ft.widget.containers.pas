@@ -29,6 +29,10 @@ type
     FOnScroll: TFtScrollCallback;
     FOnScrollEvent: TFtScrollEvent;
     FUserData: Pointer;
+    FBackdropCache: Pointer;
+    FCacheW: Integer;
+    FCacheH: Integer;
+    FCacheValid: Boolean;
 
     procedure SetScrollBarMode(AValue: TFtScrollBarMode); virtual;
     procedure SetScrollX(AValue: Double); virtual;
@@ -48,12 +52,19 @@ type
     procedure DrawChildren(Canvas: TFtCanvasAgg); virtual;
     procedure ShiftChildren(DeltaX, DeltaY: Integer); virtual;
     procedure RecalculateContentSize(); virtual;
+    procedure CaptureBackdropCache(Canvas: TFtCanvasAgg); virtual;
+    procedure RestoreBackdropCache(Canvas: TFtCanvasAgg); virtual;
   public
     constructor Create(AParent: TFtWidget); override;
     destructor Destroy(); override;
     function GetElementType(): string; override;
     function GetStatePseudoClass(): string; override;
     function IsFocusedForDrawing(): Boolean; virtual;
+    function HasBackdropBlur(): Boolean; override;
+    function IsBackdropCacheValid(): Boolean; override;
+    procedure InvalidateBackdropCache(); override;
+    procedure Invalidate(); override;
+    procedure InvalidateStyle(); override;
 
     procedure Draw(Canvas: TFtCanvasAgg); override;
     function HitTest(AX, AY: Integer): TFtWidget; override;
@@ -94,6 +105,9 @@ type
 
 implementation
 
+uses
+  Ft.Window;
+
 { TFtContainer }
 
 constructor TFtContainer.Create(AParent: TFtWidget);
@@ -108,7 +122,7 @@ begin
   FContentWidth := 0.0;
   FContentHeight := 0.0;
   FCornerRadius := -1.0;
-  FBackdropBlur := 0.0;
+  FBackdropBlur := -1.0;
   FPaddingX := 8.0;
   FPaddingY := 6.0;
   FDrawFrame := True;
@@ -117,6 +131,10 @@ begin
   FOnScroll := nil;
   FOnScrollEvent := nil;
   FUserData := nil;
+  FBackdropCache := nil;
+  FCacheW := 0;
+  FCacheH := 0;
+  FCacheValid := False;
 
   Width := 200;
   Height := 150;
@@ -129,6 +147,11 @@ end;
 
 destructor TFtContainer.Destroy();
 begin
+  if Assigned(FBackdropCache) then
+  begin
+    FreeMem(FBackdropCache);
+    FBackdropCache := nil;
+  end;
   FVScrollBar := nil;
   FHScrollBar := nil;
   inherited Destroy();
@@ -152,6 +175,138 @@ begin
     Result := ':focus'
   else
     Result := '';
+end;
+
+function TFtContainer.HasBackdropBlur(): Boolean;
+var
+  st: TFtWidgetStyle;
+begin
+  if FBackdropBlur >= 0.0 then
+    Result := (FBackdropBlur > 0.5)
+  else
+  begin
+    st := GetResolvedStyle();
+    Result := st.HasBackdropBlur and (st.BackdropBlur > 0.5);
+  end;
+end;
+
+function TFtContainer.IsBackdropCacheValid(): Boolean;
+begin
+  Result := FCacheValid and Assigned(FBackdropCache);
+end;
+
+procedure TFtContainer.InvalidateBackdropCache();
+begin
+  FCacheValid := False;
+end;
+
+procedure TFtContainer.Invalidate();
+begin
+  InvalidateBackdropCache();
+  inherited Invalidate();
+end;
+
+procedure TFtContainer.InvalidateStyle();
+begin
+  InvalidateBackdropCache();
+  inherited InvalidateStyle();
+end;
+
+procedure TFtContainer.CaptureBackdropCache(Canvas: TFtCanvasAgg);
+var
+  bufWidth, bufHeight: Integer;
+  srcPixels, dstPixels: PByte;
+  cw, ch, rx, ry, row: Integer;
+  validX1, validX2, copyW, copyBytes: Integer;
+begin
+  if not Assigned(Canvas) or not Assigned(Canvas.Buffer) then Exit;
+  cw := Width;
+  ch := Height;
+  rx := X;
+  ry := Y;
+  bufWidth := Canvas.Width;
+  bufHeight := Canvas.Height;
+
+  if (cw <= 0) or (ch <= 0) then Exit;
+
+  if (FCacheW <> cw) or (FCacheH <> ch) or (FBackdropCache = nil) then
+  begin
+    if Assigned(FBackdropCache) then
+      FreeMem(FBackdropCache);
+    FCacheW := cw;
+    FCacheH := ch;
+    GetMem(FBackdropCache, FCacheW * FCacheH * 4);
+  end;
+
+  srcPixels := PByte(Canvas.Buffer);
+  dstPixels := PByte(FBackdropCache);
+
+  validX1 := Max(0, rx);
+  validX2 := Min(bufWidth, rx + FCacheW);
+  copyW := validX2 - validX1;
+  if copyW <= 0 then Exit;
+  copyBytes := copyW * 4;
+
+  for row := 0 to FCacheH - 1 do
+  begin
+    if (ry + row >= 0) and (ry + row < bufHeight) then
+    begin
+      Move(srcPixels[((ry + row) * bufWidth + validX1) * 4],
+           dstPixels[(row * FCacheW + (validX1 - rx)) * 4],
+           copyBytes);
+    end;
+  end;
+  FCacheValid := True;
+end;
+
+procedure TFtContainer.RestoreBackdropCache(Canvas: TFtCanvasAgg);
+var
+  bufWidth, bufHeight: Integer;
+  srcPixels, dstPixels: PByte;
+  cx, cy, cw, ch: Integer;
+  rx, ry: Integer;
+  startX, startY, copyW, copyH: Integer;
+  row: Integer;
+  copyBytes: Integer;
+begin
+  if not Assigned(Canvas) or not Assigned(Canvas.Buffer) or (FBackdropCache = nil) or not FCacheValid then Exit;
+
+  bufWidth := Canvas.Width;
+  bufHeight := Canvas.Height;
+  rx := X;
+  ry := Y;
+
+  if Canvas.GetClipRect(cx, cy, cw, ch) then
+  begin
+    startX := Max(rx, Max(0, cx));
+    startY := Max(ry, Max(0, cy));
+    copyW := Min(rx + FCacheW, Min(bufWidth, cx + cw)) - startX;
+    copyH := Min(ry + FCacheH, Min(bufHeight, cy + ch)) - startY;
+  end
+  else
+  begin
+    startX := Max(0, rx);
+    startY := Max(0, ry);
+    copyW := Min(bufWidth, rx + FCacheW) - startX;
+    copyH := Min(bufHeight, ry + FCacheH) - startY;
+  end;
+
+  if (copyW <= 0) or (copyH <= 0) then Exit;
+
+  copyBytes := copyW * 4;
+  srcPixels := PByte(FBackdropCache);
+  dstPixels := PByte(Canvas.Buffer);
+
+  for row := 0 to copyH - 1 do
+  begin
+    if (startY + row >= 0) and (startY + row < bufHeight) and
+       (startY + row - ry >= 0) and (startY + row - ry < FCacheH) then
+    begin
+      Move(srcPixels[((startY + row - ry) * FCacheW + (startX - rx)) * 4],
+           dstPixels[((startY + row) * bufWidth + startX) * 4],
+           copyBytes);
+    end;
+  end;
 end;
 
 procedure TFtContainer.SetScrollBarMode(AValue: TFtScrollBarMode);
@@ -579,17 +734,32 @@ begin
         drawShadow := False;
     end;
     if drawShadow then
-      Canvas.DrawShadow(X, Y, Width, Height, rad, 0.0, 2.0, 4.0, 0.0, 0.0, 0.0, 0.12);
+      Canvas.DrawShadow(X, Y, Width, Height, rad, 0.0, 2.0, 6.5, 0.0, 0.0, 0.0, 0.07);
 
     // Backdrop blur (frosted glass / acrylic effect)
     effBlur := 0.0;
-    if FBackdropBlur > 0.5 then
+    if FBackdropBlur >= 0.0 then
       effBlur := FBackdropBlur
     else if st.HasBackdropBlur and (st.BackdropBlur > 0.5) then
       effBlur := st.BackdropBlur;
 
+    if (effBlur > 0.5) and IsBackdropCacheValid() then
+    begin
+      RestoreBackdropCache(Canvas);
+      Exit;
+    end;
+
     if effBlur > 0.5 then
-      Canvas.BlurRoundedRect(X, Y, Width, Height, rad, effBlur);
+    begin
+      if not Canvas.GetClipRect(cx, cy, cw, ch) or
+         ((cx <= X + 2) and (cy <= Y + 2) and (cx + cw >= X + Width - 2) and (cy + ch >= Y + Height - 2)) then
+      begin
+        if FtIsWindowResizing() then
+          Canvas.BlurRoundedRect(X, Y, Width, Height, rad, 6.0)
+        else
+          Canvas.BlurRoundedRect(X, Y, Width, Height, rad, effBlur);
+      end;
+    end;
 
     // Background
     if st.HasBgColor then
@@ -609,6 +779,9 @@ begin
     // Focus ring
     if IsFocusedForDrawing() and FDrawFocusRing then
       FtGetTheme().DrawFocusRing(Canvas, X, Y, Width, Height, rad);
+
+    if (effBlur > 0.5) and not FtIsWindowResizing() then
+      CaptureBackdropCache(Canvas);
   end
   else if FDrawFrame then
     FtGetTheme().DrawInputPlate(Canvas, X, Y, Width, Height, IsFocusedForDrawing() and FDrawFocusRing, GetEffectiveCornerRadius());
@@ -734,6 +907,16 @@ var
   ix1, iy1, ix2, iy2: Integer;
 begin
   if not Visible then Exit;
+
+  if HasBackdropBlur() and not IsBackdropCacheValid() then
+  begin
+    // Frosted glass / backdrop blur requires repainting the entire container
+    // when the cache is not yet valid so the underlying scene is cleanly blurred and cached.
+    if Assigned(Parent) then
+      Parent.InvalidateRect(X - 6, Y - 6, Width + 12, Height + 12);
+    Exit;
+  end;
+
   ix1 := AX;
   iy1 := AY;
   ix2 := AX + AW;

@@ -35,7 +35,19 @@ type
     FShadowOffsetY: Double;
     FShadowBlur: Double;
     FShadowOpacity: Double;
+
+    FColorsCached: Boolean;
+    FCachedAccent: TFtRgbColor;
+    FCachedText: TFtRgbColor;
+    FCachedInputBg: TFtRgbColor;
+    FCachedInputBorder: TFtRgbColor;
+    FCachedScrollbarTrack: TFtRgbColor;
+    FCachedWindowBgR, FCachedWindowBgG, FCachedWindowBgB, FCachedWindowBgA: Double;
+    FCachedWindowBgHasColor: Boolean;
+
+    procedure EnsureColorsCached();
   public
+    procedure InvalidateColorCache();
     constructor Create(const AName: string = 'default'); virtual;
     destructor Destroy(); override;
 
@@ -393,8 +405,9 @@ begin
   FCornerRadius := 6.0;
   FEnableShadow := True;
   FShadowOffsetY := 2.0;
-  FShadowBlur := 4.0;
-  FShadowOpacity := 0.18;
+  FShadowBlur := 6.5;
+  FShadowOpacity := 0.10;
+  InvalidateColorCache();
 end;
 
 destructor TFtTheme.Destroy();
@@ -409,7 +422,11 @@ end;
 
 procedure TFtTheme.SetName(const AValue: string);
 begin
-  FName := AValue;
+  if FName <> AValue then
+  begin
+    FName := AValue;
+    InvalidateColorCache();
+  end;
 end;
 
 function TFtTheme.GetDarkMode(): Boolean;
@@ -419,7 +436,16 @@ end;
 
 procedure TFtTheme.SetDarkMode(AValue: Boolean);
 begin
-  FDarkMode := AValue;
+  if FDarkMode <> AValue then
+  begin
+    FDarkMode := AValue;
+    InvalidateColorCache();
+  end;
+end;
+
+procedure TFtTheme.InvalidateColorCache();
+begin
+  FColorsCached := False;
 end;
 
 function TFtTheme.GetCornerRadius(): Double;
@@ -447,18 +473,83 @@ begin
   Result := True;
 end;
 
-procedure TFtTheme.DrawWindowBackground(Canvas: TFtCanvasAgg; W, H: Integer; AOpacity: Double = 1.0);
+procedure TFtTheme.EnsureColorsCached();
 var
-  st: TFtWidgetStyle;
   cls: string;
-  effA: Double;
+  st: TFtWidgetStyle;
 begin
+  if FColorsCached then Exit;
+
   if FDarkMode then cls := 'dark' else cls := '';
+
+  // Window background
   st := FtGetStyleSheet().ResolveStyle('window', '', cls, '', '');
+  FCachedWindowBgHasColor := st.HasBgColor;
   if st.HasBgColor then
   begin
-    effA := st.BgColor.A * AOpacity;
-    Canvas.DrawRect(0, 0, W, H, st.BgColor.R, st.BgColor.G, st.BgColor.B, effA);
+    FCachedWindowBgR := st.BgColor.R;
+    FCachedWindowBgG := st.BgColor.G;
+    FCachedWindowBgB := st.BgColor.B;
+    FCachedWindowBgA := st.BgColor.A;
+  end;
+
+  // Accent
+  st := FtGetStyleSheet().ResolveStyle('switch', '', cls, ':checked', '');
+  if st.HasBgColor then
+    FCachedAccent := MakeRgb(st.BgColor.R, st.BgColor.G, st.BgColor.B)
+  else
+    FCachedAccent := MakeRgb(0.23, 0.51, 0.96);
+
+  // Text
+  st := FtGetStyleSheet().ResolveStyle('label', '', cls, '', '');
+  if not st.HasTextColor then
+    st := FtGetStyleSheet().ResolveStyle('window', '', cls, '', '');
+  if st.HasTextColor then
+    FCachedText := MakeRgb(st.TextColor.R, st.TextColor.G, st.TextColor.B)
+  else if FDarkMode then
+    FCachedText := MakeRgb(0.95, 0.96, 0.97)
+  else
+    FCachedText := MakeRgb(0.12, 0.15, 0.18);
+
+  // Input Background
+  st := FtGetStyleSheet().ResolveStyle('entry', '', cls, '', '');
+  if st.HasBgColor then
+    FCachedInputBg := MakeRgb(st.BgColor.R, st.BgColor.G, st.BgColor.B)
+  else if FDarkMode then
+    FCachedInputBg := MakeRgb(0.15, 0.17, 0.20)
+  else
+    FCachedInputBg := MakeRgb(1.0, 1.0, 1.0);
+
+  // Input Border
+  st := FtGetStyleSheet().ResolveStyle('entry', '', cls, '', '');
+  if st.HasBorderColor then
+    FCachedInputBorder := MakeRgb(st.BorderColor.R, st.BorderColor.G, st.BorderColor.B)
+  else if FDarkMode then
+    FCachedInputBorder := MakeRgb(0.30, 0.33, 0.38)
+  else
+    FCachedInputBorder := MakeRgb(0.80, 0.82, 0.85);
+
+  // Scrollbar Track
+  st := FtGetStyleSheet().ResolveStyle('scrollbar', '', cls, '', '');
+  if st.HasBgColor then
+    FCachedScrollbarTrack := MakeRgb(st.BgColor.R, st.BgColor.G, st.BgColor.B)
+  else if FDarkMode then
+    FCachedScrollbarTrack := MakeRgb(0.16, 0.18, 0.20)
+  else
+    FCachedScrollbarTrack := MakeRgb(0.90, 0.91, 0.93);
+
+  FColorsCached := True;
+end;
+
+procedure TFtTheme.DrawWindowBackground(Canvas: TFtCanvasAgg; W, H: Integer; AOpacity: Double = 1.0);
+var
+  effA: Double;
+begin
+  EnsureColorsCached();
+  if FCachedWindowBgHasColor then
+  begin
+    effA := FCachedWindowBgA * AOpacity;
+    Canvas.DrawRect(0, 0, W, H, FCachedWindowBgR, FCachedWindowBgG, FCachedWindowBgB, effA);
   end
   else if FDarkMode then
     Canvas.DrawRect(0, 0, W, H, 0.09, 0.09, 0.11, AOpacity)
@@ -676,63 +767,27 @@ begin
 end;
 
 function TFtTheme.GetAccentColor(): TFtRgbColor;
-var
-  st: TFtWidgetStyle;
-  cls: string;
 begin
-  if FDarkMode then cls := 'dark' else cls := '';
-  st := FtGetStyleSheet().ResolveStyle('switch', '', cls, ':checked', '');
-  if st.HasBgColor then
-    Result := MakeRgb(st.BgColor.R, st.BgColor.G, st.BgColor.B)
-  else
-    Result := MakeRgb(0.23, 0.51, 0.96);
+  EnsureColorsCached();
+  Result := FCachedAccent;
 end;
 
 function TFtTheme.GetTextColor(): TFtRgbColor;
-var
-  st: TFtWidgetStyle;
-  cls: string;
 begin
-  if FDarkMode then cls := 'dark' else cls := '';
-  st := FtGetStyleSheet().ResolveStyle('label', '', cls, '', '');
-  if not st.HasTextColor then
-    st := FtGetStyleSheet().ResolveStyle('window', '', cls, '', '');
-  if st.HasTextColor then
-    Result := MakeRgb(st.TextColor.R, st.TextColor.G, st.TextColor.B)
-  else if FDarkMode then
-    Result := MakeRgb(0.95, 0.96, 0.97)
-  else
-    Result := MakeRgb(0.12, 0.15, 0.18);
+  EnsureColorsCached();
+  Result := FCachedText;
 end;
 
 function TFtTheme.GetInputBackground(): TFtRgbColor;
-var
-  st: TFtWidgetStyle;
-  cls: string;
 begin
-  if FDarkMode then cls := 'dark' else cls := '';
-  st := FtGetStyleSheet().ResolveStyle('entry', '', cls, '', '');
-  if st.HasBgColor then
-    Result := MakeRgb(st.BgColor.R, st.BgColor.G, st.BgColor.B)
-  else if FDarkMode then
-    Result := MakeRgb(0.15, 0.17, 0.20)
-  else
-    Result := MakeRgb(1.0, 1.0, 1.0);
+  EnsureColorsCached();
+  Result := FCachedInputBg;
 end;
 
 function TFtTheme.GetInputBorder(): TFtRgbColor;
-var
-  st: TFtWidgetStyle;
-  cls: string;
 begin
-  if FDarkMode then cls := 'dark' else cls := '';
-  st := FtGetStyleSheet().ResolveStyle('entry', '', cls, '', '');
-  if st.HasBorderColor then
-    Result := MakeRgb(st.BorderColor.R, st.BorderColor.G, st.BorderColor.B)
-  else if FDarkMode then
-    Result := MakeRgb(0.30, 0.33, 0.38)
-  else
-    Result := MakeRgb(0.80, 0.82, 0.85);
+  EnsureColorsCached();
+  Result := FCachedInputBorder;
 end;
 
 function TFtTheme.GetInputPlaceholderColor(): TFtRgbColor;
@@ -767,18 +822,9 @@ begin
 end;
 
 function TFtTheme.GetScrollBarTrackColor(): TFtRgbColor;
-var
-  st: TFtWidgetStyle;
-  cls: string;
 begin
-  if FDarkMode then cls := 'dark' else cls := '';
-  st := FtGetStyleSheet().ResolveStyle('scrollbar', '', cls, '', '');
-  if st.HasBgColor then
-    Result := MakeRgb(st.BgColor.R, st.BgColor.G, st.BgColor.B)
-  else if FDarkMode then
-    Result := MakeRgb(0.16, 0.18, 0.20)
-  else
-    Result := MakeRgb(0.92, 0.93, 0.95);
+  EnsureColorsCached();
+  Result := FCachedScrollbarTrack;
 end;
 
 function TFtTheme.GetScrollBarThumbColor(): TFtRgbColor;
@@ -948,7 +994,7 @@ begin
   bd := GetMenuBorder();
   if rad > 0.0 then
   begin
-    Canvas.DrawShadow(X, Y, W, H, rad, 0.0, 3.0, 8.0, 0.0, 0.0, 0.0, 0.25);
+    Canvas.DrawShadow(X, Y, W, H, rad, 0.0, 3.0, 10.0, 0.0, 0.0, 0.0, 0.14);
     Canvas.DrawRoundedRect(X, Y, W, H, rad, bg.R, bg.G, bg.B);
     Canvas.DrawRoundedRectOutline(X, Y, W, H, rad, 1.0, bd.R, bd.G, bd.B);
   end
@@ -1005,7 +1051,7 @@ begin
   bd := GetTooltipBorder();
   if rad > 0.0 then
   begin
-    Canvas.DrawShadow(X, Y, W, H, rad, 0.0, 2.0, 4.0, 0.0, 0.0, 0.0, 0.25);
+    Canvas.DrawShadow(X, Y, W, H, rad, 0.0, 2.0, 6.0, 0.0, 0.0, 0.0, 0.14);
     Canvas.DrawRoundedRect(X, Y, W, H, rad, bg.R, bg.G, bg.B);
     Canvas.DrawRoundedRectOutline(X, Y, W, H, rad, 1.0, bd.R, bd.G, bd.B);
   end

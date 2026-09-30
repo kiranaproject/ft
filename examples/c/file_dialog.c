@@ -71,27 +71,41 @@ static void on_btn_folder(void* sender, void* user_data) {
     ft_file_dialog_destroy(dlg);
 }
 
+static void on_dark_toggle(FtWidget widget, int32_t checked, void* user_data) {
+    (void)widget;
+    (void)user_data;
+    ft_theme_set_dark_mode(checked);
+}
+
 int main(void) {
     ft_init();
 
-    void* window = ft_window_create(520, 300, "File Dialog Demo");
+    void* window = ft_window_create(540, 240, "File Dialog Demo");
     ft_widget_show(window);
 
     /* Heading */
-    ft_text_create(window, 20, 20, 480, 32, "File Dialog Demo");
+    ft_text_create(window, 20, 20, 340, 32, "File Dialog Demo");
+
+    /* Dark Mode Switch */
+    FtWidget sw_dark = ft_switch_create(window, 390, 22, 130, 26, "Dark Mode");
+    ft_switch_set_checked(sw_dark, ft_theme_get_dark_mode());
+    ft_switch_on_toggle(sw_dark, on_dark_toggle, NULL);
 
     /* Result label */
-    g_lbl_result = ft_text_create(window, 20, 64, 480, 28, "No file selected yet.");
+    g_lbl_result = ft_text_create(window, 20, 66, 500, 28, "No file selected yet.");
 
     /* Buttons */
-    g_btn_open = ft_button_create(window, 20, 130, 140, 40, "Open File...");
+    g_btn_open = ft_button_create(window, 20, 118, 150, 40, "Open File...");
     ft_button_on_click(g_btn_open, on_btn_open, NULL);
 
-    g_btn_save = ft_button_create(window, 180, 130, 140, 40, "Save File...");
+    g_btn_save = ft_button_create(window, 185, 118, 150, 40, "Save File...");
     ft_button_on_click(g_btn_save, on_btn_save, NULL);
 
-    g_btn_folder = ft_button_create(window, 340, 130, 160, 40, "Select Folder...");
+    g_btn_folder = ft_button_create(window, 350, 118, 170, 40, "Select Folder...");
     ft_button_on_click(g_btn_folder, on_btn_folder, NULL);
+
+    /* Footer Hint */
+    ft_text_create(window, 20, 180, 500, 24, "Toggle Dark Mode above to launch file dialogs in dark or light theme.");
 
     ft_main_loop();
 

@@ -431,7 +431,7 @@ begin
   end;
 
   // Draw Thumb Shadow
-  Canvas.DrawShadow(thumbX - thumbRad, thumbY - thumbRad, FThumbSize, FThumbSize, thumbRad, 0.0, 1.5, 3.5, 0.0, 0.0, 0.0, 0.18);
+  Canvas.DrawShadow(thumbX - thumbRad, thumbY - thumbRad, FThumbSize, FThumbSize, thumbRad, 0.0, 1.5, 5.0, 0.0, 0.0, 0.0, 0.10);
 
   // Draw Thumb Plate (crisp white with accent or dark surface)
   if FtGetDarkMode() then

@@ -7,9 +7,18 @@ uses
   Floria.SVG.DOM, Floria.SVG.Parser,
   Ft.Css, Floria.Image.Core, Floria.Image.BMP, Floria.Image.PNG, Floria.Image.JPEG, Floria.Image.Blur, Floria.Canvas.Agg, Floria.SVG.Rasterizer, Ft.Widget, Ft.Widget.Containers, Ft.Widget.Images,
   Ft.Widget.Tabs, Ft.Widget.Splitters, Ft.Widget.TreeViews, Ft.Widget.Tables, Ft.Widget.Texts, Ft.Widget.Buttons,
-  Ft.Widget.Switches, Ft.Widget.Selectors, Ft.Widget.PathBars, Ft.Widget.UrlEntries, Ft.Backend.X11, Ft.Theme, Floria.Font;
+  Ft.Widget.Switches, Ft.Widget.Selectors, Ft.Widget.PathBars, Ft.Widget.UrlEntries, Ft.Window,
+  Ft.Backend.X11, Ft.Backend.EGL, Floria.EGL, Ft.Theme, Floria.Font, Ft.Icons;
 
 type
+  TFtIconsTest = class(TTestCase)
+  published
+    procedure TestDefaultIconsExist();
+    procedure TestMonochromeDarkModeAdaptation();
+    procedure TestCustomIconRegistration();
+    procedure TestIconBitmapRendering();
+  end;
+
   TFtDesktopWidgetsTest = class(TTestCase)
   published
     procedure TestNotebook();
@@ -26,6 +35,7 @@ type
     procedure TestButtonIconAndCustomDrawing();
     procedure TestPathBar();
     procedure TestUrlEntry();
+    procedure TestFrostedGlassBackdropBlurInvalidation();
   end;
 
   TFtSvgTest = class(TTestCase)
@@ -52,7 +62,133 @@ type
     procedure TestRootPseudoClassResolving();
     procedure TestCssVariablesAndCustomProperties();
     procedure TestDefaultThemeWithRootVariables();
+    procedure TestAmamizuLiquidGlassTheme();
   end;
+
+  TFtEGLBackendTest = class(TTestCase)
+  private
+    FGLDrawCalled: Boolean;
+    procedure HandleGLDraw(Sender: TObject; AWidth, AHeight: Integer);
+  published
+    procedure TestEGLAvailability();
+    procedure TestEGLWindowCreation();
+    procedure TestEnableEGLBackend();
+    procedure TestEGLWindowRepaintAndResize();
+    procedure TestCustomGLDraw();
+  end;
+
+  TFtWindowModalTest = class(TTestCase)
+  published
+    procedure TestModalProperty();
+    procedure TestBringToFront();
+    procedure TestModalShowAndResult();
+    procedure TestWindowTypeDialog();
+  end;
+
+{ TFtIconsTest }
+
+procedure TFtIconsTest.TestDefaultIconsExist();
+begin
+  AssertTrue('Has folder icon', FtIconManager().HasIcon('folder'));
+  AssertTrue('Has file icon', FtIconManager().HasIcon('file'));
+  AssertTrue('Has nav-back icon', FtIconManager().HasIcon('nav-back'));
+  AssertTrue('Has nav-forward icon', FtIconManager().HasIcon('nav-forward'));
+  AssertTrue('Has nav-up icon', FtIconManager().HasIcon('nav-up'));
+  AssertTrue('Has new-folder icon', FtIconManager().HasIcon('new-folder'));
+  AssertTrue('Has hidden icon', FtIconManager().HasIcon('hidden'));
+  AssertTrue('Has place-home icon', FtIconManager().HasIcon('place-home'));
+  AssertTrue('Has place-documents icon', FtIconManager().HasIcon('place-documents'));
+  AssertTrue('Has place-downloads icon', FtIconManager().HasIcon('place-downloads'));
+  AssertTrue('Has settings icon', FtIconManager().HasIcon('settings'));
+  AssertTrue('Has gear icon', FtIconManager().HasIcon('gear'));
+  AssertTrue('Has search icon', FtIconManager().HasIcon('search'));
+  AssertTrue('Has outline-home icon', FtIconManager().HasIcon('outline-home'));
+  AssertTrue('Has outline-desktop icon', FtIconManager().HasIcon('outline-desktop'));
+  AssertTrue('Has outline-documents icon', FtIconManager().HasIcon('outline-documents'));
+  AssertTrue('Has outline-downloads icon', FtIconManager().HasIcon('outline-downloads'));
+  AssertTrue('Has outline-pictures icon', FtIconManager().HasIcon('outline-pictures'));
+  AssertTrue('Has outline-music icon', FtIconManager().HasIcon('outline-music'));
+  AssertTrue('Has outline-drive icon', FtIconManager().HasIcon('outline-drive'));
+  AssertTrue('Has outline-folder icon', FtIconManager().HasIcon('outline-folder'));
+  AssertFalse('Does not have invalid icon', FtIconManager().HasIcon('non_existent_icon_xyz'));
+
+  AssertTrue('Folder SVG non-empty', Length(FtGetIconSvg('folder')) > 0);
+  AssertTrue('Nav-back SVG non-empty', Length(FtGetIconSvg('nav-back')) > 0);
+  AssertTrue('New-folder SVG non-empty', Length(FtGetIconSvg('new-folder')) > 0);
+  AssertTrue('Outline-home SVG non-empty', Length(FtGetIconSvg('outline-home')) > 0);
+end;
+
+procedure TFtIconsTest.TestMonochromeDarkModeAdaptation();
+var
+  svgLight, svgDark: string;
+begin
+  svgLight := FtGetIconSvg('nav-back', False);
+  svgDark  := FtGetIconSvg('nav-back', True);
+
+  AssertTrue('Nav-back light contains #64748b', Pos('#64748b', svgLight) > 0);
+  AssertFalse('Nav-back light does not contain #cbd5e1', Pos('#cbd5e1', svgLight) > 0);
+
+  AssertTrue('Nav-back dark contains #cbd5e1', Pos('#cbd5e1', svgDark) > 0);
+  AssertFalse('Nav-back dark does not contain #64748b', Pos('#64748b', svgDark) > 0);
+
+  // New folder also adapts
+  svgDark := FtGetIconSvg('new-folder', True);
+  AssertTrue('New-folder dark contains #cbd5e1', Pos('#cbd5e1', svgDark) > 0);
+
+  // Outline icons also adapt
+  svgDark := FtGetIconSvg('outline-home', True);
+  AssertTrue('Outline-home dark contains #cbd5e1', Pos('#cbd5e1', svgDark) > 0);
+
+  // Custom monochrome colors
+  FtIconManager().SetMonochromeColors('#123456', '#abcdef');
+  svgDark := FtGetIconSvg('nav-back', True);
+  AssertTrue('Custom dark monochrome color used', Pos('#abcdef', svgDark) > 0);
+
+  // Restore default monochrome colors
+  FtIconManager().SetMonochromeColors('#64748b', '#cbd5e1');
+end;
+
+procedure TFtIconsTest.TestCustomIconRegistration();
+var
+  testSvgLight, testSvgDark: string;
+begin
+  testSvgLight := '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5" fill="#ff0000"/></svg>';
+  testSvgDark  := '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5" fill="#00ff00"/></svg>';
+
+  FtRegisterIcon('test-circle-custom', testSvgLight, testSvgDark);
+  AssertTrue('Registered icon exists', FtIconManager().HasIcon('test-circle-custom'));
+  AssertEquals('Light SVG match', testSvgLight, FtGetIconSvg('test-circle-custom', False));
+  AssertEquals('Dark SVG match', testSvgDark, FtGetIconSvg('test-circle-custom', True));
+end;
+
+procedure TFtIconsTest.TestIconBitmapRendering();
+var
+  img: TFloriaImage;
+begin
+  img := FtGetIconBitmap('folder', 16, 16, False);
+  AssertNotNull('Folder bitmap not nil', img);
+  AssertEquals('Folder bitmap width 16', 16, img.Width);
+  AssertEquals('Folder bitmap height 16', 16, img.Height);
+  img.Free();
+
+  img := FtGetIconBitmap('nav-back', 24, 24, True);
+  AssertNotNull('Nav-back dark bitmap not nil', img);
+  AssertEquals('Nav-back bitmap width 24', 24, img.Width);
+  AssertEquals('Nav-back bitmap height 24', 24, img.Height);
+  img.Free();
+
+  img := FtGetIconBitmap('new-folder', 32, 32, False);
+  AssertNotNull('New-folder bitmap not nil', img);
+  AssertEquals('New-folder bitmap width 32', 32, img.Width);
+  AssertEquals('New-folder bitmap height 32', 32, img.Height);
+  img.Free();
+
+  img := FtGetIconBitmap('outline-home', 16, 16, True);
+  AssertNotNull('Outline-home bitmap not nil', img);
+  AssertEquals('Outline-home bitmap width 16', 16, img.Width);
+  AssertEquals('Outline-home bitmap height 16', 16, img.Height);
+  img.Free();
+end;
 
 procedure TFtCssTest.TestColorParsing();
 var
@@ -252,6 +388,18 @@ begin
     st := sheet.ResolveStyle('button', 'my-btn', 'btn', '', 'background-color: #ffffff; border-radius: 16px;');
     AssertEquals('Inline bg R = 1.0', 1.0, Round(st.BgColor.R * 100.0) / 100.0);
     AssertEquals('Inline border radius = 16.0', 16.0, st.BorderRadius);
+
+    // Test border: none; in inline CSS correctly clears border
+    st := sheet.ResolveStyle('button', '', '', '', 'border: none;');
+    AssertTrue('Inline border: none sets HasBorderWidth', st.HasBorderWidth);
+    AssertEquals('Inline border: none sets BorderWidth to 0.0', 0.0, st.BorderWidth);
+    AssertFalse('Inline border: none clears HasBorderColor', st.HasBorderColor);
+
+    // Test border-style: none; in inline CSS
+    st := sheet.ResolveStyle('treeview', '', '', '', 'border-style: none;');
+    AssertTrue('Inline border-style: none sets HasBorderWidth', st.HasBorderWidth);
+    AssertEquals('Inline border-style: none sets BorderWidth to 0.0', 0.0, st.BorderWidth);
+    AssertFalse('Inline border-style: none clears HasBorderColor', st.HasBorderColor);
   finally
     sheet.Free();
   end;
@@ -469,6 +617,79 @@ begin
     disCol := FtGetTheme().GetMenuDisabledTextColor();
     AssertTrue('Theme dark disabled menu text ~ #71717a', Abs(disCol.R - (113.0 / 255.0)) < 0.03);
     FtSetDarkMode(False);
+  finally
+    sheet.Free();
+  end;
+end;
+
+procedure TFtCssTest.TestAmamizuLiquidGlassTheme();
+var
+  sheet: TFtStyleSheet;
+  stBtnLight, stBtnHoverLight, stBtnDark: TFtWidgetStyle;
+  stContLight, stContDark, stSwLight, stUrlLight, stWinLight, stWinDark: TFtWidgetStyle;
+  path: string;
+  accent: TFtRgbColor;
+begin
+  sheet := TFtStyleSheet.Create();
+  try
+    path := 'themes/amamizu.css';
+    if not FileExists(path) then path := '../themes/amamizu.css';
+    AssertTrue('themes/amamizu.css exists', FileExists(path));
+    AssertTrue('Load amamizu.css', sheet.LoadFromFile(path));
+
+    // 1. Light Mode Liquid Glass Button
+    stBtnLight := sheet.ResolveStyle('button', '', '', '');
+    AssertTrue('Light button has translucent bg', stBtnLight.HasBgColor);
+    AssertTrue('Light button bg has alpha ~0.70', Abs(stBtnLight.BgColor.A - 0.70) < 0.05);
+    AssertTrue('Light button has specular border', stBtnLight.HasBorderColor);
+    AssertTrue('Light button border has alpha ~0.90', Abs(stBtnLight.BorderColor.A - 0.90) < 0.05);
+    AssertTrue('Light button has radius 9.0', Abs(stBtnLight.BorderRadius - 9.0) < 0.01);
+    AssertTrue('Light button has backdrop blur 16px', stBtnLight.HasBackdropBlur and (Abs(stBtnLight.BackdropBlur - 16.0) < 0.01));
+    AssertTrue('Light button has shadow', stBtnLight.HasShadow and stBtnLight.EnableShadow);
+
+    // 2. Light Mode Button Hover (water ripple glow)
+    stBtnHoverLight := sheet.ResolveStyle('button', '', '', ':hover');
+    AssertTrue('Hover button has bg alpha ~0.92', Abs(stBtnHoverLight.BgColor.A - 0.92) < 0.05);
+    AssertTrue('Hover button has aqua glow border', (stBtnHoverLight.BorderColor.B > 0.8) and (stBtnHoverLight.BorderColor.G > 0.5));
+
+    // 3. Dark Mode Liquid Glass Button (Midnight Rain)
+    stBtnDark := sheet.ResolveStyle('button', '', 'dark', '');
+    AssertTrue('Dark button has dark translucent bg alpha ~0.65', Abs(stBtnDark.BgColor.A - 0.65) < 0.05);
+    AssertTrue('Dark button text is white', stBtnDark.TextColor.R > 0.9);
+
+    // 4. Frosted Glass Container / Panel
+    stContLight := sheet.ResolveStyle('container', '', '', '');
+    AssertTrue('Container has translucent bg alpha ~0.65', Abs(stContLight.BgColor.A - 0.65) < 0.05);
+    AssertTrue('Container has backdrop blur 20px', stContLight.HasBackdropBlur and (Abs(stContLight.BackdropBlur - 20.0) < 0.01));
+    AssertTrue('Container has radius 12.0', Abs(stContLight.BorderRadius - 12.0) < 0.01);
+
+    stContDark := sheet.ResolveStyle('container', '', 'dark', '');
+    AssertTrue('Dark container has backdrop blur 20px', stContDark.HasBackdropBlur and (Abs(stContDark.BackdropBlur - 20.0) < 0.01));
+    AssertTrue('Dark container has translucent bg alpha ~0.65', Abs(stContDark.BgColor.A - 0.65) < 0.05);
+
+    // 5. Capsules: Switch & UrlEntry
+    stSwLight := sheet.ResolveStyle('switch', '', '', '');
+    AssertTrue('Switch has capsule radius', stSwLight.HasBorderRadius and (stSwLight.BorderRadius >= 9999.0));
+
+    stUrlLight := sheet.ResolveStyle('urlentry', '', '', '');
+    AssertTrue('UrlEntry has capsule radius', stUrlLight.HasBorderRadius and (stUrlLight.BorderRadius >= 9999.0));
+
+    // 6. Window background (Morning Rain vs Midnight Rain)
+    stWinLight := sheet.ResolveStyle('window', '', '', '');
+    AssertTrue('Light window bg ~ #eaf2f8', (stWinLight.BgColor.R > 0.85) and (stWinLight.BgColor.B > 0.90));
+
+    stWinDark := sheet.ResolveStyle('window', '', 'dark', '');
+    AssertTrue('Dark window bg ~ #0b111e', (stWinDark.BgColor.R < 0.10) and (stWinDark.BgColor.B < 0.15));
+
+    // 7. Dynamic theme switching via FtThemeManager
+    AssertTrue('FtThemeManager set amamizu theme', FtThemeManager().SetTheme('amamizu'));
+    AssertEquals('Active theme name is amamizu', 'amamizu', FtThemeManager().GetThemeName());
+
+    accent := FtGetTheme().GetAccentColor();
+    AssertTrue('Amamizu accent color blue channel is prominent', accent.B > 0.7);
+
+    // Revert back to default theme
+    FtThemeManager().SetTheme('default');
   finally
     sheet.Free();
   end;
@@ -786,9 +1007,28 @@ begin
 
     spl.Orientation := soVertical;
     AssertEquals('Splitter orientation changed to vertical', Ord(soVertical), Ord(spl.Orientation));
+
+    // Test standalone splitter HitTest
+    spl.Orientation := soHorizontal;
+    spl.SetPanes(nil, nil);
+    spl.SplitterPos := 180;
+    spl.SplitterSize := 4.0;
+    AssertNotNull('Hit inside splitter bar returns splitter', spl.HitTest(181, 50));
+    AssertNull('Hit to the left of splitter bar returns nil', spl.HitTest(50, 50));
+    AssertNull('Hit to the right of splitter bar returns nil', spl.HitTest(300, 50));
   finally
     spl.Free();
   end;
+end;
+
+var
+  g_TestTreeViewSelectCount: Integer = 0;
+  g_TestTreeViewLastSelectedNode: Pointer = nil;
+
+procedure TestTreeViewSelectCallback(Sender: Pointer; Node: Pointer; UserData: Pointer); cdecl;
+begin
+  Inc(g_TestTreeViewSelectCount);
+  g_TestTreeViewLastSelectedNode := Node;
 end;
 
 procedure TFtDesktopWidgetsTest.TestTreeView();
@@ -820,6 +1060,19 @@ begin
 
     tv.SelectedNode := work;
     AssertTrue('Selected node is work', tv.SelectedNode = work);
+
+    g_TestTreeViewSelectCount := 0;
+    g_TestTreeViewLastSelectedNode := nil;
+    tv.OnSelectCb := @TestTreeViewSelectCallback;
+
+    // Simulate clicking on the first item text (Documents, index 0, y in range [6..30])
+    tv.MouseDown(50, 15, 1);
+    AssertEquals('Click on node triggers select callback', 1, g_TestTreeViewSelectCount);
+    AssertTrue('First node selected', tv.SelectedNode = docs);
+
+    // Simulate re-clicking on the already selected item
+    tv.MouseDown(50, 15, 1);
+    AssertEquals('Re-clicking same node re-triggers select callback', 2, g_TestTreeViewSelectCount);
 
     tv.Clear();
     AssertEquals('Root has 0 children after clear', 0, tv.Root.ChildCount);
@@ -1889,15 +2142,326 @@ begin
   end;
 end;
 
+procedure TFtDesktopWidgetsTest.TestFrostedGlassBackdropBlurInvalidation();
+var
+  win: TFtWindow;
+  cont: TFtContainer;
+  btn: TFtButton;
+  cont2: TFtContainer;
+  btn2: TFtButton;
+begin
+  win := TFtWindow.Create(800, 600, 'TestBlurWin');
+  try
+    win.Visible := True;
+
+    // 1. Container with FBackdropBlur property
+    cont := TFtContainer.Create(win);
+    cont.X := 50;
+    cont.Y := 100;
+    cont.Width := 400;
+    cont.Height := 300;
+    cont.BackdropBlur := 20.0;
+    cont.Visible := True;
+
+    AssertTrue('Container HasBackdropBlur with property', cont.HasBackdropBlur());
+
+    btn := TFtButton.Create(cont);
+    btn.X := 80;
+    btn.Y := 120;
+    btn.Width := 100;
+    btn.Height := 30;
+    btn.Visible := True;
+
+    // Reset window dirty tracking
+    win.HasDirtyRect := False;
+    win.FullRepaint := False;
+    win.NeedsRepaint := False;
+
+    // Child button invalidates
+    btn.Invalidate();
+
+    AssertTrue('Window has dirty rect after child button invalidate', win.HasDirtyRect);
+    // Verify dirty rect encompasses the entire container bounds
+    AssertTrue('DirtyLeft covers container', win.DirtyLeft <= cont.X - 4);
+    AssertTrue('DirtyTop covers container', win.DirtyTop <= cont.Y - 4);
+    AssertTrue('DirtyRight covers container', win.DirtyRight >= cont.X + cont.Width + 4);
+    AssertTrue('DirtyBottom covers container', win.DirtyBottom >= cont.Y + cont.Height + 4);
+
+    // 2. Container with CSS backdrop-filter: blur(...)
+    cont2 := TFtContainer.Create(win);
+    cont2.X := 500;
+    cont2.Y := 50;
+    cont2.Width := 250;
+    cont2.Height := 200;
+    cont2.InlineStyle := 'backdrop-filter: blur(15px);';
+    cont2.Visible := True;
+
+    AssertTrue('Container HasBackdropBlur with CSS style', cont2.HasBackdropBlur());
+
+    btn2 := TFtButton.Create(cont2);
+    btn2.X := 520;
+    btn2.Y := 70;
+    btn2.Width := 80;
+    btn2.Height := 30;
+    btn2.Visible := True;
+
+    // Reset window dirty tracking
+    win.HasDirtyRect := False;
+    win.FullRepaint := False;
+    win.NeedsRepaint := False;
+
+    // Child button invalidates
+    btn2.Invalidate();
+
+    AssertTrue('Window has dirty rect after cont2 child button invalidate', win.HasDirtyRect);
+    AssertTrue('DirtyLeft covers cont2', win.DirtyLeft <= cont2.X - 4);
+    AssertTrue('DirtyTop covers cont2', win.DirtyTop <= cont2.Y - 4);
+    AssertTrue('DirtyRight covers cont2', win.DirtyRight >= cont2.X + cont2.Width + 4);
+    AssertTrue('DirtyBottom covers cont2', win.DirtyBottom >= cont2.Y + cont2.Height + 4);
+
+    // 3. Ultra-fast sub-rectangle invalidation when cache is valid
+    // Simulate initial container draw which captures the cache
+    cont.Draw(win.Canvas);
+    AssertTrue('Container cache valid after drawing', cont.IsBackdropCacheValid());
+
+    // Reset window dirty tracking
+    win.HasDirtyRect := False;
+    win.FullRepaint := False;
+    win.NeedsRepaint := False;
+
+    // Child button invalidates with valid cache
+    btn.Invalidate();
+
+    AssertTrue('Window has dirty rect after cached child button invalidate', win.HasDirtyRect);
+    // Verify dirty rect is localized ONLY to button bounds and NOT expanded to full container!
+    AssertEquals('DirtyLeft localized to button', btn.X - 4, win.DirtyLeft);
+    AssertEquals('DirtyTop localized to button', btn.Y - 4, win.DirtyTop);
+    AssertEquals('DirtyRight localized to button', btn.X + btn.Width + 4, win.DirtyRight);
+    AssertEquals('DirtyBottom localized to button', btn.Y + btn.Height + 4, win.DirtyBottom);
+
+    // 4. Outside invalidation intersecting container invalidates cache and expands
+    win.HasDirtyRect := False;
+    win.FullRepaint := False;
+    win.NeedsRepaint := False;
+
+    // Invalidate across container boundary (from Y=40 to Y=150, intersecting cont at Y=100)
+    win.InvalidateRect(40, 40, 200, 110);
+
+    AssertFalse('Cache invalidated when outside rect intersects container', cont.IsBackdropCacheValid());
+    AssertTrue('DirtyLeft expanded to container', win.DirtyLeft <= cont.X - 4);
+    AssertTrue('DirtyBottom expanded to container', win.DirtyBottom >= cont.Y + cont.Height + 4);
+  finally
+    win.Free();
+  end;
+end;
+
+{ TFtEGLBackendTest }
+
+procedure TFtEGLBackendTest.HandleGLDraw(Sender: TObject; AWidth, AHeight: Integer);
+begin
+  FGLDrawCalled := True;
+  AssertEquals('GLDraw Width matches', 200, AWidth);
+  AssertEquals('GLDraw Height matches', 200, AHeight);
+end;
+
+procedure TFtEGLBackendTest.TestEGLAvailability();
+begin
+  AssertTrue('FloriaEGLIsAvailable returns true on Linux/Mesa', FloriaEGLIsAvailable());
+  AssertTrue('FtEGLIsAvailable returns true with GL symbols', FtEGLIsAvailable());
+end;
+
+procedure TFtEGLBackendTest.TestEGLWindowCreation();
+var
+  win: TFtEGLWindow;
+begin
+  win := TFtEGLWindow.Create(400, 300, 'EGL Test Window');
+  try
+    AssertNotNull('EGL Window created', win);
+    AssertTrue('EGL Window is hardware accelerated', win.IsHardwareAccelerated);
+    AssertTrue('EGLDisplay is non-null', win.EGLDisplay <> nil);
+    AssertTrue('EGLContext is non-null', win.EGLContext <> nil);
+    AssertTrue('EGLSurface is non-null', win.EGLSurface <> nil);
+    AssertEquals('Default swap interval is 1', 1, win.SwapInterval);
+
+    win.SwapInterval := 0;
+    AssertEquals('Updated swap interval to 0', 0, win.SwapInterval);
+
+    AssertTrue('MakeCurrent succeeds', win.MakeCurrent());
+    win.ReleaseCurrent();
+  finally
+    win.Free();
+  end;
+end;
+
+procedure TFtEGLBackendTest.TestEnableEGLBackend();
+var
+  win: TFtWindow;
+begin
+  AssertFalse('Default EGL backend is not enabled', FtIsEGLEnabled());
+
+  AssertTrue('FtEnableEGLBackend(True) succeeds', FtEnableEGLBackend(True));
+  AssertTrue('FtIsEGLEnabled is true', FtIsEGLEnabled());
+
+  win := FtCreateWindow(300, 200, 'Created via factory');
+  try
+    AssertTrue('Window is TFtEGLWindow', win is TFtEGLWindow);
+    AssertTrue('Window is hardware accelerated', TFtEGLWindow(win).IsHardwareAccelerated);
+  finally
+    win.Free();
+  end;
+
+  // Revert back to software X11
+  AssertTrue('FtEnableEGLBackend(False) succeeds', FtEnableEGLBackend(False));
+  AssertFalse('FtIsEGLEnabled is false', FtIsEGLEnabled());
+
+  win := FtCreateWindow(300, 200, 'Created via fallback factory');
+  try
+    AssertTrue('Window is TFtX11Window', win is TFtX11Window);
+  finally
+    win.Free();
+  end;
+end;
+
+procedure TFtEGLBackendTest.TestEGLWindowRepaintAndResize();
+var
+  win: TFtEGLWindow;
+  btn: TFtButton;
+begin
+  win := TFtEGLWindow.Create(320, 240, 'EGL Repaint Test');
+  try
+    win.Visible := True;
+    btn := TFtButton.Create(win);
+    btn.X := 20;
+    btn.Y := 20;
+    btn.Width := 120;
+    btn.Height := 36;
+    btn.Caption := 'GPU Button';
+    btn.Visible := True;
+
+    // Full Repaint test
+    win.Repaint();
+    AssertFalse('NeedsRepaint false after repaint', win.NeedsRepaint);
+
+    // Partial Repaint test
+    btn.Invalidate();
+    AssertTrue('HasDirtyRect after button invalidate', win.HasDirtyRect);
+    win.Repaint();
+    AssertFalse('HasDirtyRect false after repaint', win.HasDirtyRect);
+
+    // Resize test
+    win.Resize(480, 360);
+    AssertEquals('Width updated', 480, win.Width);
+    AssertEquals('Height updated', 360, win.Height);
+    win.Repaint();
+    AssertFalse('NeedsRepaint false after resize repaint', win.NeedsRepaint);
+  finally
+    win.Free();
+  end;
+end;
+
+procedure TFtEGLBackendTest.TestCustomGLDraw();
+var
+  win: TFtEGLWindow;
+begin
+  FGLDrawCalled := False;
+  win := TFtEGLWindow.Create(200, 200, 'Custom GL Test');
+  try
+    win.OnGLDraw := @HandleGLDraw;
+    win.Repaint();
+    AssertTrue('OnGLDraw callback executed during Repaint', FGLDrawCalled);
+  finally
+    win.Free();
+  end;
+end;
+
+{ TFtWindowModalTest }
+
+procedure TFtWindowModalTest.TestModalProperty();
+var
+  win: TFtWindow;
+begin
+  win := FtCreateWindow(300, 200, 'Test Modal Prop');
+  try
+    AssertFalse('Initially not modal', win.IsModal);
+    win.IsModal := True;
+    AssertTrue('IsModal True after set', win.IsModal);
+    win.IsModal := False;
+    AssertFalse('IsModal False after unset', win.IsModal);
+  finally
+    win.Free();
+  end;
+end;
+
+procedure TFtWindowModalTest.TestBringToFront();
+var
+  win1, win2: TFtWindow;
+begin
+  win1 := FtCreateWindow(300, 200, 'Win1');
+  win2 := FtCreateWindow(300, 200, 'Win2');
+  try
+    win1.BringToFront();
+    AssertTrue('win1 is active after BringToFront', FtGetActiveWindow() = win1);
+    win2.BringToFront();
+    AssertTrue('win2 is active after BringToFront', FtGetActiveWindow() = win2);
+  finally
+    win2.Free();
+    win1.Free();
+  end;
+end;
+
+procedure MockModalProcessEvents();
+begin
+  if Assigned(GModalWindow) then
+    GModalWindow.ModalResult := mrOk;
+end;
+
+procedure TFtWindowModalTest.TestModalShowAndResult();
+var
+  win: TFtWindow;
+  res: Integer;
+begin
+  win := FtCreateWindow(300, 200, 'Test Modal Loop');
+  try
+    FtRegisterProcessEventsProc(@MockModalProcessEvents);
+    try
+      res := win.ShowModal();
+      AssertEquals('ShowModal returns mrOk', mrOk, res);
+      AssertFalse('IsModal restored to False', win.IsModal);
+      AssertNull('GModalWindow restored to nil', GModalWindow);
+    finally
+      FtRegisterProcessEventsProc(nil);
+    end;
+  finally
+    win.Free();
+  end;
+end;
+
+procedure TFtWindowModalTest.TestWindowTypeDialog();
+var
+  dlg: TFtWindow;
+begin
+  dlg := FtCreateWindow(400, 300, 'Test Dialog', ftwtDialog);
+  try
+    AssertEquals('WindowType is ftwtDialog', Ord(ftwtDialog), Ord(dlg.WindowType));
+    dlg.BringToFront();
+    AssertTrue('dlg is active window', FtGetActiveWindow() = dlg);
+  finally
+    dlg.Free();
+  end;
+end;
+
 var
   Application: TTestRunner;
 
 begin
   Application := TTestRunner.Create(nil);
   try
+    RegisterTest(TFtIconsTest);
     RegisterTest(TFtCssTest);
     RegisterTest(TFtSvgTest);
     RegisterTest(TFtDesktopWidgetsTest);
+    RegisterTest(TFtEGLBackendTest);
+    RegisterTest(TFtWindowModalTest);
     Application.Initialize;
     Application.Run;
   finally

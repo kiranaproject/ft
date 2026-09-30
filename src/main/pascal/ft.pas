@@ -6,6 +6,7 @@ uses
   ctypes, SysUtils, Types,
   Ft.Window,
   Ft.Backend.X11,
+  Ft.Backend.EGL,
   Floria.Font,
   Ft.Widget,
   Ft.Widget.Buttons,
@@ -36,9 +37,11 @@ uses
   Ft.Widget.Tables,
   Ft.Widget.PathBars,
   Ft.Widget.UrlEntries,
-  Ft.Dialogs;
+  Ft.Dialogs,
+  Ft.Icons;
 
 var
+  gLastIconSvg: AnsiString;
   gLastSystemFontDesc: AnsiString;
   gLastWidgetFontDesc: AnsiString;
   gLastThemeName: AnsiString;
@@ -90,6 +93,99 @@ end;
 function ft_window_create(width, height: cint32; title: PChar): Pointer; cdecl; export;
 begin
   Result := Pointer(FtCreateWindow(width, height, StrPas(title)));
+end;
+
+function ft_egl_is_available(): cint32; cdecl; export;
+begin
+  if FtEGLIsAvailable() then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+function ft_backend_enable_egl(enable: cint32): cint32; cdecl; export;
+begin
+  if FtEnableEGLBackend(enable <> 0) then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+function ft_backend_is_egl_enabled(): cint32; cdecl; export;
+begin
+  if FtIsEGLEnabled() then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+function ft_egl_window_create(width, height: cint32; title: PChar): Pointer; cdecl; export;
+begin
+  Result := Pointer(TFtEGLWindow.Create(width, height, StrPas(title)));
+end;
+
+function ft_window_is_hardware_accelerated(window: Pointer): cint32; cdecl; export;
+begin
+  Result := 0;
+  if Assigned(window) and (TObject(window) is TFtEGLWindow) then
+  begin
+    if TFtEGLWindow(window).IsHardwareAccelerated then
+      Result := 1;
+  end;
+end;
+
+procedure ft_window_set_hardware_accelerated(window: Pointer; accelerated: cint32); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtEGLWindow) then
+    TFtEGLWindow(window).IsHardwareAccelerated := (accelerated <> 0);
+end;
+
+procedure ft_window_set_swap_interval(window: Pointer; interval: cint32); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtEGLWindow) then
+    TFtEGLWindow(window).SwapInterval := interval;
+end;
+
+function ft_window_make_current(window: Pointer): cint32; cdecl; export;
+begin
+  Result := 0;
+  if Assigned(window) and (TObject(window) is TFtEGLWindow) then
+  begin
+    if TFtEGLWindow(window).MakeCurrent() then
+      Result := 1;
+  end;
+end;
+
+procedure ft_window_release_current(window: Pointer); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtEGLWindow) then
+    TFtEGLWindow(window).ReleaseCurrent();
+end;
+
+procedure ft_window_on_gl_draw(window: Pointer; callback: TFtWindowGLDrawCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtEGLWindow) then
+  begin
+    TFtEGLWindow(window).CGLDrawCallback := callback;
+    TFtEGLWindow(window).CGLDrawUserData := user_data;
+  end;
+end;
+
+procedure ft_widget_invalidate(widget: Pointer); cdecl; export;
+begin
+  if Assigned(widget) then
+  begin
+    if TObject(widget) is TFtWindow then
+      TFtWindow(widget).Invalidate()
+    else if TObject(widget) is TFtWidget then
+      TFtWidget(widget).Invalidate();
+  end;
+end;
+
+procedure ft_window_repaint(window: Pointer); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    TFtWindow(window).Repaint();
 end;
 
 procedure ft_widget_show(widget: Pointer); cdecl; export;
@@ -231,6 +327,19 @@ begin
     Result := 1
   else
     Result := 0;
+end;
+
+function ft_window_show_modal(window: Pointer): cint32; cdecl; export;
+begin
+  Result := 0;
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    Result := cint32(TFtWindow(window).ShowModal());
+end;
+
+procedure ft_window_bring_to_front(window: Pointer); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    TFtWindow(window).BringToFront();
 end;
 
 procedure ft_widget_set_focus(widget: Pointer); cdecl; export;
@@ -4650,11 +4759,114 @@ begin
   end;
 end;
 
+{ ──────────────────────── Icons & Icon Theming ────────────────────────── }
+
+function ft_icon_get_svg(name: PChar; dark_mode: cint32): PChar; cdecl; export;
+var
+  svg: string;
+begin
+  if not Assigned(name) then
+  begin
+    Result := nil;
+    Exit;
+  end;
+  try
+    svg := FtGetIconSvg(string(name), dark_mode <> 0);
+    if svg = '' then
+      Result := nil
+    else
+    begin
+      gLastIconSvg := AnsiString(svg);
+      Result := PChar(gLastIconSvg);
+    end;
+  except
+    Result := nil;
+  end;
+end;
+
+function ft_icon_get_bitmap(name: PChar; width, height, dark_mode: cint32): Pointer; cdecl; export;
+var
+  w, h: Integer;
+begin
+  if not Assigned(name) then
+  begin
+    Result := nil;
+    Exit;
+  end;
+  w := width;
+  if w <= 0 then w := 16;
+  h := height;
+  if h <= 0 then h := 16;
+  try
+    Result := Pointer(FtGetIconBitmap(string(name), w, h, dark_mode <> 0));
+  except
+    Result := nil;
+  end;
+end;
+
+procedure ft_icon_register(name, svg_light, svg_dark: PChar); cdecl; export;
+var
+  sDark: string;
+begin
+  if not Assigned(name) or not Assigned(svg_light) then Exit;
+  if Assigned(svg_dark) then
+    sDark := string(svg_dark)
+  else
+    sDark := '';
+  try
+    FtRegisterIcon(string(name), string(svg_light), sDark);
+  except
+  end;
+end;
+
+function ft_icon_has(name: PChar): cint32; cdecl; export;
+begin
+  if not Assigned(name) then
+  begin
+    Result := 0;
+    Exit;
+  end;
+  try
+    if FtIconManager().HasIcon(string(name)) then
+      Result := 1
+    else
+      Result := 0;
+  except
+    Result := 0;
+  end;
+end;
+
+procedure ft_icon_set_monochrome_colors(light_color, dark_color: PChar); cdecl; export;
+var
+  sLight, sDark: string;
+begin
+  sLight := '';
+  sDark := '';
+  if Assigned(light_color) then sLight := string(light_color);
+  if Assigned(dark_color) then sDark := string(dark_color);
+  try
+    FtIconManager().SetMonochromeColors(sLight, sDark);
+  except
+  end;
+end;
+
 exports
   ft_init,
   ft_main_loop,
   ft_quit,
   ft_window_create,
+  ft_egl_is_available,
+  ft_backend_enable_egl,
+  ft_backend_is_egl_enabled,
+  ft_egl_window_create,
+  ft_window_is_hardware_accelerated,
+  ft_window_set_hardware_accelerated,
+  ft_window_set_swap_interval,
+  ft_window_make_current,
+  ft_window_release_current,
+  ft_window_on_gl_draw,
+  ft_widget_invalidate,
+  ft_window_repaint,
   ft_window_set_title,
   ft_window_set_borderless,
   ft_window_get_borderless,
@@ -4670,6 +4882,8 @@ exports
   ft_window_get_background_opacity,
   ft_window_set_background_blur,
   ft_window_get_background_blur,
+  ft_window_show_modal,
+  ft_window_bring_to_front,
   ft_widget_show,
   ft_widget_hide,
   ft_widget_set_focus,
@@ -5168,7 +5382,14 @@ exports
   ft_file_dialog_destroy,
   ft_dialog_open_file,
   ft_dialog_save_file,
-  ft_dialog_select_folder;
+  ft_dialog_select_folder,
+
+  // Icons & Icon Theming
+  ft_icon_get_svg,
+  ft_icon_get_bitmap,
+  ft_icon_register,
+  ft_icon_has,
+  ft_icon_set_monochrome_colors;
 
 begin
 end.

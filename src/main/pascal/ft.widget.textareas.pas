@@ -145,6 +145,7 @@ begin
   FPaddingY := 6.0;
   FDrawFrame := True;
   FDrawFocusRing := True;
+  FBackdropBlur := 0.0;
 
   FLines := TStringList.Create();
   FLines.Text := NormalizeText(AText);

@@ -132,6 +132,7 @@ begin
   FPaddingY := 4.0;
   FDrawFrame := True;
   FDrawFocusRing := True;
+  FBackdropBlur := 0.0;
 
   FText := AText;
   FPlaceholder := '';

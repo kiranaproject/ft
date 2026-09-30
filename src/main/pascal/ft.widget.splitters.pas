@@ -375,9 +375,6 @@ begin
     w := FPane2.HitTest(AX, AY);
     if Assigned(w) then Exit(w);
   end;
-
-  if (AX >= X) and (AX <= X + Width) and (AY >= Y) and (AY <= Y + Height) then
-    Result := Self;
 end;
 
 procedure TFtSplitter.MouseDown(AX, AY: Integer; AButton: Integer);

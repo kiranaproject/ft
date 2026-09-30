@@ -96,6 +96,10 @@ type
     procedure InvalidateStyle(); virtual;
     function GetEffectiveHint(): string; virtual;
 
+    function HasBackdropBlur(): Boolean; virtual;
+    function IsBackdropCacheValid(): Boolean; virtual;
+    procedure InvalidateBackdropCache(); virtual;
+
     function GetChildRenderArea(out AX, AY, AW, AH, ARadius: Double): Boolean; virtual;
     function GetParentRenderArea(out AX, AY, AW, AH, ARadius: Double): Boolean; virtual;
 
@@ -474,6 +478,20 @@ begin
     Result := ':focus'
   else
     Result := '';
+end;
+
+function TFtWidget.HasBackdropBlur(): Boolean;
+begin
+  Result := False;
+end;
+
+function TFtWidget.IsBackdropCacheValid(): Boolean;
+begin
+  Result := False;
+end;
+
+procedure TFtWidget.InvalidateBackdropCache();
+begin
 end;
 
 function TFtWidget.GetResolvedStyle(): TFtWidgetStyle;

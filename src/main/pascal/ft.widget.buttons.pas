@@ -576,7 +576,7 @@ begin
        (not st.HasShadow and (FEnableShadow = -1) and FtGetTheme().EnableShadow) then
     begin
       if FState <> bsPressed then
-        Canvas.DrawShadow(X, Y, Width, Height, effRadius, 0.0, 2.0, 4.0, 0.0, 0.0, 0.0, 0.18);
+        Canvas.DrawShadow(X, Y, Width, Height, effRadius, 0.0, FtGetTheme().ShadowOffsetY, FtGetTheme().ShadowBlur, 0.0, 0.0, 0.0, FtGetTheme().ShadowOpacity);
     end;
 
     // 3. Background

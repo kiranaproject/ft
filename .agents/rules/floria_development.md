@@ -75,5 +75,21 @@ When developing or creating examples, widgets, and language bindings for Floria 
 ## 10. Tool Call Schema Invariants
 - **`find_by_name` Mandatory `Pattern`**: Always supply `Pattern: "*"` when calling `find_by_name` with `Extensions` or `Type`. The tool schema strictly enforces `Pattern` as a required parameter (`required: ["SearchDirectory", "Pattern", "toolSummary", "toolAction"]`), regardless of documentation text.
 
+## 11. Automated GUI Testing & Process Lifecycles
+- **No Unbounded Process Waiting**: GUI test scripts that launch Floria applications (`XCB`/`X11` windows, modal dialogs) must never block indefinitely on `wait $PID`. Because event loops or modal dialogs might not catch specific dismissal inputs (like synthetic Escape key events), always ensure guaranteed termination:
+  ```bash
+  ./my_gui_test &
+  PID=$!
+  sleep 1.0
+  # ... interact with xdotool / capture screenshot ...
+  kill -9 $PID 2>/dev/null || true
+  wait $PID 2>/dev/null || true
+  ```
+- **Pattern Matching with `pkill -f`**: When cleaning up background test processes by command name, always specify `pkill -f` (or `pgrep -f`) because standard Linux process name matching truncates at 15 characters.
+
+## 12. Pascal Unit Naming & Tool Safety Invariants
+- **Plural Widget Unit Convention**: All widget units in `src/main/pascal/ft.widget.*.pas` use plural nouns (`ft.widget.buttons`, `ft.widget.splitters`, `ft.widget.treeviews`, `ft.widget.tables`, etc.). Verify filenames with `find` or `ls` before invoking `view_file` to avoid `no such file or directory` errors.
+- **Modal Dialog Keyboard Cancellation**: Top-level dialog windows (`TFtFileDialog`, `ftwtDialog`) must intercept `XK_Escape` during key press event dispatch to trigger cancellation (`mrCancel` / close), ensuring standard desktop UX and reliable automated keyboard dismissal.
+
 
 

@@ -193,6 +193,8 @@ begin
   begin
     HasBorderWidth := True;
     BorderWidth := Other.BorderWidth;
+    if Other.BorderWidth <= 0.0 then
+      HasBorderColor := False;
   end;
   if Other.HasBorderRadius then
   begin
@@ -1096,6 +1098,7 @@ begin
       begin
         AStyle.HasBorderWidth := True;
         AStyle.BorderWidth := 0.0;
+        AStyle.HasBorderColor := False;
       end
       else if FtParseLength(tok, lenVal) then
       begin
@@ -1215,6 +1218,21 @@ begin
   begin
     resolvedStr := ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo);
     ParseBorderShorthand(resolvedStr, AStyle);
+  end;
+
+  // Border Style: border-style: none
+  decl := ABlock.GetDeclaration(cpiBorderStyle);
+  if decl = nil then decl := ABlock.GetDeclaration(cpiBorderTopStyle);
+  if decl = nil then decl := ABlock.GetCustom('border-style');
+  if decl <> nil then
+  begin
+    subStr := LowerCase(Trim(decl.Value.ToString()));
+    if (subStr = 'none') or (subStr = 'hidden') then
+    begin
+      AStyle.HasBorderWidth := True;
+      AStyle.BorderWidth := 0.0;
+      AStyle.HasBorderColor := False;
+    end;
   end;
 
   // Border Radius

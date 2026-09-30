@@ -386,7 +386,7 @@ begin
      (not st.HasShadow and (FEnableShadow = 1)) or
      (not st.HasShadow and (FEnableShadow = -1) and FtGetTheme().EnableShadow) then
   begin
-    Canvas.DrawShadow(X, Y, trackW, trackH, rad, 0.0, 2.0, 4.0, 0.0, 0.0, 0.0, 0.15);
+    Canvas.DrawShadow(X, Y, trackW, trackH, rad, 0.0, 2.0, 6.0, 0.0, 0.0, 0.0, 0.08);
   end;
 
   // 2. Track background
@@ -413,7 +413,7 @@ begin
   end;
 
   // 4. Thumb knob (white circle with subtle shadow)
-  Canvas.DrawShadow(thumbX, thumbY, thumbD, thumbD, thumbD / 2.0, 0.0, 1.0, 2.0, 0.0, 0.0, 0.0, 0.20);
+  Canvas.DrawShadow(thumbX, thumbY, thumbD, thumbD, thumbD / 2.0, 0.0, 1.0, 3.0, 0.0, 0.0, 0.0, 0.12);
   Canvas.DrawRoundedRect(thumbX, thumbY, thumbD, thumbD, thumbD / 2.0, 1.0, 1.0, 1.0, 1.0);
   Canvas.DrawRoundedRectOutline(thumbX, thumbY, thumbD, thumbD, thumbD / 2.0, 0.5, 0.85, 0.87, 0.90, 1.0);
 

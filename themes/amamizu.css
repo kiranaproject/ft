@@ -1,0 +1,323 @@
+/* Floria Toolkit - Amamizu (雨水 / Rainwater) Theme
+ *
+ * Inspired by Mac Liquid Glass, Aqua Vibrancy, and Crystalline Refraction.
+ * Features translucent frosted glass surfaces, specular highlights,
+ * soft atmospheric drop shadows, and fluid liquid transitions.
+ */
+
+:root {
+    /* ── Light Mode: Morning Rain (朝の雨) ── */
+
+    /* Base Window & Text */
+    --window-bg: #eaf2f8;
+    --text-color: #0f172a;
+    --text-dark: #020617;
+    --text-light: #ffffff;
+    --text-active: #0284c7;
+    --text-disabled: #94a3b8;
+    --disabled-text-color: #94a3b8;
+
+    /* Specular Glass Borders & Refractions */
+    --border-color: rgba(255, 255, 255, 0.85);
+    --border-hover: rgba(14, 165, 233, 0.75);
+    --border-active: rgba(2, 132, 199, 0.90);
+    --border-dark: rgba(148, 190, 233, 0.60);
+
+    /* Liquid Glass Plates & Buttons */
+    --plate-bg: rgba(255, 255, 255, 0.70);
+    --plate-hover: rgba(255, 255, 255, 0.92);
+    --plate-active: rgba(224, 242, 254, 0.85);
+    --btn-color: #0369a1;
+    --btn-border: rgba(255, 255, 255, 0.90);
+    --btn-border-hover: rgba(14, 165, 233, 0.75);
+    --btn-border-active: rgba(2, 132, 199, 0.90);
+    --btn-hover-text: #0284c7;
+    --btn-active-text: #0369a1;
+
+    /* Surfaces / Glass Controls (Entry, Container, Table, Menu) */
+    --surface-bg: rgba(255, 255, 255, 0.65);
+    --surface-border: rgba(255, 255, 255, 0.80);
+    --surface-inset: rgba(255, 255, 255, 0.55);
+
+    /* Liquid Accent & Glowing Focus */
+    --accent-color: #0284c7;
+    --accent-hover: #0ea5e9;
+    --accent-focus: #38bdf8;
+
+    /* Switch & Slider Track */
+    --track-bg: rgba(203, 213, 225, 0.70);
+    --track-border: rgba(255, 255, 255, 0.85);
+
+    /* Scrollbar (Floating Water Pill) */
+    --scrollbar-track: rgba(0, 0, 0, 0.03);
+    --scrollbar-thumb: rgba(15, 23, 42, 0.22);
+    --scrollbar-hover: rgba(14, 165, 233, 0.65);
+    --scrollbar-active: rgba(2, 132, 199, 0.85);
+
+    /* Baseline defaults for window and inheriting widgets */
+    background-color: var(--window-bg);
+    color: var(--text-color);
+    font-family: 'Noto Sans CJK JP', 'Ubuntu', sans-serif;
+}
+
+:root.dark, .dark {
+    /* ── Dark Mode: Midnight Rain (夜雨) ── */
+
+    /* Base Window & Text */
+    --window-bg: #0b111e;
+    --text-color: #f8fafc;
+    --text-dark: #f1f5f9;
+    --text-light: #ffffff;
+    --text-active: #38bdf8;
+    --text-disabled: #64748b;
+    --disabled-text-color: #64748b;
+
+    /* Dark Specular Glass Borders */
+    --border-color: rgba(255, 255, 255, 0.14);
+    --border-hover: rgba(56, 189, 248, 0.80);
+    --border-active: rgba(14, 165, 233, 0.90);
+    --border-dark: rgba(255, 255, 255, 0.20);
+
+    /* Dark Liquid Glass Plates & Buttons */
+    --plate-bg: rgba(24, 34, 52, 0.65);
+    --plate-hover: rgba(34, 48, 74, 0.80);
+    --plate-active: rgba(14, 24, 42, 0.85);
+    --btn-color: #f1f5f9;
+    --btn-border: rgba(255, 255, 255, 0.16);
+    --btn-border-hover: rgba(56, 189, 248, 0.80);
+    --btn-border-active: rgba(14, 165, 233, 0.90);
+    --btn-hover-text: #ffffff;
+    --btn-active-text: #7dd3fc;
+
+    /* Dark Surfaces / Glass Controls */
+    --surface-bg: rgba(18, 26, 42, 0.65);
+    --surface-border: rgba(255, 255, 255, 0.12);
+    --surface-inset: rgba(15, 23, 42, 0.65);
+
+    /* Dark Bioluminescent Accent & Focus */
+    --accent-color: #0ea5e9;
+    --accent-hover: #38bdf8;
+    --accent-focus: #7dd3fc;
+
+    /* Dark Switch & Slider Track */
+    --track-bg: rgba(51, 65, 85, 0.70);
+    --track-border: rgba(255, 255, 255, 0.14);
+
+    /* Dark Scrollbar */
+    --scrollbar-track: rgba(255, 255, 255, 0.03);
+    --scrollbar-thumb: rgba(255, 255, 255, 0.25);
+    --scrollbar-hover: rgba(56, 189, 248, 0.70);
+    --scrollbar-active: rgba(14, 165, 233, 0.90);
+}
+
+/* ── Window ── */
+window {
+    background-color: var(--window-bg);
+    color: var(--text-color);
+}
+
+/* ── Liquid Glass Buttons ── */
+button {
+    background-color: var(--plate-bg);
+    color: var(--btn-color);
+    border-color: var(--btn-border);
+    border-width: 1px;
+    border-radius: 9px;
+    box-shadow: 1;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    transition: all 180ms ease;
+}
+
+button:hover {
+    background-color: var(--plate-hover);
+    border-color: var(--btn-border-hover);
+    color: var(--btn-hover-text);
+}
+
+button:active {
+    background-color: var(--plate-active);
+    border-color: var(--btn-border-active);
+    color: var(--btn-active-text);
+}
+
+button:disabled {
+    color: var(--text-disabled);
+    opacity: 0.55;
+    box-shadow: 0;
+}
+
+button.primary, button.action, button.accent {
+    background-color: var(--accent-color);
+    color: var(--text-light);
+    border-color: rgba(255, 255, 255, 0.90);
+    border-width: 1px;
+    border-radius: 9px;
+    box-shadow: 1;
+}
+
+button.primary:hover, button.action:hover, button.accent:hover {
+    background-color: var(--accent-hover);
+    color: var(--text-light);
+    border-color: #ffffff;
+}
+
+button.primary:active, button.action:active, button.accent:active {
+    background-color: var(--border-active);
+    color: var(--text-light);
+}
+
+button.pill, button.capsule {
+    border-radius: 9999px;
+}
+
+/* Window Buttons (macOS Traffic Light Pills / Squircles) */
+windowbutton {
+    border-radius: 9999px;
+    box-shadow: 1;
+    transition: all 150ms ease;
+}
+
+/* ── Glass Recess Controls (Entry, TextArea, PathBar, UrlEntry) ── */
+entry, textarea, pathbar, urlentry {
+    background-color: var(--surface-inset);
+    color: var(--text-dark);
+    border-color: var(--border-dark);
+    border-width: 1px;
+    border-radius: 8px;
+    box-shadow: 0;
+    transition: border-color 160ms ease;
+}
+
+urlentry, urlentry.dark {
+    border-radius: 9999px;
+}
+
+entry:focus, textarea:focus, pathbar:focus, urlentry:focus {
+    border-color: var(--accent-focus);
+    background-color: var(--surface-bg);
+}
+
+/* ── Liquid Switch (Capsule) ── */
+switch {
+    background-color: var(--track-bg);
+    border-color: var(--track-border);
+    border-width: 1px;
+    border-radius: 9999px;
+    transition: all 200ms ease;
+}
+
+switch:checked {
+    background-color: var(--accent-color);
+    border-color: var(--accent-hover);
+}
+
+/* ── Typography & Labels ── */
+label, text {
+    color: var(--text-color);
+}
+
+/* ── Floating Water Pill Scrollbar ── */
+scrollbar {
+    background-color: var(--scrollbar-track);
+    color: var(--scrollbar-thumb);
+    border-radius: 9999px;
+    transition: all 150ms ease;
+}
+
+scrollbar:hover {
+    color: var(--scrollbar-hover);
+}
+
+scrollbar:active {
+    color: var(--scrollbar-active);
+}
+
+/* ── Frosted Glass Surfaces & Popups (Menu, Tooltip) ── */
+menu, tooltip {
+    background-color: var(--surface-bg);
+    border-color: var(--surface-border);
+    border-width: 1px;
+    color: var(--text-color);
+    border-radius: 8px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 1;
+}
+
+menu:hover {
+    background-color: var(--accent-color);
+    color: var(--text-light);
+}
+
+menu:disabled {
+    color: var(--text-disabled);
+}
+
+/* ── Frosted Glass Containers & Panels ── */
+container, table, treeview, notebook, tabpage {
+    background-color: var(--surface-bg);
+    border-color: var(--surface-border);
+    border-width: 1px;
+    border-radius: 12px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 1;
+}
+
+/* ── Selectors (Checkbox & Radio) ── */
+checkbox, radio {
+    background-color: var(--surface-inset);
+    border-color: var(--border-dark);
+    border-width: 1px;
+    border-radius: 6px;
+    color: var(--text-color);
+    transition: all 160ms ease;
+}
+
+radio {
+    border-radius: 9999px;
+}
+
+checkbox:checked, radio:checked {
+    background-color: var(--accent-color);
+    border-color: var(--accent-hover);
+    color: var(--text-light);
+}
+
+/* ── Combobox (Glass Dropdown) ── */
+combobox {
+    background-color: var(--surface-bg);
+    border-color: var(--surface-border);
+    border-width: 1px;
+    border-radius: 8px;
+    color: var(--text-dark);
+    box-shadow: 1;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    transition: border-color 160ms ease;
+}
+
+combobox:focus {
+    border-color: var(--accent-focus);
+}
+
+/* ── Slider Track ── */
+slider {
+    background-color: var(--track-bg);
+    color: var(--accent-focus);
+}
+
+/* ── Progress Bar ── */
+progressbar {
+    background-color: var(--surface-inset);
+    border-color: var(--surface-border);
+    border-width: 1px;
+    border-radius: 9999px;
+    color: var(--accent-color);
+}
+
+/* ── Splitter ── */
+splitter {
+    background-color: transparent;
+}
