@@ -273,7 +273,7 @@ begin
           th := FIconHeight;
           if tw <= 0 then tw := 16;
           if th <= 0 then th := 16;
-          FIcon := TFloriaSVGRenderer.RenderToImage(svgDoc, tw, th);
+          FIcon := TFloriaSVGRenderer.RenderToImage(svgDoc, tw, th, True);
           FOwnsIcon := True;
         finally
           svgDoc.Free();
@@ -311,7 +311,7 @@ begin
         th := FIconHeight;
         if tw <= 0 then tw := 16;
         if th <= 0 then th := 16;
-        FIcon := TFloriaSVGRenderer.RenderToImage(svgDoc, tw, th);
+        FIcon := TFloriaSVGRenderer.RenderToImage(svgDoc, tw, th, True);
         FOwnsIcon := True;
       finally
         svgDoc.Free();

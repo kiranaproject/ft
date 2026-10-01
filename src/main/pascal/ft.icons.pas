@@ -380,7 +380,7 @@ begin
     if Assigned(doc) then
     begin
       try
-        Result := TFloriaSVGRenderer.RenderToImage(doc, AW, AH);
+        Result := TFloriaSVGRenderer.RenderToImage(doc, AW, AH, True);
       finally
         doc.Free();
       end;
