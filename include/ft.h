@@ -179,6 +179,7 @@ void ft_window_button_on_press(FtWidget button, FtPressCallback callback, void* 
 void ft_window_button_set_transition_duration(FtWidget button, int32_t duration_ms);
 int32_t ft_window_button_get_transition_duration(FtWidget button);
 double ft_window_button_get_hover_progress(FtWidget button);
+void ft_window_button_draw(void* canvas, double bx, double by, double bw, double bh, int32_t kind, int32_t style, int32_t state, int32_t dark_mode, double glyph_arm, double hover_progress);
 
 /* Widgets: Switch */
 FtWidget ft_switch_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, const char* caption);

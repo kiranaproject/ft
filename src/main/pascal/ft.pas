@@ -810,6 +810,42 @@ begin
     Result := TFtWindowButton(button).HoverProgress;
 end;
 
+procedure ft_window_button_draw(canvas: Pointer; bx, by, bw, bh: Double;
+                                kind: cint32; style: cint32; state: cint32;
+                                dark_mode: cint32; glyph_arm: Double;
+                                hover_progress: Double); cdecl; export;
+var
+  k: TFtWindowButtonKind;
+  st: TFtWindowButtonStyle;
+  btnSt: TFtButtonState;
+begin
+  if (canvas = nil) or not (TObject(canvas) is TFtCanvasAgg) then Exit;
+
+  if (kind >= 0) and (kind <= Ord(High(TFtWindowButtonKind))) then
+    k := TFtWindowButtonKind(kind)
+  else
+    k := wbkClose;
+
+  if (style >= 0) and (style <= Ord(High(TFtWindowButtonStyle))) then
+    st := TFtWindowButtonStyle(style)
+  else
+    st := wbsCircle;
+
+  if (state >= 0) and (state <= Ord(High(TFtButtonState))) then
+    btnSt := TFtButtonState(state)
+  else
+    btnSt := bsNormal;
+
+  TFtWindowButton.DrawWindowButton(
+    TFtCanvasAgg(canvas),
+    bx, by, bw, bh,
+    k, st, btnSt,
+    dark_mode <> 0,
+    glyph_arm,
+    hover_progress
+  );
+end;
+
 function ft_switch_create(parent: Pointer; x, y, w, h: cint32; caption: PChar): Pointer; cdecl; export;
 var
   Sw: TFtSwitch;
@@ -4942,6 +4978,7 @@ exports
   ft_window_button_set_transition_duration,
   ft_window_button_get_transition_duration,
   ft_window_button_get_hover_progress,
+  ft_window_button_draw,
   ft_switch_create,
   ft_switch_set_checked,
   ft_switch_get_checked,
