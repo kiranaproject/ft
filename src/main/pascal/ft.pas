@@ -819,7 +819,7 @@ var
   st: TFtWindowButtonStyle;
   btnSt: TFtButtonState;
 begin
-  if (canvas = nil) or not (TObject(canvas) is TFtCanvasAgg) then Exit;
+  if canvas = nil then Exit;
 
   if (kind >= 0) and (kind <= Ord(High(TFtWindowButtonKind))) then
     k := TFtWindowButtonKind(kind)

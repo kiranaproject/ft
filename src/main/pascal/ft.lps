@@ -51,9 +51,11 @@
         <Filename Value="ft.theme.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="Ft.Theme"/>
-        <EditorIndex Value="-1"/>
-        <CursorPos Y="1120"/>
+        <EditorIndex Value="4"/>
+        <TopLine Value="218"/>
+        <CursorPos X="54" Y="198"/>
         <UsageCount Value="329"/>
+        <Loaded Value="True"/>
       </Unit>
       <Unit>
         <Filename Value="ft.widget.switches.pas"/>
@@ -127,41 +129,41 @@
         <UnitName Value="Ft.Backend.XCB"/>
         <EditorIndex Value="-1"/>
         <CursorPos X="64" Y="8"/>
-        <UsageCount Value="11"/>
+        <UsageCount Value="6"/>
       </Unit>
       <Unit>
         <Filename Value="../../../../florialib/src/main/pascal/Floria.XCB.Keysyms.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="18"/>
         <CursorPos X="195" Y="29"/>
-        <UsageCount Value="49"/>
+        <UsageCount Value="44"/>
       </Unit>
       <Unit>
         <Filename Value="../../../../florialib/src/main/pascal/Floria.XCB.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="170"/>
         <CursorPos X="62" Y="184"/>
-        <UsageCount Value="39"/>
+        <UsageCount Value="34"/>
       </Unit>
       <Unit>
         <Filename Value="../../../../florialib/src/main/pascal/Floria.Font.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="275"/>
         <CursorPos X="31" Y="212"/>
-        <UsageCount Value="27"/>
+        <UsageCount Value="22"/>
       </Unit>
       <Unit>
         <Filename Value="../../../../../../../blaise/fpgui/framework/src/main/pascal/corelib/render/software/agg_font_freetype.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="34"/>
-        <UsageCount Value="27"/>
+        <UsageCount Value="22"/>
       </Unit>
       <Unit>
         <Filename Value="../../../../../../../blaise/fpgui/framework/src/main/pascal/corelib/render/software/agg_font_freetype_lib.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="37"/>
         <CursorPos X="40" Y="43"/>
-        <UsageCount Value="27"/>
+        <UsageCount Value="22"/>
       </Unit>
       <Unit>
         <Filename Value="ft.widget.pathbars.pas"/>
@@ -169,7 +171,7 @@
         <UnitName Value="Ft.Widget.PathBars"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="561"/>
-        <UsageCount Value="163"/>
+        <UsageCount Value="212"/>
       </Unit>
       <Unit>
         <Filename Value="ft.widget.urlentries.pas"/>
@@ -177,7 +179,7 @@
         <UnitName Value="Ft.Widget.UrlEntries"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="113"/>
-        <UsageCount Value="163"/>
+        <UsageCount Value="212"/>
       </Unit>
       <Unit>
         <Filename Value="ft.dialogs.pas"/>
@@ -186,7 +188,7 @@
         <EditorIndex Value="-1"/>
         <TopLine Value="1140"/>
         <CursorPos X="67" Y="855"/>
-        <UsageCount Value="163"/>
+        <UsageCount Value="212"/>
       </Unit>
       <Unit>
         <Filename Value="../../../../florialib/src/main/pascal/floria.egl.pas"/>
@@ -194,18 +196,33 @@
         <EditorIndex Value="1"/>
         <TopLine Value="934"/>
         <CursorPos X="20" Y="943"/>
-        <UsageCount Value="82"/>
+        <UsageCount Value="106"/>
         <Loaded Value="True"/>
       </Unit>
       <Unit>
         <Filename Value="ft.backend.egl.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="Ft.Backend.EGL"/>
-        <IsVisibleTab Value="True"/>
         <EditorIndex Value="3"/>
-        <TopLine Value="19"/>
+        <TopLine Value="794"/>
         <CursorPos X="57" Y="19"/>
-        <UsageCount Value="163"/>
+        <UsageCount Value="212"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="../../../../florialib/src/main/pascal/floria.xcb.wm.pas"/>
+        <UnitName Value="Floria.XCB.WM"/>
+        <EditorIndex Value="5"/>
+        <UsageCount Value="34"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="../../../../florialib/src/main/pascal/floria.xcb.wm.compositor.pas"/>
+        <UnitName Value="Floria.XCB.WM.Compositor"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="6"/>
+        <TopLine Value="139"/>
+        <UsageCount Value="34"/>
         <Loaded Value="True"/>
       </Unit>
     </Units>
