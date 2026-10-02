@@ -79,7 +79,7 @@ int main(void) {
     ft_window_button_on_click(c_max, on_btn_click, "Maximize [wbkMaximize (Mac outward chevron ↗ ↙)]");
 
     FtWidget c_res = ft_window_button_create(title1, 92, 14, 20, 20, FT_WINDOW_BUTTON_RESTORE, FT_WINDOW_BUTTON_CIRCLE);
-    ft_window_button_on_click(c_res, on_btn_click, "Restore [wbkRestore (Mac inward chevron ↘ ↖)]");
+    ft_window_button_on_click(c_res, on_btn_click, "Restore [wbkRestore (Mac inward chevron ↙ ↗)]");
 
     FtWidget c_pin = ft_window_button_create(title1, 118, 14, 20, 20, FT_WINDOW_BUTTON_PIN, FT_WINDOW_BUTTON_CIRCLE);
     ft_window_button_on_click(c_pin, on_btn_click, "Pin [wbkPin (Circle)]");

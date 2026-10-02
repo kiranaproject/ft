@@ -1308,14 +1308,29 @@ begin
 
     wbkRestore: // Mac-style inward chevrons with subtle inward convergence on hover
     begin
-      cShift := 0.35 * prog;
-      leg := arm * 0.65;
-      // Top-right chevron (pointing inward ↘ toward center)
-      Canvas.DrawLine(cenX + arm * 0.25 - cShift, cenY - arm * 0.25 - leg - cShift, cenX + arm * 0.25 - cShift, cenY - arm * 0.25 + cShift, 1.3, gR, gG, gB, gA);
-      Canvas.DrawLine(cenX + arm * 0.25 + leg - cShift, cenY - arm * 0.25, cenX + arm * 0.25 - cShift, cenY - arm * 0.25 + cShift, 1.3, gR, gG, gB, gA);
-      // Bottom-left chevron (pointing inward ↖ toward center)
-      Canvas.DrawLine(cenX - arm * 0.25 + cShift, cenY + arm * 0.25 + leg + cShift, cenX - arm * 0.25 + cShift, cenY - arm * 0.25 - cShift, 1.3, gR, gG, gB, gA);
-      Canvas.DrawLine(cenX - arm * 0.25 - leg + cShift, cenY + arm * 0.25, cenX - arm * 0.25 + cShift, cenY - arm * 0.25 - cShift, 1.3, gR, gG, gB, gA);
+      cShift := 0.28 * prog;
+      leg := arm * 0.68;
+      // Top-right chevron (pointing inward ↙ toward center)
+      // Inner vertex at (cenX + arm * 0.34 - cShift, cenY - arm * 0.34 + cShift)
+      Canvas.DrawLine(
+        cenX + arm * 0.34 - cShift, cenY - arm * 0.34 + cShift - leg,
+        cenX + arm * 0.34 - cShift, cenY - arm * 0.34 + cShift,
+        1.3, gR, gG, gB, gA);
+      Canvas.DrawLine(
+        cenX + arm * 0.34 - cShift + leg, cenY - arm * 0.34 + cShift,
+        cenX + arm * 0.34 - cShift, cenY - arm * 0.34 + cShift,
+        1.3, gR, gG, gB, gA);
+
+      // Bottom-left chevron (pointing inward ↗ toward center)
+      // Inner vertex at (cenX - arm * 0.34 + cShift, cenY + arm * 0.34 - cShift)
+      Canvas.DrawLine(
+        cenX - arm * 0.34 + cShift, cenY + arm * 0.34 - cShift + leg,
+        cenX - arm * 0.34 + cShift, cenY + arm * 0.34 - cShift,
+        1.3, gR, gG, gB, gA);
+      Canvas.DrawLine(
+        cenX - arm * 0.34 + cShift - leg, cenY + arm * 0.34 - cShift,
+        cenX - arm * 0.34 + cShift, cenY + arm * 0.34 - cShift,
+        1.3, gR, gG, gB, gA);
     end;
 
     wbkShade:
