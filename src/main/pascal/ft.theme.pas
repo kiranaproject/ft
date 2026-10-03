@@ -221,6 +221,16 @@ const
     '    border-color: #3b82f6;' + LineEnding +
     '    color: #e2e8f0;' + LineEnding +
     '}' + LineEnding +
+    'button:checked {' + LineEnding +
+    '    background-color: #3b82f6;' + LineEnding +
+    '    border-color: #2563eb;' + LineEnding +
+    '    color: #ffffff;' + LineEnding +
+    '}' + LineEnding +
+    'button.dark:checked {' + LineEnding +
+    '    background-color: #2563eb;' + LineEnding +
+    '    border-color: #60a5fa;' + LineEnding +
+    '    color: #ffffff;' + LineEnding +
+    '}' + LineEnding +
     'windowbutton {' + LineEnding +
     '    transition: all 180ms ease-out;' + LineEnding +
     '}' + LineEnding +

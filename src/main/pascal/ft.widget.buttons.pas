@@ -392,6 +392,7 @@ begin
   if FToggled <> AValue then
   begin
     FToggled := AValue;
+    InvalidateStyle();
     Invalidate();
     if Assigned(FOnToggle) then
     begin

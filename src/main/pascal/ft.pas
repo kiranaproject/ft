@@ -342,6 +342,26 @@ begin
     TFtWindow(window).BringToFront();
 end;
 
+procedure ft_window_grab_input(window: Pointer); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    TFtWindow(window).GrabInput();
+end;
+
+procedure ft_window_ungrab_input(window: Pointer); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    TFtWindow(window).UngrabInput();
+end;
+
+function ft_window_get_native_handle(window: Pointer): Pointer; cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    Result := TFtWindow(window).GetNativeHandle()
+  else
+    Result := nil;
+end;
+
 procedure ft_widget_set_focus(widget: Pointer); cdecl; export;
 begin
   if Assigned(widget) and (TObject(widget) is TFtWidget) then
@@ -2152,6 +2172,36 @@ end;
 procedure ft_screen_dpi_set(dpi: Double); cdecl; export;
 begin
   FtSetScreenDPI(dpi);
+end;
+
+function ft_screen_get_width(): cint32; cdecl; export;
+begin
+  Result := FtGetScreenWidth();
+end;
+
+function ft_screen_get_height(): cint32; cdecl; export;
+begin
+  Result := FtGetScreenHeight();
+end;
+
+procedure ft_register_event_filter(filter: TFtEventFilterFunc); cdecl; export;
+begin
+  FtRegisterEventFilter(filter);
+end;
+
+function ft_backend_get_connection(): Pointer; cdecl; export;
+begin
+  Result := GConnection;
+end;
+
+function ft_backend_get_screen(): Pointer; cdecl; export;
+begin
+  Result := GScreen;
+end;
+
+function ft_backend_get_key_symbols(): Pointer; cdecl; export;
+begin
+  Result := GKeySymbols;
 end;
 
 function ft_font_gamma_get(): Double; cdecl; export;
@@ -5426,7 +5476,20 @@ exports
   ft_icon_get_bitmap,
   ft_icon_register,
   ft_icon_has,
-  ft_icon_set_monochrome_colors;
+  ft_icon_set_monochrome_colors,
+
+  // Window grab & native handle
+  ft_window_grab_input,
+  ft_window_ungrab_input,
+  ft_window_get_native_handle,
+
+  // Screen & Backend
+  ft_screen_get_width,
+  ft_screen_get_height,
+  ft_register_event_filter,
+  ft_backend_get_connection,
+  ft_backend_get_screen,
+  ft_backend_get_key_symbols;
 
 begin
 end.

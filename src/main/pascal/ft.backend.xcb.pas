@@ -13,7 +13,15 @@ type
   TFtWindow = Ft.Window.TFtWindow;
   TFtWindowType = Ft.Window.TFtWindowType;
   TFtSelectionLostHandler = Ft.Window.TFtSelectionLostHandler;
+  TFtEventFilterFunc = Ft.Backend.X11.TFtEventFilterFunc;
+
+procedure FtRegisterEventFilter(AFilter: TFtEventFilterFunc);
 
 implementation
+
+procedure FtRegisterEventFilter(AFilter: TFtEventFilterFunc);
+begin
+  Ft.Backend.X11.FtRegisterEventFilter(AFilter);
+end;
 
 end.

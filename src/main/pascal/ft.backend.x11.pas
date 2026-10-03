@@ -145,6 +145,14 @@ function FtIsHintVisible(): Boolean;
 procedure FtSetHintDelay(ADelayMs: Integer);
 function FtGetHintDelay(): Integer;
 
+type
+  TFtEventFilterFunc = function(Event: Pxcb_generic_event_t): Boolean; cdecl;
+
+var
+  GEventFilter: TFtEventFilterFunc = nil;
+
+procedure FtRegisterEventFilter(AFilter: TFtEventFilterFunc);
+
 implementation
 
 uses
@@ -315,6 +323,11 @@ begin
   GRunning := False;
 end;
 
+procedure FtRegisterEventFilter(AFilter: TFtEventFilterFunc);
+begin
+  GEventFilter := AFilter;
+end;
+
 function FindWindowByHandle(AWindow: xcb_window_t): TFtX11Window;
 var
   i: Integer;
@@ -463,6 +476,12 @@ begin
   begin
     ev := xcb_poll_for_event(GConnection);
     if ev = nil then Break;
+
+    if Assigned(GEventFilter) and GEventFilter(ev) then
+    begin
+      c_free(ev);
+      Continue;
+    end;
 
     evType := ev^.response_type and $7F;
     winId := 0;

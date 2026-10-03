@@ -57,6 +57,9 @@ void ft_window_set_background_blur(FtWidget window, int32_t blur);
 int32_t ft_window_get_background_blur(FtWidget window);
 int32_t ft_window_show_modal(FtWidget window);
 void ft_window_bring_to_front(FtWidget window);
+void ft_window_grab_input(FtWidget window);
+void ft_window_ungrab_input(FtWidget window);
+void* ft_window_get_native_handle(FtWidget window);
 
 /* Hardware Acceleration & EGL Backend */
 int32_t ft_egl_is_available(void);
@@ -555,6 +558,14 @@ void ft_widget_set_font(FtWidget widget, const char* font_desc);
 const char* ft_widget_get_font(FtWidget widget);
 double ft_screen_dpi_get(void);
 void ft_screen_dpi_set(double dpi);
+int32_t ft_screen_get_width(void);
+int32_t ft_screen_get_height(void);
+
+typedef int32_t (*FtEventFilterFunc)(void* event);
+void ft_register_event_filter(FtEventFilterFunc filter);
+void* ft_backend_get_connection(void);
+void* ft_backend_get_screen(void);
+void* ft_backend_get_key_symbols(void);
 double ft_font_gamma_get(void);
 void ft_font_gamma_set(double gamma);
 
