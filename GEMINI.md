@@ -35,3 +35,11 @@
 - **Pluralized Widget Filenames**: In `src/main/pascal/`, widget implementation units are strictly pluralized:
   `ft.widget.buttons.pas`, `ft.widget.containers.pas`, `ft.widget.entries.pas`, `ft.widget.meters.pas`, `ft.widget.pathbars.pas`, `ft.widget.selectors.pas`, `ft.widget.splitters.pas`, `ft.widget.switches.pas`, `ft.widget.tables.pas`, `ft.widget.tabs.pas`, `ft.widget.textareas.pas`, `ft.widget.texts.pas`, `ft.widget.treeviews.pas`, `ft.widget.urlentries.pas`.
   Never look for or target singular filenames like `ft.widget.treeview.pas` or `ft.widget.splitter.pas`.
+
+## GUI Interaction Invariants
+
+- **Button Click Lifecycle (Release-Within-Bounds)**:
+  - All interactive buttons must trigger their primary action on **mouse button release within the control bounds**, never on mouse down.
+  - Mouse down activates the pressed visual state.
+  - Pointer motion leaving the control area during hold must visually un-press the control and cancel action execution on release.
+
