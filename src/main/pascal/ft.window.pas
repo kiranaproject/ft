@@ -15,7 +15,8 @@ type
     ftwtPopupMenu = 2,
     ftwtDropdownMenu = 3,
     ftwtTooltip = 4,
-    ftwtUtility = 5
+    ftwtUtility = 5,
+    ftwtDock = 6
   );
 
 const
@@ -82,6 +83,9 @@ type
     procedure SetBorderless(ABorderless: Boolean); virtual;
     procedure SetSkipTaskbar(ASkip: Boolean); virtual;
     procedure SetWindowType(AType: TFtWindowType); virtual;
+    procedure SetStrutPartial(ALeft, ARight, ATop, ABottom: Cardinal;
+                              ALeftStartY, ALeftEndY, ARightStartY, ARightEndY,
+                              ATopStartX, ATopEndX, ABottomStartX, ABottomEndX: Cardinal); virtual;
     procedure SetIsModal(AValue: Boolean); virtual;
     procedure SetWindowOpacity(AOpacity: Double); virtual;
     procedure SetOpacity(AValue: Double); override;
@@ -559,6 +563,13 @@ end;
 procedure TFtWindow.SetWindowType(AType: TFtWindowType);
 begin
   FWindowType := AType;
+end;
+
+procedure TFtWindow.SetStrutPartial(ALeft, ARight, ATop, ABottom: Cardinal;
+                                    ALeftStartY, ALeftEndY, ARightStartY, ARightEndY,
+                                    ATopStartX, ATopEndX, ABottomStartX, ABottomEndX: Cardinal);
+begin
+  // Platform backend overrides this
 end;
 
 procedure TFtWindow.SetIsModal(AValue: Boolean);

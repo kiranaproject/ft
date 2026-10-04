@@ -14,14 +14,21 @@ type
   TFtWindowType = Ft.Window.TFtWindowType;
   TFtSelectionLostHandler = Ft.Window.TFtSelectionLostHandler;
   TFtEventFilterFunc = Ft.Backend.X11.TFtEventFilterFunc;
+  TFtTickCallback = Ft.Backend.X11.TFtTickCallback;
 
 procedure FtRegisterEventFilter(AFilter: TFtEventFilterFunc);
+procedure FtSetTickCallback(ACallback: TFtTickCallback; AUserData: Pointer);
 
 implementation
 
 procedure FtRegisterEventFilter(AFilter: TFtEventFilterFunc);
 begin
   Ft.Backend.X11.FtRegisterEventFilter(AFilter);
+end;
+
+procedure FtSetTickCallback(ACallback: TFtTickCallback; AUserData: Pointer);
+begin
+  Ft.Backend.X11.FtSetTickCallback(ACallback, AUserData);
 end;
 
 end.

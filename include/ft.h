@@ -35,7 +35,8 @@ typedef enum {
     FT_WINDOW_TYPE_POPUP_MENU = 2,
     FT_WINDOW_TYPE_DROPDOWN_MENU = 3,
     FT_WINDOW_TYPE_TOOLTIP = 4,
-    FT_WINDOW_TYPE_UTILITY = 5
+    FT_WINDOW_TYPE_UTILITY = 5,
+    FT_WINDOW_TYPE_DOCK = 6
 } FtWindowType;
 
 /* Window Management & Widget Focus */
@@ -55,6 +56,12 @@ void ft_window_set_background_opacity(FtWidget window, double opacity);
 double ft_window_get_background_opacity(FtWidget window);
 void ft_window_set_background_blur(FtWidget window, int32_t blur);
 int32_t ft_window_get_background_blur(FtWidget window);
+void ft_window_set_strut_partial(FtWidget window,
+    int32_t left, int32_t right, int32_t top, int32_t bottom,
+    int32_t left_start_y, int32_t left_end_y,
+    int32_t right_start_y, int32_t right_end_y,
+    int32_t top_start_x, int32_t top_end_x,
+    int32_t bottom_start_x, int32_t bottom_end_x);
 int32_t ft_window_show_modal(FtWidget window);
 void ft_window_bring_to_front(FtWidget window);
 void ft_window_grab_input(FtWidget window);
@@ -87,6 +94,8 @@ double ft_widget_get_opacity(FtWidget widget);
 void ft_widget_set_enabled(FtWidget widget, int32_t enabled);
 int32_t ft_widget_get_enabled(FtWidget widget);
 int32_t ft_widget_get_parent_render_area(FtWidget widget, double* x, double* y, double* w, double* h, double* radius);
+void ft_widget_set_bounds(FtWidget widget, int32_t x, int32_t y, int32_t w, int32_t h);
+void ft_widget_destroy(FtWidget widget);
 
 /* Widget Hints & Tooltips */
 void ft_widget_set_hint(FtWidget widget, const char* hint);
@@ -563,6 +572,8 @@ int32_t ft_screen_get_height(void);
 
 typedef int32_t (*FtEventFilterFunc)(void* event);
 void ft_register_event_filter(FtEventFilterFunc filter);
+typedef void (*FtTickCallback)(void* user_data);
+void ft_set_tick_callback(FtTickCallback callback, void* user_data);
 void* ft_backend_get_connection(void);
 void* ft_backend_get_screen(void);
 void* ft_backend_get_key_symbols(void);

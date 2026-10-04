@@ -3,7 +3,7 @@ library ft;
 {$mode objfpc}{$H+}
 
 uses
-  ctypes, SysUtils, Types,
+  ctypes, SysUtils, Types, Math,
   Ft.Window,
   Ft.Backend.X11,
   Ft.Backend.EGL,
@@ -360,6 +360,45 @@ begin
     Result := TFtWindow(window).GetNativeHandle()
   else
     Result := nil;
+end;
+
+procedure ft_window_set_strut_partial(window: Pointer;
+  left, right, top, bottom: cint32;
+  left_start_y, left_end_y: cint32;
+  right_start_y, right_end_y: cint32;
+  top_start_x, top_end_x: cint32;
+  bottom_start_x, bottom_end_x: cint32); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    TFtWindow(window).SetStrutPartial(
+      Cardinal(Max(0, left)), Cardinal(Max(0, right)),
+      Cardinal(Max(0, top)), Cardinal(Max(0, bottom)),
+      Cardinal(Max(0, left_start_y)), Cardinal(Max(0, left_end_y)),
+      Cardinal(Max(0, right_start_y)), Cardinal(Max(0, right_end_y)),
+      Cardinal(Max(0, top_start_x)), Cardinal(Max(0, top_end_x)),
+      Cardinal(Max(0, bottom_start_x)), Cardinal(Max(0, bottom_end_x))
+    );
+end;
+
+procedure ft_widget_set_bounds(widget: Pointer; x, y, w, h: cint32); cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+  begin
+    TFtWidget(widget).X := x;
+    TFtWidget(widget).Y := y;
+    TFtWidget(widget).Width := w;
+    TFtWidget(widget).Height := h;
+    TFtWidget(widget).Invalidate();
+  end;
+end;
+
+procedure ft_widget_destroy(widget: Pointer); cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+  begin
+    TFtWidget(widget).Invalidate();
+    TFtWidget(widget).Free();
+  end;
 end;
 
 procedure ft_widget_set_focus(widget: Pointer); cdecl; export;
@@ -2187,6 +2226,11 @@ end;
 procedure ft_register_event_filter(filter: TFtEventFilterFunc); cdecl; export;
 begin
   FtRegisterEventFilter(filter);
+end;
+
+procedure ft_set_tick_callback(callback: TFtTickCallback; user_data: Pointer); cdecl; export;
+begin
+  FtSetTickCallback(callback, user_data);
 end;
 
 function ft_backend_get_connection(): Pointer; cdecl; export;
@@ -5487,9 +5531,15 @@ exports
   ft_screen_get_width,
   ft_screen_get_height,
   ft_register_event_filter,
+  ft_set_tick_callback,
   ft_backend_get_connection,
   ft_backend_get_screen,
-  ft_backend_get_key_symbols;
+  ft_backend_get_key_symbols,
+
+  // Window Strut & Widget lifecycle
+  ft_window_set_strut_partial,
+  ft_widget_set_bounds,
+  ft_widget_destroy;
 
 begin
 end.

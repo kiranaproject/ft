@@ -66,6 +66,9 @@ type
     procedure SetIsModal(AValue: Boolean); override;
     procedure BringToFront(); override;
     procedure SetWindowType(AType: TFtWindowType); override;
+    procedure SetStrutPartial(ALeft, ARight, ATop, ABottom: Cardinal;
+                              ALeftStartY, ALeftEndY, ARightStartY, ARightEndY,
+                              ATopStartX, ATopEndX, ABottomStartX, ABottomEndX: Cardinal); override;
     procedure SetWindowOpacity(AOpacity: Double); override;
     procedure SetBackgroundBlur(AValue: Boolean); override;
     procedure SetPosition(NewX, NewY: Integer); override;
@@ -147,11 +150,15 @@ function FtGetHintDelay(): Integer;
 
 type
   TFtEventFilterFunc = function(Event: Pxcb_generic_event_t): Boolean; cdecl;
+  TFtTickCallback = procedure(UserData: Pointer); cdecl;
 
 var
   GEventFilter: TFtEventFilterFunc = nil;
+  GTickCallback: TFtTickCallback = nil;
+  GTickUserData: Pointer = nil;
 
 procedure FtRegisterEventFilter(AFilter: TFtEventFilterFunc);
+procedure FtSetTickCallback(ACallback: TFtTickCallback; AUserData: Pointer);
 
 implementation
 
@@ -181,6 +188,9 @@ var
   atomNetWmWindowTypeDropdownMenu: xcb_atom_t = 0;
   atomNetWmWindowTypeTooltip: xcb_atom_t = 0;
   atomNetWmWindowTypeUtility: xcb_atom_t = 0;
+  atomNetWmWindowTypeDock: xcb_atom_t = 0;
+  atomNetWmStrut: xcb_atom_t = 0;
+  atomNetWmStrutPartial: xcb_atom_t = 0;
   atomNetWmWindowOpacity: xcb_atom_t = 0;
   atomBlurRegionNet: xcb_atom_t = 0;
   atomBlurRegionKde: xcb_atom_t = 0;
@@ -241,6 +251,9 @@ begin
   atomNetWmWindowTypeDropdownMenu := InternAtom('_NET_WM_WINDOW_TYPE_DROPDOWN_MENU');
   atomNetWmWindowTypeTooltip := InternAtom('_NET_WM_WINDOW_TYPE_TOOLTIP');
   atomNetWmWindowTypeUtility := InternAtom('_NET_WM_WINDOW_TYPE_UTILITY');
+  atomNetWmWindowTypeDock := InternAtom('_NET_WM_WINDOW_TYPE_DOCK');
+  atomNetWmStrut := InternAtom('_NET_WM_STRUT');
+  atomNetWmStrutPartial := InternAtom('_NET_WM_STRUT_PARTIAL');
   atomNetWmWindowOpacity := InternAtom('_NET_WM_WINDOW_OPACITY');
   atomBlurRegionNet := InternAtom('_NET_WM_BLUR_BEHIND_REGION');
   atomBlurRegionKde := InternAtom('_KDE_NET_WM_BLUR_BEHIND_REGION');
@@ -326,6 +339,12 @@ end;
 procedure FtRegisterEventFilter(AFilter: TFtEventFilterFunc);
 begin
   GEventFilter := AFilter;
+end;
+
+procedure FtSetTickCallback(ACallback: TFtTickCallback; AUserData: Pointer);
+begin
+  GTickCallback := ACallback;
+  GTickUserData := AUserData;
 end;
 
 function FindWindowByHandle(AWindow: xcb_window_t): TFtX11Window;
@@ -607,6 +626,9 @@ begin
     frameStartMs := GetTickCount64();
 
     FtBackendProcessEvents();
+
+    if Assigned(GTickCallback) then
+      GTickCallback(GTickUserData);
 
     if animator.HasActiveAnimations() then
     begin
@@ -1002,6 +1024,7 @@ begin
     ftwtDropdownMenu: typeAtom := atomNetWmWindowTypeDropdownMenu;
     ftwtTooltip: typeAtom := atomNetWmWindowTypeTooltip;
     ftwtUtility: typeAtom := atomNetWmWindowTypeUtility;
+    ftwtDock: typeAtom := atomNetWmWindowTypeDock;
   else
     typeAtom := atomNetWmWindowTypeNormal;
   end;
@@ -1015,7 +1038,46 @@ begin
     xcb_change_window_attributes_aux(FConnection, FWindow, XCB_CW_OVERRIDE_REDIRECT, @val);
     SetSkipTaskbar(True);
     SetBorderless(True);
+  end
+  else if AType = ftwtDock then
+  begin
+    SetSkipTaskbar(True);
+    SetBorderless(True);
   end;
+  xcb_flush(FConnection);
+end;
+
+procedure TFtX11Window.SetStrutPartial(ALeft, ARight, ATop, ABottom: Cardinal;
+                                      ALeftStartY, ALeftEndY, ARightStartY, ARightEndY,
+                                      ATopStartX, ATopEndX, ABottomStartX, ABottomEndX: Cardinal);
+var
+  strut4: array[0..3] of Cardinal;
+  strut12: array[0..11] of Cardinal;
+begin
+  inherited SetStrutPartial(ALeft, ARight, ATop, ABottom,
+                            ALeftStartY, ALeftEndY, ARightStartY, ARightEndY,
+                            ATopStartX, ATopEndX, ABottomStartX, ABottomEndX);
+  if (FWindow = 0) or (FConnection = nil) then Exit;
+
+  strut4[0] := ALeft;
+  strut4[1] := ARight;
+  strut4[2] := ATop;
+  strut4[3] := ABottom;
+  xcb_change_property(FConnection, XCB_PROP_MODE_REPLACE, FWindow, atomNetWmStrut, XCB_ATOM_CARDINAL, 32, 4, @strut4[0]);
+
+  strut12[0] := ALeft;
+  strut12[1] := ARight;
+  strut12[2] := ATop;
+  strut12[3] := ABottom;
+  strut12[4] := ALeftStartY;
+  strut12[5] := ALeftEndY;
+  strut12[6] := ARightStartY;
+  strut12[7] := ARightEndY;
+  strut12[8] := ATopStartX;
+  strut12[9] := ATopEndX;
+  strut12[10] := ABottomStartX;
+  strut12[11] := ABottomEndX;
+  xcb_change_property(FConnection, XCB_PROP_MODE_REPLACE, FWindow, atomNetWmStrutPartial, XCB_ATOM_CARDINAL, 32, 12, @strut12[0]);
   xcb_flush(FConnection);
 end;
 
