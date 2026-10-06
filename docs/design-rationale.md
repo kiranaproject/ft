@@ -37,7 +37,7 @@ Floria Toolkit is **unapologetically desktop-first**:
 - **Traditional Desktop Paradigms**: Real menu bars, dockable toolbars, persistent scrollbars, status bars, and coordinated multi-window workflows are foundational, first-class features.
 
 ### 1.2 First-Class X11 Commitment
-While providing a clean window abstraction layer for future backends (Wayland, WinAPI, Cocoa), **X11/XCB is treated as a premier, first-class citizen**—not a legacy burden slated for deprecation or treated with hostile neglect.
+While providing a clean window abstraction layer for future backends (WinAPI, Cocoa), **X11/XCB is treated as a premier, first-class citizen**—not a legacy burden slated for deprecation or treated with hostile neglect.
 
 X11 has decades of proven stability, battle-tested network transparency, robust remote display protocols, comprehensive window management standards (ICCCM/EWMH), and an enormous installed base across technical, engineering, scientific, and enterprise environments. Floria Toolkit natively targets modern XCB (`libxcb`) with microsecond event dispatch, zero bloated intermediate libraries, and full support for EWMH window types, native window hints, and compositor blur protocols (`_KDE_NET_WM_BLUR_BEHIND_REGION`).
 
@@ -82,7 +82,7 @@ All native top-level popup surfaces (`TFtPopupMenu`, `TFtHintWindow`, `ftwtToolt
 ## 3. Window Abstraction Layer (`TFtWindow`)
 
 ### Decoupling Widgets from Platform Backends
-Initially, widgets and popup menus interacted directly with `Ft.Backend.X11` and `TFtX11Window`. To ensure straightforward adoption of new backends (WinAPI for Windows, Cocoa for macOS, and Wayland) without refactoring application or widget code, Floria Toolkit introduces the [`TFtWindow`](file:///home/afumi/Documents/projects/floria-toolkit/src/main/pascal/ft.window.pas) abstraction layer:
+Initially, widgets and popup menus interacted directly with `Ft.Backend.X11` and `TFtX11Window`. To ensure straightforward adoption of new backends (WinAPI for Windows, Cocoa for macOS) without refactoring application or widget code, Floria Toolkit introduces the [`TFtWindow`](file:///home/afumi/Documents/projects/floria-toolkit/src/main/pascal/ft.window.pas) abstraction layer:
 - **Encapsulated Surface Management**: `TFtWindow` holds the double-buffered software surface (`FPixelBuffer`) and the AggPas drawing interface (`FCanvas: TFtCanvasAgg`).
 - **Standardized Focus & Popup Grab**: Focus traversal (`FocusNext`), focused widget notification, and grabbed popup dismissal logic reside in `TFtWindow`, independent of platform events.
 - **Factory Registration Pattern**: Native backends register their implementation class using `FtRegisterWindowClass()`. Calling `FtCreateWindow()` instantiates the registered platform backend transparently.

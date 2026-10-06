@@ -24,7 +24,7 @@ A lightweight, high-performance native GUI toolkit engineered with Free Pascal, 
 - **CSS Transitions & Animation**:
   - Smooth 60 FPS state transitions (e.g. hover effects, dark mode switches, window caption button glowing halos) with easing functions (`ease`, `ease-in`, `ease-out`, `ease-in-out`, `linear`).
 - **Modern Desktop Widgets**:
-  - **Window (`TFtWindow`)**: Platform-agnostic window abstraction with double-buffered vector rendering (`AGG`), dirty rectangle tracking, and pluggable platform backends (`TFtX11Window` on X11/XCB, WinAPI for Windows, Cocoa for macOS, Wayland).
+  - **Window (`TFtWindow`)**: Platform-agnostic window abstraction with double-buffered vector rendering (`AGG`), dirty rectangle tracking, and pluggable platform backends (`TFtX11Window` on X11/XCB, WinAPI for Windows, Cocoa for macOS).
   - **Window Button (`TFtWindowButton`)**: Titlebar and tab caption buttons (Close, Minimize, Maximize/Restore, Custom) with OS styles (Mac, GTK, Windows), glowing radial hover transitions, and dark mode adaptation.
   - **Button & Toggle Button**: Interactive push and latching buttons with hover transitions.
   - **Switch**: Modern toggle switch with circular thumb slider and accent highlights.
@@ -48,7 +48,7 @@ A lightweight, high-performance native GUI toolkit engineered with Free Pascal, 
   - Full keyboard focus traversal (`Tab` / `Shift+Tab`) with theme focus rings and mnemonic accelerators.
 - **First-Class X11 & Pluggable Backends**:
   - Premier native X11/XCB integration with microsecond event dispatch, EWMH window management, and compositor blur protocols.
-  - Pluggable `TFtWindow` abstraction ready for future WinAPI, Cocoa, and Wayland backends.
+  - Pluggable `TFtWindow` abstraction ready for future WinAPI and Cocoa backends.
 - **Internationalization, BiDi & Script Shaping**:
   - Full UTF-8 Unicode text rendering across global writing systems (Latin, Cyrillic, Greek, CJK, Thai, Indic/Devanagari, Arabic, Hebrew).
   - Unicode Bidirectional Algorithm (UAX #9) visual reordering and bracket mirroring for RTL scripts.

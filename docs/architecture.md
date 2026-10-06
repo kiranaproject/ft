@@ -63,7 +63,7 @@ Floria Toolkit decouples widgets and menus from specific windowing systems via `
   - **Dirty Rectangle Tracking**: Selective region invalidation (`InvalidateRect`) to minimize re-rasterization overhead.
   - **Focus & Selection Management**: Full keyboard traversal (`FocusNext`), active popup coordination, and abstract clipboard / primary selection APIs (`ClaimClipboard`, `FetchClipboardText`, `ClaimPrimarySelection`).
 - **Factory Registration Pattern**: Backends register their native implementation class via `FtRegisterWindowClass()`. Calling `FtCreateWindow()` instantiates the registered platform backend transparently.
-- **Multi-Backend Extensibility**: Enables introducing future native backends (WinAPI for Windows, Cocoa for macOS, Wayland) with zero changes to existing widgets or user application code.
+- **Multi-Backend Extensibility**: Enables introducing future native backends (WinAPI for Windows, Cocoa for macOS) with zero changes to existing widgets or user application code.
 
 ### 3. X11/XCB Backend & Event Loop (`Ft.Backend.X11`, `TFtX11Window`)
 - **Native X11/XCB Integration**: `TFtX11Window` inherits from `TFtWindow`, implementing native XCB window management, graphics context (`xcb_gcontext_t`), and surface blits.
