@@ -43,3 +43,10 @@
   - Mouse down activates the pressed visual state.
   - Pointer motion leaving the control area during hold must visually un-press the control and cancel action execution on release.
 
+## Linux Windowing & Display Server Policy
+
+- **Strictly X11/XCB Only (No Wayland)**:
+  - All Linux windowing, event handling, clipboard management, and compositor integration strictly target native **X11/XCB** (`libxcb`, EWMH, ICCCM).
+  - **Never reference, propose, design for, or insert Wayland** into code, configuration, architectural documentation, roadmaps, or README files.
+  - Engineering focus is dedicated to premier native X11 desktop support, with optional non-Linux platform abstractions (WinAPI for Windows, Cocoa for macOS).
+
