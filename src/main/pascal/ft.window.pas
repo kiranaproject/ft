@@ -29,6 +29,9 @@ const
 type
   TFtWindowResizeEvent = procedure(Sender: TObject; NewWidth, NewHeight: Integer) of object;
   TFtSelectionLostHandler = procedure();
+  TFtWindowMouseCallback = procedure(AWindow: Pointer; AX, AY: Integer; AButton: Integer; AUserData: Pointer); cdecl;
+  TFtWindowMouseMoveCallback = procedure(AWindow: Pointer; AX, AY: Integer; AUserData: Pointer); cdecl;
+  TFtWindowKeyCallback = procedure(AWindow: Pointer; AKeySym: Cardinal; AIsDown: Integer; AUserData: Pointer); cdecl;
 
   TFtWindow = class(TFtWidget)
   protected
@@ -56,6 +59,11 @@ type
     FModalResult: Integer;
     FIsModal: Boolean;
     FOnResize: TFtWindowResizeEvent;
+    FOnMouseDown: TFtWindowMouseCallback;
+    FOnMouseUp: TFtWindowMouseCallback;
+    FOnMouseMove: TFtWindowMouseMoveCallback;
+    FOnKey: TFtWindowKeyCallback;
+    FWindowUserData: Pointer;
 
     procedure OnThemeChanged(); virtual;
     procedure OnStyleSheetChanged(); virtual;
@@ -113,6 +121,12 @@ type
     procedure ClearActivePopup(); virtual;
     procedure Close(); virtual;
     function ShowModal(): Integer; virtual;
+    // Event overrides
+    procedure MouseDown(AX, AY: Integer; AButton: Integer); override;
+    procedure MouseUp(AX, AY: Integer; AButton: Integer); override;
+    procedure MouseMove(AX, AY: Integer); override;
+    procedure KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string); override;
+    procedure KeyUp(AKeySym: Cardinal; AState: Cardinal); override;
 
     property Canvas: TFtCanvasAgg read FCanvas;
     property PixelBuffer: PByte read FPixelBuffer;
@@ -140,6 +154,11 @@ type
     property ModalResult: Integer read FModalResult write FModalResult;
     property IsModal: Boolean read FIsModal write SetIsModal;
     property OnResize: TFtWindowResizeEvent read FOnResize write FOnResize;
+    property OnWindowMouseDown: TFtWindowMouseCallback read FOnMouseDown write FOnMouseDown;
+    property OnWindowMouseUp: TFtWindowMouseCallback read FOnMouseUp write FOnMouseUp;
+    property OnWindowMouseMove: TFtWindowMouseMoveCallback read FOnMouseMove write FOnMouseMove;
+    property OnWindowKey: TFtWindowKeyCallback read FOnKey write FOnKey;
+    property WindowUserData: Pointer read FWindowUserData write FWindowUserData;
   end;
 
   TFtWindowClass = class of TFtWindow;
@@ -274,6 +293,11 @@ begin
   FModalResult := mrNone;
   FIsModal := False;
   FOnResize := nil;
+  FOnMouseDown := nil;
+  FOnMouseUp := nil;
+  FOnMouseMove := nil;
+  FOnKey := nil;
+  FWindowUserData := nil;
 
   if (Width > 0) and (Height > 0) then
   begin
@@ -519,6 +543,41 @@ begin
   else if Assigned(GActiveWindow) and (GActiveWindow <> Self) then
     GActiveWindow.BringToFront();
   Result := FModalResult;
+end;
+
+procedure TFtWindow.MouseDown(AX, AY: Integer; AButton: Integer);
+begin
+  inherited MouseDown(AX, AY, AButton);
+  if Assigned(FOnMouseDown) then
+    FOnMouseDown(Pointer(Self), AX, AY, AButton, FWindowUserData);
+end;
+
+procedure TFtWindow.MouseUp(AX, AY: Integer; AButton: Integer);
+begin
+  inherited MouseUp(AX, AY, AButton);
+  if Assigned(FOnMouseUp) then
+    FOnMouseUp(Pointer(Self), AX, AY, AButton, FWindowUserData);
+end;
+
+procedure TFtWindow.MouseMove(AX, AY: Integer);
+begin
+  inherited MouseMove(AX, AY);
+  if Assigned(FOnMouseMove) then
+    FOnMouseMove(Pointer(Self), AX, AY, FWindowUserData);
+end;
+
+procedure TFtWindow.KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string);
+begin
+  inherited KeyDown(AKeySym, AState, AChar);
+  if Assigned(FOnKey) then
+    FOnKey(Pointer(Self), AKeySym, 1, FWindowUserData);
+end;
+
+procedure TFtWindow.KeyUp(AKeySym: Cardinal; AState: Cardinal);
+begin
+  inherited KeyUp(AKeySym, AState);
+  if Assigned(FOnKey) then
+    FOnKey(Pointer(Self), AKeySym, 0, FWindowUserData);
 end;
 
 procedure TFtWindow.SetPosition(NewX, NewY: Integer);

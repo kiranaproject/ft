@@ -38,7 +38,8 @@ uses
   Ft.Widget.PathBars,
   Ft.Widget.UrlEntries,
   Ft.Dialogs,
-  Ft.Icons;
+  Ft.Icons,
+  Ft.Gpu;
 
 var
   gLastIconSvg: AnsiString;
@@ -168,6 +169,48 @@ begin
   begin
     TFtEGLWindow(window).CGLDrawCallback := callback;
     TFtEGLWindow(window).CGLDrawUserData := user_data;
+  end;
+end;
+
+procedure ft_window_set_direct_gpu_mode(window: Pointer; direct_gpu: cint32); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtEGLWindow) then
+    TFtEGLWindow(window).DirectGPUMode := (direct_gpu <> 0);
+end;
+
+procedure ft_window_on_mouse_down(window: Pointer; callback: TFtWindowMouseCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+  begin
+    TFtWindow(window).OnWindowMouseDown := callback;
+    TFtWindow(window).WindowUserData := user_data;
+  end;
+end;
+
+procedure ft_window_on_mouse_up(window: Pointer; callback: TFtWindowMouseCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+  begin
+    TFtWindow(window).OnWindowMouseUp := callback;
+    TFtWindow(window).WindowUserData := user_data;
+  end;
+end;
+
+procedure ft_window_on_mouse_move(window: Pointer; callback: TFtWindowMouseMoveCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+  begin
+    TFtWindow(window).OnWindowMouseMove := callback;
+    TFtWindow(window).WindowUserData := user_data;
+  end;
+end;
+
+procedure ft_window_on_key(window: Pointer; callback: TFtWindowKeyCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+  begin
+    TFtWindow(window).OnWindowKey := callback;
+    TFtWindow(window).WindowUserData := user_data;
   end;
 end;
 
@@ -5539,7 +5582,46 @@ exports
   // Window Strut & Widget lifecycle
   ft_window_set_strut_partial,
   ft_widget_set_bounds,
-  ft_widget_destroy;
+  ft_widget_destroy,
+
+  // Window GPU & Direct Mode
+  ft_window_set_direct_gpu_mode,
+  ft_window_on_mouse_down,
+  ft_window_on_mouse_up,
+  ft_window_on_mouse_move,
+  ft_window_on_key,
+
+  // Floria GPU Core & Batch
+  ft_gpu_is_available,
+  ft_batch_create,
+  ft_batch_destroy,
+  ft_batch_clear,
+  ft_batch_get_stats,
+  ft_batch_emit_rect,
+  ft_batch_emit_textured_rect,
+  ft_batch_emit_rounded_rect,
+  ft_batch_emit_box_shadow,
+  ft_batch_emit_linear_gradient,
+  ft_batch_emit_path_mesh,
+
+  // Floria GPU Tessellator & Vector Geometry
+  ft_tessmesh_create,
+  ft_tessmesh_destroy,
+  ft_tessmesh_clear,
+  ft_tessmesh_get_counts,
+  ft_tessellator_create,
+  ft_tessellator_destroy,
+  ft_tessellator_stroke_polyline,
+  ft_tessellator_stroke_bezier,
+  ft_tessellator_fill_polygon,
+
+  // Floria GPU High-Level Renderer
+  ft_renderer_create,
+  ft_renderer_destroy,
+  ft_renderer_begin,
+  ft_renderer_end,
+  ft_renderer_get_batch,
+  ft_renderer_get_tessellator;
 
 begin
 end.

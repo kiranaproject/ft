@@ -886,6 +886,109 @@ int32_t     ft_icon_has(const char* name);
 /* Customize the monochrome stroke palette used for light and dark modes (hex colors, e.g. "#64748b") */
 void        ft_icon_set_monochrome_colors(const char* light_color, const char* dark_color);
 
+/* ─── Hardware Accelerated GPU Vector Core & Direct Rendering ─────────── */
+
+typedef void* FtRenderBatch;
+typedef void* FtGPUTessellator;
+typedef void* FtTessMesh;
+typedef void* FtGPURenderer;
+
+typedef enum {
+    FT_BLEND_SRCOVER    = 0,
+    FT_BLEND_ADDITIVE   = 1,
+    FT_BLEND_MULTIPLY   = 2,
+    FT_BLEND_SCREEN     = 3,
+    FT_BLEND_SRC        = 4
+} FtBlendMode;
+
+typedef enum {
+    FT_JOIN_MITER       = 0,
+    FT_JOIN_BEVEL       = 1,
+    FT_JOIN_ROUND       = 2
+} FtJoinStyle;
+
+typedef enum {
+    FT_CAP_BUTT         = 0,
+    FT_CAP_SQUARE       = 1,
+    FT_CAP_ROUND        = 2
+} FtCapStyle;
+
+typedef struct {
+    float x;
+    float y;
+} FtPoint2D;
+
+typedef struct {
+    uint32_t draw_calls;
+    uint32_t vertex_count;
+} FtBatchStats;
+
+/* Window Mouse, Key & Direct GPU Mode Callbacks */
+typedef void (*FtWindowMouseCallback)(FtWidget window, int32_t x, int32_t y, int32_t button, void* user_data);
+typedef void (*FtWindowMouseMoveCallback)(FtWidget window, int32_t x, int32_t y, void* user_data);
+typedef void (*FtWindowKeyCallback)(FtWidget window, uint32_t key, int32_t is_down, void* user_data);
+
+void ft_window_set_direct_gpu_mode(FtWidget window, int32_t direct_gpu);
+void ft_window_on_mouse_down(FtWidget window, FtWindowMouseCallback callback, void* user_data);
+void ft_window_on_mouse_up(FtWidget window, FtWindowMouseCallback callback, void* user_data);
+void ft_window_on_mouse_move(FtWidget window, FtWindowMouseMoveCallback callback, void* user_data);
+void ft_window_on_key(FtWidget window, FtWindowKeyCallback callback, void* user_data);
+
+/* Global GPU Status */
+int32_t ft_gpu_is_available(void);
+
+/* Render Batch API */
+FtRenderBatch ft_batch_create(void);
+void          ft_batch_destroy(FtRenderBatch batch);
+void          ft_batch_clear(FtRenderBatch batch);
+void          ft_batch_get_stats(FtRenderBatch batch, FtBatchStats* stats);
+void          ft_batch_emit_rect(FtRenderBatch batch, float x, float y, float w, float h,
+                                 uint32_t color, int32_t blend_mode);
+void          ft_batch_emit_textured_rect(FtRenderBatch batch, float x, float y, float w, float h,
+                                          float u0, float v0, float u1, float v1,
+                                          uint32_t tex_id, float opacity, int32_t blend_mode);
+void          ft_batch_emit_rounded_rect(FtRenderBatch batch, float x, float y, float w, float h, float radius,
+                                         uint32_t fill_color, uint32_t border_color, float border_width,
+                                         int32_t blend_mode);
+void          ft_batch_emit_box_shadow(FtRenderBatch batch, float x, float y, float w, float h, float radius,
+                                       float offset_x, float offset_y, float blur_radius, float spread,
+                                       uint32_t shadow_color, int32_t blend_mode);
+void          ft_batch_emit_linear_gradient(FtRenderBatch batch, float x, float y, float w, float h,
+                                            uint32_t color_start, uint32_t color_end, float angle_deg,
+                                            int32_t blend_mode);
+void          ft_batch_emit_path_mesh(FtRenderBatch batch, FtTessMesh mesh, uint32_t color, int32_t blend_mode);
+
+/* Tessellator & Vector Geometry API */
+FtTessMesh       ft_tessmesh_create(void);
+void             ft_tessmesh_destroy(FtTessMesh mesh);
+void             ft_tessmesh_clear(FtTessMesh mesh);
+void             ft_tessmesh_get_counts(FtTessMesh mesh, int32_t* vertex_count, int32_t* index_count);
+
+FtGPUTessellator ft_tessellator_create(void);
+void             ft_tessellator_destroy(FtGPUTessellator tess);
+void             ft_tessellator_stroke_polyline(FtGPUTessellator tess, FtTessMesh mesh,
+                                                const FtPoint2D* points, int32_t count,
+                                                int32_t closed, float stroke_width,
+                                                int32_t join_style, int32_t cap_style,
+                                                float miter_limit, int32_t aa_fringe);
+void             ft_tessellator_stroke_bezier(FtGPUTessellator tess, FtTessMesh mesh,
+                                              float p0x, float p0y, float p1x, float p1y,
+                                              float p2x, float p2y, float p3x, float p3y,
+                                              float stroke_width,
+                                              int32_t join_style, int32_t cap_style,
+                                              float miter_limit, int32_t aa_fringe);
+void             ft_tessellator_fill_polygon(FtGPUTessellator tess, FtTessMesh mesh,
+                                             const FtPoint2D* points, int32_t count,
+                                             int32_t aa_fringe);
+
+/* High-Level GPU Renderer API */
+FtGPURenderer    ft_renderer_create(void);
+void             ft_renderer_destroy(FtGPURenderer renderer);
+void             ft_renderer_begin(FtGPURenderer renderer, int32_t viewport_w, int32_t viewport_h);
+void             ft_renderer_end(FtGPURenderer renderer);
+FtRenderBatch    ft_renderer_get_batch(FtGPURenderer renderer);
+FtGPUTessellator ft_renderer_get_tessellator(FtGPURenderer renderer);
+
 #ifdef __cplusplus
 }
 #endif

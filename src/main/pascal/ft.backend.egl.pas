@@ -105,6 +105,7 @@ type
     FTexLoc             : Integer;
     FTexUniformLoc      : Integer;
     FSwapInterval       : Integer;
+    FDirectGPUMode      : Boolean;
     FOnGLDraw           : TFtGLDrawEvent;
     FCGLDrawCallback    : TFtWindowGLDrawCallback;
     FCGLDrawUserData    : Pointer;
@@ -115,6 +116,7 @@ type
     procedure CleanupGLPipeline();
     procedure UpdateTexture(dirtyX, dirtyY, dirtyW, dirtyH: Integer; isPartial: Boolean);
     procedure RenderQuad();
+    procedure SetDirectGPUMode(AValue: Boolean);
   protected
     procedure PresentPixels(dirtyX, dirtyY, dirtyW, dirtyH: Integer; isPartial: Boolean); override;
   public
@@ -122,6 +124,7 @@ type
     destructor Destroy(); override;
 
     procedure Resize(NewW, NewH: Integer; AApplyToBackend: Boolean = True); override;
+    procedure Repaint(); override;
 
     function MakeCurrent(): Boolean;
     procedure ReleaseCurrent();
@@ -129,6 +132,7 @@ type
     procedure SetHardwareAccelerated(AValue: Boolean);
 
     property IsHardwareAccelerated: Boolean read FHardwareAccelerated write SetHardwareAccelerated;
+    property DirectGPUMode: Boolean read FDirectGPUMode write SetDirectGPUMode;
     property EGLDisplay: EGLDisplay read FEGLDisplay;
     property EGLContext: EGLContext read FEGLContext;
     property EGLSurface: EGLSurface read FEGLSurface;
@@ -358,6 +362,7 @@ begin
   FTexLoc              := -1;
   FTexUniformLoc       := -1;
   FSwapInterval        := 1;
+  FDirectGPUMode       := False;
   FOnGLDraw            := nil;
   FCGLDrawCallback     := nil;
   FCGLDrawUserData     := nil;
@@ -667,6 +672,22 @@ begin
   Invalidate();
 end;
 
+procedure TFtEGLWindow.SetDirectGPUMode(AValue: Boolean);
+begin
+  FDirectGPUMode := AValue;
+end;
+
+procedure TFtEGLWindow.Repaint();
+begin
+  if FDirectGPUMode and FHardwareAccelerated then
+  begin
+    FNeedsRepaint := False;
+    PresentPixels(0, 0, Width, Height, False);
+  end
+  else
+    inherited Repaint();
+end;
+
 procedure TFtEGLWindow.Resize(NewW, NewH: Integer; AApplyToBackend: Boolean);
 begin
   // inherited Resize invokes Repaint() which updates the GPU texture and presents pixels
@@ -767,6 +788,8 @@ begin
 end;
 
 procedure TFtEGLWindow.PresentPixels(dirtyX, dirtyY, dirtyW, dirtyH: Integer; isPartial: Boolean);
+var
+  surfW, surfH: EGLint;
 begin
   if not FHardwareAccelerated then
   begin
@@ -776,16 +799,38 @@ begin
 
   if MakeCurrent() then
   begin
-    UpdateTexture(dirtyX, dirtyY, dirtyW, dirtyH, isPartial);
-    RenderQuad();
+    if FDirectGPUMode then
+    begin
+      surfW := Width;
+      surfH := Height;
+      if (FEGLDisplay <> EGL_NO_DISPLAY) and (FEGLSurface <> EGL_NO_SURFACE) then
+      begin
+        eglQuerySurface(FEGLDisplay, FEGLSurface, EGL_WIDTH, @surfW);
+        eglQuerySurface(FEGLDisplay, FEGLSurface, EGL_HEIGHT, @surfH);
+      end;
+      glViewport(0, 0, surfW, surfH);
 
-    // Custom OpenGL rendering overlay if registered
-    if Assigned(FOnGLDraw) then
-      FOnGLDraw(Self, Width, Height);
-    if Assigned(FCGLDrawCallback) then
-      FCGLDrawCallback(Pointer(Self), Width, Height, FCGLDrawUserData);
+      // Custom OpenGL rendering if registered
+      if Assigned(FOnGLDraw) then
+        FOnGLDraw(Self, surfW, surfH);
+      if Assigned(FCGLDrawCallback) then
+        FCGLDrawCallback(Pointer(Self), surfW, surfH, FCGLDrawUserData);
 
-    eglSwapBuffers(FEGLDisplay, FEGLSurface);
+      eglSwapBuffers(FEGLDisplay, FEGLSurface);
+    end
+    else
+    begin
+      UpdateTexture(dirtyX, dirtyY, dirtyW, dirtyH, isPartial);
+      RenderQuad();
+
+      // Custom OpenGL rendering overlay if registered
+      if Assigned(FOnGLDraw) then
+        FOnGLDraw(Self, Width, Height);
+      if Assigned(FCGLDrawCallback) then
+        FCGLDrawCallback(Pointer(Self), Width, Height, FCGLDrawUserData);
+
+      eglSwapBuffers(FEGLDisplay, FEGLSurface);
+    end;
   end
   else
     inherited PresentPixels(dirtyX, dirtyY, dirtyW, dirtyH, isPartial);

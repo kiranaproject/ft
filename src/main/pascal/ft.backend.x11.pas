@@ -630,7 +630,21 @@ begin
     if Assigned(GTickCallback) then
       GTickCallback(GTickUserData);
 
-    if animator.HasActiveAnimations() then
+    if Assigned(GTickCallback) then
+    begin
+      if Assigned(GConnection) then
+      begin
+        xcb_flush(GConnection);
+        pfd.fd := xcb_get_file_descriptor(GConnection);
+        pfd.events := 1; // POLLIN
+        pfd.revents := 0;
+        libc_poll(@pfd, 1, 0); // Non-blocking poll for continuous high-framerate rendering
+      end;
+      nowMs := GetTickCount64();
+      if IsAnyWindowResizing(nowMs) then
+        Sleep(1);
+    end
+    else if animator.HasActiveAnimations() then
     begin
       nowMs := GetTickCount64();
       elapsedMs := Integer(nowMs - frameStartMs);
@@ -1801,6 +1815,11 @@ begin
         begin
           Target.MouseMove(mp^.event_x, mp^.event_y);
           UpdateCursor();
+        end
+        else
+        begin
+          Self.MouseMove(mp^.event_x, mp^.event_y);
+          UpdateCursor();
         end;
         HandleHintMotion(Self, Target, mp^.root_x, mp^.root_y);
       end;
@@ -1924,7 +1943,9 @@ begin
         end;
         UpdateCursor();
         if Assigned(Target) then
-          Target.MouseDown(bp^.event_x, bp^.event_y, bp^.detail);
+          Target.MouseDown(bp^.event_x, bp^.event_y, bp^.detail)
+        else
+          Self.MouseDown(bp^.event_x, bp^.event_y, bp^.detail);
       end;
     end;
 
@@ -1954,7 +1975,11 @@ begin
             FPressedWidget.Click();
           FPressedWidget := nil;
           UpdateCursor();
-        end;
+        end
+        else if Assigned(Target) then
+          Target.MouseUp(bp^.event_x, bp^.event_y, bp^.detail)
+        else
+          Self.MouseUp(bp^.event_x, bp^.event_y, bp^.detail);
       end;
     end;
 
@@ -2012,7 +2037,9 @@ begin
         Close();
       end
       else if Assigned(FFocusedWidget) then
-        FFocusedWidget.KeyDown(keysym, kp^.state, strUtf8);
+        FFocusedWidget.KeyDown(keysym, kp^.state, strUtf8)
+      else
+        Self.KeyDown(keysym, kp^.state, strUtf8);
     end;
 
     XCB_KEY_RELEASE:
@@ -2023,7 +2050,9 @@ begin
       if (kr^.state and 1) <> 0 then col := 1;
       keysym := xcb_key_release_lookup_keysym(GKeySymbols, kr, col);
       if Assigned(FFocusedWidget) then
-        FFocusedWidget.KeyUp(keysym, kr^.state);
+        FFocusedWidget.KeyUp(keysym, kr^.state)
+      else
+        Self.KeyUp(keysym, kr^.state);
     end;
 
     XCB_SELECTION_REQUEST:
