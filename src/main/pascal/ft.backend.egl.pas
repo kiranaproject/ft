@@ -18,9 +18,9 @@ interface
 
 uses
   ctypes, SysUtils, Classes, Types, dynlibs,
-  Floria.EGL, Floria.Canvas.Agg,
+  Floria.EGL, Floria.GL, Floria.Canvas, Floria.Canvas.Agg, Floria.Canvas.GL,
   Floria.XCB,
-  Ft.Widget, Ft.Window, Ft.Backend.X11;
+  Ft.Canvas, Ft.Widget, Ft.Window, Ft.Backend.X11, Ft.Theme, Ft.Css;
 
 const
   GL_FALSE                = 0;
@@ -106,6 +106,8 @@ type
     FTexUniformLoc      : Integer;
     FSwapInterval       : Integer;
     FDirectGPUMode      : Boolean;
+    FGPURendererMode    : Boolean;
+    FCanvasGL           : TFtCanvasGL;
     FOnGLDraw           : TFtGLDrawEvent;
     FCGLDrawCallback    : TFtWindowGLDrawCallback;
     FCGLDrawUserData    : Pointer;
@@ -133,6 +135,8 @@ type
 
     property IsHardwareAccelerated: Boolean read FHardwareAccelerated write SetHardwareAccelerated;
     property DirectGPUMode: Boolean read FDirectGPUMode write SetDirectGPUMode;
+    property GPURendererMode: Boolean read FGPURendererMode;
+    property CanvasGL: TFtCanvasGL read FCanvasGL;
     property EGLDisplay: EGLDisplay read FEGLDisplay;
     property EGLContext: EGLContext read FEGLContext;
     property EGLSurface: EGLSurface read FEGLSurface;
@@ -363,6 +367,8 @@ begin
   FTexUniformLoc       := -1;
   FSwapInterval        := 1;
   FDirectGPUMode       := False;
+  FGPURendererMode     := False;
+  FCanvasGL            := nil;
   FOnGLDraw            := nil;
   FCGLDrawCallback     := nil;
   FCGLDrawUserData     := nil;
@@ -370,6 +376,22 @@ begin
   if FloriaEGLIsAvailable() and LoadGLSymbols() then
   begin
     FHardwareAccelerated := InitEGL();
+  end;
+
+  if FHardwareAccelerated and (LowerCase(GetEnvironmentVariable('FT_RENDERER')) <> 'software') then
+  begin
+    if MakeCurrent() then
+    begin
+      try
+        FCanvasGL := TFtCanvasGL.Create(Width, Height, FloriaGL());
+        if Assigned(FCanvas) then
+          FreeAndNil(FCanvas);
+        FCanvas := FCanvasGL;
+        FGPURendererMode := True;
+      finally
+        ReleaseCurrent();
+      end;
+    end;
   end;
 end;
 
@@ -503,6 +525,14 @@ end;
 
 procedure TFtEGLWindow.CleanupEGL();
 begin
+  if Assigned(FCanvasGL) then
+  begin
+    if FCanvas = FCanvasGL then
+      FCanvas := nil;
+    FreeAndNil(FCanvasGL);
+    FGPURendererMode := False;
+  end;
+
   if FHardwareAccelerated then
   begin
     MakeCurrent();
@@ -656,6 +686,8 @@ begin
 end;
 
 procedure TFtEGLWindow.SetHardwareAccelerated(AValue: Boolean);
+var
+  envRenderer: string;
 begin
   if FHardwareAccelerated = AValue then Exit;
 
@@ -665,9 +697,41 @@ begin
       FHardwareAccelerated := InitEGL()
     else
       FHardwareAccelerated := True;
+
+    envRenderer := LowerCase(GetEnvironmentVariable('FT_RENDERER'));
+    if FHardwareAccelerated and (envRenderer <> 'software') and not Assigned(FCanvasGL) then
+    begin
+      if MakeCurrent() then
+      begin
+        try
+          FCanvasGL := TFtCanvasGL.Create(Width, Height, FloriaGL());
+          if Assigned(FCanvas) then
+            FreeAndNil(FCanvas);
+          FCanvas := FCanvasGL;
+          FGPURendererMode := True;
+        finally
+          ReleaseCurrent();
+        end;
+      end;
+    end;
   end
   else
+  begin
+    if Assigned(FCanvasGL) then
+    begin
+      if FCanvas = FCanvasGL then
+        FCanvas := nil;
+      FreeAndNil(FCanvasGL);
+      FGPURendererMode := False;
+      if (Width > 0) and (Height > 0) then
+      begin
+        if FPixelBuffer = nil then
+          GetMem(FPixelBuffer, Width * Height * 4);
+        FCanvas := TFtCanvasAgg.Create(FPixelBuffer, Width, Height);
+      end;
+    end;
     FHardwareAccelerated := False;
+  end;
 
   Invalidate();
 end;
@@ -678,11 +742,88 @@ begin
 end;
 
 procedure TFtEGLWindow.Repaint();
+var
+  st: TFtWidgetStyle;
+  isTranslucent: Boolean;
+  effBgA: Double;
+  curTheme: TFtTheme;
+  themeBg: TFtRgbColor;
 begin
   if FDirectGPUMode and FHardwareAccelerated then
   begin
     FNeedsRepaint := False;
+    FFullRepaint := False;
+    FHasDirtyRect := False;
     PresentPixels(0, 0, Width, Height, False);
+  end
+  else if FGPURendererMode and FHardwareAccelerated and Assigned(FCanvasGL) then
+  begin
+    FNeedsRepaint := False;
+    FFullRepaint := False;
+    FHasDirtyRect := False;
+    if MakeCurrent() then
+    begin
+      try
+        st := GetResolvedStyle();
+        isTranslucent := ((FBackgroundOpacity < 0.999) or (st.HasBgColor and (st.BgColor.A < 0.999)) or
+                          (FWindowType in [ftwtPopupMenu, ftwtDropdownMenu, ftwtTooltip]));
+        curTheme := FtGetTheme();
+        themeBg := curTheme.GetWindowBgColor();
+
+        // 1. Begin frame & reset clipping (ensures viewport and state are set before clear)
+        FCanvasGL.BeginFrame(Width, Height);
+        FCanvasGL.ResetAllClipping();
+
+        // 2. Clear OpenGL buffer
+        if isTranslucent then
+        begin
+          if Assigned(glClearColor) and Assigned(glClear) then
+          begin
+            glClearColor(0.0, 0.0, 0.0, 0.0);
+            glClear(GL_COLOR_BUFFER_BIT);
+          end;
+        end
+        else
+        begin
+          if Assigned(glClearColor) and Assigned(glClear) then
+          begin
+            if st.HasBgColor then
+              glClearColor(st.BgColor.R, st.BgColor.G, st.BgColor.B, 1.0)
+            else
+              glClearColor(themeBg.R / 255.0, themeBg.G / 255.0, themeBg.B / 255.0, 1.0);
+            glClear(GL_COLOR_BUFFER_BIT);
+          end;
+        end;
+
+        // 3. Draw solid window background unless translucent popup/tooltip
+        if not (FWindowType in [ftwtPopupMenu, ftwtDropdownMenu, ftwtTooltip]) then
+        begin
+          if st.HasBgColor then
+          begin
+            effBgA := st.BgColor.A * FBackgroundOpacity;
+            FCanvasGL.DrawRect(0, 0, Width, Height, st.BgColor.R, st.BgColor.G, st.BgColor.B, effBgA);
+          end
+          else
+            curTheme.DrawWindowBackground(FCanvasGL, Width, Height, FBackgroundOpacity);
+        end;
+
+        // 4. Draw widgets hierarchy
+        Self.Draw(FCanvasGL);
+        FCanvasGL.EndFrame();
+
+        // Custom OpenGL rendering overlay if registered
+        if Assigned(FOnGLDraw) then
+          FOnGLDraw(Self, Width, Height);
+        if Assigned(FCGLDrawCallback) then
+          FCGLDrawCallback(Pointer(Self), Width, Height, FCGLDrawUserData);
+
+        eglSwapBuffers(FEGLDisplay, FEGLSurface);
+      finally
+        ReleaseCurrent();
+      end;
+    end
+    else
+      inherited Repaint();
   end
   else
     inherited Repaint();
@@ -690,8 +831,28 @@ end;
 
 procedure TFtEGLWindow.Resize(NewW, NewH: Integer; AApplyToBackend: Boolean);
 begin
-  // inherited Resize invokes Repaint() which updates the GPU texture and presents pixels
+  if FGPURendererMode and (FCanvas = FCanvasGL) then
+    FCanvas := nil;
+
   inherited Resize(NewW, NewH, AApplyToBackend);
+
+  if FGPURendererMode and FHardwareAccelerated then
+  begin
+    if Assigned(FCanvas) and (FCanvas <> FCanvasGL) then
+      FreeAndNil(FCanvas);
+
+    if Assigned(FCanvasGL) then
+      FCanvasGL.Resize(Width, Height)
+    else if MakeCurrent() then
+    begin
+      try
+        FCanvasGL := TFtCanvasGL.Create(Width, Height, FloriaGL());
+      finally
+        ReleaseCurrent();
+      end;
+    end;
+    FCanvas := FCanvasGL;
+  end;
 end;
 
 procedure TFtEGLWindow.UpdateTexture(dirtyX, dirtyY, dirtyW, dirtyH: Integer; isPartial: Boolean);

@@ -5,7 +5,7 @@ unit Ft.Widget;
 interface
 
 uses
-  SysUtils, Classes, Floria.Canvas.Agg, Floria.Font, Ft.Css, Ft.Animation;
+  SysUtils, Classes, Floria.Canvas.Agg, Ft.Canvas, Floria.Font, Ft.Css, Ft.Animation;
 
 const
   FT_CURSOR_DEFAULT = 0;
@@ -64,7 +64,7 @@ type
     Children: TFPList;
     constructor Create(AParent: TFtWidget); virtual;
     destructor Destroy(); override;
-    procedure Draw(Canvas: TFtCanvasAgg); virtual;
+    procedure Draw(Canvas: TFtCanvas); virtual;
     function HitTest(AX, AY: Integer): TFtWidget; virtual;
     procedure Click(); virtual;
     procedure Invalidate(); virtual;
@@ -250,7 +250,7 @@ begin
   FContextMenu := AValue;
 end;
 
-procedure TFtWidget.Draw(Canvas: TFtCanvasAgg);
+procedure TFtWidget.Draw(Canvas: TFtCanvas);
 var
   I: Integer;
   child: TFtWidget;

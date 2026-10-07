@@ -22,6 +22,7 @@ uses
   Ft.Theme,
   Ft.Css,
   Ft.Animation,
+  Ft.Canvas,
   Floria.Canvas.Agg,
   Floria.Image.Core,
   Floria.Image.BMP,
@@ -77,8 +78,15 @@ var
   gLastTableColTitle: AnsiString;
 
 procedure ft_init(); cdecl; export;
+var
+  env: string;
 begin
   FtBackendInit();
+  env := LowerCase(GetEnvironmentVariable('FT_RENDERER'));
+  if env = 'software' then
+    FtEnableEGLBackend(False)
+  else if (env = 'gpu') or FtEGLIsAvailable() then
+    FtEnableEGLBackend(True);
 end;
 
 procedure ft_main_loop(); cdecl; export;
@@ -939,7 +947,7 @@ begin
     btnSt := bsNormal;
 
   TFtWindowButton.DrawWindowButton(
-    TFtCanvasAgg(canvas),
+    TFtCanvas(canvas),
     bx, by, bw, bh,
     k, st, btnSt,
     dark_mode <> 0,
@@ -3592,100 +3600,100 @@ end;
 
 procedure ft_canvas_draw_svg(ACanvas: Pointer; AX, AY, AW, AH: cdouble; ASVGContent: PAnsiChar); cdecl; export;
 begin
-  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvasAgg) and (ASVGContent <> nil) then
-    TFtCanvasAgg(ACanvas).DrawSVGString(AX, AY, AW, AH, string(ASVGContent));
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvas) and (ASVGContent <> nil) then
+    TFtCanvas(ACanvas).DrawSVGString(AX, AY, AW, AH, string(ASVGContent));
 end;
 
 procedure ft_canvas_draw_svg_file(ACanvas: Pointer; AX, AY, AW, AH: cdouble; AFilePath: PAnsiChar); cdecl; export;
 begin
-  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvasAgg) and (AFilePath <> nil) then
-    TFtCanvasAgg(ACanvas).DrawSVGFile(AX, AY, AW, AH, string(AFilePath));
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvas) and (AFilePath <> nil) then
+    TFtCanvas(ACanvas).DrawSVGFile(AX, AY, AW, AH, string(AFilePath));
 end;
 
 { --- Canvas Direct Image Drawing API --- }
 
 procedure ft_canvas_draw_image(ACanvas: Pointer; AX, AY: cdouble; ABitmap: Pointer; AOpacity: cdouble); cdecl; export;
 begin
-  if Assigned(ACanvas) and Assigned(ABitmap) and (TObject(ACanvas) is TFtCanvasAgg) and (TObject(ABitmap) is TFloriaImage) then
-    TFtCanvasAgg(ACanvas).DrawImage(AX, AY, TFloriaImage(ABitmap), AOpacity);
+  if Assigned(ACanvas) and Assigned(ABitmap) and (TObject(ACanvas) is TFtCanvas) and (TObject(ABitmap) is TFloriaImage) then
+    TFtCanvas(ACanvas).DrawImage(AX, AY, TFloriaImage(ABitmap), AOpacity);
 end;
 
 procedure ft_canvas_draw_image_scaled(ACanvas: Pointer; AX, AY, AW, AH: cdouble; ABitmap: Pointer; AOpacity: cdouble); cdecl; export;
 begin
-  if Assigned(ACanvas) and Assigned(ABitmap) and (TObject(ACanvas) is TFtCanvasAgg) and (TObject(ABitmap) is TFloriaImage) then
-    TFtCanvasAgg(ACanvas).DrawImageScaled(AX, AY, AW, AH, TFloriaImage(ABitmap), AOpacity);
+  if Assigned(ACanvas) and Assigned(ABitmap) and (TObject(ACanvas) is TFtCanvas) and (TObject(ABitmap) is TFloriaImage) then
+    TFtCanvas(ACanvas).DrawImageScaled(AX, AY, AW, AH, TFloriaImage(ABitmap), AOpacity);
 end;
 
 procedure ft_canvas_draw_image_part(ACanvas: Pointer; AX, AY, AW, AH: cdouble; ABitmap: Pointer; ASrcX, ASrcY, ASrcW, ASrcH: cint32; AOpacity: cdouble); cdecl; export;
 begin
-  if Assigned(ACanvas) and Assigned(ABitmap) and (TObject(ACanvas) is TFtCanvasAgg) and (TObject(ABitmap) is TFloriaImage) then
-    TFtCanvasAgg(ACanvas).DrawImagePart(AX, AY, AW, AH, TFloriaImage(ABitmap), ASrcX, ASrcY, ASrcW, ASrcH, AOpacity);
+  if Assigned(ACanvas) and Assigned(ABitmap) and (TObject(ACanvas) is TFtCanvas) and (TObject(ABitmap) is TFloriaImage) then
+    TFtCanvas(ACanvas).DrawImagePart(AX, AY, AW, AH, TFloriaImage(ABitmap), ASrcX, ASrcY, ASrcW, ASrcH, AOpacity);
 end;
 
 procedure ft_canvas_push_alpha(ACanvas: Pointer; AAlpha: cdouble); cdecl; export;
 begin
-  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvasAgg) then
-    TFtCanvasAgg(ACanvas).PushAlpha(AAlpha);
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvas) then
+    TFtCanvas(ACanvas).PushAlpha(AAlpha);
 end;
 
 procedure ft_canvas_pop_alpha(ACanvas: Pointer); cdecl; export;
 begin
-  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvasAgg) then
-    TFtCanvasAgg(ACanvas).PopAlpha();
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvas) then
+    TFtCanvas(ACanvas).PopAlpha();
 end;
 
 procedure ft_canvas_reset_alpha(ACanvas: Pointer); cdecl; export;
 begin
-  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvasAgg) then
-    TFtCanvasAgg(ACanvas).ResetAlpha();
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvas) then
+    TFtCanvas(ACanvas).ResetAlpha();
 end;
 
 function ft_canvas_get_alpha(ACanvas: Pointer): cdouble; cdecl; export;
 begin
-  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvasAgg) then
-    Result := TFtCanvasAgg(ACanvas).CurrentAlpha
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvas) then
+    Result := TFtCanvas(ACanvas).CurrentAlpha
   else
     Result := 1.0;
 end;
 
 procedure ft_canvas_draw_rect(ACanvas: Pointer; AX, AY, AW, AH: cint32; AR, AG, AB, AA: cdouble); cdecl; export;
 begin
-  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvasAgg) then
-    TFtCanvasAgg(ACanvas).DrawRect(AX, AY, AW, AH, AR, AG, AB, AA);
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvas) then
+    TFtCanvas(ACanvas).DrawRect(AX, AY, AW, AH, AR, AG, AB, AA);
 end;
 
 procedure ft_canvas_draw_rounded_rect(ACanvas: Pointer; AX, AY, AW, AH, ARadius, AR, AG, AB, AA: cdouble); cdecl; export;
 begin
-  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvasAgg) then
-    TFtCanvasAgg(ACanvas).DrawRoundedRect(AX, AY, AW, AH, ARadius, AR, AG, AB, AA);
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvas) then
+    TFtCanvas(ACanvas).DrawRoundedRect(AX, AY, AW, AH, ARadius, AR, AG, AB, AA);
 end;
 
 procedure ft_canvas_draw_rounded_rect_outline(ACanvas: Pointer; AX, AY, AW, AH, ARadius, ABorderWidth, AR, AG, AB, AA: cdouble); cdecl; export;
 begin
-  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvasAgg) then
-    TFtCanvasAgg(ACanvas).DrawRoundedRectOutline(AX, AY, AW, AH, ARadius, ABorderWidth, AR, AG, AB, AA);
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvas) then
+    TFtCanvas(ACanvas).DrawRoundedRectOutline(AX, AY, AW, AH, ARadius, ABorderWidth, AR, AG, AB, AA);
 end;
 
 procedure ft_canvas_draw_line(ACanvas: Pointer; AX1, AY1, AX2, AY2, AWidth, AR, AG, AB, AA: cdouble); cdecl; export;
 begin
-  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvasAgg) then
-    TFtCanvasAgg(ACanvas).DrawLine(AX1, AY1, AX2, AY2, AWidth, AR, AG, AB, AA);
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvas) then
+    TFtCanvas(ACanvas).DrawLine(AX1, AY1, AX2, AY2, AWidth, AR, AG, AB, AA);
 end;
 
 procedure ft_canvas_draw_circle(ACanvas: Pointer; ACX, ACY, ARadius, AR, AG, AB, AA: cdouble); cdecl; export;
 begin
-  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvasAgg) then
-    TFtCanvasAgg(ACanvas).DrawCircle(ACX, ACY, ARadius, AR, AG, AB, AA);
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvas) then
+    TFtCanvas(ACanvas).DrawCircle(ACX, ACY, ARadius, AR, AG, AB, AA);
 end;
 
 procedure ft_canvas_draw_text(ACanvas: Pointer; AX, AY: cdouble; AText: PAnsiChar; AFont: Pointer; AR, AG, AB: cdouble); cdecl; export;
 var
   f: TFtFont;
 begin
-  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvasAgg) and Assigned(AText) then
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvas) and Assigned(AText) then
   begin
     if Assigned(AFont) and (TObject(AFont) is TFtFont) then f := TFtFont(AFont) else f := nil;
-    TFtCanvasAgg(ACanvas).DrawText(AX, AY, string(AText), f, AR, AG, AB);
+    TFtCanvas(ACanvas).DrawText(AX, AY, string(AText), f, AR, AG, AB);
   end;
 end;
 
@@ -3693,10 +3701,10 @@ procedure ft_canvas_draw_text_left(ACanvas: Pointer; AX, AY, AW, AH: cdouble; AT
 var
   f: TFtFont;
 begin
-  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvasAgg) and Assigned(AText) then
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvas) and Assigned(AText) then
   begin
     if Assigned(AFont) and (TObject(AFont) is TFtFont) then f := TFtFont(AFont) else f := nil;
-    TFtCanvasAgg(ACanvas).DrawTextLeft(AX, AY, AW, AH, string(AText), f, AR, AG, AB);
+    TFtCanvas(ACanvas).DrawTextLeft(AX, AY, AW, AH, string(AText), f, AR, AG, AB);
   end;
 end;
 
@@ -3704,10 +3712,10 @@ procedure ft_canvas_draw_text_centered(ACanvas: Pointer; AX, AY, AW, AH: cint32;
 var
   f: TFtFont;
 begin
-  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvasAgg) and Assigned(AText) then
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvas) and Assigned(AText) then
   begin
     if Assigned(AFont) and (TObject(AFont) is TFtFont) then f := TFtFont(AFont) else f := nil;
-    TFtCanvasAgg(ACanvas).DrawTextCentered(AX, AY, AW, AH, string(AText), f, AR, AG, AB);
+    TFtCanvas(ACanvas).DrawTextCentered(AX, AY, AW, AH, string(AText), f, AR, AG, AB);
   end;
 end;
 

@@ -5,7 +5,7 @@ unit Ft.Widget.Meters;
 interface
 
 uses
-  ctypes, SysUtils, Classes, Math, Floria.Canvas.Agg, Floria.Font, Ft.Widget, Ft.Theme, Ft.Css, Ft.Animation;
+  ctypes, SysUtils, Classes, Math, Floria.Canvas.Agg, Ft.Canvas, Floria.Font, Ft.Widget, Ft.Theme, Ft.Css, Ft.Animation;
 
 type
   TFtSliderOrientation = (ftSliderHorizontal = 0, ftSliderVertical = 1);
@@ -37,7 +37,7 @@ type
   public
     constructor Create(AParent: TFtWidget; AOrientation: TFtSliderOrientation = ftSliderHorizontal); reintroduce;
 
-    procedure Draw(Canvas: TFtCanvasAgg); override;
+    procedure Draw(Canvas: TFtCanvas); override;
     procedure MouseDown(AX, AY: Integer; AButton: Integer); override;
     procedure MouseMove(AX, AY: Integer); override;
     procedure MouseUp(AX, AY: Integer; AButton: Integer); override;
@@ -82,7 +82,7 @@ type
     constructor Create(AParent: TFtWidget; AOrientation: TFtProgressOrientation = ftProgressHorizontal); reintroduce;
     destructor Destroy(); override;
 
-    procedure Draw(Canvas: TFtCanvasAgg); override;
+    procedure Draw(Canvas: TFtCanvas); override;
     procedure Invalidate(); override;
 
     function GetElementType(): string; override;
@@ -339,7 +339,7 @@ begin
     Result := '';
 end;
 
-procedure TFtSlider.Draw(Canvas: TFtCanvasAgg);
+procedure TFtSlider.Draw(Canvas: TFtCanvas);
 var
   st: TFtWidgetStyle;
   trackThick, trackRad, ratio: Double;
@@ -583,7 +583,7 @@ begin
   InvalidateRect(X - 2, Y - 2, Width + 4, Height + 4);
 end;
 
-procedure TFtProgressBar.Draw(Canvas: TFtCanvasAgg);
+procedure TFtProgressBar.Draw(Canvas: TFtCanvas);
 var
   st: TFtWidgetStyle;
   rad, bw, ratio: Double;

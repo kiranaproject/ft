@@ -5,7 +5,7 @@ unit Ft.Theme;
 interface
 
 uses
-  SysUtils, Classes, Floria.Canvas.Agg, Floria.Font;
+  SysUtils, Classes, Floria.Canvas.Agg, Ft.Canvas, Floria.Font;
 
 type
   { Button interactive states }
@@ -62,31 +62,32 @@ type
     procedure SetEnableShadow(AValue: Boolean); virtual;
 
     function HasDarkMode(): Boolean; virtual;
-    procedure DrawWindowBackground(Canvas: TFtCanvasAgg; W, H: Integer; AOpacity: Double = 1.0); virtual;
-    procedure DrawButton(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
+    procedure DrawWindowBackground(Canvas: TFtCanvas; W, H: Integer; AOpacity: Double = 1.0); virtual;
+    procedure DrawButton(Canvas: TFtCanvas; X, Y, W, H: Integer; 
                          State: TFtButtonState; Toggled: Boolean; 
                          const Caption: string; Font: TFtFont); virtual;
-    procedure DrawButtonEx(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
+    procedure DrawButtonEx(Canvas: TFtCanvas; X, Y, W, H: Integer; 
                            State: TFtButtonState; Toggled: Boolean; 
                            const Caption: string; Font: TFtFont;
                            CustomRadius: Double = -1.0; CustomShadow: Integer = -1); virtual;
-    procedure DrawSwitch(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
+    procedure DrawSwitch(Canvas: TFtCanvas; X, Y, W, H: Integer; 
                          State: TFtButtonState; Checked: Boolean; 
                          const Caption: string; Font: TFtFont); virtual;
-    procedure DrawSwitchEx(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
+    procedure DrawSwitchEx(Canvas: TFtCanvas; X, Y, W, H: Integer; 
                            State: TFtButtonState; Checked: Boolean; 
                            const Caption: string; Font: TFtFont;
                            CustomRadius: Double = -1.0; CustomShadow: Integer = -1); virtual;
+    function GetWindowBgColor(): TFtRgbColor; virtual;
     function GetAccentColor(): TFtRgbColor; virtual;
     function GetTextColor(): TFtRgbColor; virtual;
     function GetInputBackground(): TFtRgbColor; virtual;
     function GetInputBorder(): TFtRgbColor; virtual;
     function GetInputPlaceholderColor(): TFtRgbColor; virtual;
-    procedure DrawFocusRing(Canvas: TFtCanvasAgg; X, Y, W, H: Double; Radius: Double); virtual;
-    procedure DrawInputPlate(Canvas: TFtCanvasAgg; X, Y, W, H: Double; Focused: Boolean; CustomRadius: Double = -1.0); virtual;
+    procedure DrawFocusRing(Canvas: TFtCanvas; X, Y, W, H: Double; Radius: Double); virtual;
+    procedure DrawInputPlate(Canvas: TFtCanvas; X, Y, W, H: Double; Focused: Boolean; CustomRadius: Double = -1.0); virtual;
     function GetScrollBarTrackColor(): TFtRgbColor; virtual;
     function GetScrollBarThumbColor(): TFtRgbColor; virtual;
-    procedure DrawScrollBar(Canvas: TFtCanvasAgg; X, Y, W, H: Double; 
+    procedure DrawScrollBar(Canvas: TFtCanvas; X, Y, W, H: Double; 
                             Orientation: TFtScrollBarOrientation; 
                             ThumbX, ThumbY, ThumbW, ThumbH: Double;
                             Hovered, Dragging: Boolean;
@@ -97,19 +98,19 @@ type
     function GetMenuHoverTextColor(): TFtRgbColor; virtual;
     function GetMenuDisabledTextColor(): TFtRgbColor; virtual;
     function GetMenuSeparatorColor(): TFtRgbColor; virtual;
-    procedure DrawMenuBar(Canvas: TFtCanvasAgg; X, Y, W, H: Integer); virtual;
-    procedure DrawMenuBarItem(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
+    procedure DrawMenuBar(Canvas: TFtCanvas; X, Y, W, H: Integer); virtual;
+    procedure DrawMenuBarItem(Canvas: TFtCanvas; X, Y, W, H: Integer; 
                               const Caption: string; Font: TFtFont; 
                               Hovered, Active: Boolean); virtual;
-    procedure DrawPopupMenuPlate(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; CustomRadius: Double = -1.0); virtual;
-    procedure DrawPopupMenuItem(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
+    procedure DrawPopupMenuPlate(Canvas: TFtCanvas; X, Y, W, H: Integer; CustomRadius: Double = -1.0); virtual;
+    procedure DrawPopupMenuItem(Canvas: TFtCanvas; X, Y, W, H: Integer; 
                                 const Caption, Shortcut: string; Font: TFtFont; 
                                 Hovered, Enabled, Checked, HasSubMenu: Boolean); virtual;
-    procedure DrawMenuSeparator(Canvas: TFtCanvasAgg; X, Y, W: Integer); virtual;
+    procedure DrawMenuSeparator(Canvas: TFtCanvas; X, Y, W: Integer); virtual;
     function GetTooltipBackground(): TFtRgbColor; virtual;
     function GetTooltipBorder(): TFtRgbColor; virtual;
     function GetTooltipTextColor(): TFtRgbColor; virtual;
-    procedure DrawTooltipPlate(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; CustomRadius: Double = 0.0); virtual;
+    procedure DrawTooltipPlate(Canvas: TFtCanvas; X, Y, W, H: Integer; CustomRadius: Double = 0.0); virtual;
 
     property Name: string read GetName write SetName;
     property DarkMode: Boolean read GetDarkMode write SetDarkMode;
@@ -551,7 +552,7 @@ begin
   FColorsCached := True;
 end;
 
-procedure TFtTheme.DrawWindowBackground(Canvas: TFtCanvasAgg; W, H: Integer; AOpacity: Double = 1.0);
+procedure TFtTheme.DrawWindowBackground(Canvas: TFtCanvas; W, H: Integer; AOpacity: Double = 1.0);
 var
   effA: Double;
 begin
@@ -567,14 +568,14 @@ begin
     Canvas.DrawRect(0, 0, W, H, 0.94, 0.95, 0.96, AOpacity);
 end;
 
-procedure TFtTheme.DrawButton(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
+procedure TFtTheme.DrawButton(Canvas: TFtCanvas; X, Y, W, H: Integer; 
                               State: TFtButtonState; Toggled: Boolean; 
                               const Caption: string; Font: TFtFont);
 begin
   DrawButtonEx(Canvas, X, Y, W, H, State, Toggled, Caption, Font, -1.0, -1);
 end;
 
-procedure TFtTheme.DrawButtonEx(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
+procedure TFtTheme.DrawButtonEx(Canvas: TFtCanvas; X, Y, W, H: Integer; 
                                 State: TFtButtonState; Toggled: Boolean; 
                                 const Caption: string; Font: TFtFont;
                                 CustomRadius: Double; CustomShadow: Integer);
@@ -685,14 +686,14 @@ begin
   end;
 end;
 
-procedure TFtTheme.DrawSwitch(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
+procedure TFtTheme.DrawSwitch(Canvas: TFtCanvas; X, Y, W, H: Integer; 
                               State: TFtButtonState; Checked: Boolean; 
                               const Caption: string; Font: TFtFont);
 begin
   DrawSwitchEx(Canvas, X, Y, W, H, State, Checked, Caption, Font, -1.0, -1);
 end;
 
-procedure TFtTheme.DrawSwitchEx(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
+procedure TFtTheme.DrawSwitchEx(Canvas: TFtCanvas; X, Y, W, H: Integer; 
                                 State: TFtButtonState; Checked: Boolean; 
                                 const Caption: string; Font: TFtFont;
                                 CustomRadius: Double; CustomShadow: Integer);
@@ -776,6 +777,17 @@ begin
   end;
 end;
 
+function TFtTheme.GetWindowBgColor(): TFtRgbColor;
+begin
+  EnsureColorsCached();
+  if FCachedWindowBgHasColor then
+    Result := MakeRgbColor(FCachedWindowBgR, FCachedWindowBgG, FCachedWindowBgB)
+  else if FDarkMode then
+    Result := MakeRgbColor(0.09, 0.09, 0.11)
+  else
+    Result := MakeRgbColor(0.94, 0.95, 0.96);
+end;
+
 function TFtTheme.GetAccentColor(): TFtRgbColor;
 begin
   EnsureColorsCached();
@@ -808,12 +820,12 @@ begin
     Result := MakeRgb(0.60, 0.63, 0.68);
 end;
 
-procedure TFtTheme.DrawFocusRing(Canvas: TFtCanvasAgg; X, Y, W, H: Double; Radius: Double);
+procedure TFtTheme.DrawFocusRing(Canvas: TFtCanvas; X, Y, W, H: Double; Radius: Double);
 begin
   Canvas.DrawRoundedRectOutline(X - 1.5, Y - 1.5, W + 3.0, H + 3.0, Radius + 1.5, 2.0, 0.23, 0.51, 0.96, 0.6);
 end;
 
-procedure TFtTheme.DrawInputPlate(Canvas: TFtCanvasAgg; X, Y, W, H: Double; Focused: Boolean; CustomRadius: Double);
+procedure TFtTheme.DrawInputPlate(Canvas: TFtCanvas; X, Y, W, H: Double; Focused: Boolean; CustomRadius: Double);
 var
   rad: Double;
   bg, bd: TFtRgbColor;
@@ -852,7 +864,7 @@ begin
     Result := MakeRgb(0.72, 0.75, 0.78);
 end;
 
-procedure TFtTheme.DrawScrollBar(Canvas: TFtCanvasAgg; X, Y, W, H: Double; 
+procedure TFtTheme.DrawScrollBar(Canvas: TFtCanvas; X, Y, W, H: Double; 
                                 Orientation: TFtScrollBarOrientation; 
                                 ThumbX, ThumbY, ThumbW, ThumbH: Double;
                                 Hovered, Dragging: Boolean;
@@ -961,7 +973,7 @@ begin
     Result := MakeRgb(0.88, 0.90, 0.92);
 end;
 
-procedure TFtTheme.DrawMenuBar(Canvas: TFtCanvasAgg; X, Y, W, H: Integer);
+procedure TFtTheme.DrawMenuBar(Canvas: TFtCanvas; X, Y, W, H: Integer);
 var
   bg, bd: TFtRgbColor;
 begin
@@ -971,7 +983,7 @@ begin
   Canvas.DrawRect(X, Y + H - 1, W, 1, bd.R, bd.G, bd.B);
 end;
 
-procedure TFtTheme.DrawMenuBarItem(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
+procedure TFtTheme.DrawMenuBarItem(Canvas: TFtCanvas; X, Y, W, H: Integer; 
                                   const Caption: string; Font: TFtFont; 
                                   Hovered, Active: Boolean);
 var
@@ -994,7 +1006,7 @@ begin
   end;
 end;
 
-procedure TFtTheme.DrawPopupMenuPlate(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; CustomRadius: Double);
+procedure TFtTheme.DrawPopupMenuPlate(Canvas: TFtCanvas; X, Y, W, H: Integer; CustomRadius: Double);
 var
   bg, bd: TFtRgbColor;
   rad: Double;
@@ -1051,7 +1063,7 @@ begin
   Result := GetTextColor();
 end;
 
-procedure TFtTheme.DrawTooltipPlate(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; CustomRadius: Double);
+procedure TFtTheme.DrawTooltipPlate(Canvas: TFtCanvas; X, Y, W, H: Integer; CustomRadius: Double);
 var
   bg, bd: TFtRgbColor;
   rad: Double;
@@ -1072,7 +1084,7 @@ begin
   end;
 end;
 
-procedure TFtTheme.DrawPopupMenuItem(Canvas: TFtCanvasAgg; X, Y, W, H: Integer; 
+procedure TFtTheme.DrawPopupMenuItem(Canvas: TFtCanvas; X, Y, W, H: Integer; 
                                     const Caption, Shortcut: string; Font: TFtFont; 
                                     Hovered, Enabled, Checked, HasSubMenu: Boolean);
 var
@@ -1123,7 +1135,7 @@ begin
   end;
 end;
 
-procedure TFtTheme.DrawMenuSeparator(Canvas: TFtCanvasAgg; X, Y, W: Integer);
+procedure TFtTheme.DrawMenuSeparator(Canvas: TFtCanvas; X, Y, W: Integer);
 var
   sep: TFtRgbColor;
 begin

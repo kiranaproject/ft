@@ -5,7 +5,7 @@ unit Ft.Widget.UrlEntries;
 interface
 
 uses
-  ctypes, SysUtils, Classes, Math, Floria.Canvas.Agg, Floria.Font,
+  ctypes, SysUtils, Classes, Math, Ft.Canvas, Floria.Font,
   Ft.Widget, Ft.Window, Ft.Theme, Ft.Widget.Containers, Ft.Widget.ScrollBars, Ft.Widget.Entries, Ft.Css;
 
 type
@@ -40,7 +40,7 @@ type
   private
     FUrlEntry: TFtUrlEntry;
   protected
-    procedure DrawBackground(Canvas: TFtCanvasAgg); override;
+    procedure DrawBackground(Canvas: TFtCanvas); override;
     procedure KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string); override;
   public
     constructor Create(AUrlEntry: TFtUrlEntry); reintroduce;
@@ -88,11 +88,11 @@ type
     function GetSecurityChipRect(out AX, AY, AW, AH: Double): Boolean;
     function GetBookmarkButtonRect(out AX, AY, AW, AH: Double): Boolean;
 
-    procedure DrawSecurityChip(Canvas: TFtCanvasAgg);
-    procedure DrawDomainContrastText(Canvas: TFtCanvasAgg);
-    procedure DrawActionButtons(Canvas: TFtCanvasAgg);
+    procedure DrawSecurityChip(Canvas: TFtCanvas);
+    procedure DrawDomainContrastText(Canvas: TFtCanvas);
+    procedure DrawActionButtons(Canvas: TFtCanvas);
   protected
-    procedure DrawContent(Canvas: TFtCanvasAgg); override;
+    procedure DrawContent(Canvas: TFtCanvas); override;
   public
     constructor Create(AParent: TFtWidget; const AInitialUrl: string = ''); reintroduce;
     destructor Destroy(); override;
@@ -144,7 +144,7 @@ begin
   Visible := False;
 end;
 
-procedure TFtUrlSubEntry.DrawBackground(Canvas: TFtCanvasAgg);
+procedure TFtUrlSubEntry.DrawBackground(Canvas: TFtCanvas);
 begin
   // Seamless inside TFtUrlEntry pill container: do not draw separate background or frame
 end;
@@ -639,7 +639,7 @@ begin
   inherited KeyDown(AKeySym, AState, AChar);
 end;
 
-procedure TFtUrlEntry.DrawSecurityChip(Canvas: TFtCanvasAgg);
+procedure TFtUrlEntry.DrawSecurityChip(Canvas: TFtCanvas);
 var
   cX, cY, cW, cH: Double;
   midX, midY, triX: Double;
@@ -742,7 +742,7 @@ begin
   end;
 end;
 
-procedure TFtUrlEntry.DrawActionButtons(Canvas: TFtCanvasAgg);
+procedure TFtUrlEntry.DrawActionButtons(Canvas: TFtCanvas);
 var
   bX, bY, bW, bH: Double;
   midX, midY: Double;
@@ -812,7 +812,7 @@ begin
   end;
 end;
 
-procedure TFtUrlEntry.DrawDomainContrastText(Canvas: TFtCanvasAgg);
+procedure TFtUrlEntry.DrawDomainContrastText(Canvas: TFtCanvas);
 var
   fnt: TFtFont;
   curTheme: TFtTheme;
@@ -888,7 +888,7 @@ begin
   end;
 end;
 
-procedure TFtUrlEntry.DrawContent(Canvas: TFtCanvasAgg);
+procedure TFtUrlEntry.DrawContent(Canvas: TFtCanvas);
 begin
   inherited DrawContent(Canvas);
 

@@ -10,6 +10,7 @@ uses
   Floria.SVG.Parser,
   Floria.SVG.Rasterizer,
   Floria.Canvas.Agg,
+  Ft.Canvas,
   Floria.Image.Core,
   Floria.Image.BMP,
   Floria.Image.PNG,
@@ -49,7 +50,7 @@ type
     procedure SetBitmap(ABitmap: TFloriaImage; AOwnsBitmap: Boolean = False);
     procedure InvalidateSVGCache();
 
-    procedure Draw(ACanvas: TFtCanvasAgg); override;
+    procedure Draw(ACanvas: TFtCanvas); override;
     function GetElementType(): string; override;
 
     property Bitmap: TFloriaImage read GetBitmap;
@@ -194,7 +195,7 @@ begin
   Result := 'image';
 end;
 
-procedure TFtImage.Draw(ACanvas: TFtCanvasAgg);
+procedure TFtImage.Draw(ACanvas: TFtCanvas);
 var
   st: TFtWidgetStyle;
   drawX, drawY, drawW, drawH: Double;

@@ -5,7 +5,7 @@ unit Ft.Widget.Switches;
 interface
 
 uses
-  ctypes, SysUtils, Classes, Floria.Canvas.Agg, Floria.Font, Ft.Widget, Ft.Theme, Ft.Css, Ft.Animation;
+  ctypes, SysUtils, Classes, Ft.Canvas, Floria.Font, Ft.Widget, Ft.Theme, Ft.Css, Ft.Animation;
 
 type
   TFtSwitchCallback = procedure(Sender: Pointer; Checked: cint32; UserData: Pointer); cdecl;
@@ -41,7 +41,7 @@ type
     destructor Destroy(); override;
 
     procedure SetEnabled(AValue: Boolean); override;
-    procedure Draw(Canvas: TFtCanvasAgg); override;
+    procedure Draw(Canvas: TFtCanvas); override;
     procedure Click(); override;
     procedure MouseEnter(); override;
     procedure MouseLeave(); override;
@@ -309,7 +309,7 @@ begin
   Toggle();
 end;
 
-procedure TFtSwitch.Draw(Canvas: TFtCanvasAgg);
+procedure TFtSwitch.Draw(Canvas: TFtCanvas);
 var
   trackW, trackH: Integer;
   rad, thumbD, thumbX, thumbY, labelX, labelY: Double;

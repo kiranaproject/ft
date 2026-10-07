@@ -6,7 +6,7 @@ interface
 
 uses
   SysUtils, Classes, Math, Types,
-  Floria.Image.Core, Floria.Canvas.Agg, Floria.Font, Ft.Widget, Ft.Widget.Containers, Ft.Widget.ScrollBars, Ft.Widget.Texts, Ft.Theme, Ft.Css;
+  Floria.Image.Core, Ft.Canvas, Floria.Font, Ft.Widget, Ft.Widget.Containers, Ft.Widget.ScrollBars, Ft.Widget.Texts, Ft.Theme, Ft.Css;
 
 type
   TFtTextAlign = TFtTextAlignment;
@@ -43,12 +43,12 @@ type
   TFtTableRowDoubleClickEvent = procedure(Sender: TObject; RowIndex: Integer) of object;
   TFtTableRowDoubleClickCallback = procedure(Sender: Pointer; RowIndex: Integer; UserData: Pointer); cdecl;
 
-  TFtTableDrawHeaderEvent = function(Sender: TObject; Canvas: TFtCanvasAgg; ColumnIndex: Integer;
+  TFtTableDrawHeaderEvent = function(Sender: TObject; Canvas: TFtCanvas; ColumnIndex: Integer;
     AX, AY, AW, AH: Double; ASortOrder: TFtSortOrder): Boolean of object;
   TFtTableDrawHeaderCallback = function(Sender: Pointer; Canvas: Pointer; ColumnIndex: Integer;
     AX, AY, AW, AH: Double; ASortOrder: Integer; UserData: Pointer): Integer; cdecl;
 
-  TFtTableDrawCellEvent = function(Sender: TObject; Canvas: TFtCanvasAgg; RowIndex, ColumnIndex: Integer;
+  TFtTableDrawCellEvent = function(Sender: TObject; Canvas: TFtCanvas; RowIndex, ColumnIndex: Integer;
     AX, AY, AW, AH: Double; ASelected, AHovered: Boolean): Boolean of object;
   TFtTableDrawCellCallback = function(Sender: Pointer; Canvas: Pointer; RowIndex, ColumnIndex: Integer;
     AX, AY, AW, AH: Double; ASelected, AHovered: Integer; UserData: Pointer): Integer; cdecl;
@@ -91,9 +91,9 @@ type
     function RowAtPosition(AY: Integer): Integer;
     function ColumnAtPosition(AX: Integer): Integer;
   protected
-    procedure DrawBackground(Canvas: TFtCanvasAgg); override;
-    procedure DrawContent(Canvas: TFtCanvasAgg); override;
-    procedure DrawHeader(Canvas: TFtCanvasAgg); virtual;
+    procedure DrawBackground(Canvas: TFtCanvas); override;
+    procedure DrawContent(Canvas: TFtCanvas); override;
+    procedure DrawHeader(Canvas: TFtCanvas); virtual;
     procedure GetRenderArea(out AX, AY, AW, AH, ARadius: Double); override;
     procedure SetScrollX(AValue: Double); override;
     procedure SetScrollY(AValue: Double); override;
@@ -127,7 +127,7 @@ type
     function GetSelectedRowCount(): Integer;
     function GetSelectedRows(): TIntegerDynArray;
 
-    procedure Draw(Canvas: TFtCanvasAgg); override;
+    procedure Draw(Canvas: TFtCanvas); override;
     procedure MouseDown(AX, AY: Integer; AButton: Integer); override;
     procedure MouseMove(AX, AY: Integer); override;
     procedure MouseLeave(); override;
@@ -877,12 +877,12 @@ begin
   end;
 end;
 
-procedure TFtTable.DrawBackground(Canvas: TFtCanvasAgg);
+procedure TFtTable.DrawBackground(Canvas: TFtCanvas);
 begin
   inherited DrawBackground(Canvas);
 end;
 
-procedure TFtTable.DrawHeader(Canvas: TFtCanvasAgg);
+procedure TFtTable.DrawHeader(Canvas: TFtCanvas);
 var
   theme: TFtTheme;
   headR, headG, headB: Double;
@@ -992,7 +992,7 @@ begin
   Canvas.DrawLine(hx, Y + FHeaderHeight, hx + hw, Y + FHeaderHeight, 1.0, bd.R, bd.G, bd.B, 0.9);
 end;
 
-procedure TFtTable.DrawContent(Canvas: TFtCanvasAgg);
+procedure TFtTable.DrawContent(Canvas: TFtCanvas);
 var
   theme: TFtTheme;
   accent: TFtRgbColor;
@@ -1143,7 +1143,7 @@ begin
   end;
 end;
 
-procedure TFtTable.Draw(Canvas: TFtCanvasAgg);
+procedure TFtTable.Draw(Canvas: TFtCanvas);
 var
   clipX, clipY, clipW, clipH, innerRad: Double;
   theme: TFtTheme;

@@ -5,7 +5,7 @@ unit Ft.Widget.Selectors;
 interface
 
 uses
-  ctypes, SysUtils, Classes, Math, Floria.Canvas.Agg, Floria.Font, Ft.Widget, Ft.Theme, Ft.Css,
+  ctypes, SysUtils, Classes, Math, Ft.Canvas, Floria.Font, Ft.Widget, Ft.Theme, Ft.Css,
   Ft.Widget.Menus, Ft.Window;
 
 type
@@ -34,7 +34,7 @@ type
   public
     constructor Create(AParent: TFtWidget); override;
 
-    procedure Draw(Canvas: TFtCanvasAgg); override;
+    procedure Draw(Canvas: TFtCanvas); override;
     procedure Click(); override;
     procedure MouseEnter(); override;
     procedure MouseLeave(); override;
@@ -72,7 +72,7 @@ type
   public
     constructor Create(AParent: TFtWidget); override;
 
-    procedure Draw(Canvas: TFtCanvasAgg); override;
+    procedure Draw(Canvas: TFtCanvas); override;
     procedure Click(); override;
     procedure MouseEnter(); override;
     procedure MouseLeave(); override;
@@ -116,7 +116,7 @@ type
     constructor Create(AParent: TFtWidget); override;
     destructor Destroy(); override;
 
-    procedure Draw(Canvas: TFtCanvasAgg); override;
+    procedure Draw(Canvas: TFtCanvas); override;
     procedure Click(); override;
     procedure MouseEnter(); override;
     procedure MouseLeave(); override;
@@ -321,7 +321,7 @@ begin
     Click();
 end;
 
-procedure TFtCheckBox.Draw(Canvas: TFtCanvasAgg);
+procedure TFtCheckBox.Draw(Canvas: TFtCanvas);
 var
   st: TFtWidgetStyle;
   boxSize, boxX, boxY, rad: Double;
@@ -615,7 +615,7 @@ begin
     Click();
 end;
 
-procedure TFtRadioButton.Draw(Canvas: TFtCanvasAgg);
+procedure TFtRadioButton.Draw(Canvas: TFtCanvas);
 var
   st: TFtWidgetStyle;
   diameter, circleX, circleY, centerX, centerY, radius: Double;
@@ -947,7 +947,7 @@ begin
     SetSelectedIndex(FSelectedIndex + 1);
 end;
 
-procedure TFtComboBox.Draw(Canvas: TFtCanvasAgg);
+procedure TFtComboBox.Draw(Canvas: TFtCanvas);
 var
   st: TFtWidgetStyle;
   rad, bw: Double;

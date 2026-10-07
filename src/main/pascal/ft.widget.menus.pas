@@ -5,7 +5,7 @@ unit Ft.Widget.Menus;
 interface
 
 uses
-  SysUtils, Classes, Floria.Canvas.Agg, Floria.Font, Ft.Widget, Ft.Theme;
+  SysUtils, Classes, Floria.Canvas.Agg, Ft.Canvas, Floria.Font, Ft.Widget, Ft.Theme;
 
 type
   { Forward declarations }
@@ -89,8 +89,8 @@ type
     procedure Close();
     procedure DismissAll();
 
-    procedure Draw(Canvas: TFtCanvasAgg); override;
-    procedure DrawCascade(Canvas: TFtCanvasAgg);
+    procedure Draw(Canvas: TFtCanvas); override;
+    procedure DrawCascade(Canvas: TFtCanvas);
     function HitTest(AX, AY: Integer): TFtWidget; override;
     function HitTestCascade(AX, AY: Integer; out HitPopup: TFtPopupMenu; out HitItem: TFtMenuItem): Boolean;
     function ItemAt(AX, AY: Integer): Integer;
@@ -137,7 +137,7 @@ type
     procedure RecalcLayout();
     procedure CloseMenu();
 
-    procedure Draw(Canvas: TFtCanvasAgg); override;
+    procedure Draw(Canvas: TFtCanvas); override;
     function HitTest(AX, AY: Integer): TFtWidget; override;
     function ItemAt(AX, AY: Integer): Integer;
 
@@ -517,7 +517,7 @@ begin
     rootPop.FParentMainMenu.CloseMenu();
 end;
 
-procedure TFtPopupMenu.Draw(Canvas: TFtCanvasAgg);
+procedure TFtPopupMenu.Draw(Canvas: TFtCanvas);
 var
   I: Integer;
   item: TFtMenuItem;
@@ -543,7 +543,7 @@ begin
   end;
 end;
 
-procedure TFtPopupMenu.DrawCascade(Canvas: TFtCanvasAgg);
+procedure TFtPopupMenu.DrawCascade(Canvas: TFtCanvas);
 begin
   if not FIsOpen then Exit;
   Self.Draw(Canvas);
@@ -911,7 +911,7 @@ begin
   end;
 end;
 
-procedure TFtMainMenu.Draw(Canvas: TFtCanvasAgg);
+procedure TFtMainMenu.Draw(Canvas: TFtCanvas);
 var
   I: Integer;
   item: TFtMenuItem;

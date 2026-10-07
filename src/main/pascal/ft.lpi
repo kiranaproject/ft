@@ -126,6 +126,11 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="Ft.Backend.EGL"/>
       </Unit>
+      <Unit>
+        <Filename Value="ft.canvas.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Ft.Canvas"/>
+      </Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

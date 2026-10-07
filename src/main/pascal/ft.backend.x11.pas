@@ -7,7 +7,7 @@ interface
 uses
   ctypes, SysUtils, Classes,
   Floria.XCB, Floria.XCB.Keysyms, Floria.XCB.Cursor, Floria.X11.KeySym,
-  Floria.Canvas.Agg, Ft.Widget, Ft.Theme, Ft.Css, Ft.Animation, Ft.Window;
+  Floria.Canvas.Agg, Ft.Canvas, Ft.Widget, Ft.Theme, Ft.Css, Ft.Animation, Ft.Window;
 
 type
   TMWMHints = record
@@ -110,7 +110,7 @@ type
     procedure SetHintText(const AText: string);
     procedure ShowAt(AScreenX, AScreenY: Integer);
     procedure Hide();
-    procedure Draw(Canvas: TFtCanvasAgg); override;
+    procedure Draw(Canvas: TFtCanvas); override;
     property PopupWindow: TFtWindow read FPopupWindow;
   end;
 
@@ -2275,7 +2275,7 @@ begin
     FPopupWindow.Hide();
 end;
 
-procedure TFtHintWindow.Draw(Canvas: TFtCanvasAgg);
+procedure TFtHintWindow.Draw(Canvas: TFtCanvas);
 var
   st: TFtWidgetStyle;
   fnt: TFtFont;

@@ -6,7 +6,7 @@ interface
 
 uses
   SysUtils, Classes, Math,
-  Floria.Image.Core, Floria.Canvas.Agg, Floria.Font, Ft.Widget, Ft.Widget.Containers, Ft.Widget.ScrollBars, Ft.Theme, Ft.Css;
+  Floria.Image.Core, Ft.Canvas, Floria.Font, Ft.Widget, Ft.Widget.Containers, Ft.Widget.ScrollBars, Ft.Theme, Ft.Css;
 
 type
   TFtTreeNode = class;
@@ -68,7 +68,7 @@ type
     procedure CollectVisibleNodes(ANode: TFtTreeNode);
     function NodeAtPosition(AY: Integer; out InArrow: Boolean): TFtTreeNode;
   protected
-    procedure DrawContent(Canvas: TFtCanvasAgg); override;
+    procedure DrawContent(Canvas: TFtCanvas); override;
     procedure GetRenderArea(out AX, AY, AW, AH, ARadius: Double); override;
     procedure SetScrollY(AValue: Double); override;
   public
@@ -378,7 +378,7 @@ begin
     Result := TFtTreeNode(FVisibleNodes[idx]);
 end;
 
-procedure TFtTreeView.DrawContent(Canvas: TFtCanvasAgg);
+procedure TFtTreeView.DrawContent(Canvas: TFtCanvas);
 var
   theme: TFtTheme;
   accent: TFtRgbColor;

@@ -5,7 +5,7 @@ unit Ft.Widget.ScrollBars;
 interface
 
 uses
-  ctypes, SysUtils, Classes, Math, Floria.Canvas.Agg, Ft.Widget, Ft.Theme, Ft.Css;
+  ctypes, SysUtils, Classes, Math, Floria.Canvas.Agg, Ft.Canvas, Ft.Widget, Ft.Theme, Ft.Css;
 
 type
   { ScrollBar visibility modes for scrollable containers }
@@ -50,7 +50,7 @@ type
     constructor Create(AParent: TFtWidget; AOrientation: TFtScrollBarOrientation = ftSbVertical); reintroduce;
     destructor Destroy(); override;
 
-    procedure Draw(Canvas: TFtCanvasAgg); override;
+    procedure Draw(Canvas: TFtCanvas); override;
     function GetCursor(): Integer; override;
     procedure MouseEnter(); override;
     procedure MouseLeave(); override;
@@ -413,7 +413,7 @@ begin
   end;
 end;
 
-procedure TFtScrollBar.Draw(Canvas: TFtCanvasAgg);
+procedure TFtScrollBar.Draw(Canvas: TFtCanvas);
 var
   curTheme: TFtTheme;
   tx, ty, tw, th: Double;

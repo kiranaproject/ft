@@ -9,6 +9,7 @@ uses
   Floria.Canvas.Agg, Floria.Font,
   Floria.Image.Core, Floria.Image.BMP, Floria.Image.PNG, Floria.Image.JPEG,
   Floria.SVG.DOM, Floria.SVG.Parser, Floria.SVG.Rasterizer,
+  Ft.Canvas,
   Ft.Widget, Ft.Theme, Ft.Css, Ft.Animation;
 
 type
@@ -76,7 +77,7 @@ type
     function GetStatePseudoClass(): string; override;
     function GetEffectiveHint(): string; override;
     procedure SetEnabled(AValue: Boolean); override;
-    procedure Draw(Canvas: TFtCanvasAgg); override;
+    procedure Draw(Canvas: TFtCanvas); override;
     procedure Click(); override;
     procedure MouseEnter(); override;
     procedure MouseLeave(); override;
@@ -165,7 +166,7 @@ type
     function GetStatePseudoClass(): string; override;
     function GetEffectiveHint(): string; override;
 
-    procedure Draw(Canvas: TFtCanvasAgg); override;
+    procedure Draw(Canvas: TFtCanvas); override;
     procedure Click(); override;
     procedure MouseEnter(); override;
     procedure MouseLeave(); override;
@@ -173,7 +174,7 @@ type
     procedure MouseUp(AX, AY: Integer; AButton: Integer); override;
 
     class procedure DrawWindowButton(
-      Canvas: TFtCanvasAgg;
+      Canvas: TFtCanvas;
       BX, BY, BW, BH: Double;
       AKind: TFtWindowButtonKind;
       AStyle: TFtWindowButtonStyle;
@@ -519,7 +520,7 @@ begin
     FOnClick(Self, FUserData);
 end;
 
-procedure TFtButton.Draw(Canvas: TFtCanvasAgg);
+procedure TFtButton.Draw(Canvas: TFtCanvas);
 var
   effRadius: Double;
   st: TFtWidgetStyle;
@@ -1066,7 +1067,7 @@ begin
   end;
 end;
 
-procedure TFtWindowButton.Draw(Canvas: TFtCanvasAgg);
+procedure TFtWindowButton.Draw(Canvas: TFtCanvas);
 var
   theme: TFtTheme;
   nowMs: QWord;
@@ -1104,7 +1105,7 @@ begin
 end;
 
 class procedure TFtWindowButton.DrawWindowButton(
-  Canvas: TFtCanvasAgg;
+  Canvas: TFtCanvas;
   BX, BY, BW, BH: Double;
   AKind: TFtWindowButtonKind;
   AStyle: TFtWindowButtonStyle;

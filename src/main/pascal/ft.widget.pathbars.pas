@@ -5,7 +5,7 @@ unit Ft.Widget.PathBars;
 interface
 
 uses
-  ctypes, SysUtils, Classes, Math, Floria.Canvas.Agg, Floria.Font,
+  ctypes, SysUtils, Classes, Math, Floria.Canvas.Agg, Ft.Canvas, Floria.Font,
   Ft.Widget, Ft.Theme, Ft.Widget.Containers, Ft.Widget.ScrollBars, Ft.Widget.Entries, Ft.Css;
 
 type
@@ -32,7 +32,7 @@ type
   private
     FPathBar: TFtPathBar;
   protected
-    procedure DrawBackground(Canvas: TFtCanvasAgg); override;
+    procedure DrawBackground(Canvas: TFtCanvas); override;
     procedure KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string); override;
   public
     constructor Create(APathBar: TFtPathBar); reintroduce;
@@ -69,10 +69,10 @@ type
     function GetToggleRect(out AX, AY, AW, AH: Double): Boolean;
     function HitTestSegment(AX, AY: Integer): Integer;
     function IsOverEmptyArea(AX, AY: Integer): Boolean;
-    procedure DrawBreadcrumbs(Canvas: TFtCanvasAgg);
-    procedure DrawToggleButton(Canvas: TFtCanvasAgg);
+    procedure DrawBreadcrumbs(Canvas: TFtCanvas);
+    procedure DrawToggleButton(Canvas: TFtCanvas);
   protected
-    procedure DrawContent(Canvas: TFtCanvasAgg); override;
+    procedure DrawContent(Canvas: TFtCanvas); override;
   public
     constructor Create(AParent: TFtWidget; const APath: string = ''); reintroduce;
     destructor Destroy(); override;
@@ -115,7 +115,7 @@ begin
   Visible := False;
 end;
 
-procedure TFtPathBarEntry.DrawBackground(Canvas: TFtCanvasAgg);
+procedure TFtPathBarEntry.DrawBackground(Canvas: TFtCanvas);
 begin
   // Seamless inside TFtPathBar: do not draw separate background or frame
 end;
@@ -755,7 +755,7 @@ begin
   end;
 end;
 
-procedure TFtPathBar.DrawBreadcrumbs(Canvas: TFtCanvasAgg);
+procedure TFtPathBar.DrawBreadcrumbs(Canvas: TFtCanvas);
 var
   i, count: Integer;
   fnt: TFtFont;
@@ -841,7 +841,7 @@ begin
   end;
 end;
 
-procedure TFtPathBar.DrawToggleButton(Canvas: TFtCanvasAgg);
+procedure TFtPathBar.DrawToggleButton(Canvas: TFtCanvas);
 var
   togX, togY, togW, togH: Double;
   midX, midY: Double;
@@ -901,7 +901,7 @@ begin
   end;
 end;
 
-procedure TFtPathBar.DrawContent(Canvas: TFtCanvasAgg);
+procedure TFtPathBar.DrawContent(Canvas: TFtCanvas);
 begin
   inherited DrawContent(Canvas);
 

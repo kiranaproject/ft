@@ -6,7 +6,7 @@ interface
 
 uses
   SysUtils, Classes, Types,
-  Floria.Canvas.Agg, Ft.Widget, Ft.Theme, Ft.Css;
+  Floria.Canvas.Agg, Ft.Canvas, Ft.Widget, Ft.Theme, Ft.Css;
 
 type
   TFtWindowType = (
@@ -55,7 +55,7 @@ type
     FHasDirtyRect: Boolean;
     FFullRepaint: Boolean;
     FPixelBuffer: PByte;
-    FCanvas: TFtCanvasAgg;
+    FCanvas: TFtCanvas;
     FModalResult: Integer;
     FIsModal: Boolean;
     FOnResize: TFtWindowResizeEvent;
@@ -128,7 +128,7 @@ type
     procedure KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string); override;
     procedure KeyUp(AKeySym: Cardinal; AState: Cardinal); override;
 
-    property Canvas: TFtCanvasAgg read FCanvas;
+    property Canvas: TFtCanvas read FCanvas;
     property PixelBuffer: PByte read FPixelBuffer;
     property Title: string read FTitle write SetTitle;
     property Borderless: Boolean read FBorderless write SetBorderless;

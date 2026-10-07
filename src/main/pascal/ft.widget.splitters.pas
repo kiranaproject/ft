@@ -6,7 +6,7 @@ interface
 
 uses
   SysUtils, Classes, Math,
-  Floria.Canvas.Agg, Floria.Font, Ft.Widget, Ft.Widget.Containers, Ft.Theme, Ft.Css;
+  Ft.Canvas, Floria.Font, Ft.Widget, Ft.Widget.Containers, Ft.Theme, Ft.Css;
 
 type
   TFtSplitterOrientation = (soHorizontal, soVertical);
@@ -41,7 +41,7 @@ type
     function GetSplitterBarRect(out BX, BY, BW, BH: Double): Boolean;
     function IsInSplitterBar(AX, AY: Integer): Boolean;
   protected
-    procedure DrawSplitterBar(Canvas: TFtCanvasAgg); virtual;
+    procedure DrawSplitterBar(Canvas: TFtCanvas); virtual;
   public
     constructor Create(AParent: TFtWidget); override;
     destructor Destroy(); override;
@@ -51,7 +51,7 @@ type
     procedure SetPanes(APane1, APane2: TFtWidget);
     procedure SetSplitterRatio(ARatio: Double); // 0.0 .. 1.0
 
-    procedure Draw(Canvas: TFtCanvasAgg); override;
+    procedure Draw(Canvas: TFtCanvas); override;
     function HitTest(AX, AY: Integer): TFtWidget; override;
     procedure MouseDown(AX, AY: Integer; AButton: Integer); override;
     procedure MouseUp(AX, AY: Integer; AButton: Integer); override;
@@ -295,7 +295,7 @@ begin
   Invalidate();
 end;
 
-procedure TFtSplitter.DrawSplitterBar(Canvas: TFtCanvasAgg);
+procedure TFtSplitter.DrawSplitterBar(Canvas: TFtCanvas);
 var
   bx, by, bw, bh: Double;
   theme: TFtTheme;
@@ -341,7 +341,7 @@ begin
   end;
 end;
 
-procedure TFtSplitter.Draw(Canvas: TFtCanvasAgg);
+procedure TFtSplitter.Draw(Canvas: TFtCanvas);
 begin
   if not Visible then Exit;
 

@@ -5,7 +5,7 @@ unit Ft.Widget.Containers;
 interface
 
 uses
-  ctypes, SysUtils, Classes, Math, Floria.Canvas.Agg, Floria.Font, Ft.Widget, Ft.Theme, Ft.Widget.ScrollBars, Ft.Css;
+  ctypes, SysUtils, Classes, Math, Floria.Canvas.Agg, Ft.Canvas, Floria.Font, Ft.Widget, Ft.Theme, Ft.Widget.ScrollBars, Ft.Css;
 
 type
   TFtContainer = class(TFtWidget)
@@ -47,13 +47,13 @@ type
 
     procedure HandleVScroll(Sender: TObject; Value: Double); virtual;
     procedure HandleHScroll(Sender: TObject; Value: Double); virtual;
-    procedure DrawBackground(Canvas: TFtCanvasAgg); virtual;
-    procedure DrawContent(Canvas: TFtCanvasAgg); virtual;
-    procedure DrawChildren(Canvas: TFtCanvasAgg); virtual;
+    procedure DrawBackground(Canvas: TFtCanvas); virtual;
+    procedure DrawContent(Canvas: TFtCanvas); virtual;
+    procedure DrawChildren(Canvas: TFtCanvas); virtual;
     procedure ShiftChildren(DeltaX, DeltaY: Integer); virtual;
     procedure RecalculateContentSize(); virtual;
-    procedure CaptureBackdropCache(Canvas: TFtCanvasAgg); virtual;
-    procedure RestoreBackdropCache(Canvas: TFtCanvasAgg); virtual;
+    procedure CaptureBackdropCache(Canvas: TFtCanvas); virtual;
+    procedure RestoreBackdropCache(Canvas: TFtCanvas); virtual;
   public
     constructor Create(AParent: TFtWidget); override;
     destructor Destroy(); override;
@@ -66,7 +66,7 @@ type
     procedure Invalidate(); override;
     procedure InvalidateStyle(); override;
 
-    procedure Draw(Canvas: TFtCanvasAgg); override;
+    procedure Draw(Canvas: TFtCanvas); override;
     function HitTest(AX, AY: Integer): TFtWidget; override;
     procedure MouseDown(AX, AY: Integer; AButton: Integer); override;
     procedure InvalidateRect(AX, AY, AW, AH: Integer); override;
@@ -212,14 +212,14 @@ begin
   inherited InvalidateStyle();
 end;
 
-procedure TFtContainer.CaptureBackdropCache(Canvas: TFtCanvasAgg);
+procedure TFtContainer.CaptureBackdropCache(Canvas: TFtCanvas);
 var
   bufWidth, bufHeight: Integer;
   srcPixels, dstPixels: PByte;
   cw, ch, rx, ry, row: Integer;
   validX1, validX2, copyW, copyBytes: Integer;
 begin
-  if not Assigned(Canvas) or not Assigned(Canvas.Buffer) then Exit;
+  if not Assigned(Canvas) or not (Canvas is TFtCanvasAgg) or not Assigned(TFtCanvasAgg(Canvas).Buffer) then Exit;
   cw := Width;
   ch := Height;
   rx := X;
@@ -238,7 +238,7 @@ begin
     GetMem(FBackdropCache, FCacheW * FCacheH * 4);
   end;
 
-  srcPixels := PByte(Canvas.Buffer);
+  srcPixels := PByte(TFtCanvasAgg(Canvas).Buffer);
   dstPixels := PByte(FBackdropCache);
 
   validX1 := Max(0, rx);
@@ -259,7 +259,7 @@ begin
   FCacheValid := True;
 end;
 
-procedure TFtContainer.RestoreBackdropCache(Canvas: TFtCanvasAgg);
+procedure TFtContainer.RestoreBackdropCache(Canvas: TFtCanvas);
 var
   bufWidth, bufHeight: Integer;
   srcPixels, dstPixels: PByte;
@@ -269,7 +269,7 @@ var
   row: Integer;
   copyBytes: Integer;
 begin
-  if not Assigned(Canvas) or not Assigned(Canvas.Buffer) or (FBackdropCache = nil) or not FCacheValid then Exit;
+  if not Assigned(Canvas) or not (Canvas is TFtCanvasAgg) or not Assigned(TFtCanvasAgg(Canvas).Buffer) or (FBackdropCache = nil) or not FCacheValid then Exit;
 
   bufWidth := Canvas.Width;
   bufHeight := Canvas.Height;
@@ -292,10 +292,10 @@ begin
   end;
 
   if (copyW <= 0) or (copyH <= 0) then Exit;
-
   copyBytes := copyW * 4;
+
   srcPixels := PByte(FBackdropCache);
-  dstPixels := PByte(Canvas.Buffer);
+  dstPixels := PByte(TFtCanvasAgg(Canvas).Buffer);
 
   for row := 0 to copyH - 1 do
   begin
@@ -711,7 +711,7 @@ begin
   end;
 end;
 
-procedure TFtContainer.DrawBackground(Canvas: TFtCanvasAgg);
+procedure TFtContainer.DrawBackground(Canvas: TFtCanvas);
 var
   st: TFtWidgetStyle;
   rad, bw: Double;
@@ -787,12 +787,12 @@ begin
     FtGetTheme().DrawInputPlate(Canvas, X, Y, Width, Height, IsFocusedForDrawing() and FDrawFocusRing, GetEffectiveCornerRadius());
 end;
 
-procedure TFtContainer.DrawContent(Canvas: TFtCanvasAgg);
+procedure TFtContainer.DrawContent(Canvas: TFtCanvas);
 begin
   // Base container does nothing here; descendants like TFtTextArea override this
 end;
 
-procedure TFtContainer.DrawChildren(Canvas: TFtCanvasAgg);
+procedure TFtContainer.DrawChildren(Canvas: TFtCanvas);
 var
   i: Integer;
   child: TFtWidget;
@@ -821,7 +821,7 @@ begin
   end;
 end;
 
-procedure TFtContainer.Draw(Canvas: TFtCanvasAgg);
+procedure TFtContainer.Draw(Canvas: TFtCanvas);
 var
   clipX, clipY, clipW, clipH, innerRad: Double;
   st: TFtWidgetStyle;

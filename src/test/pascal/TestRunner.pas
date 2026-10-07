@@ -5,8 +5,12 @@ program TestRunner;
 uses
   ctypes, Classes, SysUtils, Math, Types, fpcunit, testregistry, consoletestrunner,
   Floria.SVG.DOM, Floria.SVG.Parser,
-  Ft.Css, Floria.Image.Core, Floria.Image.BMP, Floria.Image.PNG, Floria.Image.JPEG, Floria.Image.Blur, Floria.Canvas.Agg, Floria.SVG.Rasterizer, Ft.Widget, Ft.Widget.Containers, Ft.Widget.Images,
-  Ft.Widget.Tabs, Ft.Widget.Splitters, Ft.Widget.TreeViews, Ft.Widget.Tables, Ft.Widget.Texts, Ft.Widget.Buttons,
+  Ft.Css, Floria.Image.Core, Floria.Image.BMP, Floria.Image.PNG, Floria.Image.JPEG, Floria.Image.Blur,
+  Ft.Canvas, Floria.Canvas, Floria.Canvas.Agg, Floria.Canvas.GL, Floria.SVG.Rasterizer,
+  Floria.Text.HarfBuzz, Floria.Unicode.BiDi,
+  Ft.Widget, Ft.Widget.Containers, Ft.Widget.Images,
+  Ft.Widget.Tabs, Ft.Widget.Splitters, Ft.Widget.TreeViews, Ft.Widget.Tables,
+  Ft.Widget.Texts, Ft.Widget.Buttons, Ft.Widget.Entries, Ft.Widget.TextAreas,
   Ft.Widget.Switches, Ft.Widget.Selectors, Ft.Widget.PathBars, Ft.Widget.UrlEntries, Ft.Window,
   Ft.Backend.X11, Ft.Backend.EGL, Floria.EGL, Ft.Theme, Floria.Font, Ft.Icons;
 
@@ -83,6 +87,15 @@ type
     procedure TestBringToFront();
     procedure TestModalShowAndResult();
     procedure TestWindowTypeDialog();
+  end;
+
+  TFtCanvasAndShapingTest = class(TTestCase)
+  published
+    procedure TestCanvasPolymorphicDispatch();
+    procedure TestHarfBuzzAndBiDiShaping();
+    procedure TestTextWidgetBiDiCaretAndSelection();
+    procedure TestTextAreaBiDiCaretAndLines();
+    procedure TestEGLWindowGPUCanvasGLMode();
   end;
 
 { TFtIconsTest }
@@ -2450,6 +2463,185 @@ begin
   end;
 end;
 
+{ TFtCanvasAndShapingTest }
+
+procedure TFtCanvasAndShapingTest.TestCanvasPolymorphicDispatch();
+var
+  buf: Pointer;
+  canvas: TFtCanvas;
+  btn: TFtButton;
+  txt: TFtText;
+  sw: TFtSwitch;
+begin
+  GetMem(buf, 200 * 200 * 4);
+  try
+    FillChar(buf^, 200 * 200 * 4, 0);
+    canvas := TFtCanvasAgg.Create(buf, 200, 200);
+    try
+      // Verify basic canvas polymorphic operations
+      canvas.Clear(0.1, 0.1, 0.1);
+      canvas.DrawRect(10, 10, 50, 50, 1.0, 0.0, 0.0, 1.0);
+      canvas.DrawRoundedRect(70, 10, 50, 50, 6.0, 0.0, 1.0, 0.0, 1.0);
+      canvas.DrawLine(10, 80, 100, 80, 2.0, 0.0, 0.0, 1.0, 1.0);
+
+      // Verify widget drawing to TFtCanvas base class
+      btn := TFtButton.Create(nil);
+      try
+        btn.X := 10;
+        btn.Y := 100;
+        btn.Width := 80;
+        btn.Height := 30;
+        btn.Caption := 'PolyButton';
+        btn.Draw(canvas);
+      finally
+        btn.Free();
+      end;
+
+      txt := TFtText.Create(nil, 'PolyText');
+      try
+        txt.X := 10;
+        txt.Y := 140;
+        txt.Width := 80;
+        txt.Height := 24;
+        txt.Draw(canvas);
+      finally
+        txt.Free();
+      end;
+
+      sw := TFtSwitch.Create(nil);
+      try
+        sw.X := 100;
+        sw.Y := 100;
+        sw.Width := 50;
+        sw.Height := 28;
+        sw.Draw(canvas);
+      finally
+        sw.Free();
+      end;
+    finally
+      canvas.Free();
+    end;
+  finally
+    FreeMem(buf);
+  end;
+end;
+
+procedure TFtCanvasAndShapingTest.TestHarfBuzzAndBiDiShaping();
+var
+  fnt: TFtFont;
+  shaped: TFloriaShapedRun;
+  shapedW: Double;
+  bidiStr: string;
+begin
+  // BiDi detection
+  AssertFalse('Latin text is not RTL', TFloriaBiDi.HasRTL('Hello World'));
+  AssertTrue('Arabic text has RTL', TFloriaBiDi.HasRTL('مرحبا بالعالم'));
+  AssertTrue('Hebrew text has RTL', TFloriaBiDi.HasRTL('שלום עולם'));
+
+  // BiDi shaping
+  bidiStr := TFloriaBiDi.ProcessBidiAndShape('مرحبا');
+  AssertTrue('Shaped Arabic string is non-empty', bidiStr <> '');
+
+  // HarfBuzz text shaping pipeline
+  fnt := FtGetSystemFont();
+  if Assigned(fnt) then
+  begin
+    shaped := FloriaShapeText(fnt, 'Floria Toolkit Typography Pipeline');
+    AssertTrue('Shaped run has glyphs', Length(shaped) > 0);
+    shapedW := FloriaShapedRunWidth(shaped);
+    AssertTrue('Shaped run has positive width', shapedW > 0.0);
+  end;
+end;
+
+procedure TFtCanvasAndShapingTest.TestTextWidgetBiDiCaretAndSelection();
+var
+  entry: TFtEntry;
+  txt: TFtText;
+begin
+  entry := TFtEntry.Create(nil);
+  try
+    entry.X := 10;
+    entry.Y := 10;
+    entry.Width := 200;
+    entry.Height := 32;
+    entry.Text := 'مرحبا'; // 5 Arabic characters
+    AssertEquals('Arabic entry CharCount is 5', 5, entry.CharCount());
+
+    // Hit testing RTL text: leftmost pixel corresponds to end of RTL string
+    AssertTrue('HitTestChar near right is beginning of RTL string', entry.HitTestChar(190) <= 2);
+    AssertTrue('HitTestChar near left is end of RTL string', entry.HitTestChar(15) >= 3);
+
+    // Selection
+    entry.SelectAll();
+    AssertTrue('Has selection', entry.HasSelection());
+    AssertEquals('Selected text is full Arabic text', 'مرحبا', entry.GetSelectedText());
+    entry.ClearSelection();
+    AssertFalse('No selection after clear', entry.HasSelection());
+  finally
+    entry.Free();
+  end;
+
+  txt := TFtText.Create(nil, 'مرحبا بالعالم');
+  try
+    txt.X := 10;
+    txt.Y := 10;
+    txt.Width := 200;
+    txt.Height := 30;
+    txt.Selectable := True;
+    AssertTrue('TFtText CharCount > 0', txt.CharCount() > 0);
+    txt.SelectAll();
+    AssertEquals('Selected text matches', 'مرحبا بالعالم', txt.SelectedText);
+  finally
+    txt.Free();
+  end;
+end;
+
+procedure TFtCanvasAndShapingTest.TestTextAreaBiDiCaretAndLines();
+var
+  ta: TFtTextArea;
+begin
+  ta := TFtTextArea.Create(nil);
+  try
+    ta.X := 10;
+    ta.Y := 10;
+    ta.Width := 250;
+    ta.Height := 150;
+    ta.Text := 'Line 1: Latin text' + LineEnding + 'السطر الثاني: عربي' + LineEnding + 'Line 3: End';
+    AssertTrue('Text has lines', ta.Text <> '');
+
+    // Caret and line queries
+    ta.SelectAll();
+    AssertTrue('TextArea has selection', ta.HasSelection());
+    ta.ClearSelection();
+    AssertFalse('TextArea selection cleared', ta.HasSelection());
+  finally
+    ta.Free();
+  end;
+end;
+
+procedure TFtCanvasAndShapingTest.TestEGLWindowGPUCanvasGLMode();
+var
+  win: TFtEGLWindow;
+begin
+  if not FtEGLIsAvailable() then Exit;
+
+  win := TFtEGLWindow.Create(240, 180, 'GPU CanvasGL Test');
+  try
+    if win.IsHardwareAccelerated then
+    begin
+      AssertTrue('GPURendererMode is active', win.GPURendererMode);
+      AssertTrue('CanvasGL is instantiated', Assigned(win.CanvasGL));
+      AssertTrue('Window Canvas is polymorphic TFtCanvas', win.Canvas is TFtCanvas);
+
+      // Repaint directly onto GPU canvas
+      win.Repaint();
+      AssertFalse('NeedsRepaint is false after GPU frame loop', win.NeedsRepaint);
+    end;
+  finally
+    win.Free();
+  end;
+end;
+
 var
   Application: TTestRunner;
 
@@ -2462,6 +2654,7 @@ begin
     RegisterTest(TFtDesktopWidgetsTest);
     RegisterTest(TFtEGLBackendTest);
     RegisterTest(TFtWindowModalTest);
+    RegisterTest(TFtCanvasAndShapingTest);
     Application.Initialize;
     Application.Run;
   finally

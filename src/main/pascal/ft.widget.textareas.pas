@@ -5,7 +5,7 @@ unit Ft.Widget.TextAreas;
 interface
 
 uses
-  ctypes, SysUtils, Classes, Math, Floria.Canvas.Agg, Floria.Font, Ft.Widget, Ft.Theme, Ft.Window,
+  ctypes, SysUtils, Classes, Math, Ft.Canvas, Floria.Unicode.BiDi, Floria.Text.HarfBuzz, Floria.Font, Ft.Widget, Ft.Theme, Ft.Window,
   Ft.Widget.ScrollBars, Ft.Widget.Containers, Ft.Widget.Menus, Ft.Css;
 
 type
@@ -50,7 +50,7 @@ type
     procedure CreateDefaultMenu();
     procedure UpdateDefaultMenu();
   protected
-    procedure DrawContent(Canvas: TFtCanvasAgg); override;
+    procedure DrawContent(Canvas: TFtCanvas); override;
     function GetContextMenu(): TFtWidget; override;
   public
     constructor Create(AParent: TFtWidget; const AText: string = ''); reintroduce;
@@ -562,12 +562,33 @@ function TFtTextArea.HitTestCol(ALineIdx: Integer; AX: Double): Integer;
 var
   AFont: TFtFont;
   cnt, i: Integer;
-  relX, wPrev, wNext, midX: Double;
+  relX, wPrev, wNext, midX, totalW: Double;
+  isRTL: Boolean;
 begin
   cnt := LineCharCount(ALineIdx);
   if cnt = 0 then Exit(0);
   AFont := GetFont();
   if not Assigned(AFont) then AFont := FtGetSystemFont();
+
+  isRTL := TFloriaBiDi.HasRTL(FLines[ALineIdx]);
+  if isRTL then
+  begin
+    totalW := AFont.GetTextWidth(FLines[ALineIdx]);
+    relX := (X + FPaddingX + totalW) - AX + FScrollX;
+    if relX <= 0.0 then Exit(0);
+    if relX >= totalW then Exit(cnt);
+
+    wPrev := 0.0;
+    for i := 1 to cnt do
+    begin
+      wNext := AFont.GetTextWidth(LineSubStrChars(ALineIdx, 0, i));
+      midX := (wPrev + wNext) / 2.0;
+      if relX < midX then
+        Exit(i - 1);
+      wPrev := wNext;
+    end;
+    Exit(cnt);
+  end;
 
   relX := AX - (X + FPaddingX) + FScrollX;
   if relX <= 0.0 then Exit(0);
@@ -1180,7 +1201,7 @@ begin
     Result := '';
 end;
 
-procedure TFtTextArea.DrawContent(Canvas: TFtCanvasAgg);
+procedure TFtTextArea.DrawContent(Canvas: TFtCanvas);
 var
   AFont: TFtFont;
   lineH, curY, textX, textY, caretX, caretY, caretH: Double;
@@ -1296,7 +1317,10 @@ begin
     begin
       caretH := lineH - 2.0;
       caretY := curY + 1.0;
-      caretX := textX + AFont.GetTextWidth(LineSubStrChars(i, 0, FCursorCol));
+      if TFloriaBiDi.HasRTL(FLines[i]) then
+        caretX := textX + AFont.GetTextWidth(FLines[i]) - AFont.GetTextWidth(LineSubStrChars(i, 0, FCursorCol))
+      else
+        caretX := textX + AFont.GetTextWidth(LineSubStrChars(i, 0, FCursorCol));
       Canvas.DrawRoundedRect(caretX, caretY, 1.8, caretH, 0.5, accentCol.R, accentCol.G, accentCol.B, 1.0);
     end;
   end;

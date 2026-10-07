@@ -6,7 +6,7 @@ interface
 
 uses
   SysUtils, Classes, Math,
-  Floria.Image.Core, Floria.Canvas.Agg, Floria.Font, Ft.Widget, Ft.Widget.Containers, Ft.Widget.Buttons, Ft.Theme, Ft.Css;
+  Floria.Image.Core, Ft.Canvas, Floria.Font, Ft.Widget, Ft.Widget.Containers, Ft.Widget.Buttons, Ft.Theme, Ft.Css;
 
 type
   TFtTabPage = class;
@@ -52,7 +52,7 @@ type
     procedure SetTabHeight(AValue: Double);
     function GetPageCount(): Integer;
   protected
-    procedure DrawTabStrip(Canvas: TFtCanvasAgg); virtual;
+    procedure DrawTabStrip(Canvas: TFtCanvas); virtual;
   public
     constructor Create(AParent: TFtWidget); override;
     destructor Destroy(); override;
@@ -69,7 +69,7 @@ type
     procedure RemoveTab(AIndex: Integer; FreePage: Boolean = True);
     procedure ClearTabs();
 
-    procedure Draw(Canvas: TFtCanvasAgg); override;
+    procedure Draw(Canvas: TFtCanvas); override;
     function HitTest(AX, AY: Integer): TFtWidget; override;
     procedure MouseDown(AX, AY: Integer; AButton: Integer); override;
     procedure MouseUp(AX, AY: Integer; AButton: Integer); override;
@@ -389,7 +389,7 @@ begin
   Invalidate();
 end;
 
-procedure TFtNotebook.DrawTabStrip(Canvas: TFtCanvasAgg);
+procedure TFtNotebook.DrawTabStrip(Canvas: TFtCanvas);
 var
   theme: TFtTheme;
   i: Integer;
@@ -595,7 +595,7 @@ begin
   end;
 end;
 
-procedure TFtNotebook.Draw(Canvas: TFtCanvasAgg);
+procedure TFtNotebook.Draw(Canvas: TFtCanvas);
 var
   activePage: TFtTabPage;
 begin

@@ -6,7 +6,7 @@ interface
 
 uses
   SysUtils, Classes, Math,
-  Floria.Canvas.Agg, Ft.Widget, Floria.Font, Ft.Theme, Ft.Window, Ft.Widget.Menus, Ft.Css;
+  Ft.Canvas, Floria.Unicode.BiDi, Floria.Text.HarfBuzz, Ft.Widget, Floria.Font, Ft.Theme, Ft.Window, Ft.Widget.Menus, Ft.Css;
 
 type
   TFtTextAlignment = (taLeft, taCenter, taRight);
@@ -70,7 +70,7 @@ type
     function GetElementType(): string; override;
     function GetEffectiveHint(): string; override;
 
-    procedure Draw(Canvas: TFtCanvasAgg); override;
+    procedure Draw(Canvas: TFtCanvas); override;
     procedure MouseDown(AX, AY: Integer; AButton: Integer); override;
     procedure MouseUp(AX, AY: Integer; AButton: Integer); override;
     procedure MouseMove(AX, AY: Integer); override;
@@ -469,7 +469,7 @@ begin
     if not Assigned(AFont) then AFont := FtGetSystemFont();
   end;
 
-  if not FWordWrap then
+  if not FWordWrap and (Pos(#10, FText) = 0) and (Pos(#13, FText) = 0) then
   begin
     SetLength(Result, 1);
     Result[0].StartChar := 0;
@@ -502,48 +502,56 @@ begin
           Inc(tokIdx);
         end;
 
-      tkSpace:
+      tkSpace, tkWord:
         begin
-          if curCharLen > 0 then
+          if not FWordWrap then
           begin
             curText := curText + tokens[tokIdx].Text;
             curCharLen := curCharLen + tokens[tokIdx].CharLen;
             Inc(tokIdx);
           end
+          else if tokens[tokIdx].Kind = tkSpace then
+          begin
+            if curCharLen > 0 then
+            begin
+              curText := curText + tokens[tokIdx].Text;
+              curCharLen := curCharLen + tokens[tokIdx].CharLen;
+              Inc(tokIdx);
+            end
+            else
+            begin
+              testW := AFont.GetTextWidth(TrimRight(tokens[tokIdx].Text));
+              if testW <= availW then
+              begin
+                curText := tokens[tokIdx].Text;
+                curCharLen := tokens[tokIdx].CharLen;
+                Inc(tokIdx);
+              end
+              else
+              begin
+                BreakWordAcrossLines(tokens[tokIdx]);
+                Inc(tokIdx);
+              end;
+            end;
+          end
           else
           begin
-            testW := AFont.GetTextWidth(TrimRight(tokens[tokIdx].Text));
+            testW := AFont.GetTextWidth(TrimRight(curText + tokens[tokIdx].Text));
             if testW <= availW then
             begin
-              curText := tokens[tokIdx].Text;
-              curCharLen := tokens[tokIdx].CharLen;
+              curText := curText + tokens[tokIdx].Text;
+              curCharLen := curCharLen + tokens[tokIdx].CharLen;
               Inc(tokIdx);
+            end
+            else if curCharLen > 0 then
+            begin
+              PushLine();
             end
             else
             begin
               BreakWordAcrossLines(tokens[tokIdx]);
               Inc(tokIdx);
             end;
-          end;
-        end;
-
-      tkWord:
-        begin
-          testW := AFont.GetTextWidth(TrimRight(curText + tokens[tokIdx].Text));
-          if testW <= availW then
-          begin
-            curText := curText + tokens[tokIdx].Text;
-            curCharLen := curCharLen + tokens[tokIdx].CharLen;
-            Inc(tokIdx);
-          end
-          else if curCharLen > 0 then
-          begin
-            PushLine();
-          end
-          else
-          begin
-            BreakWordAcrossLines(tokens[tokIdx]);
-            Inc(tokIdx);
           end;
         end;
     end;
@@ -615,6 +623,25 @@ begin
     taCenter: lineTX := X + (Width - lines[targetLine].LineWidth) / 2.0;
     taRight:  lineTX := X + Width - lines[targetLine].LineWidth - 2.0;
     else      lineTX := X + 2.0;
+  end;
+
+  if TFloriaBiDi.HasRTL(lines[targetLine].Text) then
+  begin
+    if AX >= (lineTX + lines[targetLine].LineWidth) then
+      Exit(lines[targetLine].StartChar);
+    if AX <= lineTX then
+      Exit(lines[targetLine].StartChar + lines[targetLine].CharLen);
+
+    wPrev := 0.0;
+    for c := 0 to lines[targetLine].CharLen - 1 do
+    begin
+      wNext := AFont.GetTextWidth(SubStrChars(lines[targetLine].StartChar, c + 1));
+      midX := (lineTX + lines[targetLine].LineWidth) - (wPrev + wNext) / 2.0;
+      if AX > midX then
+        Exit(lines[targetLine].StartChar + c);
+      wPrev := wNext;
+    end;
+    Exit(lines[targetLine].StartChar + lines[targetLine].CharLen);
   end;
 
   if AX <= lineTX then
@@ -947,7 +974,7 @@ begin
   end;
 end;
 
-procedure TFtText.Draw(Canvas: TFtCanvasAgg);
+procedure TFtText.Draw(Canvas: TFtCanvas);
 var
   AFont: TFtFont;
   rad: Double;
