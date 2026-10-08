@@ -28,10 +28,11 @@ Floria Toolkit's theming pipeline separates styling from widget logic:
 
 ## Built-in & Bundled Themes
 
-Floria Toolkit comes bundled with 6 themes located in the [`themes/`](../themes) directory:
+Floria Toolkit comes bundled with 7 themes located in the [`themes/`](../themes) directory:
 
 | Theme | File | Description |
 |---|---|---|
+| **Amamizu (雨水)** | `amamizu.css` | macOS Liquid Glass theme with frosted glass cards, 20px blur, pill capsules, Aqua droplet blue, and electric cyan accents. |
 | **Default** | `default.css` | Modern Breeze/Fusion flat vector look with vibrant blue accents and card elevation. |
 | **Nord** | `nord.css` | Arctic frosty slate palette with polar cyan accents. |
 | **Dracula** | `dracula.css` | Dark fantasy palette with neon pink, purple, and green highlights. |
@@ -46,9 +47,11 @@ Floria Toolkit comes bundled with 6 themes located in the [`themes/`](../themes)
 ### 1. Element Type Selectors
 Targets widgets based on their core type:
 - `window`: Top-level native X11 window.
-- `button`: Push buttons and toggle buttons.
+- `button`: Push buttons, toggle buttons, and window caption buttons.
 - `switch`: Modern toggle switches.
 - `entry`: Single-line text input fields (`TFtEntry`).
+- `urlentry`: Omnibox address bar (`TFtUrlEntry`).
+- `pathbar`: Breadcrumb path navigation bar (`TFtPathBar`).
 - `textarea`: Multi-line text input areas (`TFtTextArea`).
 - `container`: Scrolled viewports and container boxes (`TFtContainer`).
 - `label`: Static and selectable text widgets (`TFtText`).

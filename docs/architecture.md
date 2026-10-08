@@ -48,20 +48,33 @@ Floria Toolkit (`Ft`) is engineered as a lightweight, modular desktop GUI framew
 
 ## Core Components
 
-### 1. Vector Graphics Pipeline (`Floria.Canvas.Agg` via `florialib`)
-Floria Toolkit leverages Anti-Grain Geometry (`AGG`) vector primitives through `florialib`:
-- **Subpixel Antialiasing**: Every line, curve, rounded rectangle, and text glyph is rasterized with subpixel precision.
-- **Gaussian Drop Shadows**: Employs true 2D dual-pass Gaussian box blurs (`Floria.Blur`) to create realistic elevation shadows under buttons, menus, and cards.
-- **Scissor Clipping Stack**: Hierarchical scissor rectangles allow containers and viewports to nest arbitrarily with zero visual clipping artifacts.
-- **Font & Asset Management**: Uses `Floria.Font` for FreeType font management with DPI scaling and `Floria.Bitmap` / `Floria.SVG` for image and vector asset handling.
-- **Pluggable Architecture (Roadmap)**: As hardware-accelerated GPU backends (OpenGL, Vulkan) are introduced via an abstract `TFtCanvas` interface, `AggPas` remains the primary zero-dependency **Software Reference and Fallback Engine** for headless CI, VMs, remote X11/VNC sessions, and pre-rasterization asset caching. See [ROADMAP.md](../ROADMAP.md) for details.
+### 1. Dual Graphics Pipeline: EGL GPU Acceleration & AggPas Reference Engine
+Floria Toolkit provides a hybrid, polymorphic 2D graphics architecture through `florialib`:
+- **Hardware-Accelerated GPU Canvas (`TFtHardwareCanvas` / `IFtHardwareCanvas`)**:
+  - Powered by native **EGL 1.4/1.5** and **OpenGL ES 2.0** dynamic bindings (`floria.gl.pas`, `floria.gpu.context.pas`).
+  - High-throughput draw-call batching (`TFloriaRenderBatch`) streaming 64-byte std140-aligned vertices directly to GPU VBOs.
+  - Ahead-of-time (AOT) precompiled GLSL shaders (`floria.gpu.shaders.pas`) with zero runtime JIT compilation pauses.
+  - Analytic Signed Distance Field (SDF) evaluation for rounded rectangles, borders, and capsule pills (`border-radius: 9999px`) with subpixel antialiasing.
+  - Single-pass analytical Gaussian box shadows using error-function approximations.
+- **AggPas as the Premier Software Fallback & Reference Engine**:
+  - Decoupled Anti-Grain Geometry (`AggPas:2.4.0-SNAPSHOT`) CPU vector rasterization.
+  - Subpixel-accurate antialiasing for vector curves, text, and surfaces.
+  - True 2D dual-pass Gaussian box blurs (`Floria.Blur`) and elevation shadows.
+  - Guarantees 100% deterministic pixel-accurate output across headless CI, virtual machines, and legacy hardware without graphics drivers.
+- **Hierarchical Clipping & Asset Rendering**:
+  - Analytical clip chains and scissor stacks nesting arbitrarily with zero edge artifacts.
+  - FreeType font engine (`Floria.Font`) with subpixel gamma correction, HarfBuzz text shaping, and SVG vector asset decoding.
 
 ### 2. Window Abstraction Layer (`Ft.Window`)
 Floria Toolkit decouples widgets and menus from specific windowing systems via `TFtWindow`:
 - **Base Class `TFtWindow`**: Inherits from `TFtWidget` and encapsulates common top-level window logic:
-  - **Agg Pixel Buffer & Canvas**: Double-buffered `FPixelBuffer` and `FCanvas: TFtCanvasAgg` allocation, surface lifecycle, and blitting.
+  - **Polymorphic Canvas Binding**: Supports both software `TFtCanvasAgg` and hardware `TFtHardwareCanvas` with automatic runtime negotiation.
+  - **Modal Event Loop**: Native `ShowModal` and `ft_window_show_modal` running an isolated event loop that stack windows on top and handle dialog results.
   - **Dirty Rectangle Tracking**: Selective region invalidation (`InvalidateRect`) to minimize re-rasterization overhead.
   - **Focus & Selection Management**: Full keyboard traversal (`FocusNext`), active popup coordination, and abstract clipboard / primary selection APIs (`ClaimClipboard`, `FetchClipboardText`, `ClaimPrimarySelection`).
+- **Desktop Shell & EWMH Protocols**:
+  - Panel and dock reservation via `_NET_WM_STRUT_PARTIAL` (`ft_window_set_strut_partial`).
+  - Input grabbing (`ft_window_grab_pointer`) and low-level X11 event filtering hooks (`ft_window_install_event_filter`).
 - **Factory Registration Pattern**: Backends register their native implementation class via `FtRegisterWindowClass()`. Calling `FtCreateWindow()` instantiates the registered platform backend transparently.
 - **Multi-Backend Extensibility**: Enables introducing future native backends (WinAPI for Windows, Cocoa for macOS) with zero changes to existing widgets or user application code.
 

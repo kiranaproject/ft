@@ -26,7 +26,10 @@ Floria Toolkit provides a rich suite of native desktop widgets designed with obj
 19. [Table & DataGrid (`TFtTable`, `TFtGrid`)](#table--datagrid-tfttable-tftgrid)
 20. [Image & SVG Viewer (`TFtImage`)](#image--svg-viewer-tftimage)
 21. [Vector ScrollBar (`TFtScrollBar`)](#vector-scrollbar-tftscrollbar)
-22: [Main Menu & Popup Context Menus](#main-menu--popup-context-menus)
+22. [Main Menu & Popup Context Menus](#main-menu--popup-context-menus)
+23. [Google Chrome-Style Omnibox (`TFtUrlEntry`)](#google-chrome-style-omnibox-tfturlentry)
+24. [Nautilus-Style Breadcrumb PathBar (`TFtPathBar`)](#nautilus-style-breadcrumb-pathbar-tftpathbar)
+25. [Native Modal File Dialog (`TFtFileDialog`)](#native-modal-file-dialog-tftfiledialog)
 
 ---
 
@@ -292,3 +295,45 @@ Inherits from `TFtContainer`:
 - **Cascading Submenus**: Infinite nesting depth with automatic screen edge clamping (`▶`).
 - **Toggle Items**: Checkable menu items with crisp vector checkmarks (`✓`).
 - **Context Menus**: Right-click context menus attachable to any widget or top-level window.
+
+---
+
+## Google Chrome-Style Omnibox (`TFtUrlEntry`)
+*Equivalent to Google Chrome Omnibox / Web browser location bar.*
+
+- **Pill Capsule Styling**: Modern capsule pill design (`border-radius: 9999px`) adhering to browser UI standards.
+- **Security Indicator Chip**:
+  - `FT_URL_SECURITY_SECURE`: Crisp vector padlock icon for HTTPS.
+  - `FT_URL_SECURITY_INSECURE`: Warning triangle badge with high-contrast indicator.
+  - `FT_URL_SECURITY_INTERNAL`: Dedicated page icon for internal browser and system URLs (`floria://`, `chrome://`).
+  - `FT_URL_SECURITY_FILE`: Document icon for local filesystem resources (`file:///`).
+- **Interactive Trailing Actions**: Dedicated Bookmark star button (`FT_URL_ACTION_BOOKMARK`) toggling bookmarked state with radial hover transitions.
+- **Smart Text Handling**: Automatic HTTPS prefix normalization (`AutoPrefixHttps`), selection highlights, cut/copy/paste clipboard shortcuts, and submit callbacks on Enter.
+
+---
+
+## Nautilus-Style Breadcrumb PathBar (`TFtPathBar`)
+*Equivalent to GNOME Nautilus / Files location and path navigation bar.*
+
+- **Dual-Mode Operation**:
+  - **Breadcrumb Mode**: Interactive clickable directory pill buttons representing hierarchical path segments (`/`, `home`, `user`, `Documents`).
+  - **Edit Mode**: Instant toggle to an editable single-line text entry for manual path typing or pasting.
+- **Navigation Controls**:
+  - Vector edit button (pencil icon) to switch between breadcrumb and text entry mode.
+  - Vector commit button (checkmark icon) to apply changes.
+  - Segment dropdown button with folder submenu options.
+- **Theme Conformance**: Inherits theme input fields styling with customizable corner radii and font metrics.
+
+---
+
+## Native Modal File Dialog (`TFtFileDialog`)
+*Equivalent to `GtkFileChooserDialog` in GTK and `QFileDialog` in Qt.*
+
+- **Dialog Types**: Open File, Save File, and Select Directory modes.
+- **Integrated File Navigation**:
+  - Quick-access sidebar bookmarks (`Home`, `Desktop`, `Documents`, `Downloads`, `Pictures`, `Music`, `Videos`, `Root`).
+  - Hierarchical breadcrumb path navigation and parent folder button.
+  - Multi-column file listing (`TFtTable`) with file name, size, type, and modification date.
+  - Hidden file toggling (`ShowHiddenFiles`).
+- **File Filter Patterns**: Multiple extension filters (e.g. `"C Source (*.c;*.h)|*.c;*.h|All Files (*.*)|*.*"`).
+- **Native Modal Event Loop**: Runs an isolated modal loop (`ft_window_show_modal`) that keeps the dialog topmost and disables parent window interaction until dismissed.

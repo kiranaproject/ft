@@ -29,6 +29,11 @@ This document provides a comprehensive reference for the Floria Toolkit C ABI ex
 22. [Theme Management](#theme-management)
 23. [CSS Styling & Animation](#css-styling--animation)
 24. [Typography & Screen DPI](#typography--screen-dpi)
+25. [URL Omnibox (`TFtUrlEntry`)](#url-omnibox)
+26. [Breadcrumb PathBar (`TFtPathBar`)](#breadcrumb-pathbar)
+27. [Native Modal File Dialog (`TFtFileDialog`)](#native-modal-file-dialog)
+28. [Desktop Integration, Struts & Event Filters](#desktop-integration-struts--event-filters)
+29. [Hardware Acceleration & EGL](#hardware-acceleration--egl)
 
 ---
 
@@ -510,3 +515,100 @@ This document provides a comprehensive reference for the Floria Toolkit C ABI ex
 | `void ft_screen_dpi_set(double dpi)` | Overrides screen DPI for resolution scaling. |
 | `double ft_font_gamma_get(void)` | Returns subpixel font antialiasing gamma value. |
 | `void ft_font_gamma_set(double gamma)` | Sets subpixel font gamma value. |
+
+---
+
+## URL Omnibox (`TFtUrlEntry`)
+
+| Function | Description |
+|---|---|
+| `FtWidget ft_url_entry_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, const char* initial_url)` | Creates a Google Chrome-style URL entry with pill borders and icons. |
+| `void ft_url_entry_set_url(FtWidget url_entry, const char* url)` | Sets displayed URL text. |
+| `const char* ft_url_entry_get_url(FtWidget url_entry)` | Retrieves current URL string. |
+| `void ft_url_entry_set_security_state(FtWidget url_entry, int32_t security_state)` | Sets security state (`FT_URL_SECURITY_SECURE`, `INSECURE`, `INTERNAL`, `FILE`). |
+| `int32_t ft_url_entry_get_security_state(FtWidget url_entry)` | Returns active security state. |
+| `void ft_url_entry_set_bookmarked(FtWidget url_entry, int32_t bookmarked)` | Updates bookmark star state (`1` = bookmarked, `0` = not bookmarked). |
+| `int32_t ft_url_entry_get_bookmarked(FtWidget url_entry)` | Returns `1` if currently bookmarked. |
+| `void ft_url_entry_set_show_security_chip(FtWidget url_entry, int32_t show_chip)` | Toggles leading security icon chip visibility. |
+| `int32_t ft_url_entry_get_show_security_chip(FtWidget url_entry)` | Returns `1` if security chip is visible. |
+| `void ft_url_entry_set_show_bookmark_button(FtWidget url_entry, int32_t show_button)` | Toggles trailing bookmark star button visibility. |
+| `int32_t ft_url_entry_get_show_bookmark_button(FtWidget url_entry)` | Returns `1` if bookmark button is visible. |
+| `void ft_url_entry_set_auto_prefix_https(FtWidget url_entry, int32_t auto_prefix)` | When enabled (`1`), automatically prepends `https://` if protocol omitted. |
+| `int32_t ft_url_entry_get_auto_prefix_https(FtWidget url_entry)` | Returns `1` if auto-prefixing is enabled. |
+| `void ft_url_entry_set_corner_radius(FtWidget url_entry, double radius)` | Customizes outer pill corner radius. |
+| `double ft_url_entry_get_corner_radius(FtWidget url_entry)` | Returns configured corner radius. |
+| `void ft_url_entry_on_submit(FtWidget url_entry, FtUrlEntrySubmitCallback callback, void* user_data)` | Registers callback invoked when user presses Enter to navigate. |
+| `void ft_url_entry_on_security_click(FtWidget url_entry, FtUrlEntrySecurityClickCallback callback, void* user_data)` | Registers callback when clicking the security chip/lock icon. |
+| `void ft_url_entry_on_bookmark_click(FtWidget url_entry, FtUrlEntryBookmarkClickCallback callback, void* user_data)` | Registers callback when clicking the bookmark button. |
+| `FtWidget ft_url_entry_get_entry(FtWidget url_entry)` | Returns underlying text entry handle. |
+
+---
+
+## Breadcrumb PathBar (`TFtPathBar`)
+
+| Function | Description |
+|---|---|
+| `FtWidget ft_path_bar_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, const char* initial_path)` | Creates a Nautilus-style breadcrumb path navigation bar. |
+| `void ft_path_bar_set_path(FtWidget pathbar, const char* path)` | Sets current filesystem path (e.g. `"/home/user/Documents"`). |
+| `const char* ft_path_bar_get_path(FtWidget pathbar)` | Retrieves current path string. |
+| `void ft_path_bar_set_mode(FtWidget pathbar, int32_t mode)` | Switches mode (`FT_PATHBAR_MODE_BREADCRUMB` or `FT_PATHBAR_MODE_EDIT`). |
+| `int32_t ft_path_bar_get_mode(FtWidget pathbar)` | Returns active pathbar mode. |
+| `void ft_path_bar_on_navigate(FtWidget pathbar, FtPathBarNavigateCallback callback, void* user_data)` | Registers callback when user navigates to a new directory path. |
+| `void ft_path_bar_on_mode_change(FtWidget pathbar, FtPathBarModeChangeCallback callback, void* user_data)` | Registers callback when switching between breadcrumbs and edit mode. |
+| `FtWidget ft_path_bar_get_entry(FtWidget pathbar)` | Returns underlying text entry handle used in edit mode. |
+| `void ft_path_bar_set_show_edit_button(FtWidget pathbar, int32_t show_button)` | Toggles edit pencil/checkmark button visibility. |
+| `int32_t ft_path_bar_get_show_edit_button(FtWidget pathbar)` | Returns `1` if edit button is visible. |
+| `void ft_path_bar_set_root_display_name(FtWidget pathbar, const char* display_name)` | Sets custom label for filesystem root pill (default: `"/"`). |
+| `const char* ft_path_bar_get_root_display_name(FtWidget pathbar)` | Retrieves root display name. |
+| `void ft_path_bar_set_corner_radius(FtWidget pathbar, double radius)` | Sets corner radius of pathbar frame. |
+| `double ft_path_bar_get_corner_radius(FtWidget pathbar)` | Returns configured corner radius. |
+
+---
+
+## Native Modal File Dialog (`TFtFileDialog`)
+
+| Function | Description |
+|---|---|
+| `FtFileDialog ft_file_dialog_create(int32_t dialog_type)` | Creates file dialog (`FT_FILE_DIALOG_OPEN`, `SAVE`, or `SELECT_FOLDER`). |
+| `void ft_file_dialog_set_directory(FtFileDialog dlg, const char* dir)` | Sets initial browsing directory. |
+| `const char* ft_file_dialog_get_directory(FtFileDialog dlg)` | Returns current browsing directory. |
+| `void ft_file_dialog_set_default_name(FtFileDialog dlg, const char* name)` | Sets default suggested filename in save mode. |
+| `void ft_file_dialog_set_filter(FtFileDialog dlg, const char* filter)` | Sets pipe-separated extension filters (e.g. `"C Source (*.c)|*.c|All Files (*.*)|*.*"`). |
+| `void ft_file_dialog_set_show_hidden(FtFileDialog dlg, int32_t show_hidden)` | Toggles display of hidden files and directories. |
+| `int32_t ft_file_dialog_show_modal(FtFileDialog dlg)` | Executes modal dialog loop. Returns `1` if confirmed, `0` if cancelled. |
+| `const char* ft_file_dialog_get_selected_path(FtFileDialog dlg)` | Returns full path of selected file or directory. |
+| `void ft_file_dialog_destroy(FtFileDialog dlg)` | Destroys dialog instance and frees allocated resources. |
+| `const char* ft_dialog_open_file(const char* title, const char* default_dir, const char* filter)` | Convenience one-shot modal open file dialog. |
+| `const char* ft_dialog_save_file(const char* title, const char* default_dir, const char* default_name, const char* filter)` | Convenience one-shot modal save file dialog. |
+| `const char* ft_dialog_select_folder(const char* title, const char* default_dir)` | Convenience one-shot modal folder selection dialog. |
+
+---
+
+## Desktop Integration, Struts & Event Filters
+
+| Function | Description |
+|---|---|
+| `void ft_window_set_window_type(FtWidget window, int32_t window_type)` | Sets EWMH window type (`FT_WINDOW_TYPE_NORMAL`, `DOCK`, `DIALOG`, `TOOLBAR`, `POPUP_MENU`). |
+| `void ft_window_set_strut_partial(FtWidget window, ...)` | Configures `_NET_WM_STRUT_PARTIAL` desktop edge reservation for docks and panels. |
+| `int32_t ft_window_grab_pointer(FtWidget window, int32_t owner_events, uint32_t event_mask)` | Grabs X11 pointer input for popup menus, modal dialogs, and interactive drags. |
+| `void ft_window_ungrab_pointer(FtWidget window)` | Releases active pointer grab. |
+| `void ft_window_install_event_filter(FtWidget window, FtEventFilterCallback callback, void* user_data)` | Installs low-level X11 event filter hook for desktop shell integration. |
+| `void* ft_window_get_native_window(FtWidget window)` | Returns native X11 `Window` handle (XID). |
+| `int32_t ft_window_show_modal(FtWidget window)` | Displays window modally, disabling parent input and blocking until dismissed. |
+| `int32_t ft_window_is_modal(FtWidget window)` | Returns `1` if window is running in a modal loop. |
+| `void ft_widget_add_tick_callback(FtWidget widget, FtTickCallback callback, void* user_data)` | Adds periodic frame tick callback for animations or telemetry. |
+| `void ft_widget_remove_tick_callback(FtWidget widget, FtTickCallback callback, void* user_data)` | Removes registered tick callback. |
+| `void ft_window_button_draw(void* canvas, int32_t x, int32_t y, int32_t w, int32_t h, int32_t button_type, int32_t os_style, int32_t state, int32_t dark_mode, double transition_progress)` | Renders standalone window titlebar caption button directly onto canvas. |
+
+---
+
+## Hardware Acceleration & EGL
+
+| Function | Description |
+|---|---|
+| `int32_t ft_window_is_hardware_accelerated(FtWidget window)` | Returns `1` if window is running on EGL/OpenGL ES 2.0 hardware pipeline. |
+| `void ft_window_set_swap_interval(FtWidget window, int32_t interval)` | Sets presentation swap interval (`0` = uncapped VSync off, `1` = standard 60 FPS VSync). |
+| `void* ft_window_get_egl_display(FtWidget window)` | Returns underlying `EGLDisplay` pointer (or `NULL` if software). |
+| `void* ft_window_get_egl_surface(FtWidget window)` | Returns underlying `EGLSurface` pointer. |
+| `void* ft_window_get_egl_context(FtWidget window)` | Returns underlying `EGLContext` pointer. |
+| `int32_t ft_gpu_is_available(void)` | Probes if EGL and OpenGL ES 2.0 drivers are supported on current host. |

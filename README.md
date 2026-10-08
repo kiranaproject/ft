@@ -10,7 +10,9 @@ A lightweight, high-performance native GUI toolkit engineered with Free Pascal, 
 
 ## Highlights
 
-- **Subpixel Vector Rendering (AGG)**:
+- **Hardware-Accelerated GPU & Vector Rendering**:
+  - Dual rendering architecture: high-performance **EGL / OpenGL ES 2.0** hardware pipeline (`TFtHardwareCanvas`, dynamic vertex batching, AOT shaders, SDF pills and drop shadows) alongside mathematically rigorous **Anti-Grain Geometry (`AggPas`)** subpixel vector rasterization.
+  - AggPas serves as the premier software fallback and reference engine, guaranteeing pixel-perfect rendering across virtual machines, headless CI, and legacy hardware.
   - Subpixel-accurate antialiasing for vector curves, text, and surfaces.
   - True 2D Gaussian drop shadows with configurable offsets, blur, and opacity.
   - Subpixel gamma-corrected font rendering and native display DPI scaling.
@@ -18,16 +20,19 @@ A lightweight, high-performance native GUI toolkit engineered with Free Pascal, 
 - **Pure CSS Theming Engine**:
   - Standards-based `.css` stylesheets powered by `Floria.CSS` from `florialib`.
   - First-class `:root` CSS custom properties (`var(--token)`) with automatic cascading and baseline defaults fallback.
-  - Bundled themes: **Default** (Breeze/Fusion), **Nord**, **Dracula**, **Gruvbox**, **GTK2**, and **Classic**.
+  - Bundled themes: **Amamizu (雨水)** (macOS Liquid Glass, frosted blur, pill capsules), **Default** (Breeze/Fusion), **Nord**, **Dracula**, **Gruvbox**, **GTK2**, and **Classic**.
   - First-class **Light & Dark mode** with runtime hot-swapping and multi-window broadcasting.
   - Full support for element selectors, class selectors (`.dark`), ID selectors (`#id`), and pseudo-classes (`:hover`, `:active`, `:focus`, `:checked`, `:disabled`).
 - **CSS Transitions & Animation**:
   - Smooth 60 FPS state transitions (e.g. hover effects, dark mode switches, window caption button glowing halos) with easing functions (`ease`, `ease-in`, `ease-out`, `ease-in-out`, `linear`).
 - **Modern Desktop Widgets**:
-  - **Window (`TFtWindow`)**: Platform-agnostic window abstraction with double-buffered vector rendering (`AGG`), dirty rectangle tracking, and pluggable platform backends (`TFtX11Window` on X11/XCB, WinAPI for Windows, Cocoa for macOS).
-  - **Window Button (`TFtWindowButton`)**: Titlebar and tab caption buttons (Close, Minimize, Maximize/Restore, Custom) with OS styles (Mac, GTK, Windows), glowing radial hover transitions, and dark mode adaptation.
-  - **Button & Toggle Button**: Interactive push and latching buttons with hover transitions.
-  - **Switch**: Modern toggle switch with circular thumb slider and accent highlights.
+  - **Window (`TFtWindow`)**: Platform-agnostic window abstraction with double-buffered rendering, modal event loops (`ft_window_show_modal`), dirty rectangle tracking, and pluggable platform backends (`TFtX11Window` on native X11/XCB with optional EGL hardware acceleration; WinAPI and Cocoa abstractions).
+  - **Window Button (`TFtWindowButton`)**: Titlebar and tab caption buttons (Close, Minimize, Maximize/Restore, Custom) with OS styles (Mac, GTK, Windows), glowing radial hover transitions, standalone rendering export (`ft_window_button_draw`), and dark mode adaptation.
+  - **Button & Toggle Button**: Interactive push and latching buttons with hover transitions and strict release-within-bounds primary action semantics.
+  - **Switch (`TFtSwitch`)**: Modern toggle switch with circular thumb slider, pill geometry (`border-radius: 9999px`), and accent highlights.
+  - **URL Omnibox (`TFtUrlEntry`)**: Google Chrome-style address bar with SSL padlock / security badge, bookmark action button, HTTPS auto-prefixing, and selection controls.
+  - **Breadcrumb PathBar (`TFtPathBar`)**: Nautilus-style dual-mode file system navigation bar with clickable path pills, dropdown menu, and instant toggle to text input with vector edit icons.
+  - **Native File Dialog (`TFtFileDialog`)**: Modal file chooser and folder picker with quick-access bookmarks, directory tree browsing, filename filtering, and double-click activation (`ft_dialog_open_file`, `ft_dialog_save_file`, `ft_dialog_select_folder`).
   - **CheckBox**: Crisp vector checkboxes with checkmark glyph and keyboard toggle.
   - **RadioButton**: Mutually exclusive options with grouping support and circular indicator.
   - **ComboBox**: Dropdown selection menu with popup list and optional editable entry.
@@ -39,15 +44,16 @@ A lightweight, high-performance native GUI toolkit engineered with Free Pascal, 
   - **Notebook & Tabs (`TFtNotebook`, `TFtTabs`)**: Tabbed multi-page containers with close buttons, active tab indicators, and page switching.
   - **Splitter (`TFtSplitter`)**: Resizable dual-pane container with horizontal or vertical splitter bar, grip handle, and live mouse dragging.
   - **TreeView (`TFtTreeView`)**: Hierarchical tree viewer with expand/collapse vector carets, arbitrary node nesting, and selection tracking.
-  - **Table / DataGrid (`TFtTable`, `TFtGrid`)**: Multi-column tabular data grid with column headers, text alignment, zebra striping, cell selection, and multi-row selection (`Ctrl`/`Shift` multi-select).
+  - **Table / DataGrid (`TFtTable`, `TFtGrid`)**: Multi-column tabular data grid with column headers, text alignment, zebra striping, cell selection, multi-row selection (`Ctrl`/`Shift` multi-select), and row double-click handlers.
   - **Image (`TFtImage`)**: Raster image decoding (BMP, PNG, JPG) and scalable vector SVG rendering with scaling modes (`fit`, `fill`, `stretch`, `center`).
   - **ScrollBar**: Standalone vector scrollbars with proportional thumb sizing and drag physics.
-  - **Container**: Scrolled viewport frame with automatic scrollbars and AGG scissor clipping.
+  - **Container**: Scrolled viewport frame with automatic scrollbars and viewport scissor clipping.
 - **Desktop-First Ergonomics & Productivity**:
   - Unapologetically desktop-first: dense data layouts, high-precision cursor interactions, menu bars, dockable splitters, and persistent scrollbars (no tablet/mobile hybrid compromises).
   - Full keyboard focus traversal (`Tab` / `Shift+Tab`) with theme focus rings and mnemonic accelerators.
-- **First-Class X11 & Pluggable Backends**:
-  - Premier native X11/XCB integration with microsecond event dispatch, EWMH window management, and compositor blur protocols.
+- **First-Class Native X11 & WM Infrastructure**:
+  - Premier native X11/XCB integration with microsecond event dispatch, EWMH window management (`_NET_WM_WINDOW_TYPE_DOCK`), and desktop struts (`_NET_WM_STRUT_PARTIAL`).
+  - Pointer grab APIs (`ft_window_grab_pointer`, `ft_window_ungrab_pointer`), low-level event filter hooks (`ft_window_install_event_filter`), widget tick callbacks, and direct backend handle access (`ft_window_get_native_window`, `ft_window_get_egl_display`).
   - Pluggable `TFtWindow` abstraction ready for future WinAPI and Cocoa backends.
 - **Internationalization, BiDi & Script Shaping**:
   - Full UTF-8 Unicode text rendering across global writing systems (Latin, Cyrillic, Greek, CJK, Thai, Indic/Devanagari, Arabic, Hebrew).
@@ -162,22 +168,28 @@ ft.ft_quit()
 
 ## Building & Compiling
 
-### Prerequisites
+#### Prerequisites
 - **Free Pascal Compiler** (`fpc` 3.2.0+) or **PasBuild** / **Lazarus**
 - **GCC** or **Clang** (for C examples)
 - **Python 3** (for Python examples)
-- **X11 Development Headers** (`libX11`, `libXext`)
-- **fpgui-framework** (via PasBuild / fpcupdeluxe)
+- **X11 Development Headers** (`libX11`, `libXext`, `libxcb`)
+- **EGL & OpenGL ES 2.0** (`libEGL`, `libGLESv2` for hardware acceleration)
+- **aggpas:2.4.0-SNAPSHOT** (via PasBuild repository)
+- **florialib:0.0.1-SNAPSHOT** (via PasBuild repository)
 
 ### 1. Build the Shared Library (`libft.so`)
 
 Using **PasBuild**:
 ```bash
 pasbuild compile
+# or
+./build.sh
 ```
-Or using **LazBuild**:
+Or running unit tests:
 ```bash
-lazbuild src/main/pascal/ft.lpi
+pasbuild test
+# or
+./build.sh test
 ```
 
 ### 2. Build & Run C Examples
@@ -187,13 +199,23 @@ lazbuild src/main/pascal/ft.lpi
 
 # Run any example binary built in target/
 ./target/example_c_main
+./target/example_c_amamizu_showcase
+./target/example_c_egl_gpu_showcase
+./target/example_c_gpu_vector_stress_test
+./target/example_c_url_entry
+./target/example_c_pathbar
+./target/example_c_file_dialog
 ./target/example_c_advanced_desktop_widgets
 ./target/example_c_window_button
 ./target/example_c_form_controls
 ./target/example_c_menus
+./target/example_c_widget_context_menus
 ./target/example_c_containers
+./target/example_c_container_render_area
 ./target/example_c_css_button
 ./target/example_c_css_animation
+./target/example_c_chinese
+./target/example_c_multilingual
 ```
 
 ### 3. Run Python Examples
@@ -224,16 +246,20 @@ floria-toolkit/
 │   ├── ft.window.pas         # Abstract window base class (TFtWindow), window factory & focus logic
 │   ├── ft.css.pas            # CSS stylesheet engine, variable resolver & cascade
 │   ├── ft.animation.pas      # Transition & animation interpolation engine
-│   ├── ft.backend.x11.pas    # X11/XCB window backend & 60 FPS event loop (TFtX11Window)
-│   ├── ft.backend.xcb.pas    # XCB backend compatibility wrapper
+│   ├── ft.backend.x11.pas    # Native X11/XCB window backend & 60 FPS event loop (TFtX11Window)
+│   ├── ft.backend.egl.pas    # EGL 1.4/1.5 hardware presentation driver
+│   ├── ft.canvas.hardware.pas# Hardware-accelerated GPU canvas (TFtHardwareCanvas, GLES2 batching)
 │   ├── ft.theme.pas          # Theme manager & stylesheet loader
+│   ├── ft.dialogs.file.pas   # Native modal file & directory chooser (TFtFileDialog)
 │   ├── ft.widget.pas         # Base widget abstraction (uses florialib for vector canvas & fonts)
 │   ├── ft.widget.buttons.pas # Push, toggle, and window caption buttons (TFtWindowButton)
-│   ├── ft.widget.switches.pas# Animated toggle switch
+│   ├── ft.widget.switches.pas# Animated toggle switch (TFtSwitch)
 │   ├── ft.widget.selectors.pas# CheckBox, RadioButton, ComboBox
 │   ├── ft.widget.meters.pas  # Slider and ProgressBar
 │   ├── ft.widget.texts.pas   # Selectable & static text labels with word wrapping & clipping
 │   ├── ft.widget.entries.pas # Single-line text input
+│   ├── ft.widget.urlentries.pas# Google Chrome-style Omnibox URL entry (TFtUrlEntry)
+│   ├── ft.widget.pathbars.pas# Nautilus-style dual-mode breadcrumb navigation (TFtPathBar)
 │   ├── ft.widget.textareas.pas# Multi-line text area
 │   ├── ft.widget.scrollbars.pas# Scrollbar widget
 │   ├── ft.widget.containers.pas# Container box & viewport
@@ -244,6 +270,7 @@ floria-toolkit/
 │   ├── ft.widget.images.pas  # Raster image & SVG viewer (TFtImage)
 │   └── ft.widget.menus.pas   # Main menu bar & popup menus
 ├── themes/                   # Bundled CSS theme stylesheets (*.css)
+│   ├── amamizu.css           # macOS Liquid Glass theme (frosted glass, pill capsules, cyan accents)
 │   ├── default.css           # Modern Breeze/Fusion theme (with :root variables)
 │   ├── nord.css              # Arctic frosty slate theme
 │   ├── dracula.css           # Dracula dark theme
@@ -252,6 +279,12 @@ floria-toolkit/
 │   └── classic.css           # Slate with emerald accents theme
 ├── examples/
 │   ├── c/                    # C demo applications (*.c)
+│   │   ├── amamizu_showcase.c # Amamizu theme showcase with frosted glass & switches
+│   │   ├── egl_gpu_showcase.c # EGL hardware-accelerated GPU compositor demo
+│   │   ├── gpu_vector_stress_test.c # 1,000+ shape GPU tessellation & batching stress test
+│   │   ├── url_entry.c       # Google Chrome Omnibox URL entry demo
+│   │   ├── pathbar.c         # Nautilus dual-mode breadcrumb pathbar demo
+│   │   ├── file_dialog.c     # Native modal file & directory chooser demo
 │   │   ├── advanced_desktop_widgets.c # Notebook, Splitter, TreeView, Table demo
 │   │   ├── custom_table.c    # Multi-column table with multi-row selection
 │   │   ├── window_button.c   # OS-styled window caption buttons & halos
@@ -279,7 +312,7 @@ floria-toolkit/
 │       ├── image_emoji.py    # Raster image decoding & emoji rendering
 │       ├── multilingual.py   # Multi-language Python GUI
 │       └── test_chinese.py   # CJK UTF-8 Python showcase
-└── project.xml               # PasBuild package manifest (dependencies: florialib, fpgui-framework)
+└── project.xml               # PasBuild package manifest (dependencies: aggpas, florialib)
 ```
 
 ---

@@ -23,21 +23,17 @@ flowchart TD
 
 ### Key Milestones
 
-- [ ] **Canvas Abstraction (`TFtCanvas`)**:
-  - Extract a unified base class/interface defining standard 2D vector drawing primitives (`DrawRect`, `DrawRoundedRect`, `DrawShadow`, `DrawText`, `PushClipRect`, `PopClipRect`).
-  - Refactor `TFtWidget` and `TFtTheme` to render strictly against `TFtCanvas`, making all controls agnostic to the underlying rasterization engine.
-- [ ] **GPU Acceleration Backends**:
-  - **OpenGL / GLES (`TFtCanvasGL`)**: Hardware-accelerated batch rendering using vertex arrays, texture atlasing, and GLSL shaders.
-  - **Vulkan (`TFtCanvasVulkan`)**: Modern low-overhead graphics pipeline with explicit memory management and multi-threaded command buffer generation.
-- [ ] **AggPas as First-Class Software Fallback & Reference Engine**:
-  - AggPas will **not** be deprecated. It serves as:
-    - **Universal Fallback**: Automatic graceful fallback when GPU drivers are missing, incompatible, or crash (e.g., virtual machines, legacy hardware, remote VNC/X11 forwarding).
-    - **Headless & CI/CD**: Deterministic pixel-accurate rendering for automated testing and server-side screenshot generation without an active GPU or display server.
-    - **Asset & Glyph Pre-Rasterizer**: High-quality CPU-side glyph atlas generation and complex SVG path pre-processing before uploading to GPU textures.
-    - **Low-Power Embedded**: Zero-GPU, battery-preserving execution for resource-constrained embedded systems.
-- [ ] **Dynamic Runtime Backend Negotiation**:
-  - Auto-probe GPU capabilities at initialization (`ft_init()`) with seamless fallback to AggPas.
-  - User override via environment variables (`FT_RENDERER=software|opengl|vulkan`) and programmatic API configuration.
+- [x] **Canvas Abstraction (`TFtCanvas` / `IFtHardwareCanvas`)**:
+  - Unified base class and polymorphic hardware interface defining standard 2D vector drawing primitives (`DrawRect`, `DrawRoundedRect`, `DrawShadow`, `DrawText`, `PushClipRect`, `PopClipRect`).
+  - Integrated polymorphic canvas across all widgets (`TFtWidget`) and themes (`TFtTheme`).
+- [x] **GPU Acceleration Backends**:
+  - **OpenGL ES / EGL (`TFtHardwareCanvas`)**: Hardware-accelerated batch rendering using vertex arrays, dynamic texture atlasing, AOT GLSL shaders, SDF pills, and single-pass box shadows.
+  - **Vulkan (`TFtCanvasVulkan`)**: Modern low-overhead graphics pipeline with explicit memory management and multi-threaded command buffer generation (planned).
+- [x] **AggPas as First-Class Software Fallback & Reference Engine**:
+  - AggPas serves as the zero-driver, pixel-accurate software fallback across virtual machines, headless CI, and legacy hardware.
+- [x] **Dynamic Runtime Backend Negotiation**:
+  - Auto-probe EGL/GPU capabilities at window creation with automatic fallback to AggPas software surface.
+  - VSync control via `ft_window_set_swap_interval` and acceleration status via `ft_window_is_hardware_accelerated`.
 
 ---
 
@@ -54,7 +50,7 @@ The primary objective of Floria Toolkit is providing complete, first-class infra
   - **Window State Lifecycle**: Handling Minimize/Iconify, Maximize (horizontal/vertical), Restore, Shade/Rollup, Fullscreen, and Pin/Sticky across multiple virtual desktops.
   - **Window Geometry & Interactive Resizing**: Client aspect-ratio constraints, minimum/maximum size hints (`WM_NORMAL_HINTS`), and interactive window moving/resizing routines.
 - [ ] **Desktop Shell Components**:
-  - **Panels & Docks**: Dedicated panel windows (`_NET_WM_WINDOW_TYPE_DOCK`) with desktop edge reservations via partial struts (`_NET_WM_STRUT_PARTIAL`).
+  - [x] **Panels & Docks**: Dedicated panel windows (`_NET_WM_WINDOW_TYPE_DOCK`) with desktop edge reservations via partial struts (`_NET_WM_STRUT_PARTIAL`), pointer grabs (`ft_window_grab_pointer`), and global event filter dispatch (`ft_window_install_event_filter`).
   - **Desktop Surface**: Root desktop wallpaper rendering, desktop icon layout grid, rubberband multi-selection, and folder launch integration.
   - **Taskbar & Window Pager**: Active window indicators, minimized window grouping, live window title updates, and virtual workspace switcher.
   - **Application Launcher**: Searchable popup grid/list launcher reading Freedesktop `.desktop` files, categories, and icon themes.
@@ -98,9 +94,14 @@ Enrich the desktop control catalog with complex data-driven components:
   - Tab switching, close buttons, active tab indicator, and page containers.
 - [x] **Splitter & Panes (`TFtSplitter`)**:
   - Resizable horizontal and vertical dividing gutters with live mouse drag, grip dots, and child positioning.
-- [ ] **Standard Dialog System**:
-  - Native and themed modal dialogs: File Chooser, Directory Selector, Color Picker, and Alert/Confirmation dialogs (`ft_message_box`).
-- [ ] **Keyboard Tab Traversal & Accelerators**:
+- [x] **URL Omnibox (`TFtUrlEntry`)**:
+  - Google Chrome-style URL entry with SSL padlock / security badge, bookmark button, and HTTPS auto-prefixing.
+- [x] **Breadcrumb PathBar (`TFtPathBar`)**:
+  - Nautilus-style dual-mode file path navigation with interactive pills and instant text entry switching.
+- [x] **Standard Dialog System (`TFtFileDialog`)**:
+  - Native modal file chooser and folder picker with quick bookmarks, directory tree view, filter patterns, and double-click opening (`ft_file_dialog_open`, `ft_file_dialog_save`).
+  - Native modal loop overlay and topmost stacking (`ft_window_show_modal`).
+- [x] **Keyboard Tab Traversal & Accelerators**:
   - Automatic Tab & Shift+Tab focus navigation between focusable widgets.
   - Menu mnemonics (`Alt+F`) and global keyboard accelerator tables.
 
