@@ -312,6 +312,7 @@ end;
 procedure TFtSwitch.Draw(Canvas: TFtCanvas);
 var
   trackW, trackH: Integer;
+  reqW: Integer;
   rad, thumbD, thumbX, thumbY, labelX, labelY: Double;
   minThumbX, maxThumbX: Double;
   bw: Double;
@@ -353,18 +354,26 @@ begin
 
   st := GetResolvedStyle();
 
-  if (Caption <> '') and (Width >= Round(Height * 2.2)) then
+  trackH := Height;
+  trackW := Round(Height * 1.85);
+  if trackW < 36 then trackW := 36;
+
+  if Caption <> '' then
   begin
-    trackH := Height;
-    trackW := Round(Height * 1.85);
-    if trackW < 36 then trackW := 36;
+    actualFont := GetFont();
+    if not Assigned(actualFont) then actualFont := FtGetSystemFont();
+    if Assigned(actualFont) then
+    begin
+      reqW := trackW + 8 + Round(actualFont.GetTextWidth(Caption));
+      if Width < reqW then Width := reqW;
+    end;
     labelX := X + trackW + 8;
   end
   else
   begin
-    trackH := Height;
-    trackW := Width;
-    labelX := X + Width + 8;
+    if Width >= trackH then
+      trackW := Width;
+    labelX := X + trackW + 8;
   end;
 
   if st.HasBorderRadius then
@@ -373,6 +382,14 @@ begin
     rad := FCornerRadius
   else
     rad := trackH / 2.0;
+
+  // Clamp corner radius to prevent SDF discard when CSS specifies 9999px pill
+  if rad > trackH * 0.5 then
+    rad := trackH * 0.5;
+  if rad > trackW * 0.5 then
+    rad := trackW * 0.5;
+  if rad < 0.0 then
+    rad := 0.0;
 
   thumbD := trackH - 4.0;
   thumbY := Y + 2.0;
