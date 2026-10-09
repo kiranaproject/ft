@@ -55,6 +55,7 @@ type
   TFtSpacer = class(TFtWidget)
   public
     constructor Create(AParent: TFtWidget); override;
+    function GetElementType(): string; override;
     procedure Draw(Canvas: TFtCanvas); override;
     function HitTest(AX, AY: Integer): TFtWidget; override;
   end;
@@ -74,6 +75,12 @@ type
     procedure SetGap(AValue: Double); virtual;
   public
     constructor Create(AParent: TFtWidget); override;
+    function GetElementType(): string; override;
+    function GetEffectiveCornerRadius(): Double; override;
+    function GetChildRenderArea(out AX, AY, AW, AH, ARadius: Double): Boolean; override;
+    procedure Draw(Canvas: TFtCanvas); override;
+    procedure DrawBackground(Canvas: TFtCanvas); override;
+    function HitTest(AX, AY: Integer): TFtWidget; override;
     procedure UpdateLayout(); override;
     procedure UpdateScrollBars(); override;
     procedure SetBounds(AX, AY, AW, AH: Integer); override;
@@ -90,12 +97,14 @@ type
   TFtHBox = class(TFtFlexBox)
   public
     constructor Create(AParent: TFtWidget); override;
+    function GetElementType(): string; override;
   end;
 
   { TFtVBox — Vertical flexbox }
   TFtVBox = class(TFtFlexBox)
   public
     constructor Create(AParent: TFtWidget); override;
+    function GetElementType(): string; override;
   end;
 
 implementation
@@ -122,6 +131,11 @@ begin
   Result := nil;
 end;
 
+function TFtSpacer.GetElementType(): string;
+begin
+  Result := 'spacer';
+end;
+
 { TFtFlexBox }
 
 constructor TFtFlexBox.Create(AParent: TFtWidget);
@@ -136,10 +150,107 @@ begin
   FGap := 0.0;
   FDrawFrame := False;
   FDrawFocusRing := False;
+  FCornerRadius := 0.0;
   FScrollBarMode := ftSbModeNone;
   FAutoContentSize := False;
   if Assigned(FVScrollBar) then FVScrollBar.Visible := False;
   if Assigned(FHScrollBar) then FHScrollBar.Visible := False;
+end;
+
+function TFtFlexBox.GetElementType(): string;
+begin
+  Result := 'flexbox';
+end;
+
+function TFtFlexBox.GetEffectiveCornerRadius(): Double;
+var
+  st: TFtWidgetStyle;
+begin
+  if FCornerRadius >= 0.0 then
+    Result := FCornerRadius
+  else
+  begin
+    st := GetResolvedStyle();
+    if st.HasBorderRadius then
+      Result := st.BorderRadius
+    else
+      Result := 0.0;
+  end;
+end;
+
+function TFtFlexBox.GetChildRenderArea(out AX, AY, AW, AH, ARadius: Double): Boolean;
+var
+  st: TFtWidgetStyle;
+begin
+  st := GetResolvedStyle();
+  if st.HasBgColor or (st.HasBorderColor and (st.BorderWidth > 0.0)) or FDrawFrame or (FBackdropBlur > 0.5) or st.HasBackdropBlur then
+    Result := inherited GetChildRenderArea(AX, AY, AW, AH, ARadius)
+  else if Assigned(Parent) then
+    Result := Parent.GetChildRenderArea(AX, AY, AW, AH, ARadius)
+  else
+  begin
+    AX := 0.0; AY := 0.0; AW := 0.0; AH := 0.0; ARadius := 0.0;
+    Result := False;
+  end;
+end;
+
+procedure TFtFlexBox.DrawBackground(Canvas: TFtCanvas);
+var
+  st: TFtWidgetStyle;
+begin
+  st := GetResolvedStyle();
+  // Flexboxes are completely transparent by default ("like it's nothing there").
+  // Only draw background/border/shadow if explicitly styled via CSS or if DrawFrame is enabled.
+  if st.HasBgColor or (st.HasBorderColor and (st.BorderWidth > 0.0)) or FDrawFrame or (FBackdropBlur > 0.5) or st.HasBackdropBlur then
+    inherited DrawBackground(Canvas);
+end;
+
+procedure TFtFlexBox.Draw(Canvas: TFtCanvas);
+var
+  st: TFtWidgetStyle;
+begin
+  if not Visible then Exit;
+  if not Canvas.IntersectsClip(X - 4, Y - 4, Width + 8, Height + 8) then Exit;
+
+  st := GetResolvedStyle();
+  if st.HasBgColor or (st.HasBorderColor and (st.BorderWidth > 0.0)) or FDrawFrame or (FBackdropBlur > 0.5) or st.HasBackdropBlur then
+  begin
+    // Explicitly styled flexbox: draw background, border, shadow, and clip to render area
+    inherited Draw(Canvas);
+  end
+  else
+  begin
+    // Pure transparent flexbox layout: draw children directly with no background, border, or rounded clip
+    DrawChildren(Canvas);
+  end;
+end;
+
+function TFtFlexBox.HitTest(AX, AY: Integer): TFtWidget;
+var
+  i: Integer;
+  child, target: TFtWidget;
+  st: TFtWidgetStyle;
+begin
+  Result := nil;
+  if not Visible then Exit;
+
+  // 1. Check children first
+  for i := Children.Count - 1 downto 0 do
+  begin
+    child := TFtWidget(Children[i]);
+    if (child <> FVScrollBar) and (child <> FHScrollBar) and child.Visible then
+    begin
+      target := child.HitTest(AX, AY);
+      if Assigned(target) then
+        Exit(target);
+    end;
+  end;
+
+  // 2. Only catch clicks if flexbox has an explicit visible background or frame
+  st := GetResolvedStyle();
+  if (FDrawFrame or st.HasBgColor or (FBackdropBlur > 0.5) or st.HasBackdropBlur) and
+     (AX >= X) and (AX <= X + Width) and (AY >= Y) and (AY <= Y + Height) then
+    Result := Self;
 end;
 
 procedure TFtFlexBox.UpdateScrollBars();
@@ -611,6 +722,11 @@ begin
   FAlignItems := ftaiStretch;
 end;
 
+function TFtHBox.GetElementType(): string;
+begin
+  Result := 'hbox';
+end;
+
 { TFtVBox }
 
 constructor TFtVBox.Create(AParent: TFtWidget);
@@ -618,6 +734,11 @@ begin
   inherited Create(AParent);
   FDirection := ftfdColumn;
   FAlignItems := ftaiStretch;
+end;
+
+function TFtVBox.GetElementType(): string;
+begin
+  Result := 'vbox';
 end;
 
 end.
