@@ -461,6 +461,12 @@ typedef enum {
     FT_ALIGN_END = 3
 } FtAlignItems;
 
+typedef enum {
+    FT_FLEX_NOWRAP = 0,
+    FT_FLEX_WRAP = 1,
+    FT_FLEX_WRAP_REVERSE = 2
+} FtFlexWrap;
+
 FtWidget ft_flexbox_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, int32_t direction);
 FtWidget ft_hbox_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h);
 FtWidget ft_vbox_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h);
@@ -468,6 +474,8 @@ FtWidget ft_spacer_create(FtWidget parent);
 
 void ft_flexbox_set_direction(FtWidget flexbox, int32_t direction);
 int32_t ft_flexbox_get_direction(FtWidget flexbox);
+void ft_flexbox_set_wrap(FtWidget flexbox, int32_t wrap);
+int32_t ft_flexbox_get_wrap(FtWidget flexbox);
 void ft_flexbox_set_justify_content(FtWidget flexbox, int32_t justify);
 int32_t ft_flexbox_get_justify_content(FtWidget flexbox);
 void ft_flexbox_set_align_items(FtWidget flexbox, int32_t align);

@@ -45,6 +45,12 @@ type
     ftaiEnd = 3
   );
 
+  TFtFlexWrap = (
+    ftfwNoWrap = 0,
+    ftfwWrap = 1,
+    ftfwWrapReverse = 2
+  );
+
   { TFtSpacer — transparent stretchable item absorbing flex room }
   TFtSpacer = class(TFtWidget)
   public
@@ -57,10 +63,12 @@ type
   TFtFlexBox = class(TFtContainer)
   protected
     FDirection: TFtFlexDirection;
+    FWrap: TFtFlexWrap;
     FJustifyContent: TFtJustifyContent;
     FAlignItems: TFtAlignItems;
     FGap: Double;
     procedure SetDirection(AValue: TFtFlexDirection); virtual;
+    procedure SetWrap(AValue: TFtFlexWrap); virtual;
     procedure SetJustifyContent(AValue: TFtJustifyContent); virtual;
     procedure SetAlignItems(AValue: TFtAlignItems); virtual;
     procedure SetGap(AValue: Double); virtual;
@@ -72,6 +80,7 @@ type
     function AddSpacer(AGrow: Double = 1.0): TFtSpacer;
 
     property Direction: TFtFlexDirection read FDirection write SetDirection;
+    property Wrap: TFtFlexWrap read FWrap write SetWrap;
     property JustifyContent: TFtJustifyContent read FJustifyContent write SetJustifyContent;
     property AlignItems: TFtAlignItems read FAlignItems write SetAlignItems;
     property Gap: Double read FGap write SetGap;
@@ -121,6 +130,7 @@ begin
   FPaddingX := 0.0;
   FPaddingY := 0.0;
   FDirection := ftfdRow;
+  FWrap := ftfwNoWrap;
   FJustifyContent := ftjcStart;
   FAlignItems := ftaiStretch;
   FGap := 0.0;
@@ -152,6 +162,16 @@ begin
   if FDirection <> AValue then
   begin
     FDirection := AValue;
+    UpdateLayout();
+    Invalidate();
+  end;
+end;
+
+procedure TFtFlexBox.SetWrap(AValue: TFtFlexWrap);
+begin
+  if FWrap <> AValue then
+  begin
+    FWrap := AValue;
     UpdateLayout();
     Invalidate();
   end;
@@ -200,6 +220,16 @@ begin
   UpdateLayout();
 end;
 
+type
+  TFtFlexLine = record
+    startIndex: Integer;
+    count: Integer;
+    totalBaseMain: Double;
+    totalGrow: Double;
+    totalShrink: Double;
+    crossSize: Double;
+  end;
+
 procedure TFtFlexBox.UpdateLayout();
 var
   i, numVisible: Integer;
@@ -214,20 +244,69 @@ var
   finalCrossSizes: array of Double;
   mainMarginBefore, mainMarginAfter: array of Double;
   crossMarginBefore, crossMarginAfter: array of Double;
-  totalBaseMain: Double;
-  totalGrow: Double;
-  remainingSpace: Double;
-  gapTotal: Double;
   curMainPos, curCrossPos: Double;
   effAlign: TFtAlignSelf;
   spacingOffset, itemGap: Double;
   childMain, childCross: Double;
-  totalShrink, shrinkFactor: Double;
+  shrinkFactor: Double;
+  st, chSt: TFtWidgetStyle;
+  flexLines: array of TFtFlexLine;
+  numLines, l, lStart, lCount, idx: Integer;
+  itemOuterMain, itemOuterCross: Double;
+  lineRem, lineActualMain, lineGapTotal: Double;
+  totalLinesCross, curLineCrossPos, lineCrossBase: Double;
 begin
   if not Assigned(Children) or (Children.Count = 0) then Exit;
   if (Width <= 0) or (Height <= 0) then Exit;
 
-  // 1. Determine padding & available inner space
+  // 1. Resolve CSS style properties on the flex container
+  st := GetResolvedStyle();
+  if st.HasFlexDirection then
+  begin
+    if SameText(st.FlexDirection, 'column') or SameText(st.FlexDirection, 'column-reverse') then
+      FDirection := ftfdColumn
+    else
+      FDirection := ftfdRow;
+  end;
+  if st.HasFlexWrap then
+  begin
+    if SameText(st.FlexWrap, 'wrap') then
+      FWrap := ftfwWrap
+    else if SameText(st.FlexWrap, 'wrap-reverse') then
+      FWrap := ftfwWrapReverse
+    else
+      FWrap := ftfwNoWrap;
+  end;
+  if st.HasJustifyContent then
+  begin
+    if SameText(st.JustifyContent, 'center') then
+      FJustifyContent := ftjcCenter
+    else if SameText(st.JustifyContent, 'flex-end') or SameText(st.JustifyContent, 'end') then
+      FJustifyContent := ftjcEnd
+    else if SameText(st.JustifyContent, 'space-between') then
+      FJustifyContent := ftjcSpaceBetween
+    else if SameText(st.JustifyContent, 'space-around') then
+      FJustifyContent := ftjcSpaceAround
+    else if SameText(st.JustifyContent, 'space-evenly') then
+      FJustifyContent := ftjcSpaceEvenly
+    else
+      FJustifyContent := ftjcStart;
+  end;
+  if st.HasAlignItems then
+  begin
+    if SameText(st.AlignItems, 'center') then
+      FAlignItems := ftaiCenter
+    else if SameText(st.AlignItems, 'flex-start') or SameText(st.AlignItems, 'start') then
+      FAlignItems := ftaiStart
+    else if SameText(st.AlignItems, 'flex-end') or SameText(st.AlignItems, 'end') then
+      FAlignItems := ftaiEnd
+    else
+      FAlignItems := ftaiStretch;
+  end;
+  if st.HasGap then
+    FGap := st.Gap;
+
+  // 2. Determine padding & available inner space
   padLeft := FPaddingX;
   padRight := FPaddingX;
   padTop := FPaddingY;
@@ -249,7 +328,7 @@ begin
     crossStart := X + padLeft;
   end;
 
-  // 2. Filter visible layout children (ignore invisible and internal scrollbars)
+  // 3. Filter visible layout children
   numVisible := 0;
   SetLength(visibleItems, Children.Count);
   for i := 0 to Children.Count - 1 do
@@ -265,7 +344,7 @@ begin
 
   if numVisible = 0 then Exit;
 
-  // 3. Allocate metric arrays
+  // 4. Allocate metric arrays & inspect child styles
   SetLength(baseSizes, numVisible);
   SetLength(finalMainSizes, numVisible);
   SetLength(finalCrossSizes, numVisible);
@@ -274,13 +353,26 @@ begin
   SetLength(crossMarginBefore, numVisible);
   SetLength(crossMarginAfter, numVisible);
 
-  totalBaseMain := 0.0;
-  totalGrow := 0.0;
-  totalShrink := 0.0;
-
   for i := 0 to numVisible - 1 do
   begin
     child := visibleItems[i];
+    chSt := child.GetResolvedStyle();
+    if chSt.HasFlexGrow then child.FlexGrow := chSt.FlexGrow;
+    if chSt.HasFlexShrink then child.FlexShrink := chSt.FlexShrink;
+    if chSt.HasFlexBasis then child.FlexBasis := chSt.FlexBasis;
+    if chSt.HasAlignSelf then
+    begin
+      if SameText(chSt.AlignSelf, 'stretch') then child.AlignSelf := ftasStretch
+      else if SameText(chSt.AlignSelf, 'center') then child.AlignSelf := ftasCenter
+      else if SameText(chSt.AlignSelf, 'flex-start') or SameText(chSt.AlignSelf, 'start') then child.AlignSelf := ftasStart
+      else if SameText(chSt.AlignSelf, 'flex-end') or SameText(chSt.AlignSelf, 'end') then child.AlignSelf := ftasEnd
+      else child.AlignSelf := ftasAuto;
+    end;
+    if chSt.HasMarginLeft then child.MarginLeft := Round(chSt.MarginLeft);
+    if chSt.HasMarginRight then child.MarginRight := Round(chSt.MarginRight);
+    if chSt.HasMarginTop then child.MarginTop := Round(chSt.MarginTop);
+    if chSt.HasMarginBottom then child.MarginBottom := Round(chSt.MarginBottom);
+
     if isRow then
     begin
       mainMarginBefore[i] := child.MarginLeft;
@@ -317,155 +409,196 @@ begin
         baseSizes[i] := child.GetPreferredHeight();
     end;
 
-    totalBaseMain := totalBaseMain + baseSizes[i] + mainMarginBefore[i] + mainMarginAfter[i];
-    totalGrow := totalGrow + child.FlexGrow;
-    totalShrink := totalShrink + (child.FlexShrink * baseSizes[i]);
-  end;
-
-  gapTotal := FGap * Max(0, numVisible - 1);
-  remainingSpace := availMain - (totalBaseMain + gapTotal);
-
-  // 4. Distribute growth or shrinkage along main axis
-  if (remainingSpace > 0.0) and (totalGrow > 0.0) then
-  begin
-    for i := 0 to numVisible - 1 do
-    begin
-      child := visibleItems[i];
-      if child.FlexGrow > 0.0 then
-        finalMainSizes[i] := baseSizes[i] + (remainingSpace * (child.FlexGrow / totalGrow))
-      else
-        finalMainSizes[i] := baseSizes[i];
-    end;
-    remainingSpace := 0.0;
-  end
-  else if (remainingSpace < 0.0) and (totalShrink > 0.0) then
-  begin
-    shrinkFactor := Abs(remainingSpace) / totalShrink;
-    for i := 0 to numVisible - 1 do
-    begin
-      child := visibleItems[i];
-      finalMainSizes[i] := Max(0.0, baseSizes[i] - (child.FlexShrink * baseSizes[i] * shrinkFactor));
-    end;
-    remainingSpace := 0.0;
-  end
-  else
-  begin
-    for i := 0 to numVisible - 1 do
-      finalMainSizes[i] := baseSizes[i];
-  end;
-
-  // 5. Cross-axis sizing (align-items / align-self)
-  for i := 0 to numVisible - 1 do
-  begin
-    child := visibleItems[i];
-    effAlign := child.AlignSelf;
-    if effAlign = ftasAuto then
-    begin
-      case FAlignItems of
-        ftaiStretch: effAlign := ftasStretch;
-        ftaiStart:   effAlign := ftasStart;
-        ftaiCenter:  effAlign := ftasCenter;
-        ftaiEnd:     effAlign := ftasEnd;
-      end;
-    end;
-
-    if effAlign = ftasStretch then
-      finalCrossSizes[i] := Max(0.0, availCross - (crossMarginBefore[i] + crossMarginAfter[i]))
-    else
-    begin
-      if isRow then
-        finalCrossSizes[i] := child.GetPreferredHeight()
-      else
-        finalCrossSizes[i] := child.GetPreferredWidth();
-    end;
-  end;
-
-  // 6. Main-axis positioning (justify-content)
-  spacingOffset := 0.0;
-  itemGap := FGap;
-
-  if (remainingSpace > 0.0) and (totalGrow = 0.0) then
-  begin
-    case FJustifyContent of
-      ftjcStart:
-        spacingOffset := 0.0;
-      ftjcCenter:
-        spacingOffset := remainingSpace * 0.5;
-      ftjcEnd:
-        spacingOffset := remainingSpace;
-      ftjcSpaceBetween:
-      begin
-        if numVisible > 1 then
-          itemGap := FGap + (remainingSpace / (numVisible - 1))
-        else
-          spacingOffset := 0.0;
-      end;
-      ftjcSpaceAround:
-      begin
-        itemGap := FGap + (remainingSpace / numVisible);
-        spacingOffset := (remainingSpace / numVisible) * 0.5;
-      end;
-      ftjcSpaceEvenly:
-      begin
-        itemGap := FGap + (remainingSpace / (numVisible + 1));
-        spacingOffset := remainingSpace / (numVisible + 1);
-      end;
-    end;
-  end;
-
-  curMainPos := mainStart + spacingOffset;
-
-  // 7. Place children
-  for i := 0 to numVisible - 1 do
-  begin
-    child := visibleItems[i];
-    childMain := finalMainSizes[i];
-    childCross := finalCrossSizes[i];
-
-    curMainPos := curMainPos + mainMarginBefore[i];
-
-    effAlign := child.AlignSelf;
-    if effAlign = ftasAuto then
-    begin
-      case FAlignItems of
-        ftaiStretch: effAlign := ftasStretch;
-        ftaiStart:   effAlign := ftasStart;
-        ftaiCenter:  effAlign := ftasCenter;
-        ftaiEnd:     effAlign := ftasEnd;
-      end;
-    end;
-
-    case effAlign of
-      ftasStart, ftasStretch:
-        curCrossPos := crossStart + crossMarginBefore[i];
-      ftasCenter:
-        curCrossPos := crossStart + crossMarginBefore[i] +
-          ((availCross - (crossMarginBefore[i] + crossMarginAfter[i])) - childCross) * 0.5;
-      ftasEnd:
-        curCrossPos := crossStart + availCross - crossMarginAfter[i] - childCross;
-      else
-        curCrossPos := crossStart + crossMarginBefore[i];
-    end;
-
+    // Cross natural size
     if isRow then
+      finalCrossSizes[i] := child.GetPreferredHeight()
+    else
+      finalCrossSizes[i] := child.GetPreferredWidth();
+  end;
+
+  // 5. Group items into flex lines (respecting FWrap)
+  SetLength(flexLines, numVisible);
+  numLines := 1;
+  flexLines[0].startIndex := 0;
+  flexLines[0].count := 0;
+  flexLines[0].totalBaseMain := 0.0;
+  flexLines[0].totalGrow := 0.0;
+  flexLines[0].totalShrink := 0.0;
+  flexLines[0].crossSize := 0.0;
+
+  for i := 0 to numVisible - 1 do
+  begin
+    itemOuterMain := baseSizes[i] + mainMarginBefore[i] + mainMarginAfter[i];
+    itemOuterCross := finalCrossSizes[i] + crossMarginBefore[i] + crossMarginAfter[i];
+
+    if (FWrap <> ftfwNoWrap) and (flexLines[numLines - 1].count > 0) then
     begin
-      child.X := Round(curMainPos);
-      child.Y := Round(curCrossPos);
-      child.Width := Round(childMain);
-      child.Height := Round(childCross);
+      if (flexLines[numLines - 1].totalBaseMain + FGap + itemOuterMain > availMain) then
+      begin
+        Inc(numLines);
+        flexLines[numLines - 1].startIndex := i;
+        flexLines[numLines - 1].count := 0;
+        flexLines[numLines - 1].totalBaseMain := 0.0;
+        flexLines[numLines - 1].totalGrow := 0.0;
+        flexLines[numLines - 1].totalShrink := 0.0;
+        flexLines[numLines - 1].crossSize := 0.0;
+      end;
+    end;
+
+    if flexLines[numLines - 1].count > 0 then
+      flexLines[numLines - 1].totalBaseMain := flexLines[numLines - 1].totalBaseMain + FGap + itemOuterMain
+    else
+      flexLines[numLines - 1].totalBaseMain := itemOuterMain;
+
+    Inc(flexLines[numLines - 1].count);
+    flexLines[numLines - 1].totalGrow := flexLines[numLines - 1].totalGrow + visibleItems[i].FlexGrow;
+    flexLines[numLines - 1].totalShrink := flexLines[numLines - 1].totalShrink + (visibleItems[i].FlexShrink * baseSizes[i]);
+    if itemOuterCross > flexLines[numLines - 1].crossSize then
+      flexLines[numLines - 1].crossSize := itemOuterCross;
+  end;
+  SetLength(flexLines, numLines);
+
+  // If single line with nowrap, line's cross size is full availCross
+  if (numLines = 1) and (FWrap = ftfwNoWrap) then
+    flexLines[0].crossSize := availCross;
+
+  // 6. Distribute growth or shrinkage along main axis per line
+  for l := 0 to numLines - 1 do
+  begin
+    lineRem := availMain - flexLines[l].totalBaseMain;
+    lStart := flexLines[l].startIndex;
+    lCount := flexLines[l].count;
+
+    if (lineRem > 0.0) and (flexLines[l].totalGrow > 0.0) then
+    begin
+      for idx := lStart to lStart + lCount - 1 do
+      begin
+        child := visibleItems[idx];
+        if child.FlexGrow > 0.0 then
+          finalMainSizes[idx] := baseSizes[idx] + (lineRem * (child.FlexGrow / flexLines[l].totalGrow))
+        else
+          finalMainSizes[idx] := baseSizes[idx];
+      end;
+    end
+    else if (lineRem < 0.0) and (flexLines[l].totalShrink > 0.0) then
+    begin
+      shrinkFactor := Abs(lineRem) / flexLines[l].totalShrink;
+      for idx := lStart to lStart + lCount - 1 do
+      begin
+        child := visibleItems[idx];
+        finalMainSizes[idx] := Max(0.0, baseSizes[idx] - (child.FlexShrink * baseSizes[idx] * shrinkFactor));
+      end;
     end
     else
     begin
-      child.X := Round(curCrossPos);
-      child.Y := Round(curMainPos);
-      child.Width := Round(childCross);
-      child.Height := Round(childMain);
+      for idx := lStart to lStart + lCount - 1 do
+        finalMainSizes[idx] := baseSizes[idx];
+    end;
+  end;
+
+  // 7. Calculate cross-axis line starting position
+  totalLinesCross := 0.0;
+  for l := 0 to numLines - 1 do
+    totalLinesCross := totalLinesCross + flexLines[l].crossSize;
+  totalLinesCross := totalLinesCross + Max(0, numLines - 1) * FGap;
+
+  if FWrap = ftfwWrapReverse then
+    curLineCrossPos := crossStart + totalLinesCross
+  else
+    curLineCrossPos := crossStart;
+
+  // 8. Place children per line
+  for l := 0 to numLines - 1 do
+  begin
+    lStart := flexLines[l].startIndex;
+    lCount := flexLines[l].count;
+
+    lineActualMain := 0.0;
+    for idx := lStart to lStart + lCount - 1 do
+      lineActualMain := lineActualMain + finalMainSizes[idx] + mainMarginBefore[idx] + mainMarginAfter[idx];
+    lineGapTotal := FGap * Max(0, lCount - 1);
+    lineRem := availMain - (lineActualMain + lineGapTotal);
+
+    spacingOffset := 0.0;
+    itemGap := FGap;
+    if (lineRem > 0.0) and (flexLines[l].totalGrow = 0.0) then
+    begin
+      case FJustifyContent of
+        ftjcStart:        spacingOffset := 0.0;
+        ftjcCenter:       spacingOffset := lineRem * 0.5;
+        ftjcEnd:          spacingOffset := lineRem;
+        ftjcSpaceBetween: if lCount > 1 then itemGap := FGap + (lineRem / (lCount - 1));
+        ftjcSpaceAround:  begin itemGap := FGap + (lineRem / lCount); spacingOffset := (lineRem / lCount) * 0.5; end;
+        ftjcSpaceEvenly:  begin itemGap := FGap + (lineRem / (lCount + 1)); spacingOffset := lineRem / (lCount + 1); end;
+      end;
     end;
 
-    child.Invalidate();
-    child.UpdateLayout();
+    curMainPos := mainStart + spacingOffset;
 
-    curMainPos := curMainPos + childMain + mainMarginAfter[i] + itemGap;
+    if FWrap = ftfwWrapReverse then
+      lineCrossBase := curLineCrossPos - flexLines[l].crossSize
+    else
+      lineCrossBase := curLineCrossPos;
+
+    for idx := lStart to lStart + lCount - 1 do
+    begin
+      child := visibleItems[idx];
+      childMain := finalMainSizes[idx];
+      curMainPos := curMainPos + mainMarginBefore[idx];
+
+      effAlign := child.AlignSelf;
+      if effAlign = ftasAuto then
+      begin
+        case FAlignItems of
+          ftaiStretch: effAlign := ftasStretch;
+          ftaiStart:   effAlign := ftasStart;
+          ftaiCenter:  effAlign := ftasCenter;
+          ftaiEnd:     effAlign := ftasEnd;
+        end;
+      end;
+
+      if effAlign = ftasStretch then
+        childCross := Max(0.0, flexLines[l].crossSize - (crossMarginBefore[idx] + crossMarginAfter[idx]))
+      else
+        childCross := finalCrossSizes[idx];
+
+      case effAlign of
+        ftasStart, ftasStretch:
+          curCrossPos := lineCrossBase + crossMarginBefore[idx];
+        ftasCenter:
+          curCrossPos := lineCrossBase + crossMarginBefore[idx] +
+            ((flexLines[l].crossSize - (crossMarginBefore[idx] + crossMarginAfter[idx])) - childCross) * 0.5;
+        ftasEnd:
+          curCrossPos := lineCrossBase + flexLines[l].crossSize - crossMarginAfter[idx] - childCross;
+        else
+          curCrossPos := lineCrossBase + crossMarginBefore[idx];
+      end;
+
+      if isRow then
+      begin
+        child.X := Round(curMainPos);
+        child.Y := Round(curCrossPos);
+        child.Width := Round(childMain);
+        child.Height := Round(childCross);
+      end
+      else
+      begin
+        child.X := Round(curCrossPos);
+        child.Y := Round(curMainPos);
+        child.Width := Round(childCross);
+        child.Height := Round(childMain);
+      end;
+
+      child.Invalidate();
+      child.UpdateLayout();
+
+      curMainPos := curMainPos + childMain + mainMarginAfter[idx] + itemGap;
+    end;
+
+    if FWrap = ftfwWrapReverse then
+      curLineCrossPos := curLineCrossPos - (flexLines[l].crossSize + FGap)
+    else
+      curLineCrossPos := curLineCrossPos + flexLines[l].crossSize + FGap;
   end;
 end;
 

@@ -53,6 +53,45 @@ type
     TransitionDurationMs: Integer;
     TransitionTiming: string;
 
+    HasDisplay: Boolean;
+    Display: string;
+
+    HasFlexDirection: Boolean;
+    FlexDirection: string;
+
+    HasFlexWrap: Boolean;
+    FlexWrap: string;
+
+    HasJustifyContent: Boolean;
+    JustifyContent: string;
+
+    HasAlignItems: Boolean;
+    AlignItems: string;
+
+    HasAlignSelf: Boolean;
+    AlignSelf: string;
+
+    HasFlexGrow: Boolean;
+    FlexGrow: Double;
+
+    HasFlexShrink: Boolean;
+    FlexShrink: Double;
+
+    HasFlexBasis: Boolean;
+    FlexBasis: Double;
+
+    HasGap: Boolean;
+    Gap: Double;
+
+    HasMarginLeft: Boolean;
+    MarginLeft: Double;
+    HasMarginTop: Boolean;
+    MarginTop: Double;
+    HasMarginRight: Boolean;
+    MarginRight: Double;
+    HasMarginBottom: Boolean;
+    MarginBottom: Double;
+
     procedure Init();
     procedure Merge(const Other: TFtWidgetStyle);
   end;
@@ -170,6 +209,35 @@ begin
   TransitionProp := '';
   TransitionDurationMs := 0;
   TransitionTiming := 'ease';
+
+  HasDisplay := False;
+  Display := '';
+  HasFlexDirection := False;
+  FlexDirection := '';
+  HasFlexWrap := False;
+  FlexWrap := '';
+  HasJustifyContent := False;
+  JustifyContent := '';
+  HasAlignItems := False;
+  AlignItems := '';
+  HasAlignSelf := False;
+  AlignSelf := '';
+  HasFlexGrow := False;
+  FlexGrow := 0.0;
+  HasFlexShrink := False;
+  FlexShrink := 1.0;
+  HasFlexBasis := False;
+  FlexBasis := -1.0;
+  HasGap := False;
+  Gap := 0.0;
+  HasMarginLeft := False;
+  MarginLeft := 0.0;
+  HasMarginTop := False;
+  MarginTop := 0.0;
+  HasMarginRight := False;
+  MarginRight := 0.0;
+  HasMarginBottom := False;
+  MarginBottom := 0.0;
 end;
 
 procedure TFtWidgetStyle.Merge(const Other: TFtWidgetStyle);
@@ -232,6 +300,76 @@ begin
     TransitionProp := Other.TransitionProp;
     TransitionDurationMs := Other.TransitionDurationMs;
     TransitionTiming := Other.TransitionTiming;
+  end;
+  if Other.HasDisplay then
+  begin
+    HasDisplay := True;
+    Display := Other.Display;
+  end;
+  if Other.HasFlexDirection then
+  begin
+    HasFlexDirection := True;
+    FlexDirection := Other.FlexDirection;
+  end;
+  if Other.HasFlexWrap then
+  begin
+    HasFlexWrap := True;
+    FlexWrap := Other.FlexWrap;
+  end;
+  if Other.HasJustifyContent then
+  begin
+    HasJustifyContent := True;
+    JustifyContent := Other.JustifyContent;
+  end;
+  if Other.HasAlignItems then
+  begin
+    HasAlignItems := True;
+    AlignItems := Other.AlignItems;
+  end;
+  if Other.HasAlignSelf then
+  begin
+    HasAlignSelf := True;
+    AlignSelf := Other.AlignSelf;
+  end;
+  if Other.HasFlexGrow then
+  begin
+    HasFlexGrow := True;
+    FlexGrow := Other.FlexGrow;
+  end;
+  if Other.HasFlexShrink then
+  begin
+    HasFlexShrink := True;
+    FlexShrink := Other.FlexShrink;
+  end;
+  if Other.HasFlexBasis then
+  begin
+    HasFlexBasis := True;
+    FlexBasis := Other.FlexBasis;
+  end;
+  if Other.HasGap then
+  begin
+    HasGap := True;
+    Gap := Other.Gap;
+  end;
+  if Other.HasMarginLeft then
+  begin
+    HasMarginLeft := True;
+    MarginLeft := Other.MarginLeft;
+  end;
+  if Other.HasMarginTop then
+  begin
+    HasMarginTop := True;
+    MarginTop := Other.MarginTop;
+  end;
+  if Other.HasMarginRight then
+  begin
+    HasMarginRight := True;
+    MarginRight := Other.MarginRight;
+  end;
+  if Other.HasMarginBottom then
+  begin
+    HasMarginBottom := True;
+    MarginBottom := Other.MarginBottom;
   end;
 end;
 
@@ -1116,6 +1254,161 @@ begin
   end;
 end;
 
+procedure ParseMarginShorthand(const S: string; var AStyle: TFtWidgetStyle);
+var
+  parts: TStringList;
+  vals: array of Double;
+  i: Integer;
+  lenVal: Double;
+  tok: string;
+begin
+  parts := TStringList.Create();
+  try
+    parts.Delimiter := ' ';
+    parts.StrictDelimiter := False;
+    parts.DelimitedText := S;
+    SetLength(vals, 0);
+    for i := 0 to parts.Count - 1 do
+    begin
+      tok := Trim(parts[i]);
+      if tok = '' then Continue;
+      if FtParseLength(tok, lenVal) then
+      begin
+        SetLength(vals, Length(vals) + 1);
+        vals[High(vals)] := lenVal;
+      end;
+    end;
+
+    case Length(vals) of
+      1:
+      begin
+        AStyle.HasMarginTop := True; AStyle.MarginTop := vals[0];
+        AStyle.HasMarginRight := True; AStyle.MarginRight := vals[0];
+        AStyle.HasMarginBottom := True; AStyle.MarginBottom := vals[0];
+        AStyle.HasMarginLeft := True; AStyle.MarginLeft := vals[0];
+      end;
+      2:
+      begin
+        AStyle.HasMarginTop := True; AStyle.MarginTop := vals[0];
+        AStyle.HasMarginBottom := True; AStyle.MarginBottom := vals[0];
+        AStyle.HasMarginRight := True; AStyle.MarginRight := vals[1];
+        AStyle.HasMarginLeft := True; AStyle.MarginLeft := vals[1];
+      end;
+      3:
+      begin
+        AStyle.HasMarginTop := True; AStyle.MarginTop := vals[0];
+        AStyle.HasMarginRight := True; AStyle.MarginRight := vals[1];
+        AStyle.HasMarginLeft := True; AStyle.MarginLeft := vals[1];
+        AStyle.HasMarginBottom := True; AStyle.MarginBottom := vals[2];
+      end;
+      4:
+      begin
+        AStyle.HasMarginTop := True; AStyle.MarginTop := vals[0];
+        AStyle.HasMarginRight := True; AStyle.MarginRight := vals[1];
+        AStyle.HasMarginBottom := True; AStyle.MarginBottom := vals[2];
+        AStyle.HasMarginLeft := True; AStyle.MarginLeft := vals[3];
+      end;
+    end;
+  finally
+    parts.Free();
+  end;
+end;
+
+procedure ParseFlexShorthand(const S: string; var AStyle: TFtWidgetStyle);
+var
+  parts: TStringList;
+  tokens: array of string;
+  i: Integer;
+  tok: string;
+  numVal, lenVal: Double;
+begin
+  if SameText(Trim(S), 'none') then
+  begin
+    AStyle.HasFlexGrow := True; AStyle.FlexGrow := 0.0;
+    AStyle.HasFlexShrink := True; AStyle.FlexShrink := 0.0;
+    AStyle.HasFlexBasis := True; AStyle.FlexBasis := -1.0;
+    Exit;
+  end;
+  if SameText(Trim(S), 'auto') then
+  begin
+    AStyle.HasFlexGrow := True; AStyle.FlexGrow := 1.0;
+    AStyle.HasFlexShrink := True; AStyle.FlexShrink := 1.0;
+    AStyle.HasFlexBasis := True; AStyle.FlexBasis := -1.0;
+    Exit;
+  end;
+
+  parts := TStringList.Create();
+  try
+    parts.Delimiter := ' ';
+    parts.StrictDelimiter := False;
+    parts.DelimitedText := S;
+    SetLength(tokens, 0);
+    for i := 0 to parts.Count - 1 do
+    begin
+      tok := Trim(parts[i]);
+      if tok <> '' then
+      begin
+        SetLength(tokens, Length(tokens) + 1);
+        tokens[High(tokens)] := tok;
+      end;
+    end;
+
+    case Length(tokens) of
+      1:
+      begin
+        if TryStrToFloat(tokens[0], numVal) then
+        begin
+          AStyle.HasFlexGrow := True; AStyle.FlexGrow := numVal;
+          AStyle.HasFlexShrink := True; AStyle.FlexShrink := 1.0;
+          AStyle.HasFlexBasis := True; AStyle.FlexBasis := 0.0;
+        end
+        else if FtParseLength(tokens[0], lenVal) then
+        begin
+          AStyle.HasFlexGrow := True; AStyle.FlexGrow := 1.0;
+          AStyle.HasFlexShrink := True; AStyle.FlexShrink := 1.0;
+          AStyle.HasFlexBasis := True; AStyle.FlexBasis := lenVal;
+        end;
+      end;
+      2:
+      begin
+        if TryStrToFloat(tokens[0], numVal) then
+        begin
+          AStyle.HasFlexGrow := True; AStyle.FlexGrow := numVal;
+        end;
+        if TryStrToFloat(tokens[1], numVal) then
+        begin
+          AStyle.HasFlexShrink := True; AStyle.FlexShrink := numVal;
+        end
+        else if FtParseLength(tokens[1], lenVal) then
+        begin
+          AStyle.HasFlexBasis := True; AStyle.FlexBasis := lenVal;
+        end;
+      end;
+      3:
+      begin
+        if TryStrToFloat(tokens[0], numVal) then
+        begin
+          AStyle.HasFlexGrow := True; AStyle.FlexGrow := numVal;
+        end;
+        if TryStrToFloat(tokens[1], numVal) then
+        begin
+          AStyle.HasFlexShrink := True; AStyle.FlexShrink := numVal;
+        end;
+        if SameText(tokens[2], 'auto') then
+        begin
+          AStyle.HasFlexBasis := True; AStyle.FlexBasis := -1.0;
+        end
+        else if FtParseLength(tokens[2], lenVal) then
+        begin
+          AStyle.HasFlexBasis := True; AStyle.FlexBasis := lenVal;
+        end;
+      end;
+    end;
+  finally
+    parts.Free();
+  end;
+end;
+
 procedure TFtStyleSheet.ApplyStyleBlock(ABlock: TCSSStyleBlock; var AStyle: TFtWidgetStyle; const AClasses: string; const APseudo: string);
 var
   decl: TCSSStyleDeclaration;
@@ -1392,6 +1685,229 @@ begin
   begin
     AStyle.HasTransition := True;
     AStyle.TransitionTiming := LowerCase(Trim(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo)));
+  end;
+
+  // Flexbox: display
+  decl := ABlock.GetDeclaration(cpiDisplay);
+  if decl = nil then decl := ABlock.GetCustom('display');
+  if decl <> nil then
+  begin
+    resolvedStr := LowerCase(Trim(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo)));
+    if (resolvedStr = 'flex') or (resolvedStr = 'block') or (resolvedStr = 'none') then
+    begin
+      AStyle.HasDisplay := True;
+      AStyle.Display := resolvedStr;
+    end;
+  end;
+
+  // Flexbox: flex-direction
+  decl := ABlock.GetDeclaration(cpiFlexDirection);
+  if decl = nil then decl := ABlock.GetCustom('flex-direction');
+  if decl <> nil then
+  begin
+    resolvedStr := LowerCase(Trim(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo)));
+    AStyle.HasFlexDirection := True;
+    AStyle.FlexDirection := resolvedStr;
+  end;
+
+  // Flexbox: flex-wrap
+  decl := ABlock.GetDeclaration(cpiFlexWrap);
+  if decl = nil then decl := ABlock.GetCustom('flex-wrap');
+  if decl <> nil then
+  begin
+    resolvedStr := LowerCase(Trim(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo)));
+    AStyle.HasFlexWrap := True;
+    AStyle.FlexWrap := resolvedStr;
+  end;
+
+  // Flexbox: justify-content
+  decl := ABlock.GetDeclaration(cpiJustifyContent);
+  if decl = nil then decl := ABlock.GetCustom('justify-content');
+  if decl <> nil then
+  begin
+    resolvedStr := LowerCase(Trim(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo)));
+    AStyle.HasJustifyContent := True;
+    AStyle.JustifyContent := resolvedStr;
+  end;
+
+  // Flexbox: align-items
+  decl := ABlock.GetDeclaration(cpiAlignItems);
+  if decl = nil then decl := ABlock.GetCustom('align-items');
+  if decl <> nil then
+  begin
+    resolvedStr := LowerCase(Trim(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo)));
+    AStyle.HasAlignItems := True;
+    AStyle.AlignItems := resolvedStr;
+  end;
+
+  // Flexbox: align-self
+  decl := ABlock.GetCustom('align-self');
+  if decl <> nil then
+  begin
+    resolvedStr := LowerCase(Trim(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo)));
+    AStyle.HasAlignSelf := True;
+    AStyle.AlignSelf := resolvedStr;
+  end;
+
+  // Flexbox: gap
+  decl := ABlock.GetCustom('gap');
+  if decl <> nil then
+  begin
+    resolvedStr := ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo);
+    if FtParseLength(resolvedStr, lenVal) then
+    begin
+      AStyle.HasGap := True;
+      AStyle.Gap := lenVal;
+    end;
+  end;
+
+  // Flexbox: flex-grow
+  decl := ABlock.GetDeclaration(cpiFlexGrow);
+  if decl = nil then decl := ABlock.GetCustom('flex-grow');
+  if decl <> nil then
+  begin
+    if decl.Value.Kind = cvkNumber then
+    begin
+      AStyle.HasFlexGrow := True;
+      AStyle.FlexGrow := decl.Value.Number;
+    end
+    else
+    begin
+      resolvedStr := ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo);
+      if TryStrToFloat(resolvedStr, lenVal) then
+      begin
+        AStyle.HasFlexGrow := True;
+        AStyle.FlexGrow := lenVal;
+      end;
+    end;
+  end;
+
+  // Flexbox: flex-shrink
+  decl := ABlock.GetDeclaration(cpiFlexShrink);
+  if decl = nil then decl := ABlock.GetCustom('flex-shrink');
+  if decl <> nil then
+  begin
+    if decl.Value.Kind = cvkNumber then
+    begin
+      AStyle.HasFlexShrink := True;
+      AStyle.FlexShrink := decl.Value.Number;
+    end
+    else
+    begin
+      resolvedStr := ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo);
+      if TryStrToFloat(resolvedStr, lenVal) then
+      begin
+        AStyle.HasFlexShrink := True;
+        AStyle.FlexShrink := lenVal;
+      end;
+    end;
+  end;
+
+  // Flexbox: flex-basis
+  decl := ABlock.GetDeclaration(cpiFlexBasis);
+  if decl = nil then decl := ABlock.GetCustom('flex-basis');
+  if decl <> nil then
+  begin
+    if decl.Value.Kind = cvkLength then
+    begin
+      AStyle.HasFlexBasis := True;
+      AStyle.FlexBasis := decl.Value.Length.ToPixels();
+    end
+    else
+    begin
+      resolvedStr := LowerCase(Trim(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo)));
+      if resolvedStr = 'auto' then
+      begin
+        AStyle.HasFlexBasis := True;
+        AStyle.FlexBasis := -1.0;
+      end
+      else if FtParseLength(resolvedStr, lenVal) then
+      begin
+        AStyle.HasFlexBasis := True;
+        AStyle.FlexBasis := lenVal;
+      end;
+    end;
+  end;
+
+  // Flexbox: flex shorthand
+  decl := ABlock.GetCustom('flex');
+  if decl <> nil then
+  begin
+    resolvedStr := Trim(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo));
+    ParseFlexShorthand(resolvedStr, AStyle);
+  end;
+
+  // Margins
+  decl := ABlock.GetDeclaration(cpiMargin);
+  if decl = nil then decl := ABlock.GetCustom('margin');
+  if decl <> nil then
+  begin
+    resolvedStr := Trim(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo));
+    ParseMarginShorthand(resolvedStr, AStyle);
+  end;
+
+  decl := ABlock.GetDeclaration(cpiMarginLeft);
+  if decl = nil then decl := ABlock.GetCustom('margin-left');
+  if decl <> nil then
+  begin
+    if decl.Value.Kind = cvkLength then
+    begin
+      AStyle.HasMarginLeft := True;
+      AStyle.MarginLeft := decl.Value.Length.ToPixels();
+    end
+    else if FtParseLength(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo), lenVal) then
+    begin
+      AStyle.HasMarginLeft := True;
+      AStyle.MarginLeft := lenVal;
+    end;
+  end;
+
+  decl := ABlock.GetDeclaration(cpiMarginRight);
+  if decl = nil then decl := ABlock.GetCustom('margin-right');
+  if decl <> nil then
+  begin
+    if decl.Value.Kind = cvkLength then
+    begin
+      AStyle.HasMarginRight := True;
+      AStyle.MarginRight := decl.Value.Length.ToPixels();
+    end
+    else if FtParseLength(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo), lenVal) then
+    begin
+      AStyle.HasMarginRight := True;
+      AStyle.MarginRight := lenVal;
+    end;
+  end;
+
+  decl := ABlock.GetDeclaration(cpiMarginTop);
+  if decl = nil then decl := ABlock.GetCustom('margin-top');
+  if decl <> nil then
+  begin
+    if decl.Value.Kind = cvkLength then
+    begin
+      AStyle.HasMarginTop := True;
+      AStyle.MarginTop := decl.Value.Length.ToPixels();
+    end
+    else if FtParseLength(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo), lenVal) then
+    begin
+      AStyle.HasMarginTop := True;
+      AStyle.MarginTop := lenVal;
+    end;
+  end;
+
+  decl := ABlock.GetDeclaration(cpiMarginBottom);
+  if decl = nil then decl := ABlock.GetCustom('margin-bottom');
+  if decl <> nil then
+  begin
+    if decl.Value.Kind = cvkLength then
+    begin
+      AStyle.HasMarginBottom := True;
+      AStyle.MarginBottom := decl.Value.Length.ToPixels();
+    end
+    else if FtParseLength(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo), lenVal) then
+    begin
+      AStyle.HasMarginBottom := True;
+      AStyle.MarginBottom := lenVal;
+    end;
   end;
 end;
 

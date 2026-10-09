@@ -1148,10 +1148,7 @@ begin
     strText := '';
   AdjustChildCoordinates(parent, x, y);
   Result := Pointer(TFtText.Create(TFtWidget(parent), strText));
-  TFtWidget(Result).X := x;
-  TFtWidget(Result).Y := y;
-  TFtWidget(Result).Width := w;
-  TFtWidget(Result).Height := h;
+  TFtWidget(Result).SetBounds(x, y, w, h);
   if Assigned(parent) and (TObject(parent) is TFtContainer) then
     TFtContainer(parent).UpdateScrollBars();
 end;
@@ -2265,10 +2262,7 @@ var
   fb: TFtFlexBox;
 begin
   fb := TFtFlexBox.Create(TFtWidget(parent));
-  fb.X := x;
-  fb.Y := y;
-  fb.Width := w;
-  fb.Height := h;
+  fb.SetBounds(x, y, w, h);
   if direction = 1 then
     fb.Direction := ftfdColumn
   else
@@ -2281,10 +2275,7 @@ var
   hb: TFtHBox;
 begin
   hb := TFtHBox.Create(TFtWidget(parent));
-  hb.X := x;
-  hb.Y := y;
-  hb.Width := w;
-  hb.Height := h;
+  hb.SetBounds(x, y, w, h);
   Result := hb;
 end;
 
@@ -2293,10 +2284,7 @@ var
   vb: TFtVBox;
 begin
   vb := TFtVBox.Create(TFtWidget(parent));
-  vb.X := x;
-  vb.Y := y;
-  vb.Width := w;
-  vb.Height := h;
+  vb.SetBounds(x, y, w, h);
   Result := vb;
 end;
 
@@ -2321,6 +2309,25 @@ begin
   Result := 0;
   if Assigned(flexbox) and (TObject(flexbox) is TFtFlexBox) then
     Result := Ord(TFtFlexBox(flexbox).Direction);
+end;
+
+procedure ft_flexbox_set_wrap(flexbox: Pointer; wrap: cint32); cdecl; export;
+begin
+  if Assigned(flexbox) and (TObject(flexbox) is TFtFlexBox) then
+  begin
+    case wrap of
+      0: TFtFlexBox(flexbox).Wrap := ftfwNoWrap;
+      1: TFtFlexBox(flexbox).Wrap := ftfwWrap;
+      2: TFtFlexBox(flexbox).Wrap := ftfwWrapReverse;
+    end;
+  end;
+end;
+
+function ft_flexbox_get_wrap(flexbox: Pointer): cint32; cdecl; export;
+begin
+  Result := 0;
+  if Assigned(flexbox) and (TObject(flexbox) is TFtFlexBox) then
+    Result := Ord(TFtFlexBox(flexbox).Wrap);
 end;
 
 procedure ft_flexbox_set_justify_content(flexbox: Pointer; justify: cint32); cdecl; export;
@@ -5875,6 +5882,8 @@ exports
   ft_spacer_create,
   ft_flexbox_set_direction,
   ft_flexbox_get_direction,
+  ft_flexbox_set_wrap,
+  ft_flexbox_get_wrap,
   ft_flexbox_set_justify_content,
   ft_flexbox_get_justify_content,
   ft_flexbox_set_align_items,

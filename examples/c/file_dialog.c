@@ -80,32 +80,57 @@ static void on_dark_toggle(FtWidget widget, int32_t checked, void* user_data) {
 int main(void) {
     ft_init();
 
-    void* window = ft_window_create(540, 240, "File Dialog Demo");
-    ft_widget_show(window);
+    void* window = ft_window_create(560, 260, "File Dialog Demo");
+    /* Root VBox Container */
+    FtWidget root_vbox = ft_vbox_create(window, 0, 0, 560, 260);
+    ft_flexbox_set_gap(root_vbox, 14.0);
+    ft_container_set_padding(root_vbox, 20, 20);
+    ft_window_set_layout(window, root_vbox);
 
-    /* Heading */
-    ft_text_create(window, 20, 20, 340, 32, "File Dialog Demo");
+    /* Row 1: Header (Title + Spacer + Dark Mode Switch) */
+    FtWidget top_hbox = ft_hbox_create(root_vbox, 0, 0, 520, 32);
+    ft_widget_set_flex_grow(top_hbox, 0.0);
+    ft_flexbox_set_align_items(top_hbox, FT_ALIGN_CENTER);
 
-    /* Dark Mode Switch */
-    FtWidget sw_dark = ft_switch_create(window, 390, 22, 130, 26, "Dark Mode");
+    FtWidget title_lbl = ft_text_create(top_hbox, 0, 0, 180, 30, "File Dialog Demo");
+    ft_widget_set_flex_grow(title_lbl, 0.0);
+
+    FtWidget title_spacer = ft_spacer_create(top_hbox);
+    ft_widget_set_flex_grow(title_spacer, 1.0);
+
+    FtWidget sw_dark = ft_switch_create(top_hbox, 0, 0, 130, 26, "Dark Mode");
+    ft_widget_set_flex_grow(sw_dark, 0.0);
     ft_switch_set_checked(sw_dark, ft_theme_get_dark_mode());
     ft_switch_on_toggle(sw_dark, on_dark_toggle, NULL);
 
-    /* Result label */
-    g_lbl_result = ft_text_create(window, 20, 66, 500, 28, "No file selected yet.");
+    /* Row 2: Result Label */
+    g_lbl_result = ft_text_create(root_vbox, 0, 0, 520, 28, "No file selected yet.");
+    ft_widget_set_flex_grow(g_lbl_result, 0.0);
 
-    /* Buttons */
-    g_btn_open = ft_button_create(window, 20, 118, 150, 40, "Open File...");
+    /* Row 3: Action Buttons (stretching evenly with flex-grow: 1.0) */
+    FtWidget btn_hbox = ft_hbox_create(root_vbox, 0, 0, 520, 42);
+    ft_widget_set_flex_grow(btn_hbox, 0.0);
+    ft_flexbox_set_gap(btn_hbox, 12.0);
+
+    g_btn_open = ft_button_create(btn_hbox, 0, 0, 150, 40, "Open File...");
+    ft_widget_set_flex_grow(g_btn_open, 1.0);
     ft_button_on_click(g_btn_open, on_btn_open, NULL);
 
-    g_btn_save = ft_button_create(window, 185, 118, 150, 40, "Save File...");
+    g_btn_save = ft_button_create(btn_hbox, 0, 0, 150, 40, "Save File...");
+    ft_widget_set_flex_grow(g_btn_save, 1.0);
     ft_button_on_click(g_btn_save, on_btn_save, NULL);
 
-    g_btn_folder = ft_button_create(window, 350, 118, 170, 40, "Select Folder...");
+    g_btn_folder = ft_button_create(btn_hbox, 0, 0, 170, 40, "Select Folder...");
+    ft_widget_set_flex_grow(g_btn_folder, 1.0);
     ft_button_on_click(g_btn_folder, on_btn_folder, NULL);
 
-    /* Footer Hint */
-    ft_text_create(window, 20, 180, 500, 24, "Toggle Dark Mode above to launch file dialogs in dark or light theme.");
+    /* Row 4: Footer Hint */
+    FtWidget hint_lbl = ft_text_create(root_vbox, 0, 0, 520, 24, "Toggle Dark Mode above to launch file dialogs in dark or light theme.");
+    ft_widget_set_flex_grow(hint_lbl, 0.0);
+
+    /* Initial layout calculation */
+    ft_flexbox_update_layout(root_vbox);
+    ft_widget_show(window);
 
     ft_main_loop();
 

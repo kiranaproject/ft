@@ -23,6 +23,9 @@ type
     procedure TestJustifyContentCenterAndEnd();
     procedure TestSpacer();
     procedure TestWindowRootLayoutReflow();
+    procedure TestHBoxFlexWrap();
+    procedure TestHBoxFlexWrapReverse();
+    procedure TestCssFlexboxProperties();
   end;
 
   TFtIconsTest = class(TTestCase)
@@ -2888,6 +2891,113 @@ begin
     AssertEquals('Resized BtnInBottom Y (nested)', 565, btnInBottom.Y);
     AssertEquals('Resized CenterPanel Height', 520, centerPanel.Height);
     AssertEquals('Resized CenterPanel Width', 700, centerPanel.Width);
+  finally
+    win.Free();
+  end;
+end;
+
+procedure TFtLayoutsTest.TestHBoxFlexWrap();
+var
+  win: TFtWindow;
+  hbox: TFtHBox;
+  b1, b2, b3, b4: TFtButton;
+begin
+  win := TFtWindow.Create(200, 200, 'WrapWin');
+  try
+    hbox := TFtHBox.Create(win);
+    hbox.SetBounds(0, 0, 200, 200);
+    hbox.Wrap := ftfwWrap;
+    hbox.Gap := 10.0;
+
+    b1 := TFtButton.Create(hbox);
+    b1.SetBounds(0, 0, 80, 30);
+    b2 := TFtButton.Create(hbox);
+    b2.SetBounds(0, 0, 80, 30);
+    b3 := TFtButton.Create(hbox);
+    b3.SetBounds(0, 0, 80, 40);
+    b4 := TFtButton.Create(hbox);
+    b4.SetBounds(0, 0, 80, 25);
+
+    hbox.UpdateLayout();
+
+    // Line 1:
+    AssertEquals('b1 X', 0, b1.X);
+    AssertEquals('b1 Y', 0, b1.Y);
+    AssertEquals('b2 X', 90, b2.X);
+    AssertEquals('b2 Y', 0, b2.Y);
+
+    // Line 2 (Y starts after line 1 cross size 30 + gap 10 = 40):
+    AssertEquals('b3 X', 0, b3.X);
+    AssertEquals('b3 Y', 40, b3.Y);
+    AssertEquals('b4 X', 90, b4.X);
+    AssertEquals('b4 Y', 40, b4.Y);
+  finally
+    win.Free();
+  end;
+end;
+
+procedure TFtLayoutsTest.TestHBoxFlexWrapReverse();
+var
+  win: TFtWindow;
+  hbox: TFtHBox;
+  b1, b2: TFtButton;
+begin
+  win := TFtWindow.Create(200, 200, 'WrapRevWin');
+  try
+    hbox := TFtHBox.Create(win);
+    hbox.SetBounds(0, 0, 200, 200);
+    hbox.Wrap := ftfwWrapReverse;
+    hbox.Gap := 10.0;
+
+    b1 := TFtButton.Create(hbox);
+    b1.SetBounds(0, 0, 120, 30);
+    b2 := TFtButton.Create(hbox);
+    b2.SetBounds(0, 0, 120, 40);
+
+    hbox.UpdateLayout();
+
+    // Total cross = 30 + 10 + 40 = 80. Line 0 placed at bottom (Y=50), Line 1 at top (Y=0)
+    AssertEquals('b1 Y in wrap-reverse', 50, b1.Y);
+    AssertEquals('b2 Y in wrap-reverse', 0, b2.Y);
+  finally
+    win.Free();
+  end;
+end;
+
+procedure TFtLayoutsTest.TestCssFlexboxProperties();
+var
+  win: TFtWindow;
+  box: TFtFlexBox;
+  b1, b2: TFtButton;
+begin
+  win := TFtWindow.Create(400, 300, 'CssFlexWin');
+  try
+    box := TFtFlexBox.Create(win);
+    box.SetBounds(0, 0, 400, 300);
+    box.Direction := ftfdRow;
+    box.InlineStyle := 'flex-direction: column; gap: 15px; align-items: center;';
+
+    b1 := TFtButton.Create(box);
+    b1.SetBounds(0, 0, 100, 30);
+    b1.InlineStyle := 'margin: 5px;';
+
+    b2 := TFtButton.Create(box);
+    b2.SetBounds(0, 0, 120, 40);
+
+    box.UpdateLayout();
+
+    AssertEquals('CSS flex-direction column', Ord(ftfdColumn), Ord(box.Direction));
+    AssertEquals('CSS gap 15', 15.0, box.Gap);
+    AssertEquals('CSS align-items center', Ord(ftaiCenter), Ord(box.AlignItems));
+
+    // In column mode:
+    // b1: Y = 5, X = 150
+    AssertEquals('b1 Y with margin', 5, b1.Y);
+    AssertEquals('b1 X centered with margin', 150, b1.X);
+
+    // b2: Y = 5 + 30 + 5 + 15 = 55, X = 140
+    AssertEquals('b2 Y', 55, b2.Y);
+    AssertEquals('b2 X centered', 140, b2.X);
   finally
     win.Free();
   end;

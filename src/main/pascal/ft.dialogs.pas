@@ -11,7 +11,7 @@ uses
   Ft.Widget, Ft.Widget.Buttons, Ft.Widget.Entries, Ft.Widget.Texts,
   Ft.Widget.Containers, Ft.Widget.Splitters, Ft.Widget.TreeViews,
   Ft.Widget.Tables, Ft.Widget.Selectors, Ft.Widget.PathBars,
-  Ft.Window, Ft.Theme, Ft.Icons;
+  Ft.Widget.Layouts, Ft.Window, Ft.Theme, Ft.Icons;
 
 type
   TFtDialogType = (
@@ -30,6 +30,12 @@ type
     FFilter:          string;
     FDefaultName:     string;
     FShowHiddenFiles: Boolean;
+
+    { Layout containers }
+    FRightVBox:    TFtVBox;
+    FNavHBox:      TFtHBox;
+    FNameHBox:     TFtHBox;
+    FBottomHBox:   TFtHBox;
 
     { Navigation header }
     FBtnBack:      TFtButton;
@@ -370,8 +376,19 @@ begin
   FPlacesTree.OnSelectCb := @CbPlaceSelect;
   FPlacesTree.UserData := Self;
 
-  { ── Right Pane Controls: Navigation header on top of file list ── }
-  FBtnBack := TFtButton.Create(FWindow);
+  { ── Right Content VBox ── }
+  FRightVBox := TFtVBox.Create(FWindow);
+  FRightVBox.Gap := 8.0;
+
+  { ── Row 1: Navigation & Actions toolbar ── }
+  FNavHBox := TFtHBox.Create(FRightVBox);
+  FNavHBox.Height := 30;
+  FNavHBox.FlexGrow := 0.0;
+  FNavHBox.Gap := 4.0;
+  FNavHBox.AlignItems := ftaiCenter;
+
+  FBtnBack := TFtButton.Create(FNavHBox);
+  FBtnBack.SetBounds(0, 0, 30, 30);
   FBtnBack.Caption := '';
   FBtnBack.Hint := 'Go Back';
   FBtnBack.IconPosition := ftbipOnly;
@@ -381,7 +398,8 @@ begin
   FBtnBack.OnClick := @CbBtnBack;
   FBtnBack.UserData := Self;
 
-  FBtnForward := TFtButton.Create(FWindow);
+  FBtnForward := TFtButton.Create(FNavHBox);
+  FBtnForward.SetBounds(0, 0, 30, 30);
   FBtnForward.Caption := '';
   FBtnForward.Hint := 'Go Forward';
   FBtnForward.IconPosition := ftbipOnly;
@@ -391,7 +409,8 @@ begin
   FBtnForward.OnClick := @CbBtnForward;
   FBtnForward.UserData := Self;
 
-  FBtnUp := TFtButton.Create(FWindow);
+  FBtnUp := TFtButton.Create(FNavHBox);
+  FBtnUp.SetBounds(0, 0, 30, 30);
   FBtnUp.Caption := '';
   FBtnUp.Hint := 'Go Up';
   FBtnUp.IconPosition := ftbipOnly;
@@ -401,7 +420,25 @@ begin
   FBtnUp.OnClick := @CbBtnUp;
   FBtnUp.UserData := Self;
 
-  FBtnHidden := TFtButton.Create(FWindow);
+  FPathBar := TFtPathBar.Create(FNavHBox, FCurrentDir);
+  FPathBar.Height := 30;
+  FPathBar.FlexGrow := 1.0;
+  FPathBar.OnNavigate := @CbPathBarNavigate;
+  FPathBar.UserData := Self;
+
+  FBtnNewFolder := TFtButton.Create(FNavHBox);
+  FBtnNewFolder.SetBounds(0, 0, 30, 30);
+  FBtnNewFolder.Caption := '';
+  FBtnNewFolder.Hint := 'New Folder';
+  FBtnNewFolder.IconPosition := ftbipOnly;
+  FBtnNewFolder.IconWidth := 16;
+  FBtnNewFolder.IconHeight := 16;
+  FBtnNewFolder.LoadIconFromSVG(GetNewFolderSvg(FtGetDarkMode()));
+  FBtnNewFolder.OnClick := @CbBtnNewFolder;
+  FBtnNewFolder.UserData := Self;
+
+  FBtnHidden := TFtButton.Create(FNavHBox);
+  FBtnHidden.SetBounds(0, 0, 30, 30);
   FBtnHidden.Caption := '';
   FBtnHidden.Hint := 'Show Hidden Files';
   FBtnHidden.CanToggle := True;
@@ -413,34 +450,31 @@ begin
   FBtnHidden.OnToggle := @CbBtnHidden;
   FBtnHidden.UserData := Self;
 
-  FBtnNewFolder := TFtButton.Create(FWindow);
-  FBtnNewFolder.Caption := '';
-  FBtnNewFolder.Hint := 'New Folder';
-  FBtnNewFolder.IconPosition := ftbipOnly;
-  FBtnNewFolder.IconWidth := 16;
-  FBtnNewFolder.IconHeight := 16;
-  FBtnNewFolder.LoadIconFromSVG(GetNewFolderSvg(FtGetDarkMode()));
-  FBtnNewFolder.OnClick := @CbBtnNewFolder;
-  FBtnNewFolder.UserData := Self;
+  { ── Row 2: File Name input on top of file list ── }
+  FNameHBox := TFtHBox.Create(FRightVBox);
+  FNameHBox.Height := 30;
+  FNameHBox.FlexGrow := 0.0;
+  FNameHBox.Gap := 8.0;
+  FNameHBox.AlignItems := ftaiCenter;
 
-  FPathBar := TFtPathBar.Create(FWindow, FCurrentDir);
-  FPathBar.OnNavigate := @CbPathBarNavigate;
-  FPathBar.UserData := Self;
-
-  { ── File Name input (also on the right, on top of file list) ── }
-  FLabelName := TFtLabel.Create(FWindow);
+  FLabelName := TFtLabel.Create(FNameHBox);
   case FDialogType of
     fdtSaveFile:     FLabelName.Text := 'Save as:';
     fdtSelectFolder: FLabelName.Text := 'Folder:';
     else             FLabelName.Text := 'File name:';
   end;
+  FLabelName.SetBounds(0, 0, 76, 24);
+  FLabelName.FlexGrow := 0.0;
 
-  FEntryName := TFtEntry.Create(FWindow, FDefaultName);
+  FEntryName := TFtEntry.Create(FNameHBox, FDefaultName);
+  FEntryName.Height := 30;
+  FEntryName.FlexGrow := 1.0;
   FEntryName.OnSubmit := @CbEntrySubmit;
   FEntryName.UserData := Self;
 
-  { ── File Table ── }
-  FFileTable := TFtTable.Create(FWindow);
+  { ── Row 3: File Table ── }
+  FFileTable := TFtTable.Create(FRightVBox);
+  FFileTable.FlexGrow := 1.0;
   FFileTable.ZebraStriping := True;
   FFileTable.ShowGridLines := False;
   FFileTable.OnSelectRowCb := @CbFileSelect;
@@ -454,25 +488,37 @@ begin
   FFileTable.AddColumn('Modified', 130, taLeft);
   FFileTable.AddColumn('Type', 80, taLeft);
 
-  { ── Bottom bar ── }
-  FBtnCancel := TFtButton.Create(FWindow);
+  { ── Row 4: Bottom bar ── }
+  FBottomHBox := TFtHBox.Create(FRightVBox);
+  FBottomHBox.Height := 32;
+  FBottomHBox.FlexGrow := 0.0;
+  FBottomHBox.Gap := 8.0;
+  FBottomHBox.AlignItems := ftaiCenter;
+
+  { Filter row }
+  FLabelType := TFtLabel.Create(FBottomHBox);
+  FLabelType.Text := 'Files of type:';
+  FLabelType.SetBounds(0, 0, 76, 24);
+  FLabelType.Visible := False;
+
+  FCmbFilter := TFtComboBox.Create(FBottomHBox);
+  FCmbFilter.SetBounds(0, 0, 160, 30);
+  FCmbFilter.Visible := False;
+  FCmbFilter.AddItem('All Files (*.*)');
+
+  TFtSpacer.Create(FBottomHBox).FlexGrow := 1.0;
+
+  FBtnCancel := TFtButton.Create(FBottomHBox);
   FBtnCancel.Caption := 'Cancel';
+  FBtnCancel.SetBounds(0, 0, 80, 30);
   FBtnCancel.OnClick := @CbBtnCancel;
   FBtnCancel.UserData := Self;
 
-  FBtnAction := TFtButton.Create(FWindow);
+  FBtnAction := TFtButton.Create(FBottomHBox);
   FBtnAction.Caption := actionCaption;
+  FBtnAction.SetBounds(0, 0, 84, 30);
   FBtnAction.OnClick := @CbBtnAction;
   FBtnAction.UserData := Self;
-
-  { Filter row }
-  FLabelType := TFtLabel.Create(FWindow);
-  FLabelType.Text := 'Files of type:';
-  FLabelType.Visible := False;
-
-  FCmbFilter := TFtComboBox.Create(FWindow);
-  FCmbFilter.Visible := False;
-  FCmbFilter.AddItem('All Files (*.*)');
 
   { Apply initial positions and layout }
   UpdateLayout();
@@ -809,86 +855,15 @@ begin
   FSplitter.Width := W;
   FSplitter.Height := H;
 
-  { 3. Right Pane Controls (placed on top of the file list) }
+  { 3. Right Content Flexbox Layout }
   contentX := sidebarW + Round(FSplitter.SplitterSize) + 8;
   contentW := W - contentX - MARGIN_X;
   if contentW < 200 then contentW := 200;
 
-  { Row 1: Navigation & Actions toolbar }
-  FBtnBack.X      := contentX;
-  FBtnBack.Y      := 10;
-  FBtnBack.Width  := 30;
-  FBtnBack.Height := 30;
-
-  FBtnForward.X   := contentX + 34;
-  FBtnForward.Y   := 10;
-  FBtnForward.Width := 30;
-  FBtnForward.Height := 30;
-
-  FBtnUp.X        := contentX + 68;
-  FBtnUp.Y        := 10;
-  FBtnUp.Width    := 30;
-  FBtnUp.Height   := 30;
-
-  FBtnHidden.X    := W - MARGIN_X - 30;
-  FBtnHidden.Y    := 10;
-  FBtnHidden.Width := 30;
-  FBtnHidden.Height := 30;
-
-  FBtnNewFolder.X := FBtnHidden.X - 34;
-  FBtnNewFolder.Y := 10;
-  FBtnNewFolder.Width := 30;
-  FBtnNewFolder.Height := 30;
-
-  FPathBar.X      := contentX + 104;
-  FPathBar.Y      := 10;
-  FPathBar.Width  := (FBtnNewFolder.X - 8) - FPathBar.X;
-  FPathBar.Height := 30;
-
-  { Row 2: File Name input on top of file list }
-  FLabelName.X    := contentX;
-  FLabelName.Y    := 50;
-  FLabelName.Width := 76;
-  FLabelName.Height := 24;
-
-  FEntryName.X    := contentX + 80;
-  FEntryName.Y    := 46;
-  FEntryName.Width := (W - MARGIN_X) - FEntryName.X;
-  FEntryName.Height := 30;
-
-  { Row 3: File Table }
-  tableY := 84;
-  bottomBarH := 46;
-  tableH := (H - bottomBarH) - tableY;
-  if tableH < 100 then tableH := 100;
-
-  FFileTable.X      := contentX;
-  FFileTable.Y      := tableY;
-  FFileTable.Width  := contentW;
-  FFileTable.Height := tableH;
-
-  { Row 4: Bottom bar (macOS style: Cancel on left, Primary Action on right) }
-  FBtnAction.X := W - MARGIN_X - 84;
-  FBtnAction.Y := H - bottomBarH + 7;
-  FBtnAction.Width := 84;
-  FBtnAction.Height := 30;
-
-  FBtnCancel.X := FBtnAction.X - 10 - 80;
-  FBtnCancel.Y := H - bottomBarH + 7;
-  FBtnCancel.Width := 80;
-  FBtnCancel.Height := 30;
-
-  if Assigned(FCmbFilter) and FCmbFilter.Visible then
+  if Assigned(FRightVBox) then
   begin
-    FLabelType.X := contentX;
-    FLabelType.Y := H - bottomBarH + 11;
-    FLabelType.Width := 76;
-    FLabelType.Height := 24;
-
-    FCmbFilter.X := contentX + 80;
-    FCmbFilter.Y := H - bottomBarH + 7;
-    FCmbFilter.Width := (FBtnCancel.X - 16) - FCmbFilter.X;
-    FCmbFilter.Height := 30;
+    FRightVBox.SetBounds(contentX, 10, contentW, H - 20);
+    FRightVBox.UpdateLayout();
   end;
 
   FWindow.Invalidate();
