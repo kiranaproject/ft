@@ -26,6 +26,14 @@ function FtGetKeyboardModifiers(): Cardinal;
 procedure FtSetKeyboardModifiers(AModifiers: Cardinal);
 
 type
+  TFtAlignSelf = (
+    ftasAuto = 0,
+    ftasStretch = 1,
+    ftasStart = 2,
+    ftasCenter = 3,
+    ftasEnd = 4
+  );
+
   TFtWidget = class
   private
     FFont: TFtFont;
@@ -43,6 +51,16 @@ type
     FOpacity: Double;
     FHint: string;
     FShowHint: Boolean;
+    FFlexGrow: Double;
+    FFlexShrink: Double;
+    FFlexBasis: Double;
+    FAlignSelf: TFtAlignSelf;
+    FMarginLeft: Integer;
+    FMarginTop: Integer;
+    FMarginRight: Integer;
+    FMarginBottom: Integer;
+    FPreferredWidth: Integer;
+    FPreferredHeight: Integer;
     function GetFont(): TFtFont; virtual;
     procedure SetFont(AValue: TFtFont); virtual;
     function GetFontDesc(): string; virtual;
@@ -57,6 +75,14 @@ type
     procedure SetOpacity(AValue: Double); virtual;
     procedure SetHint(const AValue: string); virtual;
     procedure SetShowHint(AValue: Boolean); virtual;
+    procedure SetFlexGrow(AValue: Double); virtual;
+    procedure SetFlexShrink(AValue: Double); virtual;
+    procedure SetFlexBasis(AValue: Double); virtual;
+    procedure SetAlignSelf(AValue: TFtAlignSelf); virtual;
+    procedure SetMarginLeft(AValue: Integer); virtual;
+    procedure SetMarginTop(AValue: Integer); virtual;
+    procedure SetMarginRight(AValue: Integer); virtual;
+    procedure SetMarginBottom(AValue: Integer); virtual;
   public
     X, Y, Width, Height: Integer;
     Visible: Boolean;
@@ -103,6 +129,13 @@ type
     function GetChildRenderArea(out AX, AY, AW, AH, ARadius: Double): Boolean; virtual;
     function GetParentRenderArea(out AX, AY, AW, AH, ARadius: Double): Boolean; virtual;
 
+    procedure SetBounds(AX, AY, AW, AH: Integer); virtual;
+    procedure UpdateLayout(); virtual;
+    procedure SetMargin(ALeft, ATop, ARight, ABottom: Integer); virtual;
+    procedure SetMarginAll(AMargin: Integer); virtual;
+    function GetPreferredWidth(): Integer; virtual;
+    function GetPreferredHeight(): Integer; virtual;
+
     property Font: TFtFont read GetFont write SetFont;
     property FontDesc: string read GetFontDesc write SetFontDesc;
     property Focusable: Boolean read FFocusable write SetFocusable;
@@ -115,6 +148,16 @@ type
     property Opacity: Double read GetOpacity write SetOpacity;
     property Hint: string read FHint write SetHint;
     property ShowHint: Boolean read FShowHint write SetShowHint;
+    property FlexGrow: Double read FFlexGrow write SetFlexGrow;
+    property FlexShrink: Double read FFlexShrink write SetFlexShrink;
+    property FlexBasis: Double read FFlexBasis write SetFlexBasis;
+    property AlignSelf: TFtAlignSelf read FAlignSelf write SetAlignSelf;
+    property MarginLeft: Integer read FMarginLeft write SetMarginLeft;
+    property MarginTop: Integer read FMarginTop write SetMarginTop;
+    property MarginRight: Integer read FMarginRight write SetMarginRight;
+    property MarginBottom: Integer read FMarginBottom write SetMarginBottom;
+    property PreferredWidth: Integer read GetPreferredWidth write FPreferredWidth;
+    property PreferredHeight: Integer read GetPreferredHeight write FPreferredHeight;
   end;
 
 implementation
@@ -141,6 +184,16 @@ begin
   FOpacity := 1.0;
   FHint := '';
   FShowHint := True;
+  FFlexGrow := 0.0;
+  FFlexShrink := 1.0;
+  FFlexBasis := -1.0;
+  FAlignSelf := ftasAuto;
+  FMarginLeft := 0;
+  FMarginTop := 0;
+  FMarginRight := 0;
+  FMarginBottom := 0;
+  FPreferredWidth := 0;
+  FPreferredHeight := 0;
   if Assigned(Parent) then
     Parent.Children.Add(Self);
 end;
@@ -565,6 +618,133 @@ begin
     AX := 0.0; AY := 0.0; AW := 0.0; AH := 0.0; ARadius := 0.0;
     Result := False;
   end;
+end;
+
+procedure TFtWidget.SetFlexGrow(AValue: Double);
+begin
+  if Abs(FFlexGrow - AValue) > 1e-6 then
+  begin
+    FFlexGrow := AValue;
+    if Assigned(Parent) and (Parent.Width > 0) and (Parent.Height > 0) then Parent.UpdateLayout();
+  end;
+end;
+
+procedure TFtWidget.SetFlexShrink(AValue: Double);
+begin
+  if Abs(FFlexShrink - AValue) > 1e-6 then
+  begin
+    FFlexShrink := AValue;
+    if Assigned(Parent) and (Parent.Width > 0) and (Parent.Height > 0) then Parent.UpdateLayout();
+  end;
+end;
+
+procedure TFtWidget.SetFlexBasis(AValue: Double);
+begin
+  if Abs(FFlexBasis - AValue) > 1e-6 then
+  begin
+    FFlexBasis := AValue;
+    if Assigned(Parent) and (Parent.Width > 0) and (Parent.Height > 0) then Parent.UpdateLayout();
+  end;
+end;
+
+procedure TFtWidget.SetAlignSelf(AValue: TFtAlignSelf);
+begin
+  if FAlignSelf <> AValue then
+  begin
+    FAlignSelf := AValue;
+    if Assigned(Parent) and (Parent.Width > 0) and (Parent.Height > 0) then Parent.UpdateLayout();
+  end;
+end;
+
+procedure TFtWidget.SetMarginLeft(AValue: Integer);
+begin
+  if FMarginLeft <> AValue then
+  begin
+    FMarginLeft := AValue;
+    if Assigned(Parent) and (Parent.Width > 0) and (Parent.Height > 0) then Parent.UpdateLayout();
+  end;
+end;
+
+procedure TFtWidget.SetMarginTop(AValue: Integer);
+begin
+  if FMarginTop <> AValue then
+  begin
+    FMarginTop := AValue;
+    if Assigned(Parent) and (Parent.Width > 0) and (Parent.Height > 0) then Parent.UpdateLayout();
+  end;
+end;
+
+procedure TFtWidget.SetMarginRight(AValue: Integer);
+begin
+  if FMarginRight <> AValue then
+  begin
+    FMarginRight := AValue;
+    if Assigned(Parent) and (Parent.Width > 0) and (Parent.Height > 0) then Parent.UpdateLayout();
+  end;
+end;
+
+procedure TFtWidget.SetMarginBottom(AValue: Integer);
+begin
+  if FMarginBottom <> AValue then
+  begin
+    FMarginBottom := AValue;
+    if Assigned(Parent) and (Parent.Width > 0) and (Parent.Height > 0) then Parent.UpdateLayout();
+  end;
+end;
+
+procedure TFtWidget.SetMargin(ALeft, ATop, ARight, ABottom: Integer);
+begin
+  FMarginLeft := ALeft;
+  FMarginTop := ATop;
+  FMarginRight := ARight;
+  FMarginBottom := ABottom;
+  if Assigned(Parent) and (Parent.Width > 0) and (Parent.Height > 0) then Parent.UpdateLayout();
+end;
+
+procedure TFtWidget.SetMarginAll(AMargin: Integer);
+begin
+  SetMargin(AMargin, AMargin, AMargin, AMargin);
+end;
+
+procedure TFtWidget.SetBounds(AX, AY, AW, AH: Integer);
+var
+  sizeChanged: Boolean;
+begin
+  sizeChanged := (Width <> AW) or (Height <> AH);
+  X := AX;
+  Y := AY;
+  Width := AW;
+  Height := AH;
+  if (FPreferredWidth <= 0) and (AW > 0) then FPreferredWidth := AW;
+  if (FPreferredHeight <= 0) and (AH > 0) then FPreferredHeight := AH;
+  if sizeChanged then
+    UpdateLayout();
+  Invalidate();
+end;
+
+procedure TFtWidget.UpdateLayout();
+var
+  i: Integer;
+begin
+  if Assigned(Children) then
+    for i := 0 to Children.Count - 1 do
+      TFtWidget(Children[i]).UpdateLayout();
+end;
+
+function TFtWidget.GetPreferredWidth(): Integer;
+begin
+  if FPreferredWidth > 0 then
+    Result := FPreferredWidth
+  else
+    Result := Width;
+end;
+
+function TFtWidget.GetPreferredHeight(): Integer;
+begin
+  if FPreferredHeight > 0 then
+    Result := FPreferredHeight
+  else
+    Result := Height;
 end;
 
 procedure InvalidateWidgetAnim(AWidget: Pointer);

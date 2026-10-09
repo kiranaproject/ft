@@ -12,9 +12,19 @@ uses
   Ft.Widget.Tabs, Ft.Widget.Splitters, Ft.Widget.TreeViews, Ft.Widget.Tables,
   Ft.Widget.Texts, Ft.Widget.Buttons, Ft.Widget.Entries, Ft.Widget.TextAreas,
   Ft.Widget.Switches, Ft.Widget.Selectors, Ft.Widget.PathBars, Ft.Widget.UrlEntries, Ft.Window,
-  Ft.Backend.X11, Ft.Backend.EGL, Floria.EGL, Ft.Theme, Floria.Font, Ft.Icons;
+  Ft.Backend.X11, Ft.Backend.EGL, Floria.EGL, Ft.Theme, Floria.Font, Ft.Icons, Ft.Widget.Layouts;
 
 type
+  TFtLayoutsTest = class(TTestCase)
+  published
+    procedure TestHBoxFixedWithGap();
+    procedure TestHBoxFlexGrow();
+    procedure TestVBoxStackingAndStretch();
+    procedure TestJustifyContentCenterAndEnd();
+    procedure TestSpacer();
+    procedure TestWindowRootLayoutReflow();
+  end;
+
   TFtIconsTest = class(TTestCase)
   published
     procedure TestDefaultIconsExist();
@@ -2642,12 +2652,254 @@ begin
   end;
 end;
 
+{ TFtLayoutsTest }
+
+procedure TFtLayoutsTest.TestHBoxFixedWithGap();
+var
+  win: TFtWindow;
+  hbox: TFtHBox;
+  b1, b2, b3: TFtButton;
+begin
+  win := TFtWindow.Create(500, 300, 'TestWin');
+  try
+    hbox := TFtHBox.Create(win);
+    hbox.SetBounds(0, 0, 400, 40);
+    hbox.Gap := 10.0;
+    hbox.AlignItems := ftaiCenter;
+
+    b1 := TFtButton.Create(hbox);
+    b1.SetBounds(0, 0, 50, 30);
+
+    b2 := TFtButton.Create(hbox);
+    b2.SetBounds(0, 0, 60, 30);
+
+    b3 := TFtButton.Create(hbox);
+    b3.SetBounds(0, 0, 70, 30);
+
+    hbox.UpdateLayout();
+
+    AssertEquals('b1 X', 0, b1.X);
+    AssertEquals('b1 Width', 50, b1.Width);
+    AssertEquals('b1 Y', 5, b1.Y);
+
+    AssertEquals('b2 X', 60, b2.X);
+    AssertEquals('b2 Width', 60, b2.Width);
+
+    AssertEquals('b3 X', 130, b3.X);
+    AssertEquals('b3 Width', 70, b3.Width);
+  finally
+    win.Free();
+  end;
+end;
+
+procedure TFtLayoutsTest.TestHBoxFlexGrow();
+var
+  win: TFtWindow;
+  hbox: TFtHBox;
+  b1, b2: TFtButton;
+  entry: TFtEntry;
+begin
+  win := TFtWindow.Create(600, 300, 'TestWin');
+  try
+    hbox := TFtHBox.Create(win);
+    hbox.SetBounds(0, 0, 500, 40);
+    hbox.Gap := 10.0;
+
+    b1 := TFtButton.Create(hbox);
+    b1.SetBounds(0, 0, 50, 30);
+    b1.FlexGrow := 0.0;
+
+    entry := TFtEntry.Create(hbox);
+    entry.SetBounds(0, 0, 0, 30);
+    entry.FlexGrow := 1.0;
+    entry.FlexBasis := 0.0;
+
+    b2 := TFtButton.Create(hbox);
+    b2.SetBounds(0, 0, 50, 30);
+    b2.FlexGrow := 0.0;
+
+    hbox.UpdateLayout();
+
+    AssertEquals('b1 X', 0, b1.X);
+    AssertEquals('b1 Width', 50, b1.Width);
+
+    AssertEquals('entry X', 60, entry.X);
+    AssertEquals('entry Width', 380, entry.Width);
+
+    AssertEquals('b2 X', 450, b2.X);
+    AssertEquals('b2 Width', 50, b2.Width);
+  finally
+    win.Free();
+  end;
+end;
+
+procedure TFtLayoutsTest.TestVBoxStackingAndStretch();
+var
+  win: TFtWindow;
+  vbox: TFtVBox;
+  b1, b2, b3: TFtButton;
+begin
+  win := TFtWindow.Create(500, 500, 'TestWin');
+  try
+    vbox := TFtVBox.Create(win);
+    vbox.SetBounds(0, 0, 200, 300);
+    vbox.Gap := 8.0;
+    vbox.AlignItems := ftaiStretch;
+
+    b1 := TFtButton.Create(vbox);
+    b1.SetBounds(0, 0, 50, 30);
+
+    b2 := TFtButton.Create(vbox);
+    b2.SetBounds(0, 0, 60, 40);
+
+    b3 := TFtButton.Create(vbox);
+    b3.SetBounds(0, 0, 70, 50);
+
+    vbox.UpdateLayout();
+
+    AssertEquals('b1 Width', 200, b1.Width);
+    AssertEquals('b1 Y', 0, b1.Y);
+    AssertEquals('b1 Height', 30, b1.Height);
+
+    AssertEquals('b2 Width', 200, b2.Width);
+    AssertEquals('b2 Y', 38, b2.Y);
+    AssertEquals('b2 Height', 40, b2.Height);
+
+    AssertEquals('b3 Width', 200, b3.Width);
+    AssertEquals('b3 Y', 86, b3.Y);
+    AssertEquals('b3 Height', 50, b3.Height);
+  finally
+    win.Free();
+  end;
+end;
+
+procedure TFtLayoutsTest.TestJustifyContentCenterAndEnd();
+var
+  win: TFtWindow;
+  hbox: TFtHBox;
+  b1, b2: TFtButton;
+begin
+  win := TFtWindow.Create(500, 300, 'TestWin');
+  try
+    hbox := TFtHBox.Create(win);
+    hbox.SetBounds(0, 0, 300, 40);
+    hbox.Gap := 0.0;
+
+    b1 := TFtButton.Create(hbox);
+    b1.SetBounds(0, 0, 50, 30);
+
+    b2 := TFtButton.Create(hbox);
+    b2.SetBounds(0, 0, 50, 30);
+
+    hbox.JustifyContent := ftjcCenter;
+    hbox.UpdateLayout();
+    AssertEquals('Center b1 X', 100, b1.X);
+    AssertEquals('Center b2 X', 150, b2.X);
+
+    hbox.JustifyContent := ftjcEnd;
+    hbox.UpdateLayout();
+    AssertEquals('End b1 X', 200, b1.X);
+    AssertEquals('End b2 X', 250, b2.X);
+  finally
+    win.Free();
+  end;
+end;
+
+procedure TFtLayoutsTest.TestSpacer();
+var
+  win: TFtWindow;
+  hbox: TFtHBox;
+  bLeft, bRight: TFtButton;
+  spacer: TFtSpacer;
+begin
+  win := TFtWindow.Create(600, 300, 'TestWin');
+  try
+    hbox := TFtHBox.Create(win);
+    hbox.SetBounds(0, 0, 400, 40);
+    hbox.Gap := 0.0;
+
+    bLeft := TFtButton.Create(hbox);
+    bLeft.SetBounds(0, 0, 60, 30);
+
+    spacer := hbox.AddSpacer();
+
+    bRight := TFtButton.Create(hbox);
+    bRight.SetBounds(0, 0, 80, 30);
+
+    hbox.UpdateLayout();
+
+    AssertEquals('bLeft X', 0, bLeft.X);
+    AssertEquals('bLeft Width', 60, bLeft.Width);
+
+    AssertEquals('spacer X', 60, spacer.X);
+    AssertEquals('spacer Width', 260, spacer.Width);
+
+    AssertEquals('bRight X', 320, bRight.X);
+    AssertEquals('bRight Width', 80, bRight.Width);
+  finally
+    win.Free();
+  end;
+end;
+
+procedure TFtLayoutsTest.TestWindowRootLayoutReflow();
+var
+  win: TFtWindow;
+  vbox: TFtVBox;
+  topBar, bottomBar: TFtHBox;
+  centerPanel: TFtContainer;
+  btnInBottom: TFtButton;
+begin
+  win := TFtWindow.Create(400, 300, 'TestWin');
+  try
+    vbox := TFtVBox.Create(win);
+    vbox.Gap := 0.0;
+
+    topBar := TFtHBox.Create(vbox);
+    topBar.Height := 40;
+    topBar.FlexGrow := 0.0;
+
+    centerPanel := TFtContainer.Create(vbox);
+    centerPanel.FlexGrow := 1.0;
+    centerPanel.FlexBasis := 0.0;
+
+    bottomBar := TFtHBox.Create(vbox);
+    bottomBar.Height := 40;
+    bottomBar.FlexGrow := 0.0;
+    bottomBar.AlignItems := ftaiCenter;
+
+    btnInBottom := TFtButton.Create(bottomBar);
+    btnInBottom.SetBounds(0, 0, 80, 30);
+
+    win.RootLayout := vbox;
+
+    AssertEquals('Initial VBox Width', 400, vbox.Width);
+    AssertEquals('Initial VBox Height', 300, vbox.Height);
+    AssertEquals('Initial CenterPanel Height', 220, centerPanel.Height);
+    AssertEquals('Initial BottomBar Y', 260, bottomBar.Y);
+    AssertEquals('Initial BtnInBottom Y (nested)', 265, btnInBottom.Y);
+
+    win.Resize(700, 600, False);
+
+    AssertEquals('Resized VBox Width', 700, vbox.Width);
+    AssertEquals('Resized VBox Height', 600, vbox.Height);
+    AssertEquals('TopBar Width', 700, topBar.Width);
+    AssertEquals('TopBar Height', 40, topBar.Height);
+    AssertEquals('BottomBar Y', 560, bottomBar.Y);
+    AssertEquals('Resized BtnInBottom Y (nested)', 565, btnInBottom.Y);
+    AssertEquals('Resized CenterPanel Height', 520, centerPanel.Height);
+    AssertEquals('Resized CenterPanel Width', 700, centerPanel.Width);
+  finally
+    win.Free();
+  end;
+end;
+
 var
   Application: TTestRunner;
 
 begin
   Application := TTestRunner.Create(nil);
   try
+    RegisterTest(TFtLayoutsTest);
     RegisterTest(TFtIconsTest);
     RegisterTest(TFtCssTest);
     RegisterTest(TFtSvgTest);

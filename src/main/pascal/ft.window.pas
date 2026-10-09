@@ -47,6 +47,7 @@ type
     FFocusedWidget: TFtWidget;
     FMainMenu: TFtWidget;
     FActivePopup: TFtWidget;
+    FRootLayout: TFtWidget;
     FNeedsRepaint: Boolean;
     FDirtyLeft: Integer;
     FDirtyTop: Integer;
@@ -121,6 +122,7 @@ type
     procedure ClearActivePopup(); virtual;
     procedure Close(); virtual;
     function ShowModal(): Integer; virtual;
+    procedure SetRootLayout(ALayout: TFtWidget); virtual;
     // Event overrides
     procedure MouseDown(AX, AY: Integer; AButton: Integer); override;
     procedure MouseUp(AX, AY: Integer; AButton: Integer); override;
@@ -137,6 +139,7 @@ type
     property WindowOpacity: Double read GetWindowOpacity write SetWindowOpacity;
     property BackgroundOpacity: Double read GetBackgroundOpacity write SetBackgroundOpacity;
     property BackgroundBlur: Boolean read GetBackgroundBlur write SetBackgroundBlur;
+    property RootLayout: TFtWidget read FRootLayout write SetRootLayout;
     property FocusedWidget: TFtWidget read FFocusedWidget;
     property HoverWidget: TFtWidget read FHoverWidget;
     property PressedWidget: TFtWidget read FPressedWidget;
@@ -503,9 +506,26 @@ begin
   FillChar(FPixelBuffer^, Width * Height * 4, 0);
   FCanvas := TFtCanvasAgg.Create(FPixelBuffer, Width, Height);
 
+  if Assigned(FRootLayout) then
+  begin
+    FRootLayout.SetBounds(0, 0, Width, Height);
+    FRootLayout.UpdateLayout();
+  end;
+
   if Assigned(FOnResize) then
     FOnResize(Self, Width, Height);
 
+  Invalidate();
+end;
+
+procedure TFtWindow.SetRootLayout(ALayout: TFtWidget);
+begin
+  FRootLayout := ALayout;
+  if Assigned(FRootLayout) then
+  begin
+    FRootLayout.SetBounds(0, 0, Width, Height);
+    FRootLayout.UpdateLayout();
+  end;
   Invalidate();
 end;
 
@@ -837,6 +857,8 @@ begin
     FMainMenu := nil;
   if FActivePopup = AWidget then
     FActivePopup := nil;
+  if FRootLayout = AWidget then
+    FRootLayout := nil;
   UpdateCursor();
   inherited WidgetDestroyed(AWidget);
 end;

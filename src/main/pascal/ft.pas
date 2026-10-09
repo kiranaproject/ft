@@ -40,7 +40,8 @@ uses
   Ft.Widget.UrlEntries,
   Ft.Dialogs,
   Ft.Icons,
-  Ft.Gpu;
+  Ft.Gpu,
+  Ft.Widget.Layouts;
 
 var
   gLastIconSvg: AnsiString;
@@ -434,13 +435,50 @@ end;
 procedure ft_widget_set_bounds(widget: Pointer; x, y, w, h: cint32); cdecl; export;
 begin
   if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    TFtWidget(widget).SetBounds(x, y, w, h);
+end;
+
+procedure ft_widget_get_bounds(widget: Pointer; x, y, w, h: Pcint32); cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
   begin
-    TFtWidget(widget).X := x;
-    TFtWidget(widget).Y := y;
-    TFtWidget(widget).Width := w;
-    TFtWidget(widget).Height := h;
-    TFtWidget(widget).Invalidate();
+    if Assigned(x) then x^ := TFtWidget(widget).X;
+    if Assigned(y) then y^ := TFtWidget(widget).Y;
+    if Assigned(w) then w^ := TFtWidget(widget).Width;
+    if Assigned(h) then h^ := TFtWidget(widget).Height;
   end;
+end;
+
+function ft_widget_get_x(widget: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    Result := TFtWidget(widget).X
+  else
+    Result := 0;
+end;
+
+function ft_widget_get_y(widget: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    Result := TFtWidget(widget).Y
+  else
+    Result := 0;
+end;
+
+function ft_widget_get_width(widget: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    Result := TFtWidget(widget).Width
+  else
+    Result := 0;
+end;
+
+function ft_widget_get_height(widget: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    Result := TFtWidget(widget).Height
+  else
+    Result := 0;
 end;
 
 procedure ft_widget_destroy(widget: Pointer); cdecl; export;
@@ -2218,6 +2256,200 @@ procedure ft_container_update_scrollbars(container: Pointer); cdecl; export;
 begin
   if Assigned(container) and (TObject(container) is TFtContainer) then
     TFtContainer(container).UpdateScrollBars();
+end;
+
+{ ── Micro-Flexbox Layouts ── }
+
+function ft_flexbox_create(parent: Pointer; x, y, w, h: cint32; direction: cint32): Pointer; cdecl; export;
+var
+  fb: TFtFlexBox;
+begin
+  fb := TFtFlexBox.Create(TFtWidget(parent));
+  fb.X := x;
+  fb.Y := y;
+  fb.Width := w;
+  fb.Height := h;
+  if direction = 1 then
+    fb.Direction := ftfdColumn
+  else
+    fb.Direction := ftfdRow;
+  Result := fb;
+end;
+
+function ft_hbox_create(parent: Pointer; x, y, w, h: cint32): Pointer; cdecl; export;
+var
+  hb: TFtHBox;
+begin
+  hb := TFtHBox.Create(TFtWidget(parent));
+  hb.X := x;
+  hb.Y := y;
+  hb.Width := w;
+  hb.Height := h;
+  Result := hb;
+end;
+
+function ft_vbox_create(parent: Pointer; x, y, w, h: cint32): Pointer; cdecl; export;
+var
+  vb: TFtVBox;
+begin
+  vb := TFtVBox.Create(TFtWidget(parent));
+  vb.X := x;
+  vb.Y := y;
+  vb.Width := w;
+  vb.Height := h;
+  Result := vb;
+end;
+
+function ft_spacer_create(parent: Pointer): Pointer; cdecl; export;
+begin
+  Result := TFtSpacer.Create(TFtWidget(parent));
+end;
+
+procedure ft_flexbox_set_direction(flexbox: Pointer; direction: cint32); cdecl; export;
+begin
+  if Assigned(flexbox) and (TObject(flexbox) is TFtFlexBox) then
+  begin
+    if direction = 1 then
+      TFtFlexBox(flexbox).Direction := ftfdColumn
+    else
+      TFtFlexBox(flexbox).Direction := ftfdRow;
+  end;
+end;
+
+function ft_flexbox_get_direction(flexbox: Pointer): cint32; cdecl; export;
+begin
+  Result := 0;
+  if Assigned(flexbox) and (TObject(flexbox) is TFtFlexBox) then
+    Result := Ord(TFtFlexBox(flexbox).Direction);
+end;
+
+procedure ft_flexbox_set_justify_content(flexbox: Pointer; justify: cint32); cdecl; export;
+begin
+  if Assigned(flexbox) and (TObject(flexbox) is TFtFlexBox) then
+  begin
+    if (justify >= 0) and (justify <= 5) then
+      TFtFlexBox(flexbox).JustifyContent := TFtJustifyContent(justify);
+  end;
+end;
+
+function ft_flexbox_get_justify_content(flexbox: Pointer): cint32; cdecl; export;
+begin
+  Result := 0;
+  if Assigned(flexbox) and (TObject(flexbox) is TFtFlexBox) then
+    Result := Ord(TFtFlexBox(flexbox).JustifyContent);
+end;
+
+procedure ft_flexbox_set_align_items(flexbox: Pointer; align: cint32); cdecl; export;
+begin
+  if Assigned(flexbox) and (TObject(flexbox) is TFtFlexBox) then
+  begin
+    if (align >= 0) and (align <= 3) then
+      TFtFlexBox(flexbox).AlignItems := TFtAlignItems(align);
+  end;
+end;
+
+function ft_flexbox_get_align_items(flexbox: Pointer): cint32; cdecl; export;
+begin
+  Result := 0;
+  if Assigned(flexbox) and (TObject(flexbox) is TFtFlexBox) then
+    Result := Ord(TFtFlexBox(flexbox).AlignItems);
+end;
+
+procedure ft_flexbox_set_gap(flexbox: Pointer; gap: Double); cdecl; export;
+begin
+  if Assigned(flexbox) and (TObject(flexbox) is TFtFlexBox) then
+    TFtFlexBox(flexbox).Gap := gap;
+end;
+
+function ft_flexbox_get_gap(flexbox: Pointer): Double; cdecl; export;
+begin
+  Result := 0.0;
+  if Assigned(flexbox) and (TObject(flexbox) is TFtFlexBox) then
+    Result := TFtFlexBox(flexbox).Gap;
+end;
+
+procedure ft_flexbox_update_layout(flexbox: Pointer); cdecl; export;
+begin
+  if Assigned(flexbox) and (TObject(flexbox) is TFtWidget) then
+    TFtWidget(flexbox).UpdateLayout();
+end;
+
+procedure ft_widget_set_flex_grow(widget: Pointer; grow: Double); cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    TFtWidget(widget).FlexGrow := grow;
+end;
+
+function ft_widget_get_flex_grow(widget: Pointer): Double; cdecl; export;
+begin
+  Result := 0.0;
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    Result := TFtWidget(widget).FlexGrow;
+end;
+
+procedure ft_widget_set_flex_shrink(widget: Pointer; shrink: Double); cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    TFtWidget(widget).FlexShrink := shrink;
+end;
+
+function ft_widget_get_flex_shrink(widget: Pointer): Double; cdecl; export;
+begin
+  Result := 1.0;
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    Result := TFtWidget(widget).FlexShrink;
+end;
+
+procedure ft_widget_set_flex_basis(widget: Pointer; basis: Double); cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    TFtWidget(widget).FlexBasis := basis;
+end;
+
+function ft_widget_get_flex_basis(widget: Pointer): Double; cdecl; export;
+begin
+  Result := -1.0;
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    Result := TFtWidget(widget).FlexBasis;
+end;
+
+procedure ft_widget_set_align_self(widget: Pointer; align_self: cint32); cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+  begin
+    if (align_self >= 0) and (align_self <= 4) then
+      TFtWidget(widget).AlignSelf := TFtAlignSelf(align_self);
+  end;
+end;
+
+function ft_widget_get_align_self(widget: Pointer): cint32; cdecl; export;
+begin
+  Result := 0;
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    Result := Ord(TFtWidget(widget).AlignSelf);
+end;
+
+procedure ft_widget_set_margin(widget: Pointer; left, top, right, bottom: cint32); cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    TFtWidget(widget).SetMargin(left, top, right, bottom);
+end;
+
+procedure ft_widget_set_margin_all(widget: Pointer; margin: cint32); cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    TFtWidget(widget).SetMarginAll(margin);
+end;
+
+procedure ft_window_set_layout(window: Pointer; layout: Pointer); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+  begin
+    if Assigned(layout) and (TObject(layout) is TFtWidget) then
+      TFtWindow(window).SetRootLayout(TFtWidget(layout))
+    else
+      TFtWindow(window).SetRootLayout(nil);
+  end;
 end;
 
 function ft_system_font_get(): PChar; cdecl; export;
@@ -5590,6 +5822,11 @@ exports
   // Window Strut & Widget lifecycle
   ft_window_set_strut_partial,
   ft_widget_set_bounds,
+  ft_widget_get_bounds,
+  ft_widget_get_x,
+  ft_widget_get_y,
+  ft_widget_get_width,
+  ft_widget_get_height,
   ft_widget_destroy,
 
   // Window GPU & Direct Mode
@@ -5629,7 +5866,33 @@ exports
   ft_renderer_begin,
   ft_renderer_end,
   ft_renderer_get_batch,
-  ft_renderer_get_tessellator;
+  ft_renderer_get_tessellator,
+
+  // Micro-Flexbox Layouts
+  ft_flexbox_create,
+  ft_hbox_create,
+  ft_vbox_create,
+  ft_spacer_create,
+  ft_flexbox_set_direction,
+  ft_flexbox_get_direction,
+  ft_flexbox_set_justify_content,
+  ft_flexbox_get_justify_content,
+  ft_flexbox_set_align_items,
+  ft_flexbox_get_align_items,
+  ft_flexbox_set_gap,
+  ft_flexbox_get_gap,
+  ft_flexbox_update_layout,
+  ft_widget_set_flex_grow,
+  ft_widget_get_flex_grow,
+  ft_widget_set_flex_shrink,
+  ft_widget_get_flex_shrink,
+  ft_widget_set_flex_basis,
+  ft_widget_get_flex_basis,
+  ft_widget_set_align_self,
+  ft_widget_get_align_self,
+  ft_widget_set_margin,
+  ft_widget_set_margin_all,
+  ft_window_set_layout;
 
 begin
 end.

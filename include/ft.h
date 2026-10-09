@@ -67,6 +67,7 @@ void ft_window_bring_to_front(FtWidget window);
 void ft_window_grab_input(FtWidget window);
 void ft_window_ungrab_input(FtWidget window);
 void* ft_window_get_native_handle(FtWidget window);
+void ft_window_set_layout(FtWidget window, FtWidget layout);
 
 /* Hardware Acceleration & EGL Backend */
 int32_t ft_egl_is_available(void);
@@ -95,7 +96,32 @@ void ft_widget_set_enabled(FtWidget widget, int32_t enabled);
 int32_t ft_widget_get_enabled(FtWidget widget);
 int32_t ft_widget_get_parent_render_area(FtWidget widget, double* x, double* y, double* w, double* h, double* radius);
 void ft_widget_set_bounds(FtWidget widget, int32_t x, int32_t y, int32_t w, int32_t h);
+void ft_widget_get_bounds(FtWidget widget, int32_t* x, int32_t* y, int32_t* w, int32_t* h);
+int32_t ft_widget_get_x(FtWidget widget);
+int32_t ft_widget_get_y(FtWidget widget);
+int32_t ft_widget_get_width(FtWidget widget);
+int32_t ft_widget_get_height(FtWidget widget);
 void ft_widget_destroy(FtWidget widget);
+
+/* Micro-Flexbox Child Properties & Alignments */
+typedef enum {
+    FT_ALIGN_SELF_AUTO = 0,
+    FT_ALIGN_SELF_STRETCH = 1,
+    FT_ALIGN_SELF_START = 2,
+    FT_ALIGN_SELF_CENTER = 3,
+    FT_ALIGN_SELF_END = 4
+} FtAlignSelf;
+
+void ft_widget_set_flex_grow(FtWidget widget, double grow);
+double ft_widget_get_flex_grow(FtWidget widget);
+void ft_widget_set_flex_shrink(FtWidget widget, double shrink);
+double ft_widget_get_flex_shrink(FtWidget widget);
+void ft_widget_set_flex_basis(FtWidget widget, double basis);
+double ft_widget_get_flex_basis(FtWidget widget);
+void ft_widget_set_align_self(FtWidget widget, int32_t align_self);
+int32_t ft_widget_get_align_self(FtWidget widget);
+void ft_widget_set_margin(FtWidget widget, int32_t left, int32_t top, int32_t right, int32_t bottom);
+void ft_widget_set_margin_all(FtWidget widget, int32_t margin);
 
 /* Widget Hints & Tooltips */
 void ft_widget_set_hint(FtWidget widget, const char* hint);
@@ -412,6 +438,43 @@ void ft_container_get_render_area(FtWidget container, double* x, double* y, doub
 double ft_container_get_inner_radius(FtWidget container);
 double ft_container_get_effective_corner_radius(FtWidget container);
 void ft_container_update_scrollbars(FtWidget container);
+
+/* Micro-Flexbox Layout Containers */
+typedef enum {
+    FT_FLEX_ROW = 0,
+    FT_FLEX_COLUMN = 1
+} FtFlexDirection;
+
+typedef enum {
+    FT_JUSTIFY_START = 0,
+    FT_JUSTIFY_CENTER = 1,
+    FT_JUSTIFY_END = 2,
+    FT_JUSTIFY_SPACE_BETWEEN = 3,
+    FT_JUSTIFY_SPACE_AROUND = 4,
+    FT_JUSTIFY_SPACE_EVENLY = 5
+} FtJustifyContent;
+
+typedef enum {
+    FT_ALIGN_STRETCH = 0,
+    FT_ALIGN_START = 1,
+    FT_ALIGN_CENTER = 2,
+    FT_ALIGN_END = 3
+} FtAlignItems;
+
+FtWidget ft_flexbox_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h, int32_t direction);
+FtWidget ft_hbox_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h);
+FtWidget ft_vbox_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h);
+FtWidget ft_spacer_create(FtWidget parent);
+
+void ft_flexbox_set_direction(FtWidget flexbox, int32_t direction);
+int32_t ft_flexbox_get_direction(FtWidget flexbox);
+void ft_flexbox_set_justify_content(FtWidget flexbox, int32_t justify);
+int32_t ft_flexbox_get_justify_content(FtWidget flexbox);
+void ft_flexbox_set_align_items(FtWidget flexbox, int32_t align);
+int32_t ft_flexbox_get_align_items(FtWidget flexbox);
+void ft_flexbox_set_gap(FtWidget flexbox, double gap);
+double ft_flexbox_get_gap(FtWidget flexbox);
+void ft_flexbox_update_layout(FtWidget flexbox);
 
 /* CheckBox Enums & Callbacks */
 typedef void (*FtCheckCallback)(FtWidget widget, int32_t checked, void* user_data);
