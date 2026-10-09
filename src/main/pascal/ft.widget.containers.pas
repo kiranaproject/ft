@@ -752,7 +752,10 @@ begin
     if effBlur > 0.5 then
     begin
       if not Canvas.GetClipRect(cx, cy, cw, ch) or
-         ((cx <= X + 2) and (cy <= Y + 2) and (cx + cw >= X + Width - 2) and (cy + ch >= Y + Height - 2)) then
+         FtIsWindowResizing() or
+         ((cx <= X + 2) and (cy <= Y + 2) and
+          (cx + cw >= Min(Canvas.Width, Round(X + Width)) - 2) and
+          (cy + ch >= Min(Canvas.Height, Round(Y + Height)) - 2)) then
       begin
         if FtIsWindowResizing() then
           Canvas.BlurRoundedRect(X, Y, Width, Height, rad, 6.0)
