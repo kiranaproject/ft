@@ -5,7 +5,7 @@ unit Ft.Widget.Buttons;
 interface
 
 uses
-  ctypes, SysUtils, Classes,
+  ctypes, SysUtils, Classes, Math,
   Floria.Canvas.Agg, Floria.Font,
   Floria.Image.Core, Floria.Image.BMP, Floria.Image.PNG, Floria.Image.JPEG,
   Floria.SVG.DOM, Floria.SVG.Parser, Floria.SVG.Rasterizer,
@@ -76,6 +76,8 @@ type
     function GetElementType(): string; override;
     function GetStatePseudoClass(): string; override;
     function GetEffectiveHint(): string; override;
+    function GetPreferredWidth(): Integer; override;
+    function GetPreferredHeight(): Integer; override;
     procedure SetEnabled(AValue: Boolean); override;
     procedure Draw(Canvas: TFtCanvas); override;
     procedure Click(); override;
@@ -367,6 +369,36 @@ begin
     FCornerRadius := AValue;
     Invalidate();
   end;
+end;
+
+function TFtButton.GetPreferredWidth(): Integer;
+var
+  fnt: TFtFont;
+  reqW: Integer;
+begin
+  if FPreferredWidth > 0 then Exit(FPreferredWidth);
+  reqW := 24; // padding
+  if Caption <> '' then
+  begin
+    fnt := GetFont();
+    if Assigned(fnt) then
+      reqW := reqW + Round(fnt.GetTextWidth(Caption));
+  end;
+  if Assigned(FIcon) or Assigned(FOnPaintIcon) then
+    reqW := reqW + FIconWidth + FIconGap;
+  Result := Max(32, reqW);
+end;
+
+function TFtButton.GetPreferredHeight(): Integer;
+var
+  fnt: TFtFont;
+begin
+  if FPreferredHeight > 0 then Exit(FPreferredHeight);
+  fnt := GetFont();
+  if Assigned(fnt) then
+    Result := Max(28, Round(fnt.Size * 1.5) + 10)
+  else
+    Result := 32;
 end;
 
 procedure TFtButton.SetEnableShadow(AValue: Integer);

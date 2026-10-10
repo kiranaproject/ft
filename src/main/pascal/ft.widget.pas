@@ -61,6 +61,10 @@ type
     FMarginBottom: Integer;
     FPreferredWidth: Integer;
     FPreferredHeight: Integer;
+    FGridColumn: Integer;
+    FGridRow: Integer;
+    FGridColSpan: Integer;
+    FGridRowSpan: Integer;
     function GetFont(): TFtFont; virtual;
     procedure SetFont(AValue: TFtFont); virtual;
     function GetFontDesc(): string; virtual;
@@ -83,6 +87,10 @@ type
     procedure SetMarginTop(AValue: Integer); virtual;
     procedure SetMarginRight(AValue: Integer); virtual;
     procedure SetMarginBottom(AValue: Integer); virtual;
+    procedure SetGridColumn(AValue: Integer); virtual;
+    procedure SetGridRow(AValue: Integer); virtual;
+    procedure SetGridColSpan(AValue: Integer); virtual;
+    procedure SetGridRowSpan(AValue: Integer); virtual;
   public
     X, Y, Width, Height: Integer;
     Visible: Boolean;
@@ -133,6 +141,9 @@ type
     procedure UpdateLayout(); virtual;
     procedure SetMargin(ALeft, ATop, ARight, ABottom: Integer); virtual;
     procedure SetMarginAll(AMargin: Integer); virtual;
+    procedure SetGridCell(ACol, ARow: Integer; AColSpan: Integer = 1; ARowSpan: Integer = 1); virtual;
+    function HasExplicitPreferredWidth(): Boolean; virtual;
+    function HasExplicitPreferredHeight(): Boolean; virtual;
     function GetPreferredWidth(): Integer; virtual;
     function GetPreferredHeight(): Integer; virtual;
 
@@ -158,6 +169,10 @@ type
     property MarginBottom: Integer read FMarginBottom write SetMarginBottom;
     property PreferredWidth: Integer read GetPreferredWidth write FPreferredWidth;
     property PreferredHeight: Integer read GetPreferredHeight write FPreferredHeight;
+    property GridColumn: Integer read FGridColumn write SetGridColumn;
+    property GridRow: Integer read FGridRow write SetGridRow;
+    property GridColSpan: Integer read FGridColSpan write SetGridColSpan;
+    property GridRowSpan: Integer read FGridRowSpan write SetGridRowSpan;
   end;
 
 implementation
@@ -194,6 +209,10 @@ begin
   FMarginBottom := 0;
   FPreferredWidth := 0;
   FPreferredHeight := 0;
+  FGridColumn := -1;
+  FGridRow := -1;
+  FGridColSpan := 1;
+  FGridRowSpan := 1;
   if Assigned(Parent) then
     Parent.Children.Add(Self);
 end;
@@ -706,6 +725,55 @@ begin
   SetMargin(AMargin, AMargin, AMargin, AMargin);
 end;
 
+procedure TFtWidget.SetGridColumn(AValue: Integer);
+begin
+  if FGridColumn <> AValue then
+  begin
+    FGridColumn := AValue;
+    if Assigned(Parent) and (Parent.Width > 0) and (Parent.Height > 0) then Parent.UpdateLayout();
+  end;
+end;
+
+procedure TFtWidget.SetGridRow(AValue: Integer);
+begin
+  if FGridRow <> AValue then
+  begin
+    FGridRow := AValue;
+    if Assigned(Parent) and (Parent.Width > 0) and (Parent.Height > 0) then Parent.UpdateLayout();
+  end;
+end;
+
+procedure TFtWidget.SetGridColSpan(AValue: Integer);
+begin
+  if AValue < 1 then AValue := 1;
+  if FGridColSpan <> AValue then
+  begin
+    FGridColSpan := AValue;
+    if Assigned(Parent) and (Parent.Width > 0) and (Parent.Height > 0) then Parent.UpdateLayout();
+  end;
+end;
+
+procedure TFtWidget.SetGridRowSpan(AValue: Integer);
+begin
+  if AValue < 1 then AValue := 1;
+  if FGridRowSpan <> AValue then
+  begin
+    FGridRowSpan := AValue;
+    if Assigned(Parent) and (Parent.Width > 0) and (Parent.Height > 0) then Parent.UpdateLayout();
+  end;
+end;
+
+procedure TFtWidget.SetGridCell(ACol, ARow: Integer; AColSpan: Integer; ARowSpan: Integer);
+begin
+  if AColSpan < 1 then AColSpan := 1;
+  if ARowSpan < 1 then ARowSpan := 1;
+  FGridColumn := ACol;
+  FGridRow := ARow;
+  FGridColSpan := AColSpan;
+  FGridRowSpan := ARowSpan;
+  if Assigned(Parent) and (Parent.Width > 0) and (Parent.Height > 0) then Parent.UpdateLayout();
+end;
+
 procedure TFtWidget.SetBounds(AX, AY, AW, AH: Integer);
 var
   sizeChanged: Boolean;
@@ -715,8 +783,6 @@ begin
   Y := AY;
   Width := AW;
   Height := AH;
-  if (FPreferredWidth <= 0) and (AW > 0) then FPreferredWidth := AW;
-  if (FPreferredHeight <= 0) and (AH > 0) then FPreferredHeight := AH;
   if sizeChanged then
     UpdateLayout();
   Invalidate();
@@ -729,6 +795,16 @@ begin
   if Assigned(Children) then
     for i := 0 to Children.Count - 1 do
       TFtWidget(Children[i]).UpdateLayout();
+end;
+
+function TFtWidget.HasExplicitPreferredWidth(): Boolean;
+begin
+  Result := FPreferredWidth > 0;
+end;
+
+function TFtWidget.HasExplicitPreferredHeight(): Boolean;
+begin
+  Result := FPreferredHeight > 0;
 end;
 
 function TFtWidget.GetPreferredWidth(): Integer;

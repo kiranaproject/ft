@@ -21,7 +21,8 @@ interface
 
 uses
   SysUtils, Classes, Math,
-  Ft.Canvas, Ft.Widget, Ft.Widget.ScrollBars, Ft.Widget.Containers, Ft.Theme, Ft.Css;
+  Ft.Canvas, Ft.Widget, Ft.Widget.ScrollBars, Ft.Widget.Containers, Ft.Theme, Ft.Css,
+  Ft.Widget.Splitters, Ft.Widget.Texts;
 
 type
   TFtFlexDirection = (
@@ -85,6 +86,7 @@ type
     procedure UpdateScrollBars(); override;
     procedure SetBounds(AX, AY, AW, AH: Integer); override;
     function AddSpacer(AGrow: Double = 1.0): TFtSpacer;
+    function AddSplitter(ASize: Double = 6.0): TFtSplitter;
 
     property Direction: TFtFlexDirection read FDirection write SetDirection;
     property Wrap: TFtFlexWrap read FWrap write SetWrap;
@@ -105,6 +107,104 @@ type
   public
     constructor Create(AParent: TFtWidget); override;
     function GetElementType(): string; override;
+  end;
+
+  { ── 2D Grid Layout Track Definitions ── }
+  TFtGridTrackSize = (
+    gtsAuto = 0,    { Size to maximum preferred width/height of children }
+    gtsFixed = 1,   { Explicit pixel size }
+    gtsFlex = 2     { Fractional proportional expansion (like CSS fr) }
+  );
+
+  TFtGridTrackDef = record
+    SizeMode: TFtGridTrackSize;
+    Value: Double;  { Pixel length for gtsFixed, weight (e.g. 1.0) for gtsFlex }
+  end;
+  TFtGridTrackDefArray = array of TFtGridTrackDef;
+
+  { TFtGrid — Declarative 2D Grid container }
+  TFtGrid = class(TFtContainer)
+  protected
+    FColDefs: TFtGridTrackDefArray;
+    FRowDefs: TFtGridTrackDefArray;
+    FColumnGap: Double;
+    FRowGap: Double;
+    procedure EnsureColumnCount(ACount: Integer);
+    procedure EnsureRowCount(ACount: Integer);
+    function GetColumnCount(): Integer;
+    function GetRowCount(): Integer;
+    procedure SetColumnCount(AValue: Integer);
+    procedure SetRowCount(AValue: Integer);
+    procedure SetColumnGap(AValue: Double);
+    procedure SetRowGap(AValue: Double);
+    function IsStyled(): Boolean; virtual;
+  public
+    constructor Create(AParent: TFtWidget); override;
+    function GetElementType(): string; override;
+    function GetEffectiveCornerRadius(): Double; override;
+    function GetChildRenderArea(out AX, AY, AW, AH, ARadius: Double): Boolean; override;
+    procedure Draw(Canvas: TFtCanvas); override;
+    procedure DrawBackground(Canvas: TFtCanvas); override;
+    function HitTest(AX, AY: Integer): TFtWidget; override;
+    procedure UpdateLayout(); override;
+    procedure SetBounds(AX, AY, AW, AH: Integer); override;
+
+    procedure SetColumn(ACol: Integer; AMode: TFtGridTrackSize; AValue: Double = 0.0);
+    procedure SetRow(ARow: Integer; AMode: TFtGridTrackSize; AValue: Double = 0.0);
+    procedure SetColumnFixed(ACol: Integer; AWidth: Double);
+    procedure SetColumnFlex(ACol: Integer; AWeight: Double = 1.0);
+    procedure SetColumnAuto(ACol: Integer);
+    procedure SetRowFixed(ARow: Integer; AHeight: Double);
+    procedure SetRowFlex(ARow: Integer; AWeight: Double = 1.0);
+    procedure SetRowAuto(ARow: Integer);
+    procedure SetColumnTemplate(const ATemplate: string);
+    procedure SetRowTemplate(const ATemplate: string);
+
+    procedure AddWidget(AWidget: TFtWidget; ACol, ARow: Integer; AColSpan: Integer = 1; ARowSpan: Integer = 1);
+
+    property ColumnCount: Integer read GetColumnCount write SetColumnCount;
+    property RowCount: Integer read GetRowCount write SetRowCount;
+    property ColumnGap: Double read FColumnGap write SetColumnGap;
+    property RowGap: Double read FRowGap write SetRowGap;
+  end;
+
+  { TFtFormGrid — High-level 2D Form layout aligning label/input columns }
+  TFtFormGrid = class(TFtGrid)
+  private
+    FCurrentRow: Integer;
+    FLabelAlignment: TFtAlignSelf;
+  public
+    constructor Create(AParent: TFtWidget); override;
+    function GetElementType(): string; override;
+    function AddRow(const ALabel: string; AControl: TFtWidget): TFtLabel;
+    procedure AddRowWidgets(ALabelWidget, AControlWidget: TFtWidget);
+    procedure AddSpanned(AWidget: TFtWidget);
+    function AddSectionHeader(const ATitle: string): TFtLabel;
+
+    property CurrentRow: Integer read FCurrentRow write FCurrentRow;
+    property LabelAlignment: TFtAlignSelf read FLabelAlignment write FLabelAlignment;
+  end;
+
+  { TFtSizeGroup — Synchronizes dimensions of widgets across independent layouts }
+  TFtSizeGroupMode = (
+    ftsgHorizontal = 0,
+    ftsgVertical = 1,
+    ftsgBoth = 2
+  );
+
+  TFtSizeGroup = class(TObject)
+  private
+    FWidgets: TFPList;
+    FMode: TFtSizeGroupMode;
+  public
+    constructor Create(AMode: TFtSizeGroupMode = ftsgHorizontal);
+    destructor Destroy(); override;
+    procedure AddWidget(AWidget: TFtWidget);
+    procedure RemoveWidget(AWidget: TFtWidget);
+    procedure Synchronize();
+
+    property Mode: TFtSizeGroupMode read FMode write FMode;
+    property Widgets: TFPList read FWidgets;
   end;
 
 implementation
@@ -331,6 +431,14 @@ begin
   UpdateLayout();
 end;
 
+function TFtFlexBox.AddSplitter(ASize: Double): TFtSplitter;
+begin
+  Result := TFtSplitter.Create(Self);
+  Result.SplitterSize := ASize;
+  Result.FlexBasis := ASize;
+  UpdateLayout();
+end;
+
 type
   TFtFlexLine = record
     startIndex: Integer;
@@ -500,9 +608,9 @@ begin
     end;
 
     // Lock in preferred dimensions before layout mutations if not yet captured
-    if (child.PreferredWidth <= 0) and (child.Width > 0) then
+    if not child.HasExplicitPreferredWidth() and (child.Width > 0) then
       child.PreferredWidth := child.Width;
-    if (child.PreferredHeight <= 0) and (child.Height > 0) then
+    if not child.HasExplicitPreferredHeight() and (child.Height > 0) then
       child.PreferredHeight := child.Height;
 
     // Base main size
@@ -739,6 +847,793 @@ end;
 function TFtVBox.GetElementType(): string;
 begin
   Result := 'vbox';
+end;
+
+{ ── Track Template Parser ── }
+
+function ParseTrackTemplate(const ATemplate: string): TFtGridTrackDefArray;
+var
+  tokens: TStringList;
+  i, j, repCount: Integer;
+  tok, repToken, inner: string;
+  val: Double;
+  openP, commaP, closeP: Integer;
+begin
+  Result := nil;
+  if Trim(ATemplate) = '' then Exit;
+
+  tokens := TStringList.Create();
+  try
+    tokens.Delimiter := ' ';
+    tokens.StrictDelimiter := False;
+    tokens.DelimitedText := StringReplace(ATemplate, ',', ' ', [rfReplaceAll]);
+
+    for i := 0 to tokens.Count - 1 do
+    begin
+      tok := LowerCase(Trim(tokens[i]));
+      if tok = '' then Continue;
+
+      // Handle repeat(N, track)
+      if Copy(tok, 1, 7) = 'repeat(' then
+      begin
+        openP := Pos('(', tok);
+        closeP := Pos(')', tok);
+        if (openP > 0) and (closeP > openP) then
+        begin
+          inner := Copy(tok, openP + 1, closeP - openP - 1);
+          commaP := Pos(',', inner);
+          if commaP > 0 then
+          begin
+            repCount := StrToIntDef(Trim(Copy(inner, 1, commaP - 1)), 1);
+            repToken := LowerCase(Trim(Copy(inner, commaP + 1, Length(inner) - commaP)));
+            for j := 1 to repCount do
+            begin
+              SetLength(Result, Length(Result) + 1);
+              if repToken = 'auto' then
+              begin
+                Result[High(Result)].SizeMode := gtsAuto;
+                Result[High(Result)].Value := 0.0;
+              end
+              else if (Copy(repToken, Length(repToken) - 1, 2) = 'fr') then
+              begin
+                Result[High(Result)].SizeMode := gtsFlex;
+                Result[High(Result)].Value := StrToFloatDef(Copy(repToken, 1, Length(repToken) - 2), 1.0);
+              end
+              else if (repToken = 'flex') or (repToken = '*') then
+              begin
+                Result[High(Result)].SizeMode := gtsFlex;
+                Result[High(Result)].Value := 1.0;
+              end
+              else
+              begin
+                repToken := StringReplace(repToken, 'px', '', [rfIgnoreCase]);
+                Result[High(Result)].SizeMode := gtsFixed;
+                Result[High(Result)].Value := StrToFloatDef(repToken, 32.0);
+              end;
+            end;
+            Continue;
+          end;
+        end;
+      end;
+
+      SetLength(Result, Length(Result) + 1);
+      if tok = 'auto' then
+      begin
+        Result[High(Result)].SizeMode := gtsAuto;
+        Result[High(Result)].Value := 0.0;
+      end
+      else if (Copy(tok, Length(tok) - 1, 2) = 'fr') then
+      begin
+        Result[High(Result)].SizeMode := gtsFlex;
+        Result[High(Result)].Value := StrToFloatDef(Copy(tok, 1, Length(tok) - 2), 1.0);
+      end
+      else if (tok = 'flex') or (tok = '*') then
+      begin
+        Result[High(Result)].SizeMode := gtsFlex;
+        Result[High(Result)].Value := 1.0;
+      end
+      else
+      begin
+        tok := StringReplace(tok, 'px', '', [rfIgnoreCase]);
+        val := StrToFloatDef(tok, 0.0);
+        if val > 0.0 then
+        begin
+          Result[High(Result)].SizeMode := gtsFixed;
+          Result[High(Result)].Value := val;
+        end
+        else
+        begin
+          Result[High(Result)].SizeMode := gtsAuto;
+          Result[High(Result)].Value := 0.0;
+        end;
+      end;
+    end;
+  finally
+    tokens.Free();
+  end;
+end;
+
+{ TFtGrid }
+
+constructor TFtGrid.Create(AParent: TFtWidget);
+begin
+  inherited Create(AParent);
+  FPaddingX := 0.0;
+  FPaddingY := 0.0;
+  FColumnGap := 8.0;
+  FRowGap := 8.0;
+  FDrawFrame := False;
+  FDrawFocusRing := False;
+  FCornerRadius := 0.0;
+  FScrollBarMode := ftSbModeNone;
+  FAutoContentSize := False;
+  if Assigned(FVScrollBar) then FVScrollBar.Visible := False;
+  if Assigned(FHScrollBar) then FHScrollBar.Visible := False;
+  EnsureColumnCount(1);
+  EnsureRowCount(1);
+end;
+
+function TFtGrid.GetElementType(): string;
+begin
+  Result := 'grid';
+end;
+
+function TFtGrid.GetEffectiveCornerRadius(): Double;
+var
+  st: TFtWidgetStyle;
+begin
+  st := GetResolvedStyle();
+  if st.HasBorderRadius then
+    Result := st.BorderRadius
+  else if FDrawFrame then
+    Result := FCornerRadius
+  else
+    Result := 0.0;
+end;
+
+function TFtGrid.GetChildRenderArea(out AX, AY, AW, AH, ARadius: Double): Boolean;
+var
+  st: TFtWidgetStyle;
+begin
+  st := GetResolvedStyle();
+  if not FDrawFrame and not st.HasBorderWidth and not st.HasBorderRadius and not st.HasBgColor then
+  begin
+    if Assigned(Parent) then
+      Exit(Parent.GetChildRenderArea(AX, AY, AW, AH, ARadius))
+    else
+    begin
+      AX := X;
+      AY := Y;
+      AW := Width;
+      AH := Height;
+      ARadius := 0.0;
+      Exit(True);
+    end;
+  end;
+  Result := inherited GetChildRenderArea(AX, AY, AW, AH, ARadius);
+end;
+
+function TFtGrid.IsStyled(): Boolean;
+var
+  st: TFtWidgetStyle;
+begin
+  st := GetResolvedStyle();
+  Result := st.HasBgColor or (st.HasBorderColor and (st.BorderWidth > 0.0)) or
+            FDrawFrame or (FBackdropBlur > 0.5) or st.HasBackdropBlur;
+end;
+
+procedure TFtGrid.DrawBackground(Canvas: TFtCanvas);
+begin
+  if not IsStyled then
+    Exit;
+  inherited DrawBackground(Canvas);
+end;
+
+procedure TFtGrid.Draw(Canvas: TFtCanvas);
+begin
+  if not Visible then
+    Exit;
+  if not IsStyled then
+  begin
+    DrawChildren(Canvas);
+    Exit;
+  end;
+  inherited Draw(Canvas);
+end;
+
+function TFtGrid.HitTest(AX, AY: Integer): TFtWidget;
+var
+  ChildHit: TFtWidget;
+  st: TFtWidgetStyle;
+begin
+  ChildHit := inherited HitTest(AX, AY);
+  if (ChildHit = Self) and not IsStyled then
+  begin
+    st := GetResolvedStyle();
+    if not (FDrawFrame or st.HasBgColor or (FBackdropBlur > 0.5) or st.HasBackdropBlur) then
+      Exit(nil);
+  end;
+  Result := ChildHit;
+end;
+
+procedure TFtGrid.SetBounds(AX, AY, AW, AH: Integer);
+begin
+  inherited SetBounds(AX, AY, AW, AH);
+  UpdateLayout();
+end;
+
+procedure TFtGrid.EnsureColumnCount(ACount: Integer);
+var
+  i, oldLen: Integer;
+begin
+  if ACount < 1 then ACount := 1;
+  oldLen := Length(FColDefs);
+  if oldLen < ACount then
+  begin
+    SetLength(FColDefs, ACount);
+    for i := oldLen to ACount - 1 do
+    begin
+      FColDefs[i].SizeMode := gtsAuto;
+      FColDefs[i].Value := 0.0;
+    end;
+  end;
+end;
+
+procedure TFtGrid.EnsureRowCount(ACount: Integer);
+var
+  i, oldLen: Integer;
+begin
+  if ACount < 1 then ACount := 1;
+  oldLen := Length(FRowDefs);
+  if oldLen < ACount then
+  begin
+    SetLength(FRowDefs, ACount);
+    for i := oldLen to ACount - 1 do
+    begin
+      FRowDefs[i].SizeMode := gtsAuto;
+      FRowDefs[i].Value := 0.0;
+    end;
+  end;
+end;
+
+function TFtGrid.GetColumnCount(): Integer;
+begin
+  Result := Length(FColDefs);
+end;
+
+function TFtGrid.GetRowCount(): Integer;
+begin
+  Result := Length(FRowDefs);
+end;
+
+procedure TFtGrid.SetColumnCount(AValue: Integer);
+begin
+  if AValue < 1 then AValue := 1;
+  EnsureColumnCount(AValue);
+  SetLength(FColDefs, AValue);
+  UpdateLayout();
+end;
+
+procedure TFtGrid.SetRowCount(AValue: Integer);
+begin
+  if AValue < 1 then AValue := 1;
+  EnsureRowCount(AValue);
+  SetLength(FRowDefs, AValue);
+  UpdateLayout();
+end;
+
+procedure TFtGrid.SetColumnGap(AValue: Double);
+begin
+  if Abs(FColumnGap - AValue) > 1e-4 then
+  begin
+    FColumnGap := AValue;
+    UpdateLayout();
+  end;
+end;
+
+procedure TFtGrid.SetRowGap(AValue: Double);
+begin
+  if Abs(FRowGap - AValue) > 1e-4 then
+  begin
+    FRowGap := AValue;
+    UpdateLayout();
+  end;
+end;
+
+procedure TFtGrid.SetColumn(ACol: Integer; AMode: TFtGridTrackSize; AValue: Double);
+begin
+  EnsureColumnCount(ACol + 1);
+  FColDefs[ACol].SizeMode := AMode;
+  FColDefs[ACol].Value := AValue;
+  UpdateLayout();
+end;
+
+procedure TFtGrid.SetRow(ARow: Integer; AMode: TFtGridTrackSize; AValue: Double);
+begin
+  EnsureRowCount(ARow + 1);
+  FRowDefs[ARow].SizeMode := AMode;
+  FRowDefs[ARow].Value := AValue;
+  UpdateLayout();
+end;
+
+procedure TFtGrid.SetColumnFixed(ACol: Integer; AWidth: Double);
+begin
+  SetColumn(ACol, gtsFixed, AWidth);
+end;
+
+procedure TFtGrid.SetColumnFlex(ACol: Integer; AWeight: Double);
+begin
+  SetColumn(ACol, gtsFlex, AWeight);
+end;
+
+procedure TFtGrid.SetColumnAuto(ACol: Integer);
+begin
+  SetColumn(ACol, gtsAuto, 0.0);
+end;
+
+procedure TFtGrid.SetRowFixed(ARow: Integer; AHeight: Double);
+begin
+  SetRow(ARow, gtsFixed, AHeight);
+end;
+
+procedure TFtGrid.SetRowFlex(ARow: Integer; AWeight: Double);
+begin
+  SetRow(ARow, gtsFlex, AWeight);
+end;
+
+procedure TFtGrid.SetRowAuto(ARow: Integer);
+begin
+  SetRow(ARow, gtsAuto, 0.0);
+end;
+
+procedure TFtGrid.SetColumnTemplate(const ATemplate: string);
+var
+  defs: TFtGridTrackDefArray;
+  i: Integer;
+begin
+  defs := ParseTrackTemplate(ATemplate);
+  if Length(defs) > 0 then
+  begin
+    SetLength(FColDefs, Length(defs));
+    for i := 0 to High(defs) do
+      FColDefs[i] := defs[i];
+    UpdateLayout();
+  end;
+end;
+
+procedure TFtGrid.SetRowTemplate(const ATemplate: string);
+var
+  defs: TFtGridTrackDefArray;
+  i: Integer;
+begin
+  defs := ParseTrackTemplate(ATemplate);
+  if Length(defs) > 0 then
+  begin
+    SetLength(FRowDefs, Length(defs));
+    for i := 0 to High(defs) do
+      FRowDefs[i] := defs[i];
+    UpdateLayout();
+  end;
+end;
+
+procedure TFtGrid.AddWidget(AWidget: TFtWidget; ACol, ARow: Integer; AColSpan: Integer; ARowSpan: Integer);
+begin
+  if not Assigned(AWidget) then Exit;
+  AWidget.Parent := Self;
+  AWidget.SetGridCell(ACol, ARow, AColSpan, ARowSpan);
+  EnsureColumnCount(ACol + AColSpan);
+  EnsureRowCount(ARow + ARowSpan);
+  UpdateLayout();
+end;
+
+procedure TFtGrid.UpdateLayout();
+var
+  numCols, numRows: Integer;
+  colWidths: array of Double;
+  rowHeights: array of Double;
+  colPositions: array of Double;
+  rowPositions: array of Double;
+  availW, availH: Double;
+  usedW, usedH: Double;
+  remW, remH: Double;
+  totalColFlex, totalRowFlex: Double;
+  totalColGaps, totalRowGaps: Double;
+  i, c, r, cs, rs, colIdx, rowIdx: Integer;
+  child: TFtWidget;
+  cellX, cellY, cellW, cellH: Double;
+  st, chSt: TFtWidgetStyle;
+  w, h: Double;
+begin
+  if not Assigned(Children) or (Children.Count = 0) then Exit;
+  if (Width <= 0) or (Height <= 0) then Exit;
+
+  // 1. Resolve CSS properties if specified on the grid container
+  st := GetResolvedStyle();
+  if st.HasColumnGap then
+    FColumnGap := st.ColumnGap
+  else if st.HasGap then
+    FColumnGap := st.Gap;
+
+  if st.HasRowGap then
+    FRowGap := st.RowGap
+  else if st.HasGap then
+    FRowGap := st.Gap;
+
+  if st.HasGridTemplateColumns and (st.GridTemplateColumns <> '') then
+    SetColumnTemplate(st.GridTemplateColumns);
+  if st.HasGridTemplateRows and (st.GridTemplateRows <> '') then
+    SetRowTemplate(st.GridTemplateRows);
+
+  // 2. Discover maximum columns and rows from child cells
+  numCols := Length(FColDefs);
+  numRows := Length(FRowDefs);
+
+  for i := 0 to Children.Count - 1 do
+  begin
+    child := TFtWidget(Children[i]);
+    if child.Visible and (child <> FVScrollBar) and (child <> FHScrollBar) and
+       (child.GridRow >= 0) and (child.GridColumn >= 0) then
+    begin
+      chSt := child.GetResolvedStyle();
+      if chSt.HasGridColumn then child.GridColumn := chSt.GridColumn;
+      if chSt.HasGridRow then child.GridRow := chSt.GridRow;
+      if chSt.HasGridColSpan then child.GridColSpan := chSt.GridColSpan;
+      if chSt.HasGridRowSpan then child.GridRowSpan := chSt.GridRowSpan;
+
+      if child.GridColumn + child.GridColSpan > numCols then
+        numCols := child.GridColumn + child.GridColSpan;
+      if child.GridRow + child.GridRowSpan > numRows then
+        numRows := child.GridRow + child.GridRowSpan;
+    end;
+  end;
+
+  if numCols < 1 then numCols := 1;
+  if numRows < 1 then numRows := 1;
+  EnsureColumnCount(numCols);
+  EnsureRowCount(numRows);
+
+  // 3. Determine available area
+  availW := Max(0.0, Width - (FPaddingX * 2.0));
+  availH := Max(0.0, Height - (FPaddingY * 2.0));
+
+  // 4. Calculate column widths
+  SetLength(colWidths, numCols);
+  for c := 0 to numCols - 1 do
+  begin
+    case FColDefs[c].SizeMode of
+      gtsFixed:
+        colWidths[c] := FColDefs[c].Value;
+      gtsAuto:
+        begin
+          colWidths[c] := 0.0;
+          for i := 0 to Children.Count - 1 do
+          begin
+            child := TFtWidget(Children[i]);
+            if child.Visible and (child <> FVScrollBar) and (child <> FHScrollBar) and
+               (child.GridColumn = c) and (child.GridColSpan = 1) then
+            begin
+              w := child.GetPreferredWidth() + child.MarginLeft + child.MarginRight;
+              if w > colWidths[c] then
+                colWidths[c] := w;
+            end;
+          end;
+        end;
+      gtsFlex:
+        colWidths[c] := 0.0;
+    end;
+  end;
+
+  totalColGaps := Max(0, numCols - 1) * FColumnGap;
+  usedW := totalColGaps;
+  totalColFlex := 0.0;
+  for c := 0 to numCols - 1 do
+  begin
+    if FColDefs[c].SizeMode = gtsFlex then
+      totalColFlex := totalColFlex + Max(0.01, FColDefs[c].Value)
+    else
+      usedW := usedW + colWidths[c];
+  end;
+
+  remW := Max(0.0, availW - usedW);
+  if totalColFlex > 0.0 then
+  begin
+    for c := 0 to numCols - 1 do
+    begin
+      if FColDefs[c].SizeMode = gtsFlex then
+        colWidths[c] := remW * (Max(0.01, FColDefs[c].Value) / totalColFlex);
+    end;
+  end;
+
+  // 5. Calculate row heights
+  SetLength(rowHeights, numRows);
+  for r := 0 to numRows - 1 do
+  begin
+    case FRowDefs[r].SizeMode of
+      gtsFixed:
+        rowHeights[r] := FRowDefs[r].Value;
+      gtsAuto:
+        begin
+          rowHeights[r] := 0.0;
+          for i := 0 to Children.Count - 1 do
+          begin
+            child := TFtWidget(Children[i]);
+            if child.Visible and (child <> FVScrollBar) and (child <> FHScrollBar) and
+               (child.GridRow = r) and (child.GridRowSpan = 1) then
+            begin
+              h := child.GetPreferredHeight() + child.MarginTop + child.MarginBottom;
+              if h > rowHeights[r] then
+                rowHeights[r] := h;
+            end;
+          end;
+          if rowHeights[r] < 24.0 then
+            rowHeights[r] := 24.0;
+        end;
+      gtsFlex:
+        rowHeights[r] := 0.0;
+    end;
+  end;
+
+  totalRowGaps := Max(0, numRows - 1) * FRowGap;
+  usedH := totalRowGaps;
+  totalRowFlex := 0.0;
+  for r := 0 to numRows - 1 do
+  begin
+    if FRowDefs[r].SizeMode = gtsFlex then
+      totalRowFlex := totalRowFlex + Max(0.01, FRowDefs[r].Value)
+    else
+      usedH := usedH + rowHeights[r];
+  end;
+
+  remH := Max(0.0, availH - usedH);
+  if totalRowFlex > 0.0 then
+  begin
+    for r := 0 to numRows - 1 do
+    begin
+      if FRowDefs[r].SizeMode = gtsFlex then
+        rowHeights[r] := remH * (Max(0.01, FRowDefs[r].Value) / totalRowFlex);
+    end;
+  end;
+
+  // 6. Compute column X and row Y coordinates
+  SetLength(colPositions, numCols);
+  colPositions[0] := X + FPaddingX;
+  for c := 1 to numCols - 1 do
+    colPositions[c] := colPositions[c - 1] + colWidths[c - 1] + FColumnGap;
+
+  SetLength(rowPositions, numRows);
+  rowPositions[0] := Y + FPaddingY;
+  for r := 1 to numRows - 1 do
+    rowPositions[r] := rowPositions[r - 1] + rowHeights[r - 1] + FRowGap;
+
+  // 7. Position visible children
+  for i := 0 to Children.Count - 1 do
+  begin
+    child := TFtWidget(Children[i]);
+    if not child.Visible or (child = FVScrollBar) or (child = FHScrollBar) or
+       (child.GridColumn < 0) or (child.GridRow < 0) then Continue;
+
+    c := child.GridColumn;
+    r := child.GridRow;
+    cs := Max(1, child.GridColSpan);
+    rs := Max(1, child.GridRowSpan);
+
+    if c >= numCols then c := numCols - 1;
+    if r >= numRows then r := numRows - 1;
+    if c + cs > numCols then cs := numCols - c;
+    if r + rs > numRows then rs := numRows - r;
+
+    cellW := 0.0;
+    for colIdx := c to c + cs - 1 do
+      cellW := cellW + colWidths[colIdx];
+    cellW := cellW + (cs - 1) * FColumnGap;
+
+    cellH := 0.0;
+    for rowIdx := r to r + rs - 1 do
+      cellH := cellH + rowHeights[rowIdx];
+    cellH := cellH + (rs - 1) * FRowGap;
+
+    cellX := colPositions[c] + child.MarginLeft;
+    cellY := rowPositions[r] + child.MarginTop;
+    cellW := Max(0.0, cellW - (child.MarginLeft + child.MarginRight));
+    cellH := Max(0.0, cellH - (child.MarginTop + child.MarginBottom));
+
+    child.SetBounds(Round(cellX), Round(cellY), Round(cellW), Round(cellH));
+    child.UpdateLayout();
+    child.Invalidate();
+  end;
+end;
+
+{ TFtFormGrid }
+
+constructor TFtFormGrid.Create(AParent: TFtWidget);
+begin
+  inherited Create(AParent);
+  FCurrentRow := 0;
+  FLabelAlignment := ftasCenter;
+  SetColumnCount(2);
+  SetColumnAuto(0);      // Column 0 matches widest label
+  SetColumnFlex(1, 1.0); // Column 1 stretches input controls across remaining width
+  FColumnGap := 12.0;
+  FRowGap := 10.0;
+end;
+
+function TFtFormGrid.GetElementType(): string;
+begin
+  Result := 'formgrid';
+end;
+
+function TFtFormGrid.AddRow(const ALabel: string; AControl: TFtWidget): TFtLabel;
+begin
+  Result := TFtLabel.Create(Self);
+  Result.GridColumn := 0;
+  Result.GridRow := FCurrentRow;
+  Result.GridColSpan := 1;
+  Result.GridRowSpan := 1;
+  Result.AlignSelf := FLabelAlignment;
+  Result.Text := ALabel;
+
+  if Assigned(AControl) then
+  begin
+    AControl.GridColumn := 1;
+    AControl.GridRow := FCurrentRow;
+    AControl.GridColSpan := 1;
+    AControl.GridRowSpan := 1;
+    if AControl.Parent <> Self then
+    begin
+      AControl.Parent := Self;
+      Self.Children.Add(AControl);
+    end;
+  end;
+
+  Inc(FCurrentRow);
+  EnsureRowCount(FCurrentRow);
+  UpdateLayout();
+end;
+
+procedure TFtFormGrid.AddRowWidgets(ALabelWidget, AControlWidget: TFtWidget);
+begin
+  if Assigned(ALabelWidget) then
+  begin
+    ALabelWidget.GridColumn := 0;
+    ALabelWidget.GridRow := FCurrentRow;
+    ALabelWidget.GridColSpan := 1;
+    ALabelWidget.GridRowSpan := 1;
+    if ALabelWidget.Parent <> Self then
+    begin
+      ALabelWidget.Parent := Self;
+      Self.Children.Add(ALabelWidget);
+    end;
+  end;
+
+  if Assigned(AControlWidget) then
+  begin
+    AControlWidget.GridColumn := 1;
+    AControlWidget.GridRow := FCurrentRow;
+    AControlWidget.GridColSpan := 1;
+    AControlWidget.GridRowSpan := 1;
+    if AControlWidget.Parent <> Self then
+    begin
+      AControlWidget.Parent := Self;
+      Self.Children.Add(AControlWidget);
+    end;
+  end;
+
+  Inc(FCurrentRow);
+  EnsureRowCount(FCurrentRow);
+  UpdateLayout();
+end;
+
+procedure TFtFormGrid.AddSpanned(AWidget: TFtWidget);
+begin
+  if not Assigned(AWidget) then Exit;
+  AWidget.GridColumn := 0;
+  AWidget.GridRow := FCurrentRow;
+  AWidget.GridColSpan := 2;
+  AWidget.GridRowSpan := 1;
+  if AWidget.Parent <> Self then
+  begin
+    AWidget.Parent := Self;
+    Self.Children.Add(AWidget);
+  end;
+
+  Inc(FCurrentRow);
+  EnsureRowCount(FCurrentRow);
+  UpdateLayout();
+end;
+
+function TFtFormGrid.AddSectionHeader(const ATitle: string): TFtLabel;
+begin
+  Result := TFtLabel.Create(Self);
+  Result.GridColumn := 0;
+  Result.GridRow := FCurrentRow;
+  Result.GridColSpan := 2;
+  Result.GridRowSpan := 1;
+  Result.MarginTop := 10;
+  Result.MarginBottom := 4;
+  Result.Text := ATitle;
+
+  Inc(FCurrentRow);
+  EnsureRowCount(FCurrentRow);
+  UpdateLayout();
+end;
+
+{ TFtSizeGroup }
+
+constructor TFtSizeGroup.Create(AMode: TFtSizeGroupMode);
+begin
+  inherited Create();
+  FMode := AMode;
+  FWidgets := TFPList.Create();
+end;
+
+destructor TFtSizeGroup.Destroy();
+begin
+  FWidgets.Free();
+  inherited Destroy();
+end;
+
+procedure TFtSizeGroup.AddWidget(AWidget: TFtWidget);
+begin
+  if Assigned(AWidget) and (FWidgets.IndexOf(AWidget) < 0) then
+  begin
+    FWidgets.Add(AWidget);
+    Synchronize();
+  end;
+end;
+
+procedure TFtSizeGroup.RemoveWidget(AWidget: TFtWidget);
+begin
+  if Assigned(AWidget) then
+  begin
+    FWidgets.Remove(AWidget);
+    Synchronize();
+  end;
+end;
+
+procedure TFtSizeGroup.Synchronize();
+var
+  i: Integer;
+  w: TFtWidget;
+  curW, curH, maxW, maxH: Integer;
+begin
+  if not Assigned(FWidgets) or (FWidgets.Count = 0) then Exit;
+
+  maxW := 0;
+  maxH := 0;
+  for i := 0 to FWidgets.Count - 1 do
+  begin
+    w := TFtWidget(FWidgets[i]);
+    if Assigned(w) and w.Visible then
+    begin
+      curW := w.GetPreferredWidth();
+      if w.Width > curW then curW := w.Width;
+      if curW > maxW then maxW := curW;
+
+      curH := w.GetPreferredHeight();
+      if w.Height > curH then curH := w.Height;
+      if curH > maxH then maxH := curH;
+    end;
+  end;
+
+  for i := 0 to FWidgets.Count - 1 do
+  begin
+    w := TFtWidget(FWidgets[i]);
+    if Assigned(w) then
+    begin
+      if (FMode = ftsgHorizontal) or (FMode = ftsgBoth) then
+      begin
+        w.PreferredWidth := maxW;
+        w.Width := maxW;
+      end;
+      if (FMode = ftsgVertical) or (FMode = ftsgBoth) then
+      begin
+        w.PreferredHeight := maxH;
+        w.Height := maxH;
+      end;
+      if Assigned(w.Parent) then
+        w.Parent.UpdateLayout();
+    end;
+  end;
 end;
 
 end.

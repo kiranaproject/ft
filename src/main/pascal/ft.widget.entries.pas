@@ -63,6 +63,8 @@ type
 
     function GetElementType(): string; override;
     function GetStatePseudoClass(): string; override;
+    function GetPreferredWidth(): Integer; override;
+    function GetPreferredHeight(): Integer; override;
 
     function HasSelection(): Boolean;
     function GetSelectedText(): string;
@@ -783,6 +785,24 @@ begin
     Result := ':focus'
   else
     Result := '';
+end;
+
+function TFtEntry.GetPreferredWidth(): Integer;
+begin
+  if FPreferredWidth > 0 then Exit(FPreferredWidth);
+  Result := 160;
+end;
+
+function TFtEntry.GetPreferredHeight(): Integer;
+var
+  fnt: TFtFont;
+begin
+  if FPreferredHeight > 0 then Exit(FPreferredHeight);
+  fnt := GetFont();
+  if Assigned(fnt) then
+    Result := Max(28, Round(fnt.Size * 1.5) + 12)
+  else
+    Result := 32;
 end;
 
 procedure TFtEntry.LostFocus();

@@ -607,10 +607,9 @@ var
 begin
   AdjustChildCoordinates(parent, x, y);
   Btn := TFtButton.Create(TFtWidget(parent));
-  Btn.X := x;
-  Btn.Y := y;
-  Btn.Width := w;
-  Btn.Height := h;
+  Btn.SetBounds(x, y, w, h);
+  if w > 0 then Btn.PreferredWidth := w;
+  if h > 0 then Btn.PreferredHeight := h;
   Btn.Caption := StrPas(caption);
   if Assigned(parent) and (TObject(parent) is TFtContainer) then
     TFtContainer(parent).UpdateScrollBars();
@@ -632,10 +631,9 @@ var
 begin
   AdjustChildCoordinates(parent, x, y);
   Btn := TFtToggleButton.Create(TFtWidget(parent));
-  Btn.X := x;
-  Btn.Y := y;
-  Btn.Width := w;
-  Btn.Height := h;
+  Btn.SetBounds(x, y, w, h);
+  if w > 0 then Btn.PreferredWidth := w;
+  if h > 0 then Btn.PreferredHeight := h;
   Btn.Caption := StrPas(caption);
   if Assigned(parent) and (TObject(parent) is TFtContainer) then
     TFtContainer(parent).UpdateScrollBars();
@@ -1000,10 +998,9 @@ var
 begin
   AdjustChildCoordinates(parent, x, y);
   Sw := TFtSwitch.Create(TFtWidget(parent));
-  Sw.X := x;
-  Sw.Y := y;
-  Sw.Width := w;
-  Sw.Height := h;
+  Sw.SetBounds(x, y, w, h);
+  if w > 0 then Sw.PreferredWidth := w;
+  if h > 0 then Sw.PreferredHeight := h;
   if Assigned(caption) then
     Sw.Caption := StrPas(caption)
   else
@@ -1149,6 +1146,8 @@ begin
   AdjustChildCoordinates(parent, x, y);
   Result := Pointer(TFtText.Create(TFtWidget(parent), strText));
   TFtWidget(Result).SetBounds(x, y, w, h);
+  if w > 0 then TFtWidget(Result).PreferredWidth := w;
+  if h > 0 then TFtWidget(Result).PreferredHeight := h;
   if Assigned(parent) and (TObject(parent) is TFtContainer) then
     TFtContainer(parent).UpdateScrollBars();
 end;
@@ -1307,10 +1306,9 @@ begin
     strText := '';
   AdjustChildCoordinates(parent, x, y);
   entry := TFtEntry.Create(TFtWidget(parent), strText);
-  entry.X := x;
-  entry.Y := y;
-  entry.Width := w;
-  entry.Height := h;
+  entry.SetBounds(x, y, w, h);
+  if w > 0 then entry.PreferredWidth := w;
+  if h > 0 then entry.PreferredHeight := h;
   if Assigned(parent) and (TObject(parent) is TFtContainer) then
     TFtContainer(parent).UpdateScrollBars();
   Result := Pointer(entry);
@@ -2446,6 +2444,247 @@ procedure ft_widget_set_margin_all(widget: Pointer; margin: cint32); cdecl; expo
 begin
   if Assigned(widget) and (TObject(widget) is TFtWidget) then
     TFtWidget(widget).SetMarginAll(margin);
+end;
+
+procedure ft_widget_set_grid_cell(widget: Pointer; col, row, col_span, row_span: cint32); cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    TFtWidget(widget).SetGridCell(col, row, col_span, row_span);
+end;
+
+function ft_widget_get_grid_col(widget: Pointer): cint32; cdecl; export;
+begin
+  Result := 0;
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    Result := TFtWidget(widget).GridColumn;
+end;
+
+function ft_widget_get_grid_row(widget: Pointer): cint32; cdecl; export;
+begin
+  Result := 0;
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    Result := TFtWidget(widget).GridRow;
+end;
+
+function ft_widget_get_grid_col_span(widget: Pointer): cint32; cdecl; export;
+begin
+  Result := 1;
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    Result := TFtWidget(widget).GridColSpan;
+end;
+
+function ft_widget_get_grid_row_span(widget: Pointer): cint32; cdecl; export;
+begin
+  Result := 1;
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    Result := TFtWidget(widget).GridRowSpan;
+end;
+
+function ft_flexbox_add_splitter(flexbox: Pointer): Pointer; cdecl; export;
+begin
+  Result := nil;
+  if Assigned(flexbox) and (TObject(flexbox) is TFtFlexBox) then
+    Result := TFtFlexBox(flexbox).AddSplitter();
+end;
+
+function ft_flex_splitter_create(flexbox: Pointer; splitter_size: Double): Pointer; cdecl; export;
+begin
+  Result := nil;
+  if Assigned(flexbox) and (TObject(flexbox) is TFtFlexBox) then
+    Result := TFtFlexBox(flexbox).AddSplitter(splitter_size);
+end;
+
+function ft_grid_create(parent: Pointer; x, y, w, h: cint32): Pointer; cdecl; export;
+var
+  grid: TFtGrid;
+begin
+  grid := TFtGrid.Create(TFtWidget(parent));
+  grid.SetBounds(x, y, w, h);
+  Result := grid;
+end;
+
+procedure ft_grid_set_column_count(grid: Pointer; count: cint32); cdecl; export;
+begin
+  if Assigned(grid) and (TObject(grid) is TFtGrid) then
+    TFtGrid(grid).ColumnCount := count;
+end;
+
+procedure ft_grid_set_row_count(grid: Pointer; count: cint32); cdecl; export;
+begin
+  if Assigned(grid) and (TObject(grid) is TFtGrid) then
+    TFtGrid(grid).RowCount := count;
+end;
+
+function ft_grid_get_column_count(grid: Pointer): cint32; cdecl; export;
+begin
+  Result := 0;
+  if Assigned(grid) and (TObject(grid) is TFtGrid) then
+    Result := TFtGrid(grid).ColumnCount;
+end;
+
+function ft_grid_get_row_count(grid: Pointer): cint32; cdecl; export;
+begin
+  Result := 0;
+  if Assigned(grid) and (TObject(grid) is TFtGrid) then
+    Result := TFtGrid(grid).RowCount;
+end;
+
+procedure ft_grid_set_gaps(grid: Pointer; col_gap, row_gap: Double); cdecl; export;
+begin
+  if Assigned(grid) and (TObject(grid) is TFtGrid) then
+  begin
+    TFtGrid(grid).ColumnGap := col_gap;
+    TFtGrid(grid).RowGap := row_gap;
+  end;
+end;
+
+procedure ft_grid_set_column_fixed(grid: Pointer; col: cint32; width: Double); cdecl; export;
+begin
+  if Assigned(grid) and (TObject(grid) is TFtGrid) then
+    TFtGrid(grid).SetColumnFixed(col, width);
+end;
+
+procedure ft_grid_set_column_flex(grid: Pointer; col: cint32; weight: Double); cdecl; export;
+begin
+  if Assigned(grid) and (TObject(grid) is TFtGrid) then
+    TFtGrid(grid).SetColumnFlex(col, weight);
+end;
+
+procedure ft_grid_set_column_auto(grid: Pointer; col: cint32); cdecl; export;
+begin
+  if Assigned(grid) and (TObject(grid) is TFtGrid) then
+    TFtGrid(grid).SetColumnAuto(col);
+end;
+
+procedure ft_grid_set_row_fixed(grid: Pointer; row: cint32; height: Double); cdecl; export;
+begin
+  if Assigned(grid) and (TObject(grid) is TFtGrid) then
+    TFtGrid(grid).SetRowFixed(row, height);
+end;
+
+procedure ft_grid_set_row_flex(grid: Pointer; row: cint32; weight: Double); cdecl; export;
+begin
+  if Assigned(grid) and (TObject(grid) is TFtGrid) then
+    TFtGrid(grid).SetRowFlex(row, weight);
+end;
+
+procedure ft_grid_set_row_auto(grid: Pointer; row: cint32); cdecl; export;
+begin
+  if Assigned(grid) and (TObject(grid) is TFtGrid) then
+    TFtGrid(grid).SetRowAuto(row);
+end;
+
+procedure ft_grid_set_column_template(grid: Pointer; tmpl: PChar); cdecl; export;
+begin
+  if Assigned(grid) and (TObject(grid) is TFtGrid) and Assigned(tmpl) then
+    TFtGrid(grid).SetColumnTemplate(string(tmpl));
+end;
+
+procedure ft_grid_set_row_template(grid: Pointer; tmpl: PChar); cdecl; export;
+begin
+  if Assigned(grid) and (TObject(grid) is TFtGrid) and Assigned(tmpl) then
+    TFtGrid(grid).SetRowTemplate(string(tmpl));
+end;
+
+procedure ft_grid_add_widget(grid: Pointer; widget: Pointer; col, row, col_span, row_span: cint32); cdecl; export;
+begin
+  if Assigned(grid) and (TObject(grid) is TFtGrid) and
+     Assigned(widget) and (TObject(widget) is TFtWidget) then
+    TFtGrid(grid).AddWidget(TFtWidget(widget), col, row, col_span, row_span);
+end;
+
+procedure ft_grid_update_layout(grid: Pointer); cdecl; export;
+begin
+  if Assigned(grid) and (TObject(grid) is TFtGrid) then
+    TFtGrid(grid).UpdateLayout();
+end;
+
+function ft_form_grid_create(parent: Pointer; x, y, w, h: cint32): Pointer; cdecl; export;
+var
+  fg: TFtFormGrid;
+begin
+  fg := TFtFormGrid.Create(TFtWidget(parent));
+  fg.SetBounds(x, y, w, h);
+  Result := fg;
+end;
+
+function ft_form_grid_add_row(form_grid: Pointer; label_text: PChar; control: Pointer): Pointer; cdecl; export;
+var
+  lbl: TFtLabel;
+  txt: string;
+begin
+  Result := nil;
+  if Assigned(form_grid) and (TObject(form_grid) is TFtFormGrid) then
+  begin
+    if Assigned(label_text) then txt := string(label_text) else txt := '';
+    lbl := TFtFormGrid(form_grid).AddRow(txt, TFtWidget(control));
+    Result := lbl;
+  end;
+end;
+
+procedure ft_form_grid_add_row_widgets(form_grid: Pointer; label_widget, control_widget: Pointer); cdecl; export;
+begin
+  if Assigned(form_grid) and (TObject(form_grid) is TFtFormGrid) then
+    TFtFormGrid(form_grid).AddRowWidgets(TFtWidget(label_widget), TFtWidget(control_widget));
+end;
+
+procedure ft_form_grid_add_spanned(form_grid: Pointer; control: Pointer); cdecl; export;
+begin
+  if Assigned(form_grid) and (TObject(form_grid) is TFtFormGrid) and
+     Assigned(control) and (TObject(control) is TFtWidget) then
+    TFtFormGrid(form_grid).AddSpanned(TFtWidget(control));
+end;
+
+function ft_form_grid_add_section(form_grid: Pointer; title: PChar): Pointer; cdecl; export;
+var
+  lbl: TFtLabel;
+  txt: string;
+begin
+  Result := nil;
+  if Assigned(form_grid) and (TObject(form_grid) is TFtFormGrid) then
+  begin
+    if Assigned(title) then txt := string(title) else txt := '';
+    lbl := TFtFormGrid(form_grid).AddSectionHeader(txt);
+    Result := lbl;
+  end;
+end;
+
+function ft_size_group_create(mode: cint32): Pointer; cdecl; export;
+var
+  sgMode: TFtSizeGroupMode;
+begin
+  case mode of
+    1: sgMode := ftsgVertical;
+    2: sgMode := ftsgBoth;
+    else sgMode := ftsgHorizontal;
+  end;
+  Result := TFtSizeGroup.Create(sgMode);
+end;
+
+procedure ft_size_group_destroy(group: Pointer); cdecl; export;
+begin
+  if Assigned(group) and (TObject(group) is TFtSizeGroup) then
+    TFtSizeGroup(group).Free();
+end;
+
+procedure ft_size_group_add_widget(group: Pointer; widget: Pointer); cdecl; export;
+begin
+  if Assigned(group) and (TObject(group) is TFtSizeGroup) and
+     Assigned(widget) and (TObject(widget) is TFtWidget) then
+    TFtSizeGroup(group).AddWidget(TFtWidget(widget));
+end;
+
+procedure ft_size_group_remove_widget(group: Pointer; widget: Pointer); cdecl; export;
+begin
+  if Assigned(group) and (TObject(group) is TFtSizeGroup) and
+     Assigned(widget) and (TObject(widget) is TFtWidget) then
+    TFtSizeGroup(group).RemoveWidget(TFtWidget(widget));
+end;
+
+procedure ft_size_group_synchronize(group: Pointer); cdecl; export;
+begin
+  if Assigned(group) and (TObject(group) is TFtSizeGroup) then
+    TFtSizeGroup(group).Synchronize();
 end;
 
 procedure ft_window_set_layout(window: Pointer; layout: Pointer); cdecl; export;
@@ -5901,7 +6140,50 @@ exports
   ft_widget_get_align_self,
   ft_widget_set_margin,
   ft_widget_set_margin_all,
-  ft_window_set_layout;
+  ft_window_set_layout,
+
+  // Flexbox Splitter
+  ft_flexbox_add_splitter,
+  ft_flex_splitter_create,
+
+  // 2D Grid Layout
+  ft_grid_create,
+  ft_grid_set_column_count,
+  ft_grid_set_row_count,
+  ft_grid_get_column_count,
+  ft_grid_get_row_count,
+  ft_grid_set_gaps,
+  ft_grid_set_column_fixed,
+  ft_grid_set_column_flex,
+  ft_grid_set_column_auto,
+  ft_grid_set_row_fixed,
+  ft_grid_set_row_flex,
+  ft_grid_set_row_auto,
+  ft_grid_set_column_template,
+  ft_grid_set_row_template,
+  ft_grid_add_widget,
+  ft_grid_update_layout,
+
+  // Form Grid
+  ft_form_grid_create,
+  ft_form_grid_add_row,
+  ft_form_grid_add_row_widgets,
+  ft_form_grid_add_spanned,
+  ft_form_grid_add_section,
+
+  // Size Groups
+  ft_size_group_create,
+  ft_size_group_destroy,
+  ft_size_group_add_widget,
+  ft_size_group_remove_widget,
+  ft_size_group_synchronize,
+
+  // Widget Grid Cell
+  ft_widget_set_grid_cell,
+  ft_widget_get_grid_col,
+  ft_widget_get_grid_row,
+  ft_widget_get_grid_col_span,
+  ft_widget_get_grid_row_span;
 
 begin
 end.

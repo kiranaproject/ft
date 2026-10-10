@@ -92,6 +92,23 @@ type
     HasMarginBottom: Boolean;
     MarginBottom: Double;
 
+    HasColumnGap: Boolean;
+    ColumnGap: Double;
+    HasRowGap: Boolean;
+    RowGap: Double;
+    HasGridTemplateColumns: Boolean;
+    GridTemplateColumns: string;
+    HasGridTemplateRows: Boolean;
+    GridTemplateRows: string;
+    HasGridColumn: Boolean;
+    GridColumn: Integer;
+    HasGridRow: Boolean;
+    GridRow: Integer;
+    HasGridColSpan: Boolean;
+    GridColSpan: Integer;
+    HasGridRowSpan: Boolean;
+    GridRowSpan: Integer;
+
     procedure Init();
     procedure Merge(const Other: TFtWidgetStyle);
   end;
@@ -238,6 +255,22 @@ begin
   MarginRight := 0.0;
   HasMarginBottom := False;
   MarginBottom := 0.0;
+  HasColumnGap := False;
+  ColumnGap := 0.0;
+  HasRowGap := False;
+  RowGap := 0.0;
+  HasGridTemplateColumns := False;
+  GridTemplateColumns := '';
+  HasGridTemplateRows := False;
+  GridTemplateRows := '';
+  HasGridColumn := False;
+  GridColumn := 0;
+  HasGridRow := False;
+  GridRow := 0;
+  HasGridColSpan := False;
+  GridColSpan := 1;
+  HasGridRowSpan := False;
+  GridRowSpan := 1;
 end;
 
 procedure TFtWidgetStyle.Merge(const Other: TFtWidgetStyle);
@@ -370,6 +403,46 @@ begin
   begin
     HasMarginBottom := True;
     MarginBottom := Other.MarginBottom;
+  end;
+  if Other.HasColumnGap then
+  begin
+    HasColumnGap := True;
+    ColumnGap := Other.ColumnGap;
+  end;
+  if Other.HasRowGap then
+  begin
+    HasRowGap := True;
+    RowGap := Other.RowGap;
+  end;
+  if Other.HasGridTemplateColumns then
+  begin
+    HasGridTemplateColumns := True;
+    GridTemplateColumns := Other.GridTemplateColumns;
+  end;
+  if Other.HasGridTemplateRows then
+  begin
+    HasGridTemplateRows := True;
+    GridTemplateRows := Other.GridTemplateRows;
+  end;
+  if Other.HasGridColumn then
+  begin
+    HasGridColumn := True;
+    GridColumn := Other.GridColumn;
+  end;
+  if Other.HasGridRow then
+  begin
+    HasGridRow := True;
+    GridRow := Other.GridRow;
+  end;
+  if Other.HasGridColSpan then
+  begin
+    HasGridColSpan := True;
+    GridColSpan := Other.GridColSpan;
+  end;
+  if Other.HasGridRowSpan then
+  begin
+    HasGridRowSpan := True;
+    GridRowSpan := Other.GridRowSpan;
   end;
 end;
 
@@ -1908,6 +1981,91 @@ begin
       AStyle.HasMarginBottom := True;
       AStyle.MarginBottom := lenVal;
     end;
+  end;
+
+  // Grid: column-gap
+  decl := ABlock.GetCustom('column-gap');
+  if decl <> nil then
+  begin
+    resolvedStr := ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo);
+    if FtParseLength(resolvedStr, lenVal) then
+    begin
+      AStyle.HasColumnGap := True;
+      AStyle.ColumnGap := lenVal;
+    end;
+  end;
+
+  // Grid: row-gap
+  decl := ABlock.GetCustom('row-gap');
+  if decl <> nil then
+  begin
+    resolvedStr := ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo);
+    if FtParseLength(resolvedStr, lenVal) then
+    begin
+      AStyle.HasRowGap := True;
+      AStyle.RowGap := lenVal;
+    end;
+  end;
+
+  // Grid: grid-template-columns
+  decl := ABlock.GetCustom('grid-template-columns');
+  if decl <> nil then
+  begin
+    resolvedStr := Trim(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo));
+    if resolvedStr <> '' then
+    begin
+      AStyle.HasGridTemplateColumns := True;
+      AStyle.GridTemplateColumns := resolvedStr;
+    end;
+  end;
+
+  // Grid: grid-template-rows
+  decl := ABlock.GetCustom('grid-template-rows');
+  if decl <> nil then
+  begin
+    resolvedStr := Trim(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo));
+    if resolvedStr <> '' then
+    begin
+      AStyle.HasGridTemplateRows := True;
+      AStyle.GridTemplateRows := resolvedStr;
+    end;
+  end;
+
+  // Grid item: grid-column
+  decl := ABlock.GetCustom('grid-column');
+  if decl <> nil then
+  begin
+    resolvedStr := Trim(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo));
+    AStyle.HasGridColumn := True;
+    AStyle.GridColumn := Max(0, StrToIntDef(resolvedStr, 1) - 1);
+  end;
+
+  // Grid item: grid-row
+  decl := ABlock.GetCustom('grid-row');
+  if decl <> nil then
+  begin
+    resolvedStr := Trim(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo));
+    AStyle.HasGridRow := True;
+    AStyle.GridRow := Max(0, StrToIntDef(resolvedStr, 1) - 1);
+  end;
+
+  // Grid item: grid-column-span or grid-col-span
+  decl := ABlock.GetCustom('grid-column-span');
+  if decl = nil then decl := ABlock.GetCustom('grid-col-span');
+  if decl <> nil then
+  begin
+    resolvedStr := Trim(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo));
+    AStyle.HasGridColSpan := True;
+    AStyle.GridColSpan := Max(1, StrToIntDef(resolvedStr, 1));
+  end;
+
+  // Grid item: grid-row-span
+  decl := ABlock.GetCustom('grid-row-span');
+  if decl <> nil then
+  begin
+    resolvedStr := Trim(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo));
+    AStyle.HasGridRowSpan := True;
+    AStyle.GridRowSpan := Max(1, StrToIntDef(resolvedStr, 1));
   end;
 end;
 

@@ -122,6 +122,11 @@ void ft_widget_set_align_self(FtWidget widget, int32_t align_self);
 int32_t ft_widget_get_align_self(FtWidget widget);
 void ft_widget_set_margin(FtWidget widget, int32_t left, int32_t top, int32_t right, int32_t bottom);
 void ft_widget_set_margin_all(FtWidget widget, int32_t margin);
+void ft_widget_set_grid_cell(FtWidget widget, int32_t col, int32_t row, int32_t col_span, int32_t row_span);
+int32_t ft_widget_get_grid_col(FtWidget widget);
+int32_t ft_widget_get_grid_row(FtWidget widget);
+int32_t ft_widget_get_grid_col_span(FtWidget widget);
+int32_t ft_widget_get_grid_row_span(FtWidget widget);
 
 /* Widget Hints & Tooltips */
 void ft_widget_set_hint(FtWidget widget, const char* hint);
@@ -483,6 +488,51 @@ int32_t ft_flexbox_get_align_items(FtWidget flexbox);
 void ft_flexbox_set_gap(FtWidget flexbox, double gap);
 double ft_flexbox_get_gap(FtWidget flexbox);
 void ft_flexbox_update_layout(FtWidget flexbox);
+
+/* Flexbox Splitter & Subsystem */
+FtWidget ft_flexbox_add_splitter(FtWidget flexbox);
+FtWidget ft_flex_splitter_create(FtWidget flexbox, double splitter_size);
+void ft_splitter_set_min_sizes(FtWidget splitter, double min_pane1, double min_pane2);
+
+/* 2D Grid Layout */
+typedef enum {
+    FT_GRID_AUTO = 0,
+    FT_GRID_FIXED = 1,
+    FT_GRID_FLEX = 2
+} FtGridTrackSize;
+
+FtWidget ft_grid_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h);
+void ft_grid_set_column_count(FtWidget grid, int32_t count);
+void ft_grid_set_row_count(FtWidget grid, int32_t count);
+int32_t ft_grid_get_column_count(FtWidget grid);
+int32_t ft_grid_get_row_count(FtWidget grid);
+void ft_grid_set_gaps(FtWidget grid, double col_gap, double row_gap);
+void ft_grid_set_column_fixed(FtWidget grid, int32_t col, double width);
+void ft_grid_set_column_flex(FtWidget grid, int32_t col, double weight);
+void ft_grid_set_column_auto(FtWidget grid, int32_t col);
+void ft_grid_set_row_fixed(FtWidget grid, int32_t row, double height);
+void ft_grid_set_row_flex(FtWidget grid, int32_t row, double weight);
+void ft_grid_set_row_auto(FtWidget grid, int32_t row);
+void ft_grid_set_column_template(FtWidget grid, const char* tmpl);
+void ft_grid_set_row_template(FtWidget grid, const char* tmpl);
+void ft_grid_add_widget(FtWidget grid, FtWidget widget, int32_t col, int32_t row, int32_t col_span, int32_t row_span);
+void ft_grid_update_layout(FtWidget grid);
+
+/* Form Grid */
+FtWidget ft_form_grid_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h);
+FtWidget ft_form_grid_add_row(FtWidget form_grid, const char* label, FtWidget control);
+void ft_form_grid_add_row_widgets(FtWidget form_grid, FtWidget label_widget, FtWidget control_widget);
+void ft_form_grid_add_spanned(FtWidget form_grid, FtWidget control);
+FtWidget ft_form_grid_add_section(FtWidget form_grid, const char* title);
+
+/* Size Group */
+typedef void* FtSizeGroup;
+
+FtSizeGroup ft_size_group_create(int32_t mode);
+void ft_size_group_destroy(FtSizeGroup group);
+void ft_size_group_add_widget(FtSizeGroup group, FtWidget widget);
+void ft_size_group_remove_widget(FtSizeGroup group, FtWidget widget);
+void ft_size_group_synchronize(FtSizeGroup group);
 
 /* CheckBox Enums & Callbacks */
 typedef void (*FtCheckCallback)(FtWidget widget, int32_t checked, void* user_data);

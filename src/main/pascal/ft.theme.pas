@@ -261,7 +261,7 @@ const
     'switch {' + LineEnding +
     '    background-color: #cbd5e1;' + LineEnding +
     '    border-color: #94a3b8;' + LineEnding +
-    '    border-radius: 12px;' + LineEnding +
+    '    border-radius: 9999px;' + LineEnding +
     '    transition: all 200ms ease;' + LineEnding +
     '}' + LineEnding +
     'switch:checked {' + LineEnding +

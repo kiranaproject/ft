@@ -26,6 +26,11 @@ type
     procedure TestHBoxFlexWrap();
     procedure TestHBoxFlexWrapReverse();
     procedure TestCssFlexboxProperties();
+    procedure TestFlexSplitter();
+    procedure TestGrid2DLayout();
+    procedure TestFormGrid();
+    procedure TestSizeGroup();
+    procedure TestFlexboxCrushAndRecovery();
   end;
 
   TFtIconsTest = class(TTestCase)
@@ -3000,6 +3005,266 @@ begin
     AssertEquals('b2 X centered', 140, b2.X);
   finally
     win.Free();
+  end;
+end;
+
+procedure TFtLayoutsTest.TestFlexSplitter();
+var
+  win: TFtWindow;
+  hbox: TFtHBox;
+  b1, b2: TFtButton;
+  spl: TFtSplitter;
+begin
+  win := TFtWindow.Create(500, 300, 'TestSplitterWin');
+  try
+    hbox := TFtHBox.Create(win);
+    hbox.SetBounds(0, 0, 410, 100);
+    hbox.Gap := 0.0;
+
+    b1 := TFtButton.Create(hbox);
+    b1.SetBounds(0, 0, 100, 100);
+    b1.FlexGrow := 1.0;
+
+    spl := hbox.AddSplitter(10.0);
+
+    b2 := TFtButton.Create(hbox);
+    b2.SetBounds(0, 0, 100, 100);
+    b2.FlexGrow := 1.0;
+
+    hbox.UpdateLayout();
+
+    // 410 total width - 10 splitter = 400 remaining. Distributed 1:1 -> 200 each.
+    AssertEquals('b1 X', 0, b1.X);
+    AssertEquals('b1 Width', 200, b1.Width);
+    AssertEquals('spl X', 200, spl.X);
+    AssertEquals('spl Width', 10, spl.Width);
+    AssertEquals('b2 X', 210, b2.X);
+    AssertEquals('b2 Width', 200, b2.Width);
+
+    // Test dragging: MouseDown on splitter at X=205, drag to X=255 (+50px)
+    spl.MouseDown(205, 50, 1);
+    spl.MouseMove(255, 50);
+    spl.MouseUp(255, 50, 1);
+
+    // After drag: b1 expands to 250, b2 shrinks to 150
+    AssertEquals('Dragged b1 Width', 250, b1.Width);
+    AssertEquals('Dragged spl X', 250, spl.X);
+    AssertEquals('Dragged b2 Width', 150, b2.Width);
+
+    // Test min pane clamping:
+    spl.SetMinSizes(80.0, 80.0);
+    spl.MouseDown(255, 50, 1);
+    spl.MouseMove(380, 50); // huge drag to the right
+    spl.MouseUp(380, 50, 1);
+
+    // b2 min size is 80, so b2 cannot shrink below 80 -> b1 is at most 320
+    AssertEquals('Clamped b2 Width min', 80, b2.Width);
+    AssertEquals('Clamped b1 Width max', 320, b1.Width);
+    AssertEquals('Clamped spl X', 320, spl.X);
+  finally
+    win.Free();
+  end;
+end;
+
+procedure TFtLayoutsTest.TestGrid2DLayout();
+var
+  win: TFtWindow;
+  grid: TFtGrid;
+  w00, w10, w01, w11, wSpan: TFtButton;
+begin
+  win := TFtWindow.Create(500, 400, 'TestGridWin');
+  try
+    grid := TFtGrid.Create(win);
+    grid.SetBounds(0, 0, 310, 210);
+    grid.ColumnGap := 10.0;
+    grid.RowGap := 10.0;
+
+    grid.SetColumnTemplate('100px 1fr');
+    grid.SetRowTemplate('50px 1fr');
+
+    w00 := TFtButton.Create(grid);
+    grid.AddWidget(w00, 0, 0);
+
+    w10 := TFtButton.Create(grid);
+    grid.AddWidget(w10, 1, 0);
+
+    w01 := TFtButton.Create(grid);
+    grid.AddWidget(w01, 0, 1);
+
+    w11 := TFtButton.Create(grid);
+    grid.AddWidget(w11, 1, 1);
+
+    grid.UpdateLayout();
+
+    // Col 0: 100px, ColGap: 10px -> Col 1: 310 - 100 - 10 = 200px
+    // Row 0: 50px, RowGap: 10px -> Row 1: 210 - 50 - 10 = 150px
+    AssertEquals('w00 X', 0, w00.X);
+    AssertEquals('w00 Y', 0, w00.Y);
+    AssertEquals('w00 Width', 100, w00.Width);
+    AssertEquals('w00 Height', 50, w00.Height);
+
+    AssertEquals('w10 X', 110, w10.X);
+    AssertEquals('w10 Y', 0, w10.Y);
+    AssertEquals('w10 Width', 200, w10.Width);
+    AssertEquals('w10 Height', 50, w10.Height);
+
+    AssertEquals('w01 X', 0, w01.X);
+    AssertEquals('w01 Y', 60, w01.Y);
+    AssertEquals('w01 Width', 100, w01.Width);
+    AssertEquals('w01 Height', 150, w01.Height);
+
+    AssertEquals('w11 X', 110, w11.X);
+    AssertEquals('w11 Y', 60, w11.Y);
+    AssertEquals('w11 Width', 200, w11.Width);
+    AssertEquals('w11 Height', 150, w11.Height);
+
+    // Test spanning cell
+    wSpan := TFtButton.Create(grid);
+    grid.AddWidget(wSpan, 0, 2, 2, 1); // Row 2, spanning 2 cols
+    grid.SetRowFixed(2, 40.0);
+    grid.UpdateLayout();
+
+    AssertEquals('wSpan X', 0, wSpan.X);
+    AssertEquals('wSpan Width', 310, wSpan.Width);
+  finally
+    win.Free();
+  end;
+end;
+
+procedure TFtLayoutsTest.TestFormGrid();
+var
+  win: TFtWindow;
+  form: TFtFormGrid;
+  lbl1, lbl2, header: TFtLabel;
+  edit1, edit2: TFtEntry;
+begin
+  win := TFtWindow.Create(500, 400, 'TestFormWin');
+  try
+    form := TFtFormGrid.Create(win);
+    form.SetBounds(0, 0, 400, 200);
+    form.ColumnGap := 10.0;
+    form.RowGap := 8.0;
+
+    edit1 := TFtEntry.Create(form);
+    lbl1 := form.AddRow('Name:', edit1);
+
+    edit2 := TFtEntry.Create(form);
+    lbl2 := form.AddRow('Server Hostname / Address:', edit2);
+
+    header := form.AddSectionHeader('Network Credentials');
+
+    form.UpdateLayout();
+
+    // Column 0 is auto-sized to the widest label.
+    // Both labels should have the same X (0)
+    AssertEquals('lbl1 X', 0, lbl1.X);
+    AssertEquals('lbl2 X', 0, lbl2.X);
+    // Both inputs should start at the same X (widest label width + column gap)
+    AssertEquals('Inputs aligned at same X', edit1.X, edit2.X);
+    AssertTrue('edit1 X > 0', edit1.X > 0);
+    // Inputs expand to fill remaining width
+    AssertEquals('edit1 Width', 400 - edit1.X, edit1.Width);
+    AssertEquals('edit2 Width', 400 - edit2.X, edit2.Width);
+    // Section header spans full width (ColSpan = 2)
+    AssertEquals('header X', 0, header.X);
+    AssertEquals('header Width spans 400', 400, header.Width);
+  finally
+    win.Free();
+  end;
+end;
+
+procedure TFtLayoutsTest.TestSizeGroup();
+var
+  win: TFtWindow;
+  b1, b2, b3: TFtButton;
+  sg: TFtSizeGroup;
+begin
+  win := TFtWindow.Create(400, 300, 'TestSizeGroupWin');
+  try
+    b1 := TFtButton.Create(win);
+    b1.SetBounds(10, 10, 75, 30);
+
+    b2 := TFtButton.Create(win);
+    b2.SetBounds(10, 50, 140, 30);
+
+    b3 := TFtButton.Create(win);
+    b3.SetBounds(10, 90, 95, 30);
+
+    sg := TFtSizeGroup.Create(ftsgHorizontal);
+    try
+      sg.AddWidget(b1);
+      sg.AddWidget(b2);
+      sg.AddWidget(b3);
+
+      sg.Synchronize();
+
+      // All 3 widgets should be synchronized to the maximum width (140)
+      AssertEquals('b1 synchronized width', 140, b1.Width);
+      AssertEquals('b2 synchronized width', 140, b2.Width);
+      AssertEquals('b3 synchronized width', 140, b3.Width);
+    finally
+      sg.Free();
+    end;
+  finally
+    win.Free();
+  end;
+end;
+
+procedure TFtLayoutsTest.TestFlexboxCrushAndRecovery();
+var
+  vbox: TFtVBox;
+  b1, b2, b3: TFtButton;
+  sp: TFtSpacer;
+  cycle: Integer;
+begin
+  vbox := TFtVBox.Create(nil);
+  try
+    vbox.SetBounds(0, 0, 200, 400);
+    vbox.Gap := 6;
+
+    b1 := TFtButton.Create(vbox);
+    b1.SetBounds(0, 0, 180, 30);
+    b1.Caption := 'Button 1';
+
+    b2 := TFtButton.Create(vbox);
+    b2.SetBounds(0, 0, 180, 30);
+    b2.Caption := 'Button 2';
+
+    b3 := TFtButton.Create(vbox);
+    b3.SetBounds(0, 0, 180, 30);
+    b3.Caption := 'Button 3';
+
+    sp := TFtSpacer.Create(vbox);
+
+    // Initial layout pass
+    vbox.UpdateLayout();
+    AssertEquals('Initial b1 height', 30, b1.Height);
+    AssertEquals('Initial b2 height', 30, b2.Height);
+    AssertEquals('Initial b3 height', 30, b3.Height);
+
+    // Perform multiple crush-and-expand cycles
+    for cycle := 1 to 5 do
+    begin
+      // Crush container down to 1px height
+      vbox.Height := 1;
+      vbox.UpdateLayout();
+
+      // All buttons should shrink gracefully without negative sizes
+      AssertTrue('Crushed b1 height >= 0', b1.Height >= 0);
+      AssertTrue('Crushed b2 height >= 0', b2.Height >= 0);
+      AssertTrue('Crushed b3 height >= 0', b3.Height >= 0);
+
+      // Restore container back to 400px height
+      vbox.Height := 400;
+      vbox.UpdateLayout();
+
+      // All buttons must reliably recover to their exact original 30px height
+      AssertEquals('Restored b1 height cycle ' + IntToStr(cycle), 30, b1.Height);
+      AssertEquals('Restored b2 height cycle ' + IntToStr(cycle), 30, b2.Height);
+      AssertEquals('Restored b3 height cycle ' + IntToStr(cycle), 30, b3.Height);
+    end;
+  finally
+    vbox.Free();
   end;
 end;
 

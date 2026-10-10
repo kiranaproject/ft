@@ -53,6 +53,8 @@ type
 
     function GetElementType(): string; override;
     function GetStatePseudoClass(): string; override;
+    function GetPreferredWidth(): Integer; override;
+    function GetPreferredHeight(): Integer; override;
     function GetEffectiveHint(): string; override;
 
     property Checked: Boolean read FChecked write SetChecked;
@@ -237,6 +239,28 @@ begin
     Result := '';
 end;
 
+function TFtSwitch.GetPreferredWidth(): Integer;
+var
+  fnt: TFtFont;
+  reqW: Integer;
+begin
+  if FPreferredWidth > 0 then Exit(FPreferredWidth);
+  reqW := 48; // switch track width + margins
+  if Caption <> '' then
+  begin
+    fnt := GetFont();
+    if Assigned(fnt) then
+      reqW := reqW + Round(fnt.GetTextWidth(Caption)) + 8;
+  end;
+  Result := reqW;
+end;
+
+function TFtSwitch.GetPreferredHeight(): Integer;
+begin
+  if FPreferredHeight > 0 then Exit(FPreferredHeight);
+  Result := 26;
+end;
+
 function TFtSwitch.GetEffectiveHint(): string;
 var
   f: TFtFont;
@@ -312,6 +336,7 @@ end;
 procedure TFtSwitch.Draw(Canvas: TFtCanvas);
 var
   trackW, trackH: Integer;
+  trackY: Double;
   reqW: Integer;
   rad, thumbD, thumbX, thumbY, labelX, labelY: Double;
   minThumbX, maxThumbX: Double;
@@ -354,9 +379,16 @@ begin
 
   st := GetResolvedStyle();
 
-  trackH := Height;
-  trackW := Round(Height * 1.85);
+  if (FPreferredHeight > 0) and (Height > FPreferredHeight) then
+    trackH := FPreferredHeight
+  else if (Height > 26) and (FPreferredHeight <= 0) then
+    trackH := 26
+  else
+    trackH := Height;
+
+  trackW := Round(trackH * 1.85);
   if trackW < 36 then trackW := 36;
+  trackY := Y + (Height - trackH) * 0.5;
 
   if Caption <> '' then
   begin
@@ -376,10 +408,10 @@ begin
     labelX := X + trackW + 8;
   end;
 
-  if st.HasBorderRadius then
-    rad := st.BorderRadius
-  else if FCornerRadius >= 0.0 then
+  if FCornerRadius >= 0.0 then
     rad := FCornerRadius
+  else if st.HasBorderRadius and (st.BorderRadius < 9999.0) and (st.BorderRadius < trackH * 0.5) then
+    rad := st.BorderRadius
   else
     rad := trackH / 2.0;
 
@@ -392,7 +424,7 @@ begin
     rad := 0.0;
 
   thumbD := trackH - 4.0;
-  thumbY := Y + 2.0;
+  thumbY := trackY + 2.0;
 
   minThumbX := X + 2.0;
   maxThumbX := X + trackW - thumbD - 2.0;
@@ -403,19 +435,19 @@ begin
      (not st.HasShadow and (FEnableShadow = 1)) or
      (not st.HasShadow and (FEnableShadow = -1) and FtGetTheme().EnableShadow) then
   begin
-    Canvas.DrawShadow(X, Y, trackW, trackH, rad, 0.0, 2.0, 6.0, 0.0, 0.0, 0.0, 0.08);
+    Canvas.DrawShadow(X, trackY, trackW, trackH, rad, 0.0, 2.0, 6.0, 0.0, 0.0, 0.0, 0.08);
   end;
 
   // 2. Track background
   if st.HasBgColor then
-    Canvas.DrawRoundedRect(X, Y, trackW, trackH, rad, st.BgColor.R, st.BgColor.G, st.BgColor.B, st.BgColor.A)
+    Canvas.DrawRoundedRect(X, trackY, trackW, trackH, rad, st.BgColor.R, st.BgColor.G, st.BgColor.B, st.BgColor.A)
   else
   begin
     // Smoothly lerp track background in fallback mode
     trackR := 0.85 + (0.23 - 0.85) * FThumbProgress;
     trackG := 0.87 + (0.51 - 0.87) * FThumbProgress;
     trackB := 0.90 + (0.96 - 0.90) * FThumbProgress;
-    Canvas.DrawRoundedRect(X, Y, trackW, trackH, rad, trackR, trackG, trackB, 1.0);
+    Canvas.DrawRoundedRect(X, trackY, trackW, trackH, rad, trackR, trackG, trackB, 1.0);
   end;
 
   // 3. Border outline
@@ -424,9 +456,9 @@ begin
   if bw > 0.0 then
   begin
     if st.HasBorderColor then
-      Canvas.DrawRoundedRectOutline(X, Y, trackW, trackH, rad, bw, st.BorderColor.R, st.BorderColor.G, st.BorderColor.B, st.BorderColor.A)
+      Canvas.DrawRoundedRectOutline(X, trackY, trackW, trackH, rad, bw, st.BorderColor.R, st.BorderColor.G, st.BorderColor.B, st.BorderColor.A)
     else
-      Canvas.DrawRoundedRectOutline(X, Y, trackW, trackH, rad, bw, 0.75, 0.77, 0.80, 1.0);
+      Canvas.DrawRoundedRectOutline(X, trackY, trackW, trackH, rad, bw, 0.75, 0.77, 0.80, 1.0);
   end;
 
   // 4. Thumb knob (white circle with subtle shadow)
@@ -455,7 +487,7 @@ begin
 
   // 6. Focus ring
   if FFocused then
-    FtGetTheme().DrawFocusRing(Canvas, X, Y, trackW, trackH, rad);
+    FtGetTheme().DrawFocusRing(Canvas, X, trackY, trackW, trackH, rad);
 
   inherited Draw(Canvas);
 end;

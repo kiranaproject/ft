@@ -27,6 +27,10 @@ type
     FHovered: Boolean;
     FDragStartMouse: Integer;
     FDragStartPos: Double;
+    FDragStartPrevSize: Double;
+    FDragStartNextSize: Double;
+    FDragStartPrevGrow: Double;
+    FDragStartNextGrow: Double;
     FOnPositionChange: TFtSplitterPositionChangeEvent;
     FOnPositionChangeCb: TFtSplitterPositionCallback;
     FUserData: Pointer;
@@ -40,15 +44,18 @@ type
     procedure SetPane2(AValue: TFtWidget);
     function GetSplitterBarRect(out BX, BY, BW, BH: Double): Boolean;
     function IsInSplitterBar(AX, AY: Integer): Boolean;
+    function FindFlexSiblings(out APrev, ANext: TFtWidget): Boolean;
   protected
     procedure DrawSplitterBar(Canvas: TFtCanvas); virtual;
   public
     constructor Create(AParent: TFtWidget); override;
     destructor Destroy(); override;
     function GetElementType(): string; override;
+    function IsFlexMode(): Boolean;
 
     procedure UpdateLayout(); virtual;
     procedure SetPanes(APane1, APane2: TFtWidget);
+    procedure SetMinSizes(AMinPane1, AMinPane2: Double);
     procedure SetSplitterRatio(ARatio: Double); // 0.0 .. 1.0
 
     procedure Draw(Canvas: TFtCanvas); override;
@@ -73,6 +80,9 @@ type
 
 implementation
 
+uses
+  Ft.Widget.Layouts;
+
 { TFtSplitter }
 
 constructor TFtSplitter.Create(AParent: TFtWidget);
@@ -89,6 +99,30 @@ begin
   FHovered := False;
   FDragStartMouse := 0;
   FDragStartPos := 0.0;
+  FDragStartPrevSize := 0.0;
+  FDragStartNextSize := 0.0;
+  FDragStartPrevGrow := 0.0;
+  FDragStartNextGrow := 0.0;
+  FFlexGrow := 0.0;
+  FFlexShrink := 0.0;
+  FFlexBasis := FSplitterSize;
+  if Assigned(AParent) and (AParent is TFtFlexBox) then
+  begin
+    if TFtFlexBox(AParent).Direction = ftfdRow then
+    begin
+      Width := Round(FSplitterSize);
+      Height := AParent.Height;
+      FOrientation := soHorizontal;
+    end
+    else
+    begin
+      Width := AParent.Width;
+      Height := Round(FSplitterSize);
+      FOrientation := soVertical;
+    end;
+    FPreferredWidth := Width;
+    FPreferredHeight := Height;
+  end;
 end;
 
 destructor TFtSplitter.Destroy();
@@ -191,9 +225,62 @@ begin
   UpdateLayout();
 end;
 
+procedure TFtSplitter.SetMinSizes(AMinPane1, AMinPane2: Double);
+begin
+  SetMinPane1Size(AMinPane1);
+  SetMinPane2Size(AMinPane2);
+end;
+
+function TFtSplitter.IsFlexMode(): Boolean;
+begin
+  Result := Assigned(Parent) and (Parent is TFtFlexBox) and (FPane1 = nil) and (FPane2 = nil);
+end;
+
+function TFtSplitter.FindFlexSiblings(out APrev, ANext: TFtWidget): Boolean;
+var
+  i, myIdx: Integer;
+begin
+  APrev := nil;
+  ANext := nil;
+  Result := False;
+  if not IsFlexMode() or not Assigned(Parent) or not Assigned(Parent.Children) then Exit;
+
+  myIdx := Parent.Children.IndexOf(Self);
+  if myIdx < 0 then Exit;
+
+  for i := myIdx - 1 downto 0 do
+  begin
+    if TFtWidget(Parent.Children[i]).Visible then
+    begin
+      APrev := TFtWidget(Parent.Children[i]);
+      Break;
+    end;
+  end;
+
+  for i := myIdx + 1 to Parent.Children.Count - 1 do
+  begin
+    if TFtWidget(Parent.Children[i]).Visible then
+    begin
+      ANext := TFtWidget(Parent.Children[i]);
+      Break;
+    end;
+  end;
+
+  Result := Assigned(APrev) and Assigned(ANext);
+end;
+
 function TFtSplitter.GetSplitterBarRect(out BX, BY, BW, BH: Double): Boolean;
 begin
   Result := True;
+  if IsFlexMode() then
+  begin
+    BX := X;
+    BY := Y;
+    BW := Width;
+    BH := Height;
+    Exit;
+  end;
+
   if FSplitterPos < 0.0 then
   begin
     if FOrientation = soHorizontal then
@@ -224,8 +311,14 @@ var
   margin: Double;
 begin
   Result := False;
+  margin := 3.0; // hit margin for easier grab
+  if IsFlexMode() then
+  begin
+    Result := (AX >= X - margin) and (AX <= X + Width + margin) and
+              (AY >= Y - margin) and (AY <= Y + Height + margin);
+    Exit;
+  end;
   if not GetSplitterBarRect(bx, by, bw, bh) then Exit;
-  margin := 2.0; // hit margin for easier grab
   Result := (AX >= bx - margin) and (AX <= bx + bw + margin) and
             (AY >= by - margin) and (AY <= by + bh + margin);
 end;
@@ -345,11 +438,14 @@ procedure TFtSplitter.Draw(Canvas: TFtCanvas);
 begin
   if not Visible then Exit;
 
-  if Assigned(FPane1) and FPane1.Visible then
-    FPane1.Draw(Canvas);
+  if not IsFlexMode() then
+  begin
+    if Assigned(FPane1) and FPane1.Visible then
+      FPane1.Draw(Canvas);
 
-  if Assigned(FPane2) and FPane2.Visible then
-    FPane2.Draw(Canvas);
+    if Assigned(FPane2) and FPane2.Visible then
+      FPane2.Draw(Canvas);
+  end;
 
   DrawSplitterBar(Canvas);
 end;
@@ -364,20 +460,26 @@ begin
   if IsInSplitterBar(AX, AY) then
     Exit(Self);
 
-  if Assigned(FPane1) and FPane1.Visible then
+  if not IsFlexMode() then
   begin
-    w := FPane1.HitTest(AX, AY);
-    if Assigned(w) then Exit(w);
-  end;
+    if Assigned(FPane1) and FPane1.Visible then
+    begin
+      w := FPane1.HitTest(AX, AY);
+      if Assigned(w) then Exit(w);
+    end;
 
-  if Assigned(FPane2) and FPane2.Visible then
-  begin
-    w := FPane2.HitTest(AX, AY);
-    if Assigned(w) then Exit(w);
+    if Assigned(FPane2) and FPane2.Visible then
+    begin
+      w := FPane2.HitTest(AX, AY);
+      if Assigned(w) then Exit(w);
+    end;
   end;
 end;
 
 procedure TFtSplitter.MouseDown(AX, AY: Integer; AButton: Integer);
+var
+  p1, p2: TFtWidget;
+  isRow: Boolean;
 begin
   inherited MouseDown(AX, AY, AButton);
 
@@ -385,10 +487,39 @@ begin
   begin
     FDragging := True;
     FDragStartPos := FSplitterPos;
-    if FOrientation = soHorizontal then
-      FDragStartMouse := AX
+
+    if IsFlexMode() then
+    begin
+      isRow := (TFtFlexBox(Parent).Direction = ftfdRow);
+      if isRow then
+        FDragStartMouse := AX
+      else
+        FDragStartMouse := AY;
+
+      if FindFlexSiblings(p1, p2) then
+      begin
+        if isRow then
+        begin
+          FDragStartPrevSize := p1.Width;
+          FDragStartNextSize := p2.Width;
+        end
+        else
+        begin
+          FDragStartPrevSize := p1.Height;
+          FDragStartNextSize := p2.Height;
+        end;
+        FDragStartPrevGrow := p1.FlexGrow;
+        FDragStartNextGrow := p2.FlexGrow;
+      end;
+    end
     else
-      FDragStartMouse := AY;
+    begin
+      if FOrientation = soHorizontal then
+        FDragStartMouse := AX
+      else
+        FDragStartMouse := AY;
+    end;
+
     Invalidate();
   end;
 end;
@@ -407,17 +538,120 @@ procedure TFtSplitter.MouseMove(AX, AY: Integer);
 var
   delta: Integer;
   wasHover: Boolean;
+  p1, p2: TFtWidget;
+  isRow: Boolean;
+  newPrev, newNext: Double;
+  totalGrow, combinedSize: Double;
 begin
   inherited MouseMove(AX, AY);
 
   if FDragging then
   begin
-    if FOrientation = soHorizontal then
-      delta := AX - FDragStartMouse
-    else
-      delta := AY - FDragStartMouse;
+    if IsFlexMode() then
+    begin
+      isRow := (TFtFlexBox(Parent).Direction = ftfdRow);
+      if isRow then
+        delta := AX - FDragStartMouse
+      else
+        delta := AY - FDragStartMouse;
 
-    SetSplitterPos(FDragStartPos + delta);
+      if FindFlexSiblings(p1, p2) then
+      begin
+        newPrev := FDragStartPrevSize + delta;
+        newNext := FDragStartNextSize - delta;
+
+        if newPrev < FMinPane1Size then
+        begin
+          newPrev := FMinPane1Size;
+          newNext := (FDragStartPrevSize + FDragStartNextSize) - newPrev;
+        end;
+        if newNext < FMinPane2Size then
+        begin
+          newNext := FMinPane2Size;
+          newPrev := (FDragStartPrevSize + FDragStartNextSize) - newNext;
+        end;
+
+        if (FDragStartPrevGrow > 0.0) and (FDragStartNextGrow > 0.0) then
+        begin
+          totalGrow := FDragStartPrevGrow + FDragStartNextGrow;
+          combinedSize := newPrev + newNext;
+          if combinedSize > 0.0 then
+          begin
+            p1.FlexGrow := totalGrow * (newPrev / combinedSize);
+            p2.FlexGrow := totalGrow * (newNext / combinedSize);
+            p1.FlexBasis := newPrev;
+            p2.FlexBasis := newNext;
+            if isRow then
+            begin
+              p1.PreferredWidth := Round(newPrev);
+              p2.PreferredWidth := Round(newNext);
+            end
+            else
+            begin
+              p1.PreferredHeight := Round(newPrev);
+              p2.PreferredHeight := Round(newNext);
+            end;
+          end;
+        end
+        else if (FDragStartPrevGrow = 0.0) and (FDragStartNextGrow > 0.0) then
+        begin
+          if isRow then
+          begin
+            p1.PreferredWidth := Round(newPrev);
+            p1.Width := Round(newPrev);
+          end
+          else
+          begin
+            p1.PreferredHeight := Round(newPrev);
+            p1.Height := Round(newPrev);
+          end;
+          p1.FlexBasis := newPrev;
+        end
+        else if (FDragStartPrevGrow > 0.0) and (FDragStartNextGrow = 0.0) then
+        begin
+          if isRow then
+          begin
+            p2.PreferredWidth := Round(newNext);
+            p2.Width := Round(newNext);
+          end
+          else
+          begin
+            p2.PreferredHeight := Round(newNext);
+            p2.Height := Round(newNext);
+          end;
+          p2.FlexBasis := newNext;
+        end
+        else
+        begin
+          if isRow then
+          begin
+            p1.PreferredWidth := Round(newPrev);
+            p2.PreferredWidth := Round(newNext);
+          end
+          else
+          begin
+            p1.PreferredHeight := Round(newPrev);
+            p2.PreferredHeight := Round(newNext);
+          end;
+        end;
+
+        TFtFlexBox(Parent).UpdateLayout();
+        if Assigned(FOnPositionChange) then
+          FOnPositionChange(Self, newPrev);
+        if Assigned(FOnPositionChangeCb) then
+          FOnPositionChangeCb(Pointer(Self), newPrev, FUserData);
+        Parent.Invalidate();
+      end;
+    end
+    else
+    begin
+      if FOrientation = soHorizontal then
+        delta := AX - FDragStartMouse
+      else
+        delta := AY - FDragStartMouse;
+
+      SetSplitterPos(FDragStartPos + delta);
+    end;
   end
   else
   begin
@@ -442,10 +676,20 @@ function TFtSplitter.GetCursor(): Integer;
 begin
   if FHovered or FDragging then
   begin
-    if FOrientation = soHorizontal then
-      Result := FT_CURSOR_SIZE_H
+    if IsFlexMode() then
+    begin
+      if TFtFlexBox(Parent).Direction = ftfdRow then
+        Result := FT_CURSOR_SIZE_H
+      else
+        Result := FT_CURSOR_SIZE_V;
+    end
     else
-      Result := FT_CURSOR_SIZE_V;
+    begin
+      if FOrientation = soHorizontal then
+        Result := FT_CURSOR_SIZE_H
+      else
+        Result := FT_CURSOR_SIZE_V;
+    end;
   end
   else
     Result := inherited GetCursor();

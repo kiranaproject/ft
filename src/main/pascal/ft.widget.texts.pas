@@ -69,6 +69,8 @@ type
     function HitTestChar(AX: Integer): Integer; overload;
     function GetElementType(): string; override;
     function GetEffectiveHint(): string; override;
+    function GetPreferredWidth(): Integer; override;
+    function GetPreferredHeight(): Integer; override;
 
     procedure Draw(Canvas: TFtCanvas); override;
     procedure MouseDown(AX, AY: Integer; AButton: Integer); override;
@@ -290,10 +292,38 @@ begin
   begin
     FText := AValue;
     ClearSelection();
+    if Assigned(Parent) and (Parent.Width > 0) and (Parent.Height > 0) then
+      Parent.UpdateLayout();
     Invalidate();
     if Assigned(FOnChange) then
       FOnChange(Self, FUserData);
   end;
+end;
+
+function TFtText.GetPreferredWidth(): Integer;
+var
+  fnt: TFtFont;
+begin
+  if FPreferredWidth > 0 then
+    Exit(FPreferredWidth);
+  fnt := GetFont();
+  if Assigned(fnt) and (FText <> '') then
+    Result := Round(fnt.GetTextWidth(FText)) + 4
+  else
+    Result := 40;
+end;
+
+function TFtText.GetPreferredHeight(): Integer;
+var
+  fnt: TFtFont;
+begin
+  if FPreferredHeight > 0 then
+    Exit(FPreferredHeight);
+  fnt := GetFont();
+  if Assigned(fnt) then
+    Result := Round(fnt.Size * 1.5)
+  else
+    Result := 20;
 end;
 
 procedure TFtText.SetSelectable(AValue: Boolean);
