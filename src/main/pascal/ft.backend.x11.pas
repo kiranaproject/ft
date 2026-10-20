@@ -6,7 +6,7 @@ interface
 
 uses
   ctypes, SysUtils, Classes,
-  Floria.XCB, Floria.XCB.Keysyms, Floria.XCB.Cursor, Floria.X11.KeySym,
+  Floria.XCB, Floria.XCB.Keysyms, Floria.XCB.Cursor, Floria.XCB.ICCCM, Floria.X11.KeySym,
   Floria.Canvas.Agg, Ft.Canvas, Ft.Widget, Ft.Theme, Ft.Css, Ft.Animation, Ft.Window;
 
 type
@@ -53,6 +53,7 @@ type
 
     procedure UpdateNetWmState();
     procedure UpdateBlurBehindRegion();
+    procedure UpdateWmNormalHints();
     procedure PresentPixels(dirtyX, dirtyY, dirtyW, dirtyH: Integer; isPartial: Boolean); virtual;
   public
     function GetScreenWidth(): Integer; override;
@@ -174,6 +175,7 @@ var
   atomWMProtocols: xcb_atom_t = 0;
   atomWMDeleteWindow: xcb_atom_t = 0;
   atomWMName: xcb_atom_t = 0;
+  atomWMNormalHints: xcb_atom_t = 0;
   atomClipboard: xcb_atom_t = 0;
   atomUTF8String: xcb_atom_t = 0;
   atomTargets: xcb_atom_t = 0;
@@ -231,6 +233,9 @@ begin
   atomWMProtocols := InternAtom('WM_PROTOCOLS');
   atomWMDeleteWindow := InternAtom('WM_DELETE_WINDOW');
   atomWMName := InternAtom('WM_NAME');
+  atomWMNormalHints := InternAtom('WM_NORMAL_HINTS');
+  if atomWMNormalHints = 0 then
+    atomWMNormalHints := XCB_ATOM_WM_NORMAL_HINTS;
   atomClipboard := InternAtom('CLIPBOARD');
   atomUTF8String := InternAtom('UTF8_STRING');
   atomTargets := InternAtom('TARGETS');
@@ -386,7 +391,7 @@ begin
   for i := 0 to GWindows.Count - 1 do
   begin
     w := TFtWindow(GWindows[i]);
-    if w.WindowType in [ftwtNormal, ftwtDialog] then
+    if w.WindowType in [ftwtNormal, ftwtDialog, ftwtUtility, ftwtDock] then
       Exit(True);
   end;
 end;
@@ -849,6 +854,7 @@ begin
                         XCB_WINDOW_CLASS_INPUT_OUTPUT, FVisual, mask, @valList);
 
   SetTitle(ATitle);
+  UpdateWmNormalHints();
   FCurrentCursor := High(xcb_cursor_t);
   FHasPendingResize := False;
   FPendingResizeW := 0;
@@ -981,7 +987,7 @@ begin
   inherited BringToFront();
   if (FWindow = 0) or (FConnection = nil) then Exit;
 
-  if FIsModal or (FWindowType = ftwtDialog) then
+  if FIsModal then
   begin
     parentWin := nil;
     if Assigned(GWindows) then
@@ -989,7 +995,7 @@ begin
       for i := GWindows.Count - 1 downto 0 do
       begin
         w := TFtWindow(GWindows[i]);
-        if (w <> Self) and w.Visible and not w.IsModal and (w is TFtX11Window) then
+        if (w <> Self) and w.Visible and not w.IsModal and (w.WindowType in [ftwtNormal, ftwtDialog]) and (w is TFtX11Window) then
         begin
           parentWin := TFtX11Window(w);
           Break;
@@ -1000,7 +1006,7 @@ begin
         for i := GWindows.Count - 1 downto 0 do
         begin
           w := TFtWindow(GWindows[i]);
-          if (w <> Self) and w.Visible and (w is TFtX11Window) then
+          if (w <> Self) and w.Visible and (w.WindowType in [ftwtNormal, ftwtDialog]) and (w is TFtX11Window) then
           begin
             parentWin := TFtX11Window(w);
             Break;
@@ -1174,6 +1180,26 @@ begin
   Result := FtGetScreenHeight();
 end;
 
+procedure TFtX11Window.UpdateWmNormalHints();
+var
+  hints: xcb_size_hints_t;
+begin
+  if (FWindow = 0) or not Assigned(FConnection) then Exit;
+
+  FillChar(hints, SizeOf(hints), 0);
+  hints.flags := XCB_ICCCM_SIZE_HINT_US_POSITION or
+                 XCB_ICCCM_SIZE_HINT_P_POSITION or
+                 XCB_ICCCM_SIZE_HINT_P_SIZE;
+  hints.x := X;
+  hints.y := Y;
+  hints.width := Width;
+  hints.height := Height;
+
+  xcb_change_property(FConnection, XCB_PROP_MODE_REPLACE, FWindow,
+                      atomWMNormalHints, XCB_ATOM_WM_SIZE_HINTS, 32,
+                      XCB_ICCCM_NUM_WM_SIZE_HINTS_ELEMENTS, @hints);
+end;
+
 procedure TFtX11Window.SetPosition(NewX, NewY: Integer);
 var
   values: array[0..1] of Cardinal;
@@ -1185,6 +1211,7 @@ begin
     values[0] := Cardinal(NewX);
     values[1] := Cardinal(NewY);
     xcb_configure_window(FConnection, FWindow, XCB_CONFIG_WINDOW_X or XCB_CONFIG_WINDOW_Y, @values[0]);
+    UpdateWmNormalHints();
     xcb_flush(FConnection);
   end;
 end;
@@ -1294,6 +1321,7 @@ begin
     xcb_configure_window(FConnection, FWindow, XCB_CONFIG_WINDOW_WIDTH or XCB_CONFIG_WINDOW_HEIGHT, @values[0]);
     if FBackgroundBlur then
       UpdateBlurBehindRegion();
+    UpdateWmNormalHints();
     xcb_flush(FConnection);
   end;
 
@@ -1307,6 +1335,7 @@ begin
   inherited Show();
   if (FWindow <> 0) and Assigned(FConnection) then
   begin
+    UpdateWmNormalHints();
     xcb_map_window(FConnection, FWindow);
     FNeedsRepaint := True;
     xcb_flush(FConnection);
@@ -2163,7 +2192,7 @@ begin
 
     XCB_DESTROY_NOTIFY:
     begin
-      if FWindowType in [ftwtNormal, ftwtDialog] then
+      if FWindowType in [ftwtNormal, ftwtDialog, ftwtUtility, ftwtDock] then
       begin
         if not HasMainWindows() then
           GRunning := False;
