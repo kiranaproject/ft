@@ -947,6 +947,7 @@ typedef void* FtTable;
 
 typedef void (*FtTableRowSelectCallback)(FtTable table, int32_t row_index, void* user_data);
 typedef void (*FtTableRowDoubleClickCallback)(FtTable table, int32_t row_index, void* user_data);
+typedef void (*FtTableColumnResizeCallback)(FtTable table, int32_t col_index, double new_width, void* user_data);
 
 typedef int32_t (*FtTableDrawHeaderCallback)(FtTable table, void* canvas, int32_t col_idx,
                                              double x, double y, double w, double h,
@@ -1004,6 +1005,17 @@ void ft_table_on_select_row(FtTable table, FtTableRowSelectCallback callback, vo
 void ft_table_on_row_double_click(FtTable table, FtTableRowDoubleClickCallback callback, void* user_data);
 void ft_table_on_draw_header(FtTable table, FtTableDrawHeaderCallback callback, void* user_data);
 void ft_table_on_draw_cell(FtTable table, FtTableDrawCellCallback callback, void* user_data);
+void ft_table_set_allow_column_resize(FtTable table, int32_t allow);
+int32_t ft_table_get_allow_column_resize(FtTable table);
+void ft_table_set_column_resizable(FtTable table, int32_t col_idx, int32_t resizable);
+int32_t ft_table_get_column_resizable(FtTable table, int32_t col_idx);
+void ft_table_set_column_min_width(FtTable table, int32_t col_idx, double min_width);
+double ft_table_get_column_min_width(FtTable table, int32_t col_idx);
+void ft_table_set_column_max_width(FtTable table, int32_t col_idx, double max_width);
+double ft_table_get_column_max_width(FtTable table, int32_t col_idx);
+void ft_table_auto_fit_column(FtTable table, int32_t col_idx);
+void ft_table_auto_fit_columns(FtTable table);
+void ft_table_on_column_resize(FtTable table, FtTableColumnResizeCallback callback, void* user_data);
 
 /* ─── File Dialogs ─────────────────────────────────────────────────────── */
 

@@ -5444,6 +5444,141 @@ begin
   tbl.SetOnDrawCellCb(callback, user_data);
 end;
 
+procedure ft_table_set_allow_column_resize(table: Pointer; allow: cint32); cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  tbl.AllowColumnResize := (allow <> 0);
+end;
+
+function ft_table_get_allow_column_resize(table: Pointer): cint32; cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  Result := 0;
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  if tbl.AllowColumnResize then Result := 1;
+end;
+
+procedure ft_table_set_column_resizable(table: Pointer; col_idx: cint32; resizable: cint32); cdecl; export;
+var
+  tbl: TFtTable;
+  col: TFtTableColumn;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  col := tbl.Columns[col_idx];
+  if Assigned(col) then
+    col.Resizable := (resizable <> 0);
+end;
+
+function ft_table_get_column_resizable(table: Pointer; col_idx: cint32): cint32; cdecl; export;
+var
+  tbl: TFtTable;
+  col: TFtTableColumn;
+begin
+  Result := 0;
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  col := tbl.Columns[col_idx];
+  if Assigned(col) and col.Resizable then
+    Result := 1;
+end;
+
+procedure ft_table_set_column_min_width(table: Pointer; col_idx: cint32; min_width: Double); cdecl; export;
+var
+  tbl: TFtTable;
+  col: TFtTableColumn;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  col := tbl.Columns[col_idx];
+  if Assigned(col) then
+  begin
+    col.MinWidth := min_width;
+    if col.Width < min_width then
+    begin
+      col.Width := min_width;
+      tbl.RecalculateMetrics();
+    end;
+  end;
+end;
+
+function ft_table_get_column_min_width(table: Pointer; col_idx: cint32): Double; cdecl; export;
+var
+  tbl: TFtTable;
+  col: TFtTableColumn;
+begin
+  Result := 0.0;
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  col := tbl.Columns[col_idx];
+  if Assigned(col) then
+    Result := col.MinWidth;
+end;
+
+procedure ft_table_set_column_max_width(table: Pointer; col_idx: cint32; max_width: Double); cdecl; export;
+var
+  tbl: TFtTable;
+  col: TFtTableColumn;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  col := tbl.Columns[col_idx];
+  if Assigned(col) then
+  begin
+    col.MaxWidth := max_width;
+    if (max_width > 0.0) and (col.Width > max_width) then
+    begin
+      col.Width := max_width;
+      tbl.RecalculateMetrics();
+    end;
+  end;
+end;
+
+function ft_table_get_column_max_width(table: Pointer; col_idx: cint32): Double; cdecl; export;
+var
+  tbl: TFtTable;
+  col: TFtTableColumn;
+begin
+  Result := 0.0;
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  col := tbl.Columns[col_idx];
+  if Assigned(col) then
+    Result := col.MaxWidth;
+end;
+
+procedure ft_table_auto_fit_column(table: Pointer; col_idx: cint32); cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  tbl.AutoFitColumn(col_idx);
+end;
+
+procedure ft_table_auto_fit_columns(table: Pointer); cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  tbl.AutoFitColumns();
+end;
+
+procedure ft_table_on_column_resize(table: Pointer; callback: TFtTableColumnResizeCallback; user_data: Pointer); cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  tbl.SetOnColumnResizeCb(callback, user_data);
+end;
+
 { ──────────────────────── File Dialogs ────────────────────────────────── }
 
 { Handle-based object API }
@@ -6686,6 +6821,17 @@ exports
   ft_table_on_row_double_click,
   ft_table_on_draw_header,
   ft_table_on_draw_cell,
+  ft_table_set_allow_column_resize,
+  ft_table_get_allow_column_resize,
+  ft_table_set_column_resizable,
+  ft_table_get_column_resizable,
+  ft_table_set_column_min_width,
+  ft_table_get_column_min_width,
+  ft_table_set_column_max_width,
+  ft_table_get_column_max_width,
+  ft_table_auto_fit_column,
+  ft_table_auto_fit_columns,
+  ft_table_on_column_resize,
 
   // PathBar
   ft_path_bar_create,

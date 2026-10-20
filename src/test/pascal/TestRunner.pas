@@ -72,6 +72,7 @@ type
     procedure TestTreeView();
     procedure TestTable();
     procedure TestTableMultiSelect();
+    procedure TestTableColumnResizeAndHints();
     procedure TestDynamicContainerRenderArea();
     procedure TestCanvasRoundedRectClipping();
     procedure TestWindowButton();
@@ -1315,6 +1316,104 @@ begin
     AssertTrue('Shifted row 1 is selected', tbl.IsRowSelected(1));
   finally
     FtSetKeyboardModifiers(0);
+    tbl.Free();
+  end;
+end;
+
+procedure TFtDesktopWidgetsTest.TestTableColumnResizeAndHints();
+var
+  tbl: TFtTable;
+  effHint: string;
+begin
+  tbl := TFtTable.Create(nil);
+  try
+    tbl.X := 0; tbl.Y := 0; tbl.Width := 500; tbl.Height := 300;
+    tbl.AddColumn('ID', 60.0, taCenter);
+    tbl.AddColumn('Name', 120.0, taLeft);
+    tbl.AddColumn('Price', 100.0, taRight);
+
+    // 1. Initial Defaults
+    AssertTrue('AllowColumnResize is True by default', tbl.AllowColumnResize);
+    AssertTrue('Column 0 Resizable is True by default', tbl.Columns[0].Resizable);
+    AssertEquals('Column 0 MinWidth default is 30.0', 30.0, tbl.Columns[0].MinWidth);
+    AssertEquals('Column 0 MaxWidth default is 0.0', 0.0, tbl.Columns[0].MaxWidth);
+    AssertEquals('Cursor normal is default', FT_CURSOR_DEFAULT, tbl.GetCursor());
+
+    // 2. Divider Hit Testing
+    // Column 0 right divider is at 1 + 60 = 61.
+    // AX within 57..65 and AY in header (0..28) should hit column 0
+    AssertEquals('Hit divider at X=61', 0, tbl.GetResizeDividerAt(61, 14));
+    AssertEquals('Hit divider at X=64', 0, tbl.GetResizeDividerAt(64, 14));
+    AssertEquals('Hit divider at X=58', 0, tbl.GetResizeDividerAt(58, 14));
+    AssertEquals('Miss divider at X=50', -1, tbl.GetResizeDividerAt(50, 14));
+    // Outside header: Y = 40 (in row area)
+    AssertEquals('Miss divider when outside header', -1, tbl.GetResizeDividerAt(61, 40));
+
+    // Column 1 right divider is at 61 + 120 = 181
+    AssertEquals('Hit divider at X=181', 1, tbl.GetResizeDividerAt(181, 14));
+
+    // When AllowColumnResize is False
+    tbl.AllowColumnResize := False;
+    AssertEquals('No hit when AllowColumnResize is False', -1, tbl.GetResizeDividerAt(61, 14));
+    tbl.AllowColumnResize := True;
+
+    // When Column Resizable is False
+    tbl.Columns[0].Resizable := False;
+    AssertEquals('No hit when column Resizable is False', -1, tbl.GetResizeDividerAt(61, 14));
+    tbl.Columns[0].Resizable := True;
+
+    // 3. Cursor on hover
+    tbl.MouseMove(61, 14);
+    AssertEquals('Cursor is SIZE_H when hovering divider', FT_CURSOR_SIZE_H, tbl.GetCursor());
+    tbl.MouseMove(20, 14); // in column header body, not near divider
+    AssertEquals('Cursor reverts when not hovering divider', FT_CURSOR_DEFAULT, tbl.GetCursor());
+
+    // 4. Interactive Column Dragging
+    // Mouse down at divider 0
+    tbl.MouseDown(61, 14, 1);
+    AssertEquals('Cursor is SIZE_H during drag', FT_CURSOR_SIZE_H, tbl.GetCursor());
+    // Drag to right by 30px (AX = 91)
+    tbl.MouseMove(91, 14);
+    AssertEquals('Column 0 resized to 90.0', 90.0, tbl.Columns[0].Width);
+    // Drag to left past MinWidth (AX = 10, start was 61 with width 60, target 60 + (10 - 61) = 9)
+    tbl.MouseMove(10, 14);
+    AssertEquals('Column 0 clamped to MinWidth 30.0', 30.0, tbl.Columns[0].Width);
+    // Set MaxWidth and drag to right
+    tbl.Columns[0].MaxWidth := 100.0;
+    tbl.MouseMove(200, 14);
+    AssertEquals('Column 0 clamped to MaxWidth 100.0', 100.0, tbl.Columns[0].Width);
+    // Release mouse
+    tbl.MouseUp(200, 14, 1);
+    AssertEquals('Width preserved after MouseUp', 100.0, tbl.Columns[0].Width);
+
+    // 5. AutoFitColumn
+    tbl.ClearRows();
+    tbl.AddRow(['1', 'Very Long Mechanical Ergonomic Custom Keyboard', '$199.99']);
+    tbl.Columns[1].Width := 40.0;
+    tbl.AutoFitColumn(1);
+    AssertTrue('AutoFit widened Column 1 to fit long text', tbl.Columns[1].Width > 200.0);
+
+    // 6. Cell and Header Long Text Hover Hint
+    // When text is truncated by narrow column width
+    tbl.Columns[1].Width := 50.0;
+    // Mouse hover over cell (0, 1) -> row 0 starts at Y=28, height 26, so Y=35. Column 1 starts at X=101.
+    tbl.MouseMove(110, 35);
+    effHint := tbl.GetEffectiveHint();
+    AssertEquals('Cell hover hint returns full text when truncated', 'Very Long Mechanical Ergonomic Custom Keyboard', effHint);
+
+    // When column is widened so text comfortably fits
+    tbl.Columns[1].Width := 600.0;
+    tbl.MouseMove(110, 35);
+    effHint := tbl.GetEffectiveHint();
+    AssertEquals('Cell hover hint is empty when text fits without clipping', '', effHint);
+
+    // Header hover hint
+    tbl.Columns[0].Width := 30.0;
+    tbl.Columns[0].Title := 'Very Long Column Header Title';
+    tbl.MouseMove(15, 14);
+    effHint := tbl.GetEffectiveHint();
+    AssertEquals('Header hover hint returns full title when truncated', 'Very Long Column Header Title', effHint);
+  finally
     tbl.Free();
   end;
 end;

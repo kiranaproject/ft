@@ -19,6 +19,9 @@ type
     Alignment: TFtTextAlign;
     SortOrder: TFtSortOrder;
     Icon: TFloriaImage;
+    Resizable: Boolean;
+    MinWidth: Double;
+    MaxWidth: Double;
     constructor Create(const ATitle: string; AWidth: Double = 100.0; AAlign: TFtTextAlign = taLeft);
   end;
 
@@ -39,7 +42,9 @@ type
 
   TFtTableRowSelectEvent = procedure(Sender: TObject; RowIndex: Integer) of object;
   TFtTableColumnClickEvent = procedure(Sender: TObject; ColumnIndex: Integer) of object;
+  TFtTableColumnResizeEvent = procedure(Sender: TObject; ColumnIndex: Integer; NewWidth: Double) of object;
   TFtTableRowSelectCallback = procedure(Sender: Pointer; RowIndex: Integer; UserData: Pointer); cdecl;
+  TFtTableColumnResizeCallback = procedure(Sender: Pointer; ColumnIndex: Integer; NewWidth: Double; UserData: Pointer); cdecl;
   TFtTableRowDoubleClickEvent = procedure(Sender: TObject; RowIndex: Integer) of object;
   TFtTableRowDoubleClickCallback = procedure(Sender: Pointer; RowIndex: Integer; UserData: Pointer); cdecl;
 
@@ -67,10 +72,23 @@ type
     FShowGridLines: Boolean;
     FZebraStriping: Boolean;
     FMultiSelect: Boolean;
+    FAllowColumnResize: Boolean;
+    FResizingCol: Integer;
+    FResizeStartX: Integer;
+    FResizeStartW: Double;
+    FResizeHoverCol: Integer;
+    FLastDividerClickTime: QWord;
+    FLastDividerClickCol: Integer;
+    FPressedHeaderCol: Integer;
+    FLastMouseX: Integer;
+    FLastMouseY: Integer;
     FOnSelectRow: TFtTableRowSelectEvent;
     FOnRowDoubleClick: TFtTableRowDoubleClickEvent;
     FOnColumnClick: TFtTableColumnClickEvent;
+    FOnColumnResize: TFtTableColumnResizeEvent;
     FOnSelectRowCb: TFtTableRowSelectCallback;
+    FOnColumnResizeCb: TFtTableColumnResizeCallback;
+    FOnColumnResizeUserData: Pointer;
     FOnRowDoubleClickCb: TFtTableRowDoubleClickCallback;
     FOnRowDoubleClickUserData: Pointer;
     FOnDrawHeader: TFtTableDrawHeaderEvent;
@@ -88,8 +106,6 @@ type
     function GetRowCount(): Integer;
     function GetColumn(AIndex: Integer): TFtTableColumn;
     function GetRow(AIndex: Integer): TFtTableRow;
-    function RowAtPosition(AY: Integer): Integer;
-    function ColumnAtPosition(AX: Integer): Integer;
   protected
     procedure DrawBackground(Canvas: TFtCanvas); override;
     procedure DrawContent(Canvas: TFtCanvas); override;
@@ -101,6 +117,11 @@ type
     constructor Create(AParent: TFtWidget); override;
     destructor Destroy(); override;
     function GetElementType(): string; override;
+    function GetCursor(): Integer; override;
+    function GetEffectiveHint(): string; override;
+    function RowAtPosition(AY: Integer): Integer;
+    function ColumnAtPosition(AX: Integer): Integer;
+    function GetResizeDividerAt(AX, AY: Integer): Integer;
 
     procedure RecalculateMetrics();
     procedure UpdateScrollBars(); override;
@@ -113,9 +134,12 @@ type
     function GetColumnIcon(ACol: Integer): TFloriaImage;
     procedure SetCellIcon(ARow, ACol: Integer; AIcon: TFloriaImage);
     function GetCellIcon(ARow, ACol: Integer): TFloriaImage;
+    procedure AutoFitColumn(AColIndex: Integer);
+    procedure AutoFitColumns();
     procedure SetOnDrawHeaderCb(ACallback: TFtTableDrawHeaderCallback; AUserData: Pointer);
     procedure SetOnDrawCellCb(ACallback: TFtTableDrawCellCallback; AUserData: Pointer);
     procedure SetOnRowDoubleClickCb(ACallback: TFtTableRowDoubleClickCallback; AUserData: Pointer);
+    procedure SetOnColumnResizeCb(ACallback: TFtTableColumnResizeCallback; AUserData: Pointer);
     procedure DeleteRow(AIndex: Integer);
     procedure ClearRows();
     procedure ClearAll();
@@ -130,6 +154,7 @@ type
     procedure Draw(Canvas: TFtCanvas); override;
     procedure MouseDown(AX, AY: Integer; AButton: Integer); override;
     procedure MouseMove(AX, AY: Integer); override;
+    procedure MouseUp(AX, AY: Integer; AButton: Integer); override;
     procedure MouseLeave(); override;
     procedure KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string); override;
 
@@ -139,6 +164,7 @@ type
     property Rows[AIndex: Integer]: TFtTableRow read GetRow;
     property SelectedRow: Integer read FSelectedRow write SetSelectedRow;
     property MultiSelect: Boolean read FMultiSelect write SetMultiSelect;
+    property AllowColumnResize: Boolean read FAllowColumnResize write FAllowColumnResize;
     property HeaderHeight: Double read FHeaderHeight write SetHeaderHeight;
     property RowHeight: Double read FRowHeight write SetRowHeight;
     property ShowGridLines: Boolean read FShowGridLines write FShowGridLines;
@@ -146,7 +172,9 @@ type
     property OnSelectRow: TFtTableRowSelectEvent read FOnSelectRow write FOnSelectRow;
     property OnRowDoubleClick: TFtTableRowDoubleClickEvent read FOnRowDoubleClick write FOnRowDoubleClick;
     property OnColumnClick: TFtTableColumnClickEvent read FOnColumnClick write FOnColumnClick;
+    property OnColumnResize: TFtTableColumnResizeEvent read FOnColumnResize write FOnColumnResize;
     property OnSelectRowCb: TFtTableRowSelectCallback read FOnSelectRowCb write FOnSelectRowCb;
+    property OnColumnResizeCb: TFtTableColumnResizeCallback read FOnColumnResizeCb write FOnColumnResizeCb;
     property OnRowDoubleClickCb: TFtTableRowDoubleClickCallback read FOnRowDoubleClickCb write FOnRowDoubleClickCb;
     property OnRowDoubleClickUserData: Pointer read FOnRowDoubleClickUserData write FOnRowDoubleClickUserData;
     property OnDrawHeader: TFtTableDrawHeaderEvent read FOnDrawHeader write FOnDrawHeader;
@@ -167,6 +195,9 @@ begin
   Alignment := AAlign;
   SortOrder := soNone;
   Icon := nil;
+  Resizable := True;
+  MinWidth := 30.0;
+  MaxWidth := 0.0;
 end;
 
 { TFtTableRow }
@@ -224,6 +255,20 @@ begin
   FFocusable := True;
   FDrawFrame := True;
   FScrollBarMode := ftSbModeAutoBoth;
+  FAllowColumnResize := True;
+  FResizingCol := -1;
+  FResizeStartX := 0;
+  FResizeStartW := 0.0;
+  FResizeHoverCol := -1;
+  FLastDividerClickTime := 0;
+  FLastDividerClickCol := -1;
+  FPressedHeaderCol := -1;
+  FLastMouseX := -1;
+  FLastMouseY := -1;
+  FShowHint := True;
+  FOnColumnResize := nil;
+  FOnColumnResizeCb := nil;
+  FOnColumnResizeUserData := nil;
   FOnDrawHeader := nil;
   FOnDrawHeaderCb := nil;
   FOnDrawHeaderUserData := nil;
@@ -417,6 +462,96 @@ procedure TFtTable.SetOnRowDoubleClickCb(ACallback: TFtTableRowDoubleClickCallba
 begin
   FOnRowDoubleClickCb := ACallback;
   FOnRowDoubleClickUserData := AUserData;
+end;
+
+procedure TFtTable.SetOnColumnResizeCb(ACallback: TFtTableColumnResizeCallback; AUserData: Pointer);
+begin
+  FOnColumnResizeCb := ACallback;
+  FOnColumnResizeUserData := AUserData;
+end;
+
+procedure TFtTable.AutoFitColumn(AColIndex: Integer);
+var
+  col: TFtTableColumn;
+  fnt: TFtFont;
+  maxW, titleW, cellW, iconW, iconH: Double;
+  r: Integer;
+  row: TFtTableRow;
+  cellText: string;
+  cellIcon: TFloriaImage;
+begin
+  if (AColIndex < 0) or (AColIndex >= FColumns.Count) then Exit;
+  col := TFtTableColumn(FColumns[AColIndex]);
+  if not col.Resizable then Exit;
+
+  fnt := Font;
+  if not Assigned(fnt) then fnt := FtGetSystemFont();
+
+  maxW := 0.0;
+  if Assigned(fnt) then
+    titleW := fnt.GetTextWidth(col.Title)
+  else
+    titleW := Length(col.Title) * 8.5;
+
+  titleW := titleW + 16.0;
+  if Assigned(col.Icon) and (col.Icon.Width > 0) and (col.Icon.Height > 0) then
+  begin
+    iconH := Min(FHeaderHeight - 6.0, 16.0);
+    iconW := (col.Icon.Width / col.Icon.Height) * iconH;
+    titleW := titleW + iconW + 6.0;
+  end;
+  if col.SortOrder <> soNone then
+    titleW := titleW + 16.0;
+
+  if titleW > maxW then maxW := titleW;
+
+  for r := 0 to FRows.Count - 1 do
+  begin
+    row := TFtTableRow(FRows[r]);
+    cellText := '';
+    if AColIndex < row.Cells.Count then
+      cellText := row.Cells[AColIndex];
+
+    if Assigned(fnt) then
+      cellW := fnt.GetTextWidth(cellText)
+    else
+      cellW := Length(cellText) * 8.5;
+
+    cellW := cellW + 16.0;
+    cellIcon := row.GetCellIcon(AColIndex);
+    if Assigned(cellIcon) and (cellIcon.Width > 0) and (cellIcon.Height > 0) then
+    begin
+      iconH := Min(FRowHeight - 6.0, 16.0);
+      iconW := (cellIcon.Width / cellIcon.Height) * iconH;
+      cellW := cellW + iconW + 6.0;
+    end;
+
+    if cellW > maxW then maxW := cellW;
+  end;
+
+  maxW := maxW + 4.0;
+  if maxW < col.MinWidth then maxW := col.MinWidth;
+  if (col.MaxWidth > 0.0) and (maxW > col.MaxWidth) then maxW := col.MaxWidth;
+
+  if col.Width <> maxW then
+  begin
+    col.Width := maxW;
+    RecalculateMetrics();
+    UpdateScrollBars();
+    Invalidate();
+    if Assigned(FOnColumnResize) then
+      FOnColumnResize(Self, AColIndex, maxW);
+    if Assigned(FOnColumnResizeCb) then
+      FOnColumnResizeCb(Pointer(Self), AColIndex, maxW, FOnColumnResizeUserData);
+  end;
+end;
+
+procedure TFtTable.AutoFitColumns();
+var
+  i: Integer;
+begin
+  for i := 0 to FColumns.Count - 1 do
+    AutoFitColumn(i);
 end;
 
 procedure TFtTable.DeleteRow(AIndex: Integer);
@@ -716,6 +851,120 @@ begin
   end;
 end;
 
+function TFtTable.GetResizeDividerAt(AX, AY: Integer): Integer;
+var
+  i: Integer;
+  colX, divX: Double;
+  col: TFtTableColumn;
+begin
+  Result := -1;
+  if not FAllowColumnResize then Exit;
+  if (AY < Y) or (AY > Y + FHeaderHeight) then Exit;
+  if (AX < X) or (AX > X + Width) then Exit;
+
+  colX := (X + 1.0) - FScrollX;
+  for i := 0 to FColumns.Count - 1 do
+  begin
+    col := TFtTableColumn(FColumns[i]);
+    divX := colX + col.Width;
+    if Abs(AX - divX) <= 4.0 then
+    begin
+      if col.Resizable then
+        Exit(i);
+    end;
+    colX := divX;
+  end;
+end;
+
+function TFtTable.GetCursor(): Integer;
+begin
+  if (FResizingCol >= 0) or (FResizeHoverCol >= 0) then
+    Result := FT_CURSOR_SIZE_H
+  else
+    Result := inherited GetCursor();
+end;
+
+function TFtTable.GetEffectiveHint(): string;
+var
+  f: TFtFont;
+  c, r: Integer;
+  col: TFtTableColumn;
+  row: TFtTableRow;
+  textAvailW, iconW, iconH, titleW, cellW: Double;
+  cellText: string;
+  cellIcon: TFloriaImage;
+begin
+  if not FShowHint or not Visible then Exit('');
+  if (FResizingCol >= 0) or (FResizeHoverCol >= 0) then Exit('');
+
+  // 1. Column header
+  if (FLastMouseY >= Y) and (FLastMouseY <= Y + FHeaderHeight) then
+  begin
+    c := ColumnAtPosition(FLastMouseX);
+    if (c >= 0) and (c < FColumns.Count) then
+    begin
+      col := TFtTableColumn(FColumns[c]);
+      textAvailW := col.Width - 16.0;
+      if Assigned(col.Icon) and (col.Icon.Width > 0) and (col.Icon.Height > 0) then
+      begin
+        iconH := Min(FHeaderHeight - 6.0, 16.0);
+        iconW := (col.Icon.Width / col.Icon.Height) * iconH;
+        textAvailW := textAvailW - (iconW + 6.0);
+      end;
+      if col.SortOrder <> soNone then
+        textAvailW := textAvailW - 16.0;
+
+      f := Font;
+      if not Assigned(f) then f := FtGetSystemFont();
+      if Assigned(f) then
+        titleW := f.GetTextWidth(col.Title)
+      else
+        titleW := Length(col.Title) * 8.5;
+
+      if (textAvailW > 0.0) and (titleW > textAvailW) then
+        Exit(col.Title);
+    end;
+  end
+  // 2. Row cell
+  else if FLastMouseY > Y + FHeaderHeight then
+  begin
+    r := RowAtPosition(FLastMouseY);
+    c := ColumnAtPosition(FLastMouseX);
+    if (r >= 0) and (r < FRows.Count) and (c >= 0) and (c < FColumns.Count) then
+    begin
+      row := TFtTableRow(FRows[r]);
+      cellText := '';
+      if c < row.Cells.Count then
+        cellText := row.Cells[c];
+
+      if cellText <> '' then
+      begin
+        col := TFtTableColumn(FColumns[c]);
+        textAvailW := col.Width - 16.0;
+        cellIcon := row.GetCellIcon(c);
+        if Assigned(cellIcon) and (cellIcon.Width > 0) and (cellIcon.Height > 0) then
+        begin
+          iconH := Min(FRowHeight - 6.0, 16.0);
+          iconW := (cellIcon.Width / cellIcon.Height) * iconH;
+          textAvailW := textAvailW - (iconW + 6.0);
+        end;
+
+        f := Font;
+        if not Assigned(f) then f := FtGetSystemFont();
+        if Assigned(f) then
+          cellW := f.GetTextWidth(cellText)
+        else
+          cellW := Length(cellText) * 8.5;
+
+        if (textAvailW > 0.0) and (cellW > textAvailW) then
+          Exit(cellText);
+      end;
+    end;
+  end;
+
+  Result := inherited GetEffectiveHint();
+end;
+
 procedure TFtTable.GetRenderArea(out AX, AY, AW, AH, ARadius: Double);
 var
   bw: Double;
@@ -895,6 +1144,8 @@ var
   arrowX, arrowY: Double;
   handled: Boolean;
   textStartX, textAvailW, iconW, iconH, iconY: Double;
+  fitTitle: string;
+  curW, curX: Double;
 begin
   theme := FtGetTheme();
   if theme.DarkMode then
@@ -949,13 +1200,19 @@ begin
         // Column title text
         if textAvailW > 0.0 then
         begin
+          fitTitle := FtFitTextWithEllipsis(col.Title, Font, textAvailW);
           case col.Alignment of
             taCenter:
-              Canvas.DrawTextCentered(Round(textStartX), Round(hy), Round(textAvailW), Round(hh), col.Title, Font, textR, textG, textB);
+              Canvas.DrawTextCentered(Round(textStartX), Round(hy), Round(textAvailW), Round(hh), fitTitle, Font, textR, textG, textB);
             taRight:
-              Canvas.DrawTextLeft(textStartX, hy + 4.0, textAvailW, hh - 8.0, col.Title, Font, textR, textG, textB);
+            begin
+              curW := 0.0;
+              if Assigned(Font) then curW := Font.GetTextWidth(fitTitle);
+              curX := textStartX + Max(0.0, textAvailW - curW);
+              Canvas.DrawTextLeft(curX, hy + 4.0, textAvailW, hh - 8.0, fitTitle, Font, textR, textG, textB);
+            end;
             else
-              Canvas.DrawTextLeft(textStartX, hy + 4.0, textAvailW, hh - 8.0, col.Title, Font, textR, textG, textB);
+              Canvas.DrawTextLeft(textStartX, hy + 4.0, textAvailW, hh - 8.0, fitTitle, Font, textR, textG, textB);
           end;
         end;
 
@@ -978,7 +1235,12 @@ begin
       end;
 
       // Vertical column separator line
-      if FShowGridLines and (i < FColumns.Count - 1) then
+      if (i = FResizingCol) or (i = FResizeHoverCol) then
+      begin
+        bd := theme.GetAccentColor();
+        Canvas.DrawLine(colX + col.Width, hy, colX + col.Width, hy + hh, 2.0, bd.R, bd.G, bd.B, 1.0);
+      end
+      else if FShowGridLines and (i < FColumns.Count - 1) then
         Canvas.DrawLine(colX + col.Width, hy + 2.0, colX + col.Width, hy + hh - 2.0, 1.0, headR * 0.8, headG * 0.8, headB * 0.8, 0.8);
 
       colX := colX + col.Width;
@@ -1010,6 +1272,8 @@ var
   handled: Boolean;
   textStartX, textAvailW, iconW, iconH, iconY: Double;
   vBarW: Double;
+  fitText: string;
+  curW, curX: Double;
 begin
   theme := FtGetTheme();
   accent := theme.GetAccentColor();
@@ -1103,13 +1367,19 @@ begin
 
           if textAvailW > 0.0 then
           begin
+            fitText := FtFitTextWithEllipsis(cellText, Font, textAvailW);
             case col.Alignment of
               taCenter:
-                Canvas.DrawTextCentered(Round(textStartX), Round(rowY), Round(textAvailW), Round(FRowHeight), cellText, Font, textR, textG, textB);
+                Canvas.DrawTextCentered(Round(textStartX), Round(rowY), Round(textAvailW), Round(FRowHeight), fitText, Font, textR, textG, textB);
               taRight:
-                Canvas.DrawTextLeft(textStartX, rowY + 3.0, textAvailW, FRowHeight - 6.0, cellText, Font, textR, textG, textB);
+              begin
+                curW := 0.0;
+                if Assigned(Font) then curW := Font.GetTextWidth(fitText);
+                curX := textStartX + Max(0.0, textAvailW - curW);
+                Canvas.DrawTextLeft(curX, rowY + 3.0, textAvailW, FRowHeight - 6.0, fitText, Font, textR, textG, textB);
+              end;
               else
-                Canvas.DrawTextLeft(textStartX, rowY + 3.0, textAvailW, FRowHeight - 6.0, cellText, Font, textR, textG, textB);
+                Canvas.DrawTextLeft(textStartX, rowY + 3.0, textAvailW, FRowHeight - 6.0, fitText, Font, textR, textG, textB);
             end;
           end;
         end;
@@ -1137,6 +1407,16 @@ begin
         else
           Canvas.DrawLine(X + 1, rowY + FRowHeight - 1.0, X + Width - 1 - vBarW, rowY + FRowHeight - 1.0, 1.0, 0.85, 0.86, 0.89, 0.4);
       end;
+    end;
+
+    // If resizing, draw subtle vertical guide line down the table content
+    if FResizingCol >= 0 then
+    begin
+      colX := (X + 1.0) - FScrollX;
+      for c := 0 to FResizingCol do
+        colX := colX + TFtTableColumn(FColumns[c]).Width;
+      if (colX >= X) and (colX <= X + Width) then
+        Canvas.DrawLine(colX, bodyY, colX, Y + Height, 1.0, accent.R, accent.G, accent.B, 0.45);
     end;
   finally
     Canvas.PopClipRect();
@@ -1190,23 +1470,43 @@ var
   minIdx, maxIdx, i: Integer;
   nowTime: QWord;
   isDblClick: Boolean;
+  divCol: Integer;
 begin
   inherited MouseDown(AX, AY, AButton);
 
   if AButton = 1 then
   begin
-    // Check if header clicked
+    // Check if divider hit for column resizing
+    divCol := GetResizeDividerAt(AX, AY);
+    if divCol >= 0 then
+    begin
+      nowTime := GetTickCount64();
+      if (divCol = FLastDividerClickCol) and ((nowTime - FLastDividerClickTime) < 400) then
+      begin
+        FLastDividerClickTime := 0;
+        FLastDividerClickCol := -1;
+        FResizingCol := -1;
+        AutoFitColumn(divCol);
+        Exit;
+      end;
+      FLastDividerClickTime := nowTime;
+      FLastDividerClickCol := divCol;
+      FResizingCol := divCol;
+      FResizeStartX := AX;
+      FResizeStartW := TFtTableColumn(FColumns[divCol]).Width;
+      Invalidate();
+      Exit;
+    end;
+
+    // Check if header clicked (release-within-bounds will trigger OnColumnClick)
     if (AY >= Y) and (AY <= Y + FHeaderHeight) then
     begin
-      colIdx := ColumnAtPosition(AX);
-      if colIdx >= 0 then
-      begin
-        if Assigned(FOnColumnClick) then
-          FOnColumnClick(Self, colIdx);
-      end;
+      FPressedHeaderCol := ColumnAtPosition(AX);
+      Exit;
     end
     else
     begin
+      FPressedHeaderCol := -1;
       rowIdx := RowAtPosition(AY);
       if rowIdx >= 0 then
       begin
@@ -1296,9 +1596,47 @@ end;
 procedure TFtTable.MouseMove(AX, AY: Integer);
 var
   newHover: Integer;
+  newHoverDiv: Integer;
+  col: TFtTableColumn;
+  newW: Double;
 begin
   inherited MouseMove(AX, AY);
 
+  FLastMouseX := AX;
+  FLastMouseY := AY;
+
+  if FResizingCol >= 0 then
+  begin
+    col := TFtTableColumn(FColumns[FResizingCol]);
+    newW := FResizeStartW + (AX - FResizeStartX);
+    if newW < col.MinWidth then
+      newW := col.MinWidth;
+    if (col.MaxWidth > 0.0) and (newW > col.MaxWidth) then
+      newW := col.MaxWidth;
+
+    if col.Width <> newW then
+    begin
+      col.Width := newW;
+      RecalculateMetrics();
+      UpdateScrollBars();
+      Invalidate();
+      if Assigned(FOnColumnResize) then
+        FOnColumnResize(Self, FResizingCol, newW);
+      if Assigned(FOnColumnResizeCb) then
+        FOnColumnResizeCb(Pointer(Self), FResizingCol, newW, FOnColumnResizeUserData);
+    end;
+    Exit;
+  end;
+
+  // Track divider hover
+  newHoverDiv := GetResizeDividerAt(AX, AY);
+  if FResizeHoverCol <> newHoverDiv then
+  begin
+    FResizeHoverCol := newHoverDiv;
+    Invalidate();
+  end;
+
+  // Track row hover
   newHover := RowAtPosition(AY);
   if FHoveredRow <> newHover then
   begin
@@ -1307,9 +1645,44 @@ begin
   end;
 end;
 
+procedure TFtTable.MouseUp(AX, AY: Integer; AButton: Integer);
+begin
+  inherited MouseUp(AX, AY, AButton);
+
+  if AButton = 1 then
+  begin
+    if FResizingCol >= 0 then
+    begin
+      FResizingCol := -1;
+      FResizeHoverCol := GetResizeDividerAt(AX, AY);
+      Invalidate();
+      Exit;
+    end;
+
+    if FPressedHeaderCol >= 0 then
+    begin
+      if (AY >= Y) and (AY <= Y + FHeaderHeight) and (ColumnAtPosition(AX) = FPressedHeaderCol) then
+      begin
+        if Assigned(FOnColumnClick) then
+          FOnColumnClick(Self, FPressedHeaderCol);
+      end;
+      FPressedHeaderCol := -1;
+      Exit;
+    end;
+  end;
+end;
+
 procedure TFtTable.MouseLeave();
 begin
   inherited MouseLeave();
+  FLastMouseX := -1;
+  FLastMouseY := -1;
+  FPressedHeaderCol := -1;
+  if FResizeHoverCol >= 0 then
+  begin
+    FResizeHoverCol := -1;
+    Invalidate();
+  end;
   if FHoveredRow >= 0 then
   begin
     FHoveredRow := -1;
