@@ -194,6 +194,7 @@ var
   atomNetWmWindowTypeTooltip: xcb_atom_t = 0;
   atomNetWmWindowTypeUtility: xcb_atom_t = 0;
   atomNetWmWindowTypeDock: xcb_atom_t = 0;
+  atomNetWmWindowTypeDesktop: xcb_atom_t = 0;
   atomNetWmStrut: xcb_atom_t = 0;
   atomNetWmStrutPartial: xcb_atom_t = 0;
   atomNetWmWindowOpacity: xcb_atom_t = 0;
@@ -260,6 +261,7 @@ begin
   atomNetWmWindowTypeTooltip := InternAtom('_NET_WM_WINDOW_TYPE_TOOLTIP');
   atomNetWmWindowTypeUtility := InternAtom('_NET_WM_WINDOW_TYPE_UTILITY');
   atomNetWmWindowTypeDock := InternAtom('_NET_WM_WINDOW_TYPE_DOCK');
+  atomNetWmWindowTypeDesktop := InternAtom('_NET_WM_WINDOW_TYPE_DESKTOP');
   atomNetWmStrut := InternAtom('_NET_WM_STRUT');
   atomNetWmStrutPartial := InternAtom('_NET_WM_STRUT_PARTIAL');
   atomNetWmWindowOpacity := InternAtom('_NET_WM_WINDOW_OPACITY');
@@ -391,7 +393,7 @@ begin
   for i := 0 to GWindows.Count - 1 do
   begin
     w := TFtWindow(GWindows[i]);
-    if w.WindowType in [ftwtNormal, ftwtDialog, ftwtUtility, ftwtDock] then
+    if w.WindowType in [ftwtNormal, ftwtDialog, ftwtUtility, ftwtDock, ftwtDesktop] then
       Exit(True);
   end;
 end;
@@ -984,6 +986,7 @@ var
   i: Integer;
   w: TFtWindow;
 begin
+  if FWindowType = ftwtDesktop then Exit;
   inherited BringToFront();
   if (FWindow = 0) or (FConnection = nil) then Exit;
 
@@ -1053,6 +1056,7 @@ procedure TFtX11Window.SetWindowType(AType: TFtWindowType);
 var
   typeAtom: xcb_atom_t;
   val: xcb_change_window_attributes_value_list_t;
+  valStack: Cardinal;
 begin
   inherited SetWindowType(AType);
   if (FWindow = 0) or (FConnection = nil) then Exit;
@@ -1065,6 +1069,7 @@ begin
     ftwtTooltip: typeAtom := atomNetWmWindowTypeTooltip;
     ftwtUtility: typeAtom := atomNetWmWindowTypeUtility;
     ftwtDock: typeAtom := atomNetWmWindowTypeDock;
+    ftwtDesktop: typeAtom := atomNetWmWindowTypeDesktop;
   else
     typeAtom := atomNetWmWindowTypeNormal;
   end;
@@ -1083,6 +1088,13 @@ begin
   begin
     SetSkipTaskbar(True);
     SetBorderless(True);
+  end
+  else if AType = ftwtDesktop then
+  begin
+    SetSkipTaskbar(True);
+    SetBorderless(True);
+    valStack := XCB_STACK_MODE_BELOW;
+    xcb_configure_window(FConnection, FWindow, XCB_CONFIG_WINDOW_STACK_MODE, @valStack);
   end;
   xcb_flush(FConnection);
 end;
@@ -1799,6 +1811,7 @@ var
   sendText: string;
   sc: Pxcb_selection_clear_event_t;
   cm: Pxcb_client_message_event_t;
+  stackVal: Cardinal;
 begin
   if Event = nil then Exit;
   evType := Event^.response_type and $7F;
@@ -1823,7 +1836,12 @@ begin
 
     XCB_MAP_NOTIFY:
     begin
-      if FIsModal or (FWindowType in [ftwtDialog, ftwtPopupMenu, ftwtDropdownMenu, ftwtUtility]) then
+      if FWindowType = ftwtDesktop then
+      begin
+        stackVal := XCB_STACK_MODE_BELOW;
+        xcb_configure_window(FConnection, FWindow, XCB_CONFIG_WINDOW_STACK_MODE, @stackVal);
+      end
+      else if FIsModal or (FWindowType in [ftwtDialog, ftwtPopupMenu, ftwtDropdownMenu, ftwtUtility]) then
         BringToFront();
     end;
 
@@ -2192,7 +2210,7 @@ begin
 
     XCB_DESTROY_NOTIFY:
     begin
-      if FWindowType in [ftwtNormal, ftwtDialog, ftwtUtility, ftwtDock] then
+      if FWindowType in [ftwtNormal, ftwtDialog, ftwtUtility, ftwtDock, ftwtDesktop] then
       begin
         if not HasMainWindows() then
           GRunning := False;

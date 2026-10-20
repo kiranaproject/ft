@@ -16,7 +16,8 @@ type
     ftwtDropdownMenu = 3,
     ftwtTooltip = 4,
     ftwtUtility = 5,
-    ftwtDock = 6
+    ftwtDock = 6,
+    ftwtDesktop = 7
   );
 
 const
