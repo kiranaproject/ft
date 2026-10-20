@@ -172,6 +172,7 @@ procedure FtSetCornerRadius(AValue: Double);
 function FtGetEnableShadow(): Boolean;
 procedure FtSetEnableShadow(AValue: Boolean);
 function MakeRgbColor(R, G, B: Double): TFtRgbColor;
+function FtFitTextWithEllipsis(const AText: string; AFont: TFtFont; AMaxWidth: Double): string;
 
 implementation
 
@@ -406,6 +407,64 @@ begin
   Result := MakeRgb(R, G, B);
 end;
 
+function FtFitTextWithEllipsis(const AText: string; AFont: TFtFont; AMaxWidth: Double): string;
+const
+  Ellipsis = '…';
+var
+  ellipsisW: Double;
+  p, endP: PChar;
+  charLen: Integer;
+  offsets: array of Integer;
+  count: Integer;
+  lowIdx, highIdx, midIdx: Integer;
+  candidate: string;
+begin
+  if (AText = '') or (AMaxWidth <= 0.0) then Exit('');
+  if not Assigned(AFont) then AFont := FtGetSystemFont();
+  if AFont.GetTextWidth(AText) <= AMaxWidth then Exit(AText);
+
+  ellipsisW := AFont.GetTextWidth(Ellipsis);
+  if ellipsisW > AMaxWidth then Exit('');
+
+  // Collect UTF-8 character boundary byte offsets
+  p := PChar(AText);
+  endP := p + Length(AText);
+  SetLength(offsets, Length(AText) + 1);
+  offsets[0] := 0;
+  count := 0;
+
+  while p < endP do
+  begin
+    charLen := 1;
+    if (Byte(p^) and $80) = 0 then charLen := 1
+    else if (Byte(p^) and $E0) = $C0 then charLen := 2
+    else if (Byte(p^) and $F0) = $E0 then charLen := 3
+    else if (Byte(p^) and $F8) = $F0 then charLen := 4;
+    if p + charLen > endP then Break;
+
+    Inc(p, charLen);
+    Inc(count);
+    offsets[count] := p - PChar(AText);
+  end;
+
+  lowIdx := 0;
+  highIdx := count;
+  while lowIdx < highIdx do
+  begin
+    midIdx := (lowIdx + highIdx + 1) div 2;
+    candidate := Copy(AText, 1, offsets[midIdx]) + Ellipsis;
+    if AFont.GetTextWidth(candidate) <= AMaxWidth then
+      lowIdx := midIdx
+    else
+      highIdx := midIdx - 1;
+  end;
+
+  if lowIdx > 0 then
+    Result := TrimRight(Copy(AText, 1, offsets[lowIdx])) + Ellipsis
+  else
+    Result := Ellipsis;
+end;
+
 { TFtTheme }
 
 constructor TFtTheme.Create(const AName: string);
@@ -586,6 +645,8 @@ var
   textY: Integer;
   shOffY, shBlur, shOpac: Double;
   hasShadow: Boolean;
+  tw, availW: Double;
+  fitCaption: string;
 begin
   if CustomRadius >= 0.0 then
     rad := CustomRadius
@@ -682,7 +743,19 @@ begin
     textY := Y;
     if State = bsPressed then
       Inc(textY);
-    Canvas.DrawTextCentered(X, textY, W, H, Caption, actualFont, textR, textG, textB);
+
+    Canvas.PushClipRect(X + 2, Y + 1, W - 4, H - 2);
+    try
+      tw := actualFont.GetTextWidth(Caption);
+      availW := W - 8.0;
+      if (availW > 0.0) and (tw > availW) then
+        fitCaption := FtFitTextWithEllipsis(Caption, actualFont, availW)
+      else
+        fitCaption := Caption;
+      Canvas.DrawTextCentered(X, textY, W, H, fitCaption, actualFont, textR, textG, textB);
+    finally
+      Canvas.PopClipRect();
+    end;
   end;
 end;
 

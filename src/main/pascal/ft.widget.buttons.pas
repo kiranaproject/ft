@@ -567,6 +567,8 @@ var
   iconX, iconY, textX, textY: Double;
   gap: Double;
   iconAlpha: Double;
+  availW: Double;
+  fitCaption: string;
 begin
   if not Visible then Exit;
 
@@ -682,114 +684,149 @@ begin
   end;
 
   // Draw content (Icon and/or Text)
-  if hasIcon or hasCustomIcon then
-  begin
-    // Measure icon dimensions
-    iw := FIconWidth;
-    ih := FIconHeight;
-    if iw <= 0.0 then
+  Canvas.PushClipRect(Round(X + 2.0), Round(Y + 1.0), Round(Width - 4.0), Round(Height - 2.0));
+  try
+    if hasIcon or hasCustomIcon then
     begin
-      if hasIcon then iw := FIcon.Width else iw := 16.0;
-    end;
-    if ih <= 0.0 then
-    begin
-      if hasIcon then ih := FIcon.Height else ih := 16.0;
-    end;
-    // Scale down icon if it overflows button height
-    if (Height > 10) and (ih > Height - 6.0) then
-    begin
-      iw := iw * ((Height - 6.0) / ih);
-      ih := Height - 6.0;
-    end;
+      // Measure icon dimensions
+      iw := FIconWidth;
+      ih := FIconHeight;
+      if iw <= 0.0 then
+      begin
+        if hasIcon then iw := FIcon.Width else iw := 16.0;
+      end;
+      if ih <= 0.0 then
+      begin
+        if hasIcon then ih := FIcon.Height else ih := 16.0;
+      end;
+      // Scale down icon if it overflows button height
+      if (Height > 10) and (ih > Height - 6.0) then
+      begin
+        iw := iw * ((Height - 6.0) / ih);
+        ih := Height - 6.0;
+      end;
 
-    // Measure text
-    tw := 0.0;
-    th := 14.0;
-    if hasText and Assigned(txtFont) then
+      // Measure text
+      tw := 0.0;
+      th := 14.0;
+      if hasText and Assigned(txtFont) then
+      begin
+        tw := txtFont.GetTextWidth(Caption);
+        th := txtFont.Height;
+      end;
+
+      gap := FIconGap;
+      if gap < 0.0 then gap := 6.0;
+      if not hasText then gap := 0.0;
+
+      iconAlpha := 1.0;
+      if not FEnabled then iconAlpha := 0.45;
+
+      case FIconPosition of
+        ftbipLeft:
+        begin
+          totalW := iw + gap + tw;
+          contentX := Round(X + (Width - totalW) / 2.0);
+          if contentX < X + 4.0 then contentX := X + 4.0;
+          iconX := Round(contentX);
+          iconY := Round(Y + (Height - ih) / 2.0 + shiftY);
+          textX := Round(contentX + iw + gap);
+          textY := Round(Y + shiftY);
+
+          if hasCustomIcon then
+            FOnPaintIcon(Pointer(Self), Pointer(Canvas), iconX, iconY, iw, ih, Ord(FState), FOnPaintIconUserData)
+          else if hasIcon then
+            Canvas.DrawImageScaled(iconX, iconY, iw, ih, FIcon, iconAlpha);
+
+          if hasText then
+          begin
+            availW := Width - (textX - X) - 4.0;
+            if (availW > 0.0) and (tw > availW) then
+              fitCaption := FtFitTextWithEllipsis(Caption, txtFont, availW)
+            else
+              fitCaption := Caption;
+            Canvas.DrawTextLeft(textX, textY, availW, Height, fitCaption, txtFont, txtR, txtG, txtB);
+          end;
+        end;
+
+        ftbipRight:
+        begin
+          totalW := iw + gap + tw;
+          contentX := Round(X + (Width - totalW) / 2.0);
+          if contentX < X + 4.0 then contentX := X + 4.0;
+          textX := Round(contentX);
+          textY := Round(Y + shiftY);
+          iconX := Round(contentX + tw + gap);
+          if iconX > X + Width - 4.0 - iw then
+            iconX := Round(X + Width - 4.0 - iw);
+          iconY := Round(Y + (Height - ih) / 2.0 + shiftY);
+
+          if hasText then
+          begin
+            availW := iconX - gap - textX;
+            if (availW > 0.0) and (tw > availW) then
+              fitCaption := FtFitTextWithEllipsis(Caption, txtFont, availW)
+            else
+              fitCaption := Caption;
+            Canvas.DrawTextLeft(textX, textY, availW, Height, fitCaption, txtFont, txtR, txtG, txtB);
+          end;
+
+          if hasCustomIcon then
+            FOnPaintIcon(Pointer(Self), Pointer(Canvas), iconX, iconY, iw, ih, Ord(FState), FOnPaintIconUserData)
+          else if hasIcon then
+            Canvas.DrawImageScaled(iconX, iconY, iw, ih, FIcon, iconAlpha);
+        end;
+
+        ftbipTop:
+        begin
+          totalH := ih + gap + th;
+          contentY := Round(Y + (Height - totalH) / 2.0 + shiftY);
+          if contentY < Y + 2.0 then contentY := Y + 2.0;
+          iconX := Round(X + (Width - iw) / 2.0);
+          iconY := contentY;
+          textY := Round(contentY + ih + gap);
+
+          if hasCustomIcon then
+            FOnPaintIcon(Pointer(Self), Pointer(Canvas), iconX, iconY, iw, ih, Ord(FState), FOnPaintIconUserData)
+          else if hasIcon then
+            Canvas.DrawImageScaled(iconX, iconY, iw, ih, FIcon, iconAlpha);
+
+          if hasText then
+          begin
+            availW := Width - 8.0;
+            if (availW > 0.0) and (tw > availW) then
+              fitCaption := FtFitTextWithEllipsis(Caption, txtFont, availW)
+            else
+              fitCaption := Caption;
+            Canvas.DrawTextCentered(Round(X), Round(textY), Round(Width), Round(th), fitCaption, txtFont, txtR, txtG, txtB);
+          end;
+        end;
+
+        ftbipOnly:
+        begin
+          iconX := Round(X + (Width - iw) / 2.0);
+          iconY := Round(Y + (Height - ih) / 2.0 + shiftY);
+
+          if hasCustomIcon then
+            FOnPaintIcon(Pointer(Self), Pointer(Canvas), iconX, iconY, iw, ih, Ord(FState), FOnPaintIconUserData)
+          else if hasIcon then
+            Canvas.DrawImageScaled(iconX, iconY, iw, ih, FIcon, iconAlpha);
+        end;
+      end;
+    end
+    else if (st.HasBgColor or st.HasBorderColor or st.HasBorderRadius or st.HasTextColor) and (Caption <> '') then
     begin
+      // CSS-styled button text without icon
       tw := txtFont.GetTextWidth(Caption);
-      th := txtFont.Height;
+      availW := Width - 8.0;
+      if (availW > 0.0) and (tw > availW) then
+        fitCaption := FtFitTextWithEllipsis(Caption, txtFont, availW)
+      else
+        fitCaption := Caption;
+      Canvas.DrawTextCentered(Round(X), Round(Y + shiftY), Round(Width), Round(Height), fitCaption, txtFont, txtR, txtG, txtB);
     end;
-
-    gap := FIconGap;
-    if gap < 0.0 then gap := 6.0;
-    if not hasText then gap := 0.0;
-
-    iconAlpha := 1.0;
-    if not FEnabled then iconAlpha := 0.45;
-
-    case FIconPosition of
-      ftbipLeft:
-      begin
-        totalW := iw + gap + tw;
-        contentX := Round(X + (Width - totalW) / 2.0);
-        if contentX < X + 4.0 then contentX := X + 4.0;
-        iconX := Round(contentX);
-        iconY := Round(Y + (Height - ih) / 2.0 + shiftY);
-        textX := Round(contentX + iw + gap);
-        textY := Round(Y + shiftY);
-
-        if hasCustomIcon then
-          FOnPaintIcon(Pointer(Self), Pointer(Canvas), iconX, iconY, iw, ih, Ord(FState), FOnPaintIconUserData)
-        else if hasIcon then
-          Canvas.DrawImageScaled(iconX, iconY, iw, ih, FIcon, iconAlpha);
-
-        if hasText then
-          Canvas.DrawTextLeft(textX, textY, Width - (textX - X) - 4.0, Height, Caption, txtFont, txtR, txtG, txtB);
-      end;
-
-      ftbipRight:
-      begin
-        totalW := iw + gap + tw;
-        contentX := Round(X + (Width - totalW) / 2.0);
-        if contentX < X + 4.0 then contentX := X + 4.0;
-        textX := Round(contentX);
-        textY := Round(Y + shiftY);
-        iconX := Round(contentX + tw + gap);
-        iconY := Round(Y + (Height - ih) / 2.0 + shiftY);
-
-        if hasText then
-          Canvas.DrawTextLeft(textX, textY, tw + 2.0, Height, Caption, txtFont, txtR, txtG, txtB);
-
-        if hasCustomIcon then
-          FOnPaintIcon(Pointer(Self), Pointer(Canvas), iconX, iconY, iw, ih, Ord(FState), FOnPaintIconUserData)
-        else if hasIcon then
-          Canvas.DrawImageScaled(iconX, iconY, iw, ih, FIcon, iconAlpha);
-      end;
-
-      ftbipTop:
-      begin
-        totalH := ih + gap + th;
-        contentY := Round(Y + (Height - totalH) / 2.0 + shiftY);
-        iconX := Round(X + (Width - iw) / 2.0);
-        iconY := contentY;
-        textY := Round(contentY + ih + gap);
-
-        if hasCustomIcon then
-          FOnPaintIcon(Pointer(Self), Pointer(Canvas), iconX, iconY, iw, ih, Ord(FState), FOnPaintIconUserData)
-        else if hasIcon then
-          Canvas.DrawImageScaled(iconX, iconY, iw, ih, FIcon, iconAlpha);
-
-        if hasText then
-          Canvas.DrawTextCentered(Round(X), Round(textY), Round(Width), Round(th), Caption, txtFont, txtR, txtG, txtB);
-      end;
-
-      ftbipOnly:
-      begin
-        iconX := Round(X + (Width - iw) / 2.0);
-        iconY := Round(Y + (Height - ih) / 2.0 + shiftY);
-
-        if hasCustomIcon then
-          FOnPaintIcon(Pointer(Self), Pointer(Canvas), iconX, iconY, iw, ih, Ord(FState), FOnPaintIconUserData)
-        else if hasIcon then
-          Canvas.DrawImageScaled(iconX, iconY, iw, ih, FIcon, iconAlpha);
-      end;
-    end;
-  end
-  else if (st.HasBgColor or st.HasBorderColor or st.HasBorderRadius or st.HasTextColor) and (Caption <> '') then
-  begin
-    // CSS-styled button text without icon
-    Canvas.DrawTextCentered(Round(X), Round(Y + shiftY), Round(Width), Round(Height), Caption, txtFont, txtR, txtG, txtB);
+  finally
+    Canvas.PopClipRect();
   end;
 
   // Custom post-draw overlay callback

@@ -79,6 +79,7 @@ type
     procedure TestHints();
     procedure TestTextWordWrapAndClipping();
     procedure TestButtonIconAndCustomDrawing();
+    procedure TestButtonTextOverflowAndEllipsis();
     procedure TestPathBar();
     procedure TestUrlEntry();
     procedure TestFrostedGlassBackdropBlurInvalidation();
@@ -2002,6 +2003,72 @@ begin
     end;
   finally
     btn.Free();
+  end;
+end;
+
+procedure TFtDesktopWidgetsTest.TestButtonTextOverflowAndEllipsis();
+var
+  fnt: TFtFont;
+  orig, fitted: string;
+  w: Double;
+  btn: TFtButton;
+  buf: array[0..99, 0..199] of TBgraPixel;
+  canvas: TFtCanvasAgg;
+  px: Integer;
+begin
+  fnt := FtGetSystemFont();
+  orig := 'Super Long Button Caption That Exceeds Width';
+  w := fnt.GetTextWidth(orig);
+  AssertTrue('Original text width > 100', w > 100.0);
+
+  // 1. Text fits within large width
+  fitted := FtFitTextWithEllipsis(orig, fnt, w + 50.0);
+  AssertEquals('Text fits untouched', orig, fitted);
+
+  // 2. Text ellipsized when width is constrained
+  fitted := FtFitTextWithEllipsis(orig, fnt, 100.0);
+  AssertTrue('Ellipsis added', Pos('…', fitted) > 0);
+  AssertTrue('Fitted width within limit', fnt.GetTextWidth(fitted) <= 100.0);
+
+  // 3. Narrow limit
+  fitted := FtFitTextWithEllipsis(orig, fnt, 10.0);
+  AssertTrue('Narrow limit <= 10.0', fnt.GetTextWidth(fitted) <= 10.0);
+
+  // 4. Drawing containment: verify no text pixels bleed outside button bounds
+  FillChar(buf, SizeOf(buf), 0);
+  canvas := TFtCanvasAgg.Create(@buf[0, 0], 200, 100);
+  try
+    btn := TFtButton.Create(nil);
+    try
+      btn.X := 20;
+      btn.Y := 20;
+      btn.Width := 50;
+      btn.Height := 30;
+      btn.Caption := orig;
+      btn.Draw(canvas);
+
+      // Button ends at X = 70. Pixels at X >= 75 along text baseline (Y = 30..40) must be 0
+      for px := 75 to 190 do
+      begin
+        AssertEquals('No text bleed at X=' + IntToStr(px) + ', Y=35', 0, buf[35, px].A);
+      end;
+
+      // Also verify with icon
+      FillChar(buf, SizeOf(buf), 0);
+      btn.SetIconBitmap(TFloriaImage.Create(16, 16, fpfBGRA32), True);
+      btn.IconWidth := 16;
+      btn.IconHeight := 16;
+      btn.IconGap := 6;
+      btn.Draw(canvas);
+      for px := 75 to 190 do
+      begin
+        AssertEquals('No text bleed with icon at X=' + IntToStr(px) + ', Y=35', 0, buf[35, px].A);
+      end;
+    finally
+      btn.Free();
+    end;
+  finally
+    canvas.Free();
   end;
 end;
 
