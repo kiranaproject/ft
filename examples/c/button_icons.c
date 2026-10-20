@@ -131,7 +131,7 @@ static void on_paint_badge_overlay(FtWidget button, void* canvas, double x, doub
 int main(void) {
     ft_init();
 
-    FtWidget win = ft_window_create(820, 580, "Floria Toolkit — Button Icon & Custom Drawing Showcase");
+    FtWidget win = ft_window_create(820, 680, "Floria Toolkit — Button Icon & Custom Drawing Showcase");
 
     // Header Title & Subtitle
     FtWidget title = ft_text_create(win, 24, 16, 770, 26, "Button Icons & Vector Custom Drawing");
@@ -226,17 +226,40 @@ int main(void) {
     ft_button_set_corner_radius(btn_squircle, 10.0);
     ft_button_on_click(btn_squircle, on_btn_click, (void*)"Settings Panel (Radius 10)");
 
+    // Section 4: Button Alignment (Left / Center / Right) & Padding
+    FtWidget sec4 = ft_text_create(win, 24, 430, 770, 22, "4. Button Alignment (Left, Center, Right) & Custom Padding:");
+    ft_text_set_selectable(sec4, 0);
+
+    FtWidget btn_align_left = ft_button_create(win, 24, 460, 230, 38, "Left Aligned (Taskbar)");
+    ft_button_set_icon_svg(btn_align_left, SVG_FOLDER);
+    ft_button_set_align(btn_align_left, FT_TEXT_ALIGN_LEFT);
+    ft_button_set_padding_x(btn_align_left, 8.0);
+    ft_button_on_click(btn_align_left, on_btn_click, (void*)"Left Aligned Button");
+
+    FtWidget btn_align_center = ft_button_create(win, 270, 460, 230, 38, "Center Aligned (Default)");
+    ft_button_set_icon_svg(btn_align_center, SVG_SETTINGS);
+    ft_button_set_align(btn_align_center, FT_TEXT_ALIGN_CENTER);
+    ft_button_on_click(btn_align_center, on_btn_click, (void*)"Center Aligned Button");
+
+    FtWidget btn_align_right = ft_button_create(win, 516, 460, 230, 38, "Right Aligned");
+    ft_button_set_icon_svg(btn_align_right, SVG_SAVE);
+    ft_button_set_align(btn_align_right, FT_TEXT_ALIGN_RIGHT);
+    ft_button_set_padding_x(btn_align_right, 8.0);
+    ft_button_on_click(btn_align_right, on_btn_click, (void*)"Right Aligned Button");
+
     // Description lines
-    FtWidget d0 = ft_text_create(win, 24, 430, 770, 20, "Icon & Custom Drawing Capabilities:");
+    FtWidget d0 = ft_text_create(win, 24, 520, 770, 20, "Icon & Custom Drawing Capabilities:");
     ft_text_set_selectable(d0, 0);
-    FtWidget d1 = ft_text_create(win, 36, 452, 758, 20, "• Native SVG rendering with arbitrary viewports, scalable width/height, and opacity.");
+    FtWidget d1 = ft_text_create(win, 36, 542, 758, 20, "• Native SVG rendering with arbitrary viewports, scalable width/height, and opacity.");
     ft_text_set_selectable(d1, 0);
-    FtWidget d2 = ft_text_create(win, 36, 474, 758, 20, "• 4 standard positions: Left, Right, Top (vertical layout), and Icon-Only (compact toolbars).");
+    FtWidget d2 = ft_text_create(win, 36, 564, 758, 20, "• 4 standard positions: Left, Right, Top (vertical layout), and Icon-Only (compact toolbars).");
     ft_text_set_selectable(d2, 0);
-    FtWidget d3 = ft_text_create(win, 36, 496, 758, 20, "• Tactile click shift: icons and custom vector drawing shift by 1px on click with text.");
+    FtWidget d3 = ft_text_create(win, 36, 586, 758, 20, "• Content alignment: Left, Center, Right with configurable paddingX (ideal for taskbars & menus).");
     ft_text_set_selectable(d3, 0);
-    FtWidget d4 = ft_text_create(win, 36, 518, 758, 20, "• Custom callbacks: paint custom vector icons or overlays using rich ft_canvas_* APIs.");
+    FtWidget d4 = ft_text_create(win, 36, 608, 758, 20, "• Tactile click shift: icons and custom vector drawing shift by 1px on click with text.");
     ft_text_set_selectable(d4, 0);
+    FtWidget d5 = ft_text_create(win, 36, 630, 758, 20, "• Custom callbacks: paint custom vector icons or overlays using rich ft_canvas_* APIs.");
+    ft_text_set_selectable(d5, 0);
 
     ft_widget_show(win);
     printf("[Button Icons] Running main loop...\n");

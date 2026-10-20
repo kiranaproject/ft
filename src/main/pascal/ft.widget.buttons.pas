@@ -10,9 +10,10 @@ uses
   Floria.Image.Core, Floria.Image.BMP, Floria.Image.PNG, Floria.Image.JPEG,
   Floria.SVG.DOM, Floria.SVG.Parser, Floria.SVG.Rasterizer,
   Ft.Canvas,
-  Ft.Widget, Ft.Theme, Ft.Css, Ft.Animation;
+  Ft.Widget, Ft.Widget.Texts, Ft.Theme, Ft.Css, Ft.Animation;
 
 type
+  TFtTextAlign = TFtTextAlignment;
   TFtClickCallback = procedure(Sender: Pointer; UserData: Pointer); cdecl;
   TFtHoverCallback = procedure(Sender: Pointer; Hovered: cint32; UserData: Pointer); cdecl;
   TFtPressCallback = procedure(Sender: Pointer; Pressed: cint32; UserData: Pointer); cdecl;
@@ -48,6 +49,9 @@ type
     FIconWidth: Integer;
     FIconHeight: Integer;
     FIconGap: Integer;
+    FPaddingX: Double;
+    FAlignment: TFtTextAlignment;
+    FHasExplicitAlignment: Boolean;
 
     // Custom drawing callbacks
     FOnPaintIcon: TFtButtonPaintCallback;
@@ -63,6 +67,8 @@ type
     procedure SetIconWidth(AValue: Integer);
     procedure SetIconHeight(AValue: Integer);
     procedure SetIconGap(AValue: Integer);
+    procedure SetPaddingX(AValue: Double);
+    procedure SetAlignment(AValue: TFtTextAlignment);
   public
     Caption: string;
     constructor Create(AParent: TFtWidget); override;
@@ -76,6 +82,7 @@ type
     function GetElementType(): string; override;
     function GetStatePseudoClass(): string; override;
     function GetEffectiveHint(): string; override;
+    function GetEffectiveAlignment(): TFtTextAlignment;
     function GetPreferredWidth(): Integer; override;
     function GetPreferredHeight(): Integer; override;
     procedure SetEnabled(AValue: Boolean); override;
@@ -106,6 +113,8 @@ type
     property IconWidth: Integer read FIconWidth write SetIconWidth;
     property IconHeight: Integer read FIconHeight write SetIconHeight;
     property IconGap: Integer read FIconGap write SetIconGap;
+    property PaddingX: Double read FPaddingX write SetPaddingX;
+    property Alignment: TFtTextAlignment read FAlignment write SetAlignment;
     property OnPaintIcon: TFtButtonPaintCallback read FOnPaintIcon write FOnPaintIcon;
     property OnPaintIconUserData: Pointer read FOnPaintIconUserData write FOnPaintIconUserData;
     property OnPaint: TFtButtonPaintCallback read FOnPaint write FOnPaint;
@@ -225,6 +234,9 @@ begin
   FIconWidth := 0;
   FIconHeight := 0;
   FIconGap := 6;
+  FPaddingX := -1.0;
+  FAlignment := taCenter;
+  FHasExplicitAlignment := False;
   FOnPaintIcon := nil;
   FOnPaintIconUserData := nil;
   FOnPaint := nil;
@@ -359,6 +371,50 @@ begin
   begin
     FIconGap := AValue;
     Invalidate();
+  end;
+end;
+
+procedure TFtButton.SetPaddingX(AValue: Double);
+begin
+  if FPaddingX <> AValue then
+  begin
+    FPaddingX := AValue;
+    Invalidate();
+  end;
+end;
+
+procedure TFtButton.SetAlignment(AValue: TFtTextAlignment);
+begin
+  FHasExplicitAlignment := True;
+  if FAlignment <> AValue then
+  begin
+    FAlignment := AValue;
+    Invalidate();
+  end;
+end;
+
+function TFtButton.GetEffectiveAlignment(): TFtTextAlignment;
+var
+  st: TFtWidgetStyle;
+begin
+  if FHasExplicitAlignment then
+    Result := FAlignment
+  else
+  begin
+    st := GetResolvedStyle();
+    if st.HasTextAlign then
+    begin
+      if (st.TextAlign = 'left') or (st.TextAlign = 'start') then
+        Result := taLeft
+      else if (st.TextAlign = 'right') or (st.TextAlign = 'end') then
+        Result := taRight
+      else if st.TextAlign = 'center' then
+        Result := taCenter
+      else
+        Result := FAlignment;
+    end
+    else
+      Result := FAlignment;
   end;
 end;
 
@@ -569,10 +625,17 @@ var
   iconAlpha: Double;
   availW: Double;
   fitCaption: string;
+  effAlign: TFtTextAlignment;
+  padX: Double;
+  curW: Double;
 begin
   if not Visible then Exit;
 
   st := GetResolvedStyle();
+  effAlign := GetEffectiveAlignment();
+  padX := 8.0;
+  if FPaddingX >= 0.0 then padX := FPaddingX;
+
   hasIcon := Assigned(FIcon) and (FIcon.Width > 0) and (FIcon.Height > 0);
   hasCustomIcon := Assigned(FOnPaintIcon);
   hasText := (Caption <> '') and (FIconPosition <> ftbipOnly);
@@ -634,7 +697,7 @@ begin
   end
   else
   begin
-    if hasIcon or hasCustomIcon then
+    if (hasIcon or hasCustomIcon) or (effAlign <> taCenter) then
       FtGetTheme().DrawButtonEx(Canvas, X, Y, Width, Height, FState, FToggled, '', GetFont(), FCornerRadius, FEnableShadow)
     else
       FtGetTheme().DrawButtonEx(Canvas, X, Y, Width, Height, FState, FToggled, Caption, GetFont(), FCornerRadius, FEnableShadow);
@@ -726,8 +789,23 @@ begin
         ftbipLeft:
         begin
           totalW := iw + gap + tw;
-          contentX := Round(X + (Width - totalW) / 2.0);
-          if contentX < X + 4.0 then contentX := X + 4.0;
+          case effAlign of
+            taLeft:
+            begin
+              contentX := X + padX;
+            end;
+            taRight:
+            begin
+              contentX := X + Width - padX - totalW;
+              if contentX < X + 4.0 then contentX := X + 4.0;
+            end;
+            else
+            begin
+              contentX := Round(X + (Width - totalW) / 2.0);
+              if contentX < X + 4.0 then contentX := X + 4.0;
+            end;
+          end;
+
           iconX := Round(contentX);
           iconY := Round(Y + (Height - ih) / 2.0 + shiftY);
           textX := Round(contentX + iw + gap);
@@ -740,7 +818,7 @@ begin
 
           if hasText then
           begin
-            availW := Width - (textX - X) - 4.0;
+            availW := Width - (textX - X) - padX;
             if (availW > 0.0) and (tw > availW) then
               fitCaption := FtFitTextWithEllipsis(Caption, txtFont, availW)
             else
@@ -752,18 +830,33 @@ begin
         ftbipRight:
         begin
           totalW := iw + gap + tw;
-          contentX := Round(X + (Width - totalW) / 2.0);
-          if contentX < X + 4.0 then contentX := X + 4.0;
+          case effAlign of
+            taLeft:
+            begin
+              contentX := X + padX;
+            end;
+            taRight:
+            begin
+              contentX := X + Width - padX - totalW;
+              if contentX < X + 4.0 then contentX := X + 4.0;
+            end;
+            else
+            begin
+              contentX := Round(X + (Width - totalW) / 2.0);
+              if contentX < X + 4.0 then contentX := X + 4.0;
+            end;
+          end;
+
           textX := Round(contentX);
           textY := Round(Y + shiftY);
           iconX := Round(contentX + tw + gap);
-          if iconX > X + Width - 4.0 - iw then
-            iconX := Round(X + Width - 4.0 - iw);
+          if iconX > X + Width - padX - iw then
+            iconX := Round(X + Width - padX - iw);
           iconY := Round(Y + (Height - ih) / 2.0 + shiftY);
 
           if hasText then
           begin
-            availW := iconX - gap - textX;
+            availW := Math.Max(0.0, iconX - gap - textX);
             if (availW > 0.0) and (tw > availW) then
               fitCaption := FtFitTextWithEllipsis(Caption, txtFont, availW)
             else
@@ -782,9 +875,17 @@ begin
           totalH := ih + gap + th;
           contentY := Round(Y + (Height - totalH) / 2.0 + shiftY);
           if contentY < Y + 2.0 then contentY := Y + 2.0;
-          iconX := Round(X + (Width - iw) / 2.0);
-          iconY := contentY;
           textY := Round(contentY + ih + gap);
+
+          case effAlign of
+            taLeft:
+              iconX := Round(X + padX);
+            taRight:
+              iconX := Round(X + Width - padX - iw);
+            else
+              iconX := Round(X + (Width - iw) / 2.0);
+          end;
+          iconY := contentY;
 
           if hasCustomIcon then
             FOnPaintIcon(Pointer(Self), Pointer(Canvas), iconX, iconY, iw, ih, Ord(FState), FOnPaintIconUserData)
@@ -793,18 +894,36 @@ begin
 
           if hasText then
           begin
-            availW := Width - 8.0;
+            availW := Math.Max(0.0, Width - padX * 2.0);
             if (availW > 0.0) and (tw > availW) then
               fitCaption := FtFitTextWithEllipsis(Caption, txtFont, availW)
             else
               fitCaption := Caption;
-            Canvas.DrawTextCentered(Round(X), Round(textY), Round(Width), Round(th), fitCaption, txtFont, txtR, txtG, txtB);
+
+            case effAlign of
+              taLeft:
+                Canvas.DrawTextLeft(X + padX, textY, availW, th, fitCaption, txtFont, txtR, txtG, txtB);
+              taRight:
+              begin
+                curW := txtFont.GetTextWidth(fitCaption);
+                Canvas.DrawTextLeft(X + Width - padX - curW, textY, availW, th, fitCaption, txtFont, txtR, txtG, txtB);
+              end;
+              else
+                Canvas.DrawTextCentered(Round(X), Round(textY), Round(Width), Round(th), fitCaption, txtFont, txtR, txtG, txtB);
+            end;
           end;
         end;
 
         ftbipOnly:
         begin
-          iconX := Round(X + (Width - iw) / 2.0);
+          case effAlign of
+            taLeft:
+              iconX := Round(X + padX);
+            taRight:
+              iconX := Round(X + Width - padX - iw);
+            else
+              iconX := Round(X + (Width - iw) / 2.0);
+          end;
           iconY := Round(Y + (Height - ih) / 2.0 + shiftY);
 
           if hasCustomIcon then
@@ -814,16 +933,30 @@ begin
         end;
       end;
     end
-    else if (st.HasBgColor or st.HasBorderColor or st.HasBorderRadius or st.HasTextColor) and (Caption <> '') then
+    else if Caption <> '' then
     begin
-      // CSS-styled button text without icon
-      tw := txtFont.GetTextWidth(Caption);
-      availW := Width - 8.0;
-      if (availW > 0.0) and (tw > availW) then
-        fitCaption := FtFitTextWithEllipsis(Caption, txtFont, availW)
-      else
-        fitCaption := Caption;
-      Canvas.DrawTextCentered(Round(X), Round(Y + shiftY), Round(Width), Round(Height), fitCaption, txtFont, txtR, txtG, txtB);
+      // Text-only button
+      if (st.HasBgColor or st.HasBorderColor or st.HasBorderRadius or st.HasTextColor) or (effAlign <> taCenter) then
+      begin
+        tw := txtFont.GetTextWidth(Caption);
+        availW := Math.Max(0.0, Width - padX * 2.0);
+        if (availW > 0.0) and (tw > availW) then
+          fitCaption := FtFitTextWithEllipsis(Caption, txtFont, availW)
+        else
+          fitCaption := Caption;
+
+        case effAlign of
+          taLeft:
+            Canvas.DrawTextLeft(X + padX, Y + shiftY, availW, Height, fitCaption, txtFont, txtR, txtG, txtB);
+          taRight:
+          begin
+            curW := txtFont.GetTextWidth(fitCaption);
+            Canvas.DrawTextLeft(X + Width - padX - curW, Y + shiftY, availW, Height, fitCaption, txtFont, txtR, txtG, txtB);
+          end;
+          else
+            Canvas.DrawTextCentered(Round(X), Round(Y + shiftY), Round(Width), Round(Height), fitCaption, txtFont, txtR, txtG, txtB);
+        end;
+      end;
     end;
   finally
     Canvas.PopClipRect();

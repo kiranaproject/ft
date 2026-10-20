@@ -53,6 +53,9 @@ type
     TransitionDurationMs: Integer;
     TransitionTiming: string;
 
+    HasTextAlign: Boolean;
+    TextAlign: string;
+
     HasDisplay: Boolean;
     Display: string;
 
@@ -227,6 +230,9 @@ begin
   TransitionDurationMs := 0;
   TransitionTiming := 'ease';
 
+  HasTextAlign := False;
+  TextAlign := '';
+
   HasDisplay := False;
   Display := '';
   HasFlexDirection := False;
@@ -333,6 +339,11 @@ begin
     TransitionProp := Other.TransitionProp;
     TransitionDurationMs := Other.TransitionDurationMs;
     TransitionTiming := Other.TransitionTiming;
+  end;
+  if Other.HasTextAlign then
+  begin
+    HasTextAlign := True;
+    TextAlign := Other.TextAlign;
   end;
   if Other.HasDisplay then
   begin
@@ -1759,6 +1770,16 @@ begin
   begin
     AStyle.HasTransition := True;
     AStyle.TransitionTiming := LowerCase(Trim(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo)));
+  end;
+
+  // Text alignment: text-align
+  decl := ABlock.GetDeclaration(cpiTextAlign);
+  if decl = nil then decl := ABlock.GetCustom('text-align');
+  if decl <> nil then
+  begin
+    resolvedStr := LowerCase(Trim(ResolveVarsInString(decl.Value.ToString(), ABlock, AClasses, APseudo)));
+    AStyle.HasTextAlign := True;
+    AStyle.TextAlign := resolvedStr;
   end;
 
   // Flexbox: display

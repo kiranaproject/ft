@@ -81,6 +81,7 @@ type
     procedure TestTextWordWrapAndClipping();
     procedure TestButtonIconAndCustomDrawing();
     procedure TestButtonTextOverflowAndEllipsis();
+    procedure TestButtonAlignment();
     procedure TestPathBar();
     procedure TestUrlEntry();
     procedure TestFrostedGlassBackdropBlurInvalidation();
@@ -2168,6 +2169,53 @@ begin
     end;
   finally
     canvas.Free();
+  end;
+end;
+
+procedure TFtDesktopWidgetsTest.TestButtonAlignment();
+var
+  btn: TFtButton;
+  sheet: TFtStyleSheet;
+  st: TFtWidgetStyle;
+begin
+  btn := TFtButton.Create(nil);
+  try
+    btn.X := 0; btn.Y := 0; btn.Width := 200; btn.Height := 36;
+    btn.Caption := 'Panel Task';
+
+    // 1. Default alignment is taCenter
+    AssertEquals('Default button alignment is taCenter', Ord(taCenter), Ord(btn.Alignment));
+    AssertEquals('Default effective alignment is taCenter', Ord(taCenter), Ord(btn.GetEffectiveAlignment()));
+
+    // 2. Explicit alignment setting
+    btn.Alignment := taLeft;
+    AssertEquals('Explicit alignment taLeft', Ord(taLeft), Ord(btn.Alignment));
+    AssertEquals('Effective alignment taLeft', Ord(taLeft), Ord(btn.GetEffectiveAlignment()));
+
+    btn.Alignment := taRight;
+    AssertEquals('Explicit alignment taRight', Ord(taRight), Ord(btn.Alignment));
+    AssertEquals('Effective alignment taRight', Ord(taRight), Ord(btn.GetEffectiveAlignment()));
+
+    btn.Alignment := taCenter;
+    AssertEquals('Explicit alignment taCenter', Ord(taCenter), Ord(btn.Alignment));
+
+    // 3. CSS text-align support
+    sheet := TFtStyleSheet.Create();
+    try
+      sheet.LoadFromString('button.left-btn { text-align: left; }' + LineEnding +
+                           'button.right-btn { text-align: right; }');
+      st := sheet.ResolveStyle('button', '', 'left-btn', '');
+      AssertTrue('CSS style has text-align', st.HasTextAlign);
+      AssertEquals('CSS text-align is left', 'left', st.TextAlign);
+
+      st := sheet.ResolveStyle('button', '', 'right-btn', '');
+      AssertTrue('CSS style has text-align right', st.HasTextAlign);
+      AssertEquals('CSS text-align is right', 'right', st.TextAlign);
+    finally
+      sheet.Free();
+    end;
+  finally
+    btn.Free();
   end;
 end;
 

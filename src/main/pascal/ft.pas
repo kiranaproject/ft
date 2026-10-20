@@ -886,6 +886,54 @@ begin
   end;
 end;
 
+procedure ft_button_set_align(button: Pointer; alignment: cint32); cdecl; export;
+var
+  btn: TFtButton;
+begin
+  if not Assigned(button) or not (TObject(button) is TFtButton) then Exit;
+  btn := TFtButton(button);
+  case alignment of
+    0: btn.Alignment := taLeft;
+    1: btn.Alignment := taCenter;
+    2: btn.Alignment := taRight;
+  else
+    btn.Alignment := taCenter;
+  end;
+end;
+
+function ft_button_get_align(button: Pointer): cint32; cdecl; export;
+var
+  btn: TFtButton;
+begin
+  Result := 1;
+  if not Assigned(button) or not (TObject(button) is TFtButton) then Exit;
+  btn := TFtButton(button);
+  case btn.GetEffectiveAlignment() of
+    taLeft: Result := 0;
+    taCenter: Result := 1;
+    taRight: Result := 2;
+  end;
+end;
+
+procedure ft_button_set_padding_x(button: Pointer; padding_x: Double); cdecl; export;
+var
+  btn: TFtButton;
+begin
+  if not Assigned(button) or not (TObject(button) is TFtButton) then Exit;
+  btn := TFtButton(button);
+  btn.PaddingX := padding_x;
+end;
+
+function ft_button_get_padding_x(button: Pointer): Double; cdecl; export;
+var
+  btn: TFtButton;
+begin
+  Result := 8.0;
+  if not Assigned(button) or not (TObject(button) is TFtButton) then Exit;
+  btn := TFtButton(button);
+  if btn.PaddingX >= 0.0 then Result := btn.PaddingX;
+end;
+
 function ft_window_button_create(parent: Pointer; x, y, w, h: cint32; kind: cint32; style: cint32): Pointer; cdecl; export;
 var
   Btn: TFtWindowButton;
@@ -6417,6 +6465,10 @@ exports
   ft_button_get_icon_gap,
   ft_button_on_paint_icon,
   ft_button_on_paint,
+  ft_button_set_align,
+  ft_button_get_align,
+  ft_button_set_padding_x,
+  ft_button_get_padding_x,
   ft_window_button_create,
   ft_window_button_set_kind,
   ft_window_button_get_kind,

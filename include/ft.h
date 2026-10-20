@@ -203,6 +203,10 @@ void ft_button_set_icon_size(FtWidget button, int32_t width, int32_t height);
 void ft_button_get_icon_size(FtWidget button, int32_t* width, int32_t* height);
 void ft_button_set_icon_gap(FtWidget button, int32_t gap);
 int32_t ft_button_get_icon_gap(FtWidget button);
+void ft_button_set_align(FtWidget button, int32_t alignment);
+int32_t ft_button_get_align(FtWidget button);
+void ft_button_set_padding_x(FtWidget button, double padding_x);
+double ft_button_get_padding_x(FtWidget button);
 
 /* Button Custom Drawing APIs */
 void ft_button_on_paint_icon(FtWidget button, FtButtonPaintCallback callback, void* user_data);
