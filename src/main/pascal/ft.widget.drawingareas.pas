@@ -62,6 +62,7 @@ type
     procedure KeyUp(AKeySym: Cardinal; AState: Cardinal); override;
 
     procedure Resize(AWidth, AHeight: Integer); virtual;
+    procedure SetBounds(AX, AY, AW, AH: Integer); override;
 
     property Cursor: Integer read FCursor write FCursor;
     property ClipToBounds: Boolean read FClipToBounds write FClipToBounds;
@@ -126,6 +127,16 @@ begin
     if Assigned(FOnResize) then
       FOnResize(Self, Width, Height, FUserData);
   end;
+end;
+
+procedure TFtDrawingArea.SetBounds(AX, AY, AW, AH: Integer);
+var
+  sizeChanged: Boolean;
+begin
+  sizeChanged := (Width <> AW) or (Height <> AH);
+  inherited SetBounds(AX, AY, AW, AH);
+  if sizeChanged and Assigned(FOnResize) then
+    FOnResize(Self, Width, Height, FUserData);
 end;
 
 procedure TFtDrawingArea.Draw(Canvas: TFtCanvas);

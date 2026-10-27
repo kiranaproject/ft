@@ -63,7 +63,8 @@ type
     function GetCloseButtonRect(AIndex: Integer; out CX, CY, CW, CH: Double): Boolean;
     function TabIndexAt(AX, AY: Integer; out InCloseBtn: Boolean): Integer;
 
-    procedure UpdateLayout();
+    procedure UpdateLayout(); override;
+    procedure SetBounds(AX, AY, AW, AH: Integer); override;
     function GetPage(AIndex: Integer): TFtTabPage;
     function AddTab(const ATitle: string; ACloseable: Boolean = False): TFtTabPage;
     procedure RemoveTab(AIndex: Integer; FreePage: Boolean = True);
@@ -209,6 +210,12 @@ begin
     Result := nil;
 end;
 
+procedure TFtNotebook.SetBounds(AX, AY, AW, AH: Integer);
+begin
+  inherited SetBounds(AX, AY, AW, AH);
+  UpdateLayout();
+end;
+
 procedure TFtNotebook.UpdateLayout();
 var
   i: Integer;
@@ -225,10 +232,7 @@ begin
   for i := 0 to FPages.Count - 1 do
   begin
     page := TFtTabPage(FPages[i]);
-    page.X := pageX;
-    page.Y := pageY;
-    page.Width := pageW;
-    page.Height := pageH;
+    page.SetBounds(pageX, pageY, pageW, pageH);
     page.Visible := (i = FActiveIndex);
   end;
   Invalidate();
