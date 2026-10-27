@@ -86,7 +86,7 @@ menu:hover {
     color: #ffffff;
 }
 
-container {
+panel, card {
     background-color: #ffffff;
     border-color: #b0b6c2;
     border-width: 1px;
@@ -165,7 +165,7 @@ menu.dark:hover {
     color: #ffffff;
 }
 
-container.dark {
+panel.dark, card.dark {
     background-color: #16181d;
     border-color: #3e4654;
 }

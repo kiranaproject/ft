@@ -716,15 +716,15 @@ begin
     AssertTrue('Dark button has dark translucent bg alpha ~0.65', Abs(stBtnDark.BgColor.A - 0.65) < 0.05);
     AssertTrue('Dark button text is white', stBtnDark.TextColor.R > 0.9);
 
-    // 4. Frosted Glass Container / Panel
-    stContLight := sheet.ResolveStyle('container', '', '', '');
-    AssertTrue('Container has translucent bg alpha ~0.65', Abs(stContLight.BgColor.A - 0.65) < 0.05);
-    AssertTrue('Container has backdrop blur 20px', stContLight.HasBackdropBlur and (Abs(stContLight.BackdropBlur - 20.0) < 0.01));
-    AssertTrue('Container has radius 12.0', Abs(stContLight.BorderRadius - 12.0) < 0.01);
+    // 4. Frosted Glass Panel / Card
+    stContLight := sheet.ResolveStyle('panel', '', '', '');
+    AssertTrue('Panel has translucent bg alpha ~0.65', Abs(stContLight.BgColor.A - 0.65) < 0.05);
+    AssertTrue('Panel has backdrop blur 20px', stContLight.HasBackdropBlur and (Abs(stContLight.BackdropBlur - 20.0) < 0.01));
+    AssertTrue('Panel has radius 12.0', Abs(stContLight.BorderRadius - 12.0) < 0.01);
 
-    stContDark := sheet.ResolveStyle('container', '', 'dark', '');
-    AssertTrue('Dark container has backdrop blur 20px', stContDark.HasBackdropBlur and (Abs(stContDark.BackdropBlur - 20.0) < 0.01));
-    AssertTrue('Dark container has translucent bg alpha ~0.65', Abs(stContDark.BgColor.A - 0.65) < 0.05);
+    stContDark := sheet.ResolveStyle('panel', '', 'dark', '');
+    AssertTrue('Dark panel has backdrop blur 20px', stContDark.HasBackdropBlur and (Abs(stContDark.BackdropBlur - 20.0) < 0.01));
+    AssertTrue('Dark panel has translucent bg alpha ~0.65', Abs(stContDark.BgColor.A - 0.65) < 0.05);
 
     // 5. Capsules: Switch & UrlEntry
     stSwLight := sheet.ResolveStyle('switch', '', '', '');
@@ -2607,6 +2607,8 @@ begin
     AssertEquals('TFtContainer PaddingY is 0', 0.0, cont.PaddingY, 0.001);
     AssertEquals('TFtContainer CornerRadius is 0', 0.0, cont.CornerRadius, 0.001);
     AssertEquals('TFtContainer element type', 'container', cont.GetElementType());
+    AssertFalse('TFtContainer does not receive theme bg', cont.GetResolvedStyle().HasBgColor);
+    AssertFalse('TFtContainer does not receive theme border', cont.GetResolvedStyle().HasBorderColor);
   finally
     cont.Free();
   end;
@@ -2620,6 +2622,8 @@ begin
     AssertEquals('TFtPanel PaddingX is 8.0', 8.0, pan.PaddingX, 0.001);
     AssertEquals('TFtPanel PaddingY is 6.0', 6.0, pan.PaddingY, 0.001);
     AssertEquals('TFtPanel element type', 'panel', pan.GetElementType());
+    AssertTrue('TFtPanel receives theme bg', pan.GetResolvedStyle().HasBgColor);
+    AssertTrue('TFtPanel receives theme border', pan.GetResolvedStyle().HasBorderColor);
   finally
     pan.Free();
   end;

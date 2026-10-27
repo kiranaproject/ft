@@ -321,13 +321,13 @@ const
     '    background-color: #3b82f6;' + LineEnding +
     '    color: #ffffff;' + LineEnding +
     '}' + LineEnding +
-    'container {' + LineEnding +
+    'panel, card {' + LineEnding +
     '    background-color: #ffffff;' + LineEnding +
     '    border-color: #cbd5e1;' + LineEnding +
     '    border-width: 1px;' + LineEnding +
     '    border-radius: 6px;' + LineEnding +
     '}' + LineEnding +
-    'container.dark {' + LineEnding +
+    'panel.dark, card.dark {' + LineEnding +
     '    background-color: #27272a;' + LineEnding +
     '    border-color: #3f3f46;' + LineEnding +
     '}' + LineEnding +

@@ -87,7 +87,7 @@ menu:hover {
     color: #282a36;
 }
 
-container {
+panel, card {
     background-color: #21222c;
     border-color: #6272a4;
     border-width: 1px;

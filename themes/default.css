@@ -193,7 +193,7 @@ menu:disabled {
     color: var(--text-disabled);
 }
 
-container {
+panel, card {
     background-color: var(--surface-bg);
     border-color: var(--border-color);
     border-width: 1px;

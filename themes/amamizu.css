@@ -254,8 +254,8 @@ menu:disabled {
     color: var(--text-disabled);
 }
 
-/* ── Frosted Glass Containers & Panels ── */
-container, table, treeview, notebook, tabpage {
+/* ── Frosted Glass Panels & Card Surfaces ── */
+panel, card, table, treeview, notebook, tabpage {
     background-color: var(--surface-bg);
     border-color: var(--surface-border);
     border-width: 1px;
