@@ -117,7 +117,7 @@ int main(void) {
     ft_text_set_selectable(h2, 0);
 
     // --- Container 1: Form & Controls Box ---
-    s_cont1 = ft_container_create(win, 20, 82, 350, 300);
+    s_cont1 = ft_panel_create(win, 20, 82, 350, 300);
     ft_container_set_scrollbar_mode(s_cont1, FT_SCROLLBAR_MODE_AUTO_BOTH);
     ft_container_on_scroll(s_cont1, on_c1_scroll, NULL);
 
@@ -149,7 +149,7 @@ int main(void) {
     ft_button_on_click(btn_export, on_item_click, (void*)"Export Configuration");
 
     // --- Container 2: ListView / Palette Box ---
-    s_cont2 = ft_container_create(win, 390, 82, 350, 300);
+    s_cont2 = ft_panel_create(win, 390, 82, 350, 300);
     ft_container_set_scrollbar_mode(s_cont2, FT_SCROLLBAR_MODE_AUTO_BOTH);
     ft_container_on_scroll(s_cont2, on_c2_scroll, NULL);
 

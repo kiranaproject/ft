@@ -105,6 +105,14 @@ type
     property UserData: Pointer read FUserData write FUserData;
   end;
 
+  { TFtPanel — Themed / styled surface container with frame plate, padding, and borders }
+  TFtPanel = class(TFtContainer)
+  protected
+    function GetElementType(): string; override;
+  public
+    constructor Create(AParent: TFtWidget); override;
+  end;
+
 implementation
 
 uses
@@ -123,12 +131,12 @@ begin
   FLastIntScrollY := 0;
   FContentWidth := 0.0;
   FContentHeight := 0.0;
-  FCornerRadius := -1.0;
+  FCornerRadius := 0.0;
   FBackdropBlur := -1.0;
-  FPaddingX := 8.0;
-  FPaddingY := 6.0;
-  FDrawFrame := True;
-  FDrawFocusRing := True;
+  FPaddingX := 0.0;
+  FPaddingY := 0.0;
+  FDrawFrame := False;
+  FDrawFocusRing := False;
   FAutoContentSize := True;
   FOnScroll := nil;
   FOnScrollEvent := nil;
@@ -162,6 +170,23 @@ end;
 function TFtContainer.GetElementType(): string;
 begin
   Result := 'container';
+end;
+
+{ TFtPanel }
+
+constructor TFtPanel.Create(AParent: TFtWidget);
+begin
+  inherited Create(AParent);
+  FDrawFrame := True;
+  FDrawFocusRing := True;
+  FPaddingX := 8.0;
+  FPaddingY := 6.0;
+  FCornerRadius := -1.0;
+end;
+
+function TFtPanel.GetElementType(): string;
+begin
+  Result := 'panel';
 end;
 
 function TFtContainer.IsFocusedForDrawing(): Boolean;

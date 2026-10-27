@@ -85,6 +85,7 @@ type
     procedure TestPathBar();
     procedure TestUrlEntry();
     procedure TestFrostedGlassBackdropBlurInvalidation();
+    procedure TestContainerVsPanelDefaults();
   end;
 
   TFtSvgTest = class(TTestCase)
@@ -2589,6 +2590,38 @@ begin
     AssertTrue('DirtyBottom expanded to container', win.DirtyBottom >= cont.Y + cont.Height + 4);
   finally
     win.Free();
+  end;
+end;
+
+procedure TFtDesktopWidgetsTest.TestContainerVsPanelDefaults();
+var
+  cont: TFtContainer;
+  pan: TFtPanel;
+begin
+  // 1. Native Pascal TFtContainer: transparent by default
+  cont := TFtContainer.Create(nil);
+  try
+    AssertFalse('TFtContainer DrawFrame default is False', cont.DrawFrame);
+    AssertFalse('TFtContainer DrawFocusRing default is False', cont.DrawFocusRing);
+    AssertEquals('TFtContainer PaddingX is 0', 0.0, cont.PaddingX, 0.001);
+    AssertEquals('TFtContainer PaddingY is 0', 0.0, cont.PaddingY, 0.001);
+    AssertEquals('TFtContainer CornerRadius is 0', 0.0, cont.CornerRadius, 0.001);
+    AssertEquals('TFtContainer element type', 'container', cont.GetElementType());
+  finally
+    cont.Free();
+  end;
+
+  // 2. Native Pascal TFtPanel: styled frame plate by default
+  pan := TFtPanel.Create(nil);
+  try
+    AssertTrue('TFtPanel is TFtContainer', pan is TFtContainer);
+    AssertTrue('TFtPanel DrawFrame default is True', pan.DrawFrame);
+    AssertTrue('TFtPanel DrawFocusRing default is True', pan.DrawFocusRing);
+    AssertEquals('TFtPanel PaddingX is 8.0', 8.0, pan.PaddingX, 0.001);
+    AssertEquals('TFtPanel PaddingY is 6.0', 6.0, pan.PaddingY, 0.001);
+    AssertEquals('TFtPanel element type', 'panel', pan.GetElementType());
+  finally
+    pan.Free();
   end;
 end;
 

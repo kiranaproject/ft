@@ -142,7 +142,7 @@ int main(int argc, char* argv[]) {
     ft_path_bar_on_navigate(s_pathbar_win, on_path_navigated, NULL);
 
     /* 4. Help note */
-    FtWidget note_card = ft_container_create(win, 24, 430, 672, 100);
+    FtWidget note_card = ft_panel_create(win, 24, 430, 672, 100);
     ft_container_set_corner_radius(note_card, 8.0);
     ft_container_set_scrollbar_mode(note_card, FT_SCROLLBAR_MODE_NONE);
 

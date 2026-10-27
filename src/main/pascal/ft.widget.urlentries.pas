@@ -201,6 +201,8 @@ begin
   FBackdropBlur := 0.0;
   FPaddingX := 8;
   FPaddingY := 3;
+  FDrawFrame := True;
+  FDrawFocusRing := True;
   ScrollBarMode := ftSbModeNone;
 
   FSecurityState := ussSecure;

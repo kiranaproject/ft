@@ -377,8 +377,7 @@ int main(int argc, char* argv[]) {
     /* ========================================================================= */
     /* LEFT PANEL: SELECTORS (CheckBox, RadioButton, ComboBox)                   */
     /* ========================================================================= */
-    FtWidget left_card = ft_container_create(g_win, 24, 62, 390, 550);
-    ft_container_set_draw_frame(left_card, 1);
+    FtWidget left_card = ft_panel_create(g_win, 24, 62, 390, 550);
     ft_container_set_corner_radius(left_card, 8.0);
     ft_container_set_padding(left_card, 16.0, 16.0);
     ft_container_set_scrollbar_mode(left_card, 0);
@@ -445,8 +444,7 @@ int main(int argc, char* argv[]) {
     /* ========================================================================= */
     /* RIGHT PANEL: METERS (Slider, ProgressBar, Active Engine Visualizer)        */
     /* ========================================================================= */
-    FtWidget right_card = ft_container_create(g_win, 432, 62, 408, 550);
-    ft_container_set_draw_frame(right_card, 1);
+    FtWidget right_card = ft_panel_create(g_win, 432, 62, 408, 550);
     ft_container_set_corner_radius(right_card, 8.0);
     ft_container_set_padding(right_card, 16.0, 16.0);
     ft_container_set_scrollbar_mode(right_card, 0);

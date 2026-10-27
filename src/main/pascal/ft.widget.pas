@@ -46,6 +46,7 @@ type
     FFont: TFtFont;
   protected
     FFocusable: Boolean;
+    FAcceptsTab: Boolean;
     FFocused: Boolean;
     FEnabled: Boolean;
     FContextMenu: TFtWidget;
@@ -160,6 +161,9 @@ type
     property Font: TFtFont read GetFont write SetFont;
     property FontDesc: string read GetFontDesc write SetFontDesc;
     property Focusable: Boolean read FFocusable write SetFocusable;
+    { When True, Tab is delivered to this widget's KeyDown instead of moving
+      focus to the next widget. Used by terminal/editor views. }
+    property AcceptsTab: Boolean read FAcceptsTab write FAcceptsTab;
     property Focused: Boolean read FFocused;
     property Enabled: Boolean read FEnabled write SetEnabled;
     property ContextMenu: TFtWidget read GetContextMenu write SetContextMenu;
@@ -205,6 +209,7 @@ begin
   Children := TFPList.Create();
   Visible := True;
   FFocusable := False;
+  FAcceptsTab := False;
   FFocused := False;
   FEnabled := True;
   FContextMenu := nil;

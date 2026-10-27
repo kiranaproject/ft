@@ -437,8 +437,9 @@ double ft_scrollbar_get_step(FtWidget scrollbar);
 void ft_scrollbar_on_scroll(FtWidget scrollbar, FtScrollCallback callback, void* user_data);
 void ft_scrollbar_set_corner_radius(FtWidget scrollbar, double radius);
 
-/* Widgets: Container (Scrollable Box / Viewport / Frame) */
+/* Widgets: Container (Transparent Scrollable Box / Viewport) & Panel (Themed Surface Plate) */
 FtWidget ft_container_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h);
+FtWidget ft_panel_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h);
 void ft_container_set_scrollbar_mode(FtWidget container, int32_t mode);
 int32_t ft_container_get_scrollbar_mode(FtWidget container);
 void ft_container_set_content_size(FtWidget container, double width, double height);

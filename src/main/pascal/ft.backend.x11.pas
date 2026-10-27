@@ -2099,7 +2099,11 @@ begin
       end
       else if (keysym = XK_Tab) or (keysym = XK_ISO_Left_Tab) then
       begin
-        FocusNext((keysym = XK_ISO_Left_Tab) or ((kp^.state and 1) <> 0));
+        { Widgets such as terminal or code editors consume Tab themselves. }
+        if Assigned(FFocusedWidget) and FFocusedWidget.AcceptsTab then
+          FFocusedWidget.KeyDown(keysym, kp^.state, strUtf8)
+        else
+          FocusNext((keysym = XK_ISO_Left_Tab) or ((kp^.state and 1) <> 0));
       end
       else if (keysym = XK_Escape) and (FWindowType = ftwtDialog) and FIsModal then
       begin

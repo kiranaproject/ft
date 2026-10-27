@@ -558,6 +558,20 @@ begin
     Result := 0;
 end;
 
+procedure ft_widget_set_accepts_tab(widget: Pointer; accepts: cint32); cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    TFtWidget(widget).AcceptsTab := (accepts <> 0);
+end;
+
+function ft_widget_get_accepts_tab(widget: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) and TFtWidget(widget).AcceptsTab then
+    Result := 1
+  else
+    Result := 0;
+end;
+
 procedure ft_widget_set_enabled(widget: Pointer; enabled: cint32); cdecl; export;
 begin
   if Assigned(widget) and (TObject(widget) is TFtWidget) then
@@ -2128,6 +2142,21 @@ begin
   Result := Pointer(cont);
 end;
 
+function ft_panel_create(parent: Pointer; x, y, w, h: cint32): Pointer; cdecl; export;
+var
+  pan: TFtPanel;
+begin
+  AdjustChildCoordinates(parent, x, y);
+  pan := TFtPanel.Create(TFtWidget(parent));
+  pan.X := x;
+  pan.Y := y;
+  pan.Width := w;
+  pan.Height := h;
+  if Assigned(parent) and (TObject(parent) is TFtContainer) then
+    TFtContainer(parent).UpdateScrollBars();
+  Result := Pointer(pan);
+end;
+
 procedure ft_container_set_scrollbar_mode(container: Pointer; mode: cint32); cdecl; export;
 begin
   if Assigned(container) and (TObject(container) is TFtContainer) then
@@ -2935,6 +2964,64 @@ end;
 function ft_backend_get_key_symbols(): Pointer; cdecl; export;
 begin
   Result := GKeySymbols;
+end;
+
+{ Font objects for direct canvas text drawing }
+
+function ft_font_create(desc: PChar): Pointer; cdecl; export;
+begin
+  if (desc = nil) or (desc^ = #0) then
+    Result := Pointer(FtGetSystemFont())
+  else
+    Result := Pointer(FloriaFontManager().GetFont(string(AnsiString(desc))));
+end;
+
+function ft_font_ascii_advance(font: Pointer; ch: cint32): cdouble; cdecl; export;
+var
+  f: TFtFont;
+  s: string;
+begin
+  if Assigned(font) and (TObject(font) is TFtFont) then f := TFtFont(font) else f := FtGetSystemFont();
+  if Assigned(f) then
+  begin
+    s := Chr(ch);
+    Result := f.GetTextWidth(s);
+  end
+  else
+    Result := 0.0;
+end;
+
+function ft_font_text_width(font: Pointer; text: PChar): cdouble; cdecl; export;
+var
+  f: TFtFont;
+begin
+  if Assigned(font) and (TObject(font) is TFtFont) then f := TFtFont(font) else f := FtGetSystemFont();
+  if Assigned(f) and Assigned(text) then
+    Result := f.GetTextWidth(string(AnsiString(text)))
+  else
+    Result := 0.0;
+end;
+
+procedure ft_font_get_metrics(font: Pointer; out ascent, descent, height, maxAdvance: cdouble); cdecl; export;
+var
+  f: TFtFont;
+  s: string;
+begin
+  if Assigned(font) and (TObject(font) is TFtFont) then f := TFtFont(font) else f := FtGetSystemFont();
+  if Assigned(f) then
+  begin
+    ascent := f.Ascent;
+    descent := f.Descent;
+    height := f.Height;
+    maxAdvance := f.GetTextWidth('M');
+  end
+  else
+  begin
+    ascent := 0.0;
+    descent := 0.0;
+    height := 0.0;
+    maxAdvance := 0.0;
+  end;
 end;
 
 function ft_font_gamma_get(): Double; cdecl; export;
@@ -6426,6 +6513,8 @@ exports
   ft_widget_has_focus,
   ft_widget_set_focusable,
   ft_widget_get_focusable,
+  ft_widget_set_accepts_tab,
+  ft_widget_get_accepts_tab,
   ft_widget_set_enabled,
   ft_widget_get_enabled,
   ft_widget_set_hint,
@@ -6509,6 +6598,10 @@ exports
   ft_screen_dpi_set,
   ft_font_gamma_get,
   ft_font_gamma_set,
+  ft_font_create,
+  ft_font_ascii_advance,
+  ft_font_text_width,
+  ft_font_get_metrics,
   ft_theme_set,
   ft_theme_get,
   ft_theme_get_available,
@@ -6577,6 +6670,7 @@ exports
   ft_scrollbar_on_scroll,
   ft_scrollbar_set_corner_radius,
   ft_container_create,
+  ft_panel_create,
   ft_container_set_scrollbar_mode,
   ft_container_get_scrollbar_mode,
   ft_container_set_content_size,

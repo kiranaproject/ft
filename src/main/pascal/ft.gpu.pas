@@ -9,7 +9,7 @@ uses
   Floria.Image.Core,
   Floria.Colorspace,
   Floria.Canvas.Blend,
-  Floria.Path.Clipper.Core,
+  Floria.Geometry,
   Floria.Path.Ops,
   Floria.DisplayList,
   Floria.DisplayList.Clip,

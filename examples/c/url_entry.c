@@ -165,7 +165,7 @@ int main(int argc, char* argv[]) {
     ft_url_entry_on_security_click(s_url_internal, on_security_clicked, NULL);
 
     /* 4. Interactive Note Card */
-    FtWidget note_card = ft_container_create(win, 24, 444, 672, 94);
+    FtWidget note_card = ft_panel_create(win, 24, 444, 672, 94);
     ft_container_set_corner_radius(note_card, 8.0);
     ft_container_set_scrollbar_mode(note_card, FT_SCROLLBAR_MODE_NONE);
 
