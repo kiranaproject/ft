@@ -265,30 +265,34 @@ end;
 
 procedure ft_widget_show(widget: Pointer); cdecl; export;
 begin
-  if Assigned(widget) then
-  begin
-    if TObject(widget) is TFtWindow then
-      TFtWindow(widget).Show()
-    else if TObject(widget) is TFtWidget then
-    begin
-      TFtWidget(widget).Visible := True;
-      TFtWidget(widget).Invalidate();
-    end;
-  end;
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    TFtWidget(widget).Visible := True;
 end;
 
 procedure ft_widget_hide(widget: Pointer); cdecl; export;
 begin
-  if Assigned(widget) then
-  begin
-    if TObject(widget) is TFtWindow then
-      TFtWindow(widget).Hide()
-    else if TObject(widget) is TFtWidget then
-    begin
-      TFtWidget(widget).Visible := False;
-      TFtWidget(widget).Invalidate();
-    end;
-  end;
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    TFtWidget(widget).Visible := False;
+end;
+
+function ft_widget_get_visible(widget: Pointer): Integer; cdecl; export;
+begin
+  Result := 0;
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    Result := Ord(TFtWidget(widget).Visible);
+end;
+
+procedure ft_widget_set_visible(widget: Pointer; visible: Integer); cdecl; export;
+begin
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    TFtWidget(widget).Visible := (visible <> 0);
+end;
+
+function ft_widget_is_showing(widget: Pointer): Integer; cdecl; export;
+begin
+  Result := 0;
+  if Assigned(widget) and (TObject(widget) is TFtWidget) then
+    Result := Ord(TFtWidget(widget).IsShowing());
 end;
 
 procedure ft_window_set_title(window: Pointer; title: PChar); cdecl; export;
@@ -6509,6 +6513,9 @@ exports
   ft_window_bring_to_front,
   ft_widget_show,
   ft_widget_hide,
+  ft_widget_get_visible,
+  ft_widget_set_visible,
+  ft_widget_is_showing,
   ft_widget_set_focus,
   ft_widget_has_focus,
   ft_widget_set_focusable,

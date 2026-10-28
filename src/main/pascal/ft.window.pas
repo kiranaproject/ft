@@ -78,6 +78,7 @@ type
 
     procedure OnThemeChanged(); virtual;
     procedure OnStyleSheetChanged(); virtual;
+    procedure SetVisible(AValue: Boolean); override;
   public
     constructor Create(W, H: Integer; const ATitle: string = ''); reintroduce; virtual;
     destructor Destroy(); override;
@@ -416,13 +417,22 @@ begin
     for i := 0 to Children.Count - 1 do
       if TFtWidget(Children[i]) <> FRootLayout then
         TFtWidget(Children[i]).UpdateLayout();
-  Visible := True;
+  FVisible := True;
   Invalidate();
 end;
 
 procedure TFtWindow.Hide();
 begin
-  Visible := False;
+  FVisible := False;
+end;
+
+procedure TFtWindow.SetVisible(AValue: Boolean);
+begin
+  if FVisible = AValue then Exit;
+  if AValue then
+    Show()
+  else
+    Hide();
 end;
 
 procedure TFtWindow.Repaint();

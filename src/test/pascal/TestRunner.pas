@@ -86,6 +86,7 @@ type
     procedure TestUrlEntry();
     procedure TestFrostedGlassBackdropBlurInvalidation();
     procedure TestContainerVsPanelDefaults();
+    procedure TestWidgetVisibilityAndShowing();
   end;
 
   TFtSvgTest = class(TTestCase)
@@ -2626,6 +2627,60 @@ begin
     AssertTrue('TFtPanel receives theme border', pan.GetResolvedStyle().HasBorderColor);
   finally
     pan.Free();
+  end;
+end;
+
+procedure TFtDesktopWidgetsTest.TestWidgetVisibilityAndShowing();
+var
+  win: TFtWindow;
+  box: TFtContainer;
+  child1, child2: TFtButton;
+begin
+  win := TFtWindow.Create(800, 600, 'TestVisWin');
+  try
+    // Windows start hidden (Visible = False)
+    AssertFalse('Window starts hidden', win.Visible);
+    AssertFalse('Window is not showing', win.IsShowing());
+    AssertFalse('Window Showing property is False', win.Showing);
+
+    box := TFtContainer.Create(win);
+    child1 := TFtButton.Create(box);
+    child2 := TFtButton.Create(box);
+
+    // Regular widgets start visible
+    AssertTrue('Box starts visible', box.Visible);
+    AssertTrue('Child1 starts visible', child1.Visible);
+    AssertTrue('Child2 starts visible', child2.Visible);
+
+    // But because the window is hidden, IsShowing is False
+    AssertFalse('Box is not showing because window is hidden', box.IsShowing());
+    AssertFalse('Child1 is not showing because window is hidden', child1.IsShowing());
+
+    // When window is shown
+    win.Visible := True;
+    AssertTrue('Window is visible', win.Visible);
+    AssertTrue('Window is showing', win.IsShowing());
+    AssertTrue('Box is showing', box.IsShowing());
+    AssertTrue('Child1 is showing', child1.IsShowing());
+    AssertTrue('Child2 is showing', child2.IsShowing());
+
+    // Hide intermediate container
+    box.Visible := False;
+    AssertFalse('Box is not visible', box.Visible);
+    AssertFalse('Box is not showing', box.IsShowing());
+    // Child1 has Visible = True, but Showing = False because parent box is hidden!
+    AssertTrue('Child1 explicit Visible is still True', child1.Visible);
+    AssertFalse('Child1 Showing is False because parent is hidden', child1.IsShowing());
+    AssertFalse('Child1 Showing property is False', child1.Showing);
+
+    // Re-show container, hide child2
+    box.Visible := True;
+    child2.Visible := False;
+    AssertTrue('Child1 is showing again', child1.IsShowing());
+    AssertFalse('Child2 is not visible', child2.Visible);
+    AssertFalse('Child2 is not showing', child2.IsShowing());
+  finally
+    win.Free();
   end;
 end;
 

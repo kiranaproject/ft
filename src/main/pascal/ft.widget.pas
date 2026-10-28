@@ -45,6 +45,7 @@ type
   private
     FFont: TFtFont;
   protected
+    FVisible: Boolean;
     FFocusable: Boolean;
     FAcceptsTab: Boolean;
     FFocused: Boolean;
@@ -102,11 +103,14 @@ type
     procedure SetGridRow(AValue: Integer); virtual;
     procedure SetGridColSpan(AValue: Integer); virtual;
     procedure SetGridRowSpan(AValue: Integer); virtual;
+    procedure SetVisible(AValue: Boolean); virtual;
   public
     X, Y, Width, Height: Integer;
-    Visible: Boolean;
     Parent: TFtWidget;
     Children: TFPList;
+    function IsShowing(): Boolean; virtual;
+    property Visible: Boolean read FVisible write SetVisible;
+    property Showing: Boolean read IsShowing;
     constructor Create(AParent: TFtWidget); virtual;
     destructor Destroy(); override;
     procedure Draw(Canvas: TFtCanvas); virtual;
@@ -207,7 +211,7 @@ begin
 
   Parent := AParent;
   Children := TFPList.Create();
-  Visible := True;
+  FVisible := True;
   FFocusable := False;
   FAcceptsTab := False;
   FFocused := False;
@@ -818,6 +822,43 @@ begin
   if sizeChanged then
     UpdateLayout();
   Invalidate();
+end;
+
+procedure TFtWidget.SetVisible(AValue: Boolean);
+var
+  oldX, oldY, oldW, oldH: Integer;
+begin
+  if FVisible = AValue then Exit;
+
+  if not AValue then
+  begin
+    oldX := X - 4;
+    oldY := Y - 4;
+    oldW := Width + 8;
+    oldH := Height + 8;
+    if Assigned(Parent) then
+      Parent.InvalidateRect(oldX, oldY, oldW, oldH);
+
+    if FFocused and Assigned(Parent) then
+      Parent.RequestFocus(nil);
+  end;
+
+  FVisible := AValue;
+
+  if AValue then
+    Invalidate();
+
+  if Assigned(Parent) and (Parent.Width > 0) and (Parent.Height > 0) then
+    Parent.UpdateLayout();
+end;
+
+function TFtWidget.IsShowing(): Boolean;
+begin
+  if not FVisible then Exit(False);
+  if Assigned(Parent) then
+    Result := Parent.IsShowing()
+  else
+    Result := True;
 end;
 
 procedure TFtWidget.UpdateLayout();
