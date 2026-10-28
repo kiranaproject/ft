@@ -4597,6 +4597,72 @@ begin
   nb.UserData := user_data;
 end;
 
+procedure ft_notebook_set_max_tab_width(notebook: Pointer; width: Double); cdecl; export;
+var
+  nb: TFtNotebook;
+begin
+  if not Assigned(notebook) or not (TObject(notebook) is TFtNotebook) then Exit;
+  nb := TFtNotebook(notebook);
+  nb.MaxTabWidth := width;
+end;
+
+function ft_notebook_get_max_tab_width(notebook: Pointer): Double; cdecl; export;
+var
+  nb: TFtNotebook;
+begin
+  Result := 0.0;
+  if not Assigned(notebook) or not (TObject(notebook) is TFtNotebook) then Exit;
+  nb := TFtNotebook(notebook);
+  Result := nb.MaxTabWidth;
+end;
+
+procedure ft_notebook_set_min_tab_width(notebook: Pointer; width: Double); cdecl; export;
+var
+  nb: TFtNotebook;
+begin
+  if not Assigned(notebook) or not (TObject(notebook) is TFtNotebook) then Exit;
+  nb := TFtNotebook(notebook);
+  nb.MinTabWidth := width;
+end;
+
+function ft_notebook_get_min_tab_width(notebook: Pointer): Double; cdecl; export;
+var
+  nb: TFtNotebook;
+begin
+  Result := 0.0;
+  if not Assigned(notebook) or not (TObject(notebook) is TFtNotebook) then Exit;
+  nb := TFtNotebook(notebook);
+  Result := nb.MinTabWidth;
+end;
+
+procedure ft_notebook_set_scroll_offset(notebook: Pointer; offset: Double); cdecl; export;
+var
+  nb: TFtNotebook;
+begin
+  if not Assigned(notebook) or not (TObject(notebook) is TFtNotebook) then Exit;
+  nb := TFtNotebook(notebook);
+  nb.ScrollOffset := offset;
+end;
+
+function ft_notebook_get_scroll_offset(notebook: Pointer): Double; cdecl; export;
+var
+  nb: TFtNotebook;
+begin
+  Result := 0.0;
+  if not Assigned(notebook) or not (TObject(notebook) is TFtNotebook) then Exit;
+  nb := TFtNotebook(notebook);
+  Result := nb.ScrollOffset;
+end;
+
+procedure ft_notebook_ensure_tab_visible(notebook: Pointer; index: cint32); cdecl; export;
+var
+  nb: TFtNotebook;
+begin
+  if not Assigned(notebook) or not (TObject(notebook) is TFtNotebook) then Exit;
+  nb := TFtNotebook(notebook);
+  nb.EnsureTabVisible(index);
+end;
+
 procedure ft_tab_page_set_title(page: Pointer; title: PAnsiChar); cdecl; export;
 var
   p: TFtTabPage;
@@ -6879,6 +6945,13 @@ exports
   ft_notebook_set_tab_height,
   ft_notebook_get_tab_height,
   ft_notebook_on_tab_change,
+  ft_notebook_set_max_tab_width,
+  ft_notebook_get_max_tab_width,
+  ft_notebook_set_min_tab_width,
+  ft_notebook_get_min_tab_width,
+  ft_notebook_set_scroll_offset,
+  ft_notebook_get_scroll_offset,
+  ft_notebook_ensure_tab_visible,
   ft_tab_page_set_title,
   ft_tab_page_get_title,
   ft_tab_page_set_closeable,

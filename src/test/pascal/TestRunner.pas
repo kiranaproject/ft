@@ -68,6 +68,7 @@ type
   TFtDesktopWidgetsTest = class(TTestCase)
   published
     procedure TestNotebook();
+    procedure TestNotebookScrollingAndConstraints();
     procedure TestSplitter();
     procedure TestTreeView();
     procedure TestTable();
@@ -1040,6 +1041,118 @@ begin
     nb.ClearTabs();
     AssertEquals('Page count after clear is 0', 0, nb.PageCount);
     AssertEquals('Active index after clear is -1', -1, nb.ActiveIndex);
+  finally
+    nb.Free();
+  end;
+end;
+
+procedure TFtDesktopWidgetsTest.TestNotebookScrollingAndConstraints();
+var
+  nb: TFtNotebook;
+  i: Integer;
+  tabW: Double;
+  buf: array[0..399, 0..599] of UInt32;
+  canvas: TFtCanvas;
+  bx, by, bw, bh: Double;
+  prevOffset: Double;
+begin
+  nb := TFtNotebook.Create(nil);
+  try
+    nb.X := 10; nb.Y := 10; nb.Width := 400; nb.Height := 300;
+
+    // 1. Default constraint values
+    AssertEquals('Default MaxTabWidth is 200.0', 200.0, nb.MaxTabWidth);
+    AssertEquals('Default MinTabWidth is 70.0', 70.0, nb.MinTabWidth);
+    AssertEquals('Default ScrollOffset is 0.0', 0.0, nb.ScrollOffset);
+    AssertFalse('Default ScrollButtonsVisible is False', nb.ScrollButtonsVisible);
+
+    // 2. MaxTabWidth clamping with long title
+    nb.AddTab('This is an extremely long tab title designed to exceed the maximum width constraint', False);
+    tabW := nb.CalculateTabWidth(0);
+    AssertTrue('Calculated tab width <= MaxTabWidth', tabW <= nb.MaxTabWidth);
+    AssertEquals('Calculated tab width clamped to MaxTabWidth', 200.0, tabW);
+
+    // Custom MaxTabWidth
+    nb.MaxTabWidth := 140.0;
+    AssertEquals('MaxTabWidth updated to 140.0', 140.0, nb.MaxTabWidth);
+    tabW := nb.CalculateTabWidth(0);
+    AssertEquals('Tab width clamped to new MaxTabWidth 140.0', 140.0, tabW);
+
+    // MinTabWidth clamping with short title
+    nb.AddTab('A', False);
+    tabW := nb.CalculateTabWidth(1);
+    AssertEquals('Tab width clamped to MinTabWidth 70.0', 70.0, tabW);
+
+    nb.ClearTabs();
+    nb.MaxTabWidth := 200.0;
+
+    // 3. Overflow and scroll buttons visibility
+    // With nb.Width = 400, adding 10 tabs of width ~120 will total ~1240px > 400px
+    for i := 1 to 10 do
+      nb.AddTab('Workspace Tab ' + IntToStr(i), True);
+
+    AssertEquals('Page count is 10', 10, nb.PageCount);
+    AssertTrue('ScrollButtonsVisible is True when tabs overflow', nb.ScrollButtonsVisible);
+    AssertTrue('MaxScrollOffset > 0', nb.MaxScrollOffset > 0.0);
+    AssertEquals('Initial ScrollOffset is 0.0', 0.0, nb.ScrollOffset);
+
+    // 4. Scroll button rects
+    AssertTrue('GetLeftScrollButtonRect succeeds', nb.GetLeftScrollButtonRect(bx, by, bw, bh));
+    AssertTrue('Left scroll button width > 0', bw > 0.0);
+    AssertTrue('GetRightScrollButtonRect succeeds', nb.GetRightScrollButtonRect(bx, by, bw, bh));
+    AssertTrue('Right scroll button width > 0', bw > 0.0);
+
+    // 5. ScrollBy and bounds clamping
+    nb.ScrollBy(100.0);
+    AssertEquals('ScrollOffset after ScrollBy(100) is 100.0', 100.0, nb.ScrollOffset);
+
+    nb.ScrollBy(-40.0);
+    AssertEquals('ScrollOffset after ScrollBy(-40) is 60.0', 60.0, nb.ScrollOffset);
+
+    nb.ScrollOffset := 999999.0;
+    AssertEquals('ScrollOffset clamped to MaxScrollOffset', nb.MaxScrollOffset, nb.ScrollOffset);
+
+    nb.ScrollOffset := -50.0;
+    AssertEquals('ScrollOffset clamped to 0.0', 0.0, nb.ScrollOffset);
+
+    // 6. Mouse wheel scrolling over tab strip
+    // MouseDown with button 5 (wheel right/down)
+    nb.MouseDown(50, 15, 5);
+    AssertTrue('Wheel right increased ScrollOffset', nb.ScrollOffset > 0.0);
+    prevOffset := nb.ScrollOffset;
+
+    // MouseDown with button 4 (wheel left/up)
+    nb.MouseDown(50, 15, 4);
+    AssertTrue('Wheel left decreased ScrollOffset', nb.ScrollOffset < prevOffset);
+
+    // 7. Clicking scroll buttons
+    nb.ScrollOffset := 0.0;
+    nb.GetRightScrollButtonRect(bx, by, bw, bh);
+    nb.MouseDown(Round(bx + bw * 0.5), Round(by + bh * 0.5), 1);
+    nb.MouseUp(Round(bx + bw * 0.5), Round(by + bh * 0.5), 1);
+    AssertTrue('Clicking right scroll button scrolled right', nb.ScrollOffset > 0.0);
+
+    prevOffset := nb.ScrollOffset;
+    nb.GetLeftScrollButtonRect(bx, by, bw, bh);
+    nb.MouseDown(Round(bx + bw * 0.5), Round(by + bh * 0.5), 1);
+    nb.MouseUp(Round(bx + bw * 0.5), Round(by + bh * 0.5), 1);
+    AssertTrue('Clicking left scroll button scrolled left', nb.ScrollOffset < prevOffset);
+
+    // 8. EnsureTabVisible
+    nb.ScrollOffset := 0.0;
+    nb.EnsureTabVisible(9);
+    AssertTrue('EnsureTabVisible for last tab scrolled right', nb.ScrollOffset > 0.0);
+
+    nb.EnsureTabVisible(0);
+    AssertEquals('EnsureTabVisible for first tab returned to 0.0', 0.0, nb.ScrollOffset);
+
+    // 9. Drawing with clipped tabs and ellipsis
+    canvas := TFtCanvasAgg.Create(@buf[0, 0], 600, 400);
+    try
+      nb.Draw(canvas);
+    finally
+      canvas.Free();
+    end;
   finally
     nb.Free();
   end;
