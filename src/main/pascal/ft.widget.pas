@@ -259,25 +259,29 @@ begin
 
   FtGetAnimator().StopTransitions(Self);
   FtGetAnimator().UnregisterContinuous(Self);
+  FContextMenu := nil;
+  FFont := nil;
+  // Destroy children while this widget is still attached to its parent so the
+  // window's focused/hovered/pressed pointers get cleared for them too.
+  if Assigned(Children) then
+  begin
+    while Children.Count > 0 do
+      begin
+      w := TFtWidget(Children[Children.Count - 1]);
+      Children.Delete(Children.Count - 1);
+      if Assigned(w.Parent) then
+        w.Parent.WidgetDestroyed(w);
+      w.Parent := nil;
+      w.Free();
+    end;
+    FreeAndNil(Children);
+  end;
   if Assigned(Parent) then
   begin
     if Assigned(Parent.Children) then
       Parent.Children.Remove(Self);
     Parent.WidgetDestroyed(Self);
     Parent := nil;
-  end;
-  FContextMenu := nil;
-  FFont := nil;
-  if Assigned(Children) then
-  begin
-    while Children.Count > 0 do
-      begin
-      w := TFtWidget(Children[Children.Count - 1]);
-      w.Parent := nil;
-      Children.Delete(Children.Count - 1);
-      w.Free();
-    end;
-    FreeAndNil(Children);
   end;
   inherited Destroy();
 end;
