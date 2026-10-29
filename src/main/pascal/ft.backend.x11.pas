@@ -648,6 +648,23 @@ begin
 
     FtBackendProcessEvents();
 
+    // Stop if the X server went away.
+    //
+    // This loop polls with a zero timeout and, when a tick callback is installed,
+    // deliberately does not sleep at all - it is an uncapped render loop. That is
+    // fine while the server is alive, but once the server exits the connection is
+    // dead: xcb_poll_for_event returns nil forever, HasMainWindows() stays true,
+    // and the loop spins at full speed. Measured at 2.4 cores on shellsama, still
+    // spinning 56 minutes after the display disappeared.
+    //
+    // Checking the connection is the only way to distinguish "nothing to do right
+    // now" from "nothing will ever happen again".
+    if Assigned(GConnection) and (xcb_connection_has_error(GConnection) <> 0) then
+    begin
+      GRunning := False;
+      Break;
+    end;
+
     if Assigned(GTickCallback) then
       GTickCallback(GTickUserData);
 
