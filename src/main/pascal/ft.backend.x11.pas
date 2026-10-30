@@ -129,6 +129,12 @@ var
   GCursorMove:      xcb_cursor_t = 0;
   GRunning: Boolean = False;
 
+// Longest the main loop will block while idle and no animation is running. One
+// frame at 60 Hz. Ticks still drive clocks and applets, just at frame rate
+// instead of as fast as the CPU allows.
+const
+  FT_IDLE_TICK_MS = 16;
+
 procedure FtBackendInit();
 procedure FtBackendMainLoop();
 procedure FtBackendProcessEvents();
@@ -670,17 +676,34 @@ begin
 
     if Assigned(GTickCallback) then
     begin
+      // Wait for input, or until the next tick is due.
+      //
+      // This branch used to poll with a zero timeout and then not sleep at all,
+      // on the theory that tick callbacks want continuous high-framerate
+      // rendering. The effect was that the process never blocked: it spun at
+      // roughly 6,700 iterations/second and burned 0.67 of a core with nothing
+      // happening on screen. Measured with strace: ~53k poll and ~53k
+      // clock_gettime calls in 8 seconds, against only a handful of actual X
+      // events.
+      //
+      // A tick callback needs to run frequently, not continuously. Ticks carry
+      // their own elapsed time, so delaying to the next frame boundary costs
+      // nothing but CPU - and returning early is preserved by waking on input.
       if Assigned(GConnection) then
       begin
         xcb_flush(GConnection);
         pfd.fd := xcb_get_file_descriptor(GConnection);
         pfd.events := 1; // POLLIN
         pfd.revents := 0;
-        libc_poll(@pfd, 1, 0); // Non-blocking poll for continuous high-framerate rendering
-      end;
-      nowMs := GetTickCount64();
-      if IsAnyWindowResizing(nowMs) then
-        Sleep(1);
+
+        nowMs := GetTickCount64();
+        if IsAnyWindowResizing(nowMs) then
+          libc_poll(@pfd, 1, 1)          // stay responsive while resizing
+        else
+          libc_poll(@pfd, 1, FT_IDLE_TICK_MS);
+      end
+      else
+        Sleep(FT_IDLE_TICK_MS);
     end
     else if animator.HasActiveAnimations() then
     begin
