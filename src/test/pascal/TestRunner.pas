@@ -153,6 +153,8 @@ type
     procedure TestPrintableAsciiStillWorks();
     procedure TestLatin1StillWorks();
     procedure TestUnicodeKeysymStillWorks();
+    procedure TestLegacyCyrillicKeysyms();
+    procedure TestLegacyGreekKeysyms();
   end;
 
   TFtTimerSchedulingTest = class(TTestCase)
@@ -4283,6 +4285,37 @@ begin
   // Non-Latin-1 characters arrive as 0x01000000 + codepoint.
   AssertEquals('CJK yi', UTF8Encode(WideChar($4E00)), KeySymToUtf8($01000000 + $4E00));
   AssertEquals('arrow', UTF8Encode(WideChar($2192)), KeySymToUtf8($01000000 + $2192));
+end;
+
+procedure TFtKeySymToTextTest.TestLegacyCyrillicKeysyms();
+begin
+  // A Russian layout on a current server sends LEGACY Cyrillic keysyms, not
+  // Unicode ones: verified here with 'setxkbmap ru', where 'q' arrives as 0x06CA.
+  // These values are not code points (0x06CA as Unicode is an Arabic letter), so
+  // they need the real keysym table.
+  if not FtKeysymHasXkbCommon() then
+  begin
+    Ignore('libxkbcommon not available: legacy script keysyms cannot be mapped');
+    Exit;
+  end;
+
+  AssertEquals('Cyrillic_shorti -> U+0439', UTF8Encode(WideChar($0439)), KeySymToUtf8($06CA));
+  AssertEquals('Cyrillic_tse -> U+0446', UTF8Encode(WideChar($0446)), KeySymToUtf8($06C3));
+end;
+
+procedure TFtKeySymToTextTest.TestLegacyGreekKeysyms();
+begin
+  if not FtKeysymHasXkbCommon() then
+  begin
+    Ignore('libxkbcommon not available: legacy script keysyms cannot be mapped');
+    Exit;
+  end;
+
+  AssertEquals('Greek_alpha -> U+03B1', UTF8Encode(WideChar($03B1)), KeySymToUtf8($07E1));
+  AssertEquals('Greek_beta -> U+03B2', UTF8Encode(WideChar($03B2)), KeySymToUtf8($07E2));
+  // A Greek layout also carries ASCII punctuation on some keys (0x003B is ';'),
+  // which must survive unchanged.
+  AssertEquals('semicolon on Greek layout', ';', KeySymToUtf8($3B));
 end;
 
 { TFtTimerSchedulingTest }

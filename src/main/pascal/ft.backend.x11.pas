@@ -5,7 +5,7 @@ unit Ft.Backend.X11;
 interface
 
 uses
-  ctypes, SysUtils, Classes,
+  ctypes, SysUtils, Classes, dynlibs,
   Floria.XCB, Floria.XCB.Keysyms, Floria.XCB.Cursor, Floria.XCB.ICCCM, Floria.X11.KeySym,
   Floria.Canvas.Agg, Ft.Canvas, Ft.Widget, Ft.Theme, Ft.Css, Ft.Animation, Ft.Window;
 
@@ -158,6 +158,11 @@ function FtGetScreenHeight(): Integer;
 // Exported so the keysym-to-text rules can be unit-tested: getting this wrong
 // silently injects characters into every text field.
 function KeySymToUtf8(sym: Cardinal): string;
+
+// True when libxkbcommon was found and is being used for the conversion. Only
+// affects legacy script keysyms (see KeySymToUtf8); tests use it to decide
+// whether the full mapping is available.
+function FtKeysymHasXkbCommon(): Boolean;
 
 procedure FtShowHint(AWidget: TFtWidget; const AHintText: string; AScreenX, AScreenY: Integer);
 procedure FtHideHint();
@@ -1916,40 +1921,109 @@ begin
   end;
 end;
 
+// libxkbcommon's keysym-to-UTF-8 conversion, loaded at runtime.
+//
+// X11 keysyms are NOT Unicode code points. Three different numbering schemes share
+// the space, and telling them apart needs the authoritative table:
+//
+//   0x20..0x7E, 0xA0..0xFF   legacy Latin-1 keysyms (what a German or French
+//                            layout still sends for umlauts and accents)
+//   0x06A3..0x06FF           legacy Cyrillic  (XK_Cyrillic_shorti = 0x06CA)
+//   0x07A1..0x07EA           legacy Greek     (XK_Greek_alpha = 0x07E1)
+//   0x08A0..0x0CDF           legacy Hebrew/Arabic/Thai etc.
+//   0xFF00..0xFFFF           function keys, which produce NO text at all
+//   0x01000000 + cp          Unicode keysym, used for everything outside Latin-1
+//
+// xkb_keysym_to_utf8() implements that mapping completely, so it is used when
+// present. It is loaded with dlopen rather than linked, because a missing
+// libxkbcommon must degrade to the hand-written fallback below rather than stop
+// libft.so from loading at all.
+//
+// Note that a modern server still sends LEGACY keysyms for Cyrillic and Greek:
+// verified on this host with a Russian layout, where 'q' arrives as 0x06CA
+// (XK_Cyrillic_shorti), not as a Unicode keysym. So the legacy ranges are not a
+// backwards-compatibility concern - they are what current Xorg and XLibre use.
+type
+  TXkbKeysymToUtf8 = function(AKeysym: Cardinal; ABuffer: PAnsiChar;
+                              ASize: PtrUInt): Integer; cdecl;
+
+var
+  GXkbCommonHandle: TLibHandle = NilHandle;
+  GXkbKeysymToUtf8: TXkbKeysymToUtf8 = nil;
+  GXkbCommonProbed: Boolean = False;
+
+procedure EnsureXkbCommon();
+begin
+  if GXkbCommonProbed then Exit;
+  GXkbCommonProbed := True;
+
+  GXkbCommonHandle := LoadLibrary('libxkbcommon.so.0');
+  if GXkbCommonHandle = NilHandle then
+    GXkbCommonHandle := LoadLibrary('libxkbcommon.so');
+  if GXkbCommonHandle = NilHandle then Exit;
+
+  GXkbKeysymToUtf8 := TXkbKeysymToUtf8(
+    GetProcedureAddress(GXkbCommonHandle, 'xkb_keysym_to_utf8'));
+end;
+
+function FtKeysymHasXkbCommon(): Boolean;
+begin
+  EnsureXkbCommon();
+  Result := Assigned(GXkbKeysymToUtf8);
+end;
+
 function KeySymToUtf8(sym: Cardinal): string;
+var
+  buf: array[0..15] of AnsiChar;
+  n: Integer;
 begin
   Result := '';
 
-  // 1. Unicode keysyms: 0x01000000 + code point.
-  //
-  // Modern X servers send these for everything outside Latin-1 - CJK, Cyrillic,
-  // Greek, emoji, typographic punctuation. This branch was previously unreachable:
-  // the enclosing test was "sym <= 0x10FFFF", which rejects every value >=
-  // 0x01000000, so non-Latin-1 input silently produced nothing at all.
+  // Preferred path: libxkbcommon knows the whole mapping.
+  EnsureXkbCommon();
+  if Assigned(GXkbKeysymToUtf8) then
+  begin
+    FillChar(buf, SizeOf(buf), 0);
+    n := GXkbKeysymToUtf8(sym, @buf[0], SizeOf(buf));
+    // Returns the byte count INCLUDING the terminating NUL; 0 means the keysym
+    // produces no text (function keys, modifiers); -1 means the buffer was too
+    // small, which cannot happen for a single code point in 16 bytes.
+    if n > 1 then
+    begin
+      SetLength(Result, n - 1);
+      Move(buf[0], Result[1], n - 1);
+      // xkbcommon maps BackSpace/Tab/Return/Escape/Delete to their C0 control
+      // characters (U+0008, U+0009, U+000D, U+001B, U+007F). Those are not text to
+      // insert: widgets handle those keys explicitly, and DEL (0x7F) would slip
+      // past the ">= #32" printable filter and be inserted into the string.
+      if (Length(Result) = 1) and ((Result[1] < #32) or (Result[1] = #127)) then
+        Result := '';
+    end;
+    Exit;
+  end;
+
+  // Fallback when libxkbcommon is unavailable. Covers ASCII, Latin-1 and Unicode
+  // keysyms; legacy script keysyms (Cyrillic, Greek, ...) are dropped rather than
+  // mis-mapped, because their numeric values are not code points and guessing
+  // produces a plausible-but-wrong character.
+
+  // Unicode keysyms: 0x01000000 + code point.
   if (sym >= $01000000) and (sym <= $0110FFFF) then
     Exit(CodePointToUtf8(sym - $01000000));
 
-  // 2. 0xFF00..0xFFFF is X11's function-key block: modifiers (Shift_L 0xFFE1,
-  //    Control_L 0xFFE3, Alt_L 0xFFE9, Super_L 0xFFEB), the cursor block (Left
-  //    0xFF51, Up 0xFF52, ...), Home/End/Insert/Delete, and F1..F35.
-  //
-  //    None of these is a character, but every one of them is numerically a valid
-  //    Unicode code point in the U+FF00 block. Treating them as characters is what
-  //    inserted a fullwidth pound sign on Shift and halfwidth katakana on the arrow
-  //    keys.
+  // 0xFF00..0xFFFF is X11's function-key block: modifiers (Shift_L 0xFFE1,
+  // Control_L 0xFFE3, Alt_L 0xFFE9, Super_L 0xFFEB), the cursor block (Left
+  // 0xFF51, Up 0xFF52, ...), Home/End/Insert/Delete, and F1..F35. Every one of
+  // those values is also a valid code point in the U+FF00 block, so treating them
+  // as characters is what inserted a fullwidth pound sign on Shift and halfwidth
+  // katakana on the arrow keys.
   if (sym >= $FF00) and (sym <= $FFFF) then Exit;
 
-  // 3. Latin-1 maps directly: printable ASCII, then the upper half.
+  // Latin-1 maps directly: printable ASCII, then the upper half.
   if (sym >= $20) and (sym <= $7E) then
     Result := Chr(sym)
   else if (sym >= $A0) and (sym <= $FF) then
     Result := CodePointToUtf8(sym);
-
-  // 4. Everything left (0x0100..0xFEFF) is a legacy script keysym whose numeric
-  //    value is NOT a Unicode code point - XK_Cyrillic_a is 0x06C1, which as
-  //    Unicode is an Arabic letter. Emitting nothing is correct here: a plausible
-  //    but wrong character is worse than none, and modern servers use the Unicode
-  //    keysym form for these scripts anyway.
 end;
 
 procedure TFtX11Window.HandleGenericEvent(Event: Pxcb_generic_event_t);
