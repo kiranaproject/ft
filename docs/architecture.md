@@ -39,7 +39,7 @@ Floria Toolkit (`Ft`) is engineered as a lightweight, modular desktop GUI framew
 │   ┌────────────────────────┬──────────────┬─────────────┐   │
 │   │ X11/XCB (ft.backend.x11)│ WinAPI (Win) │ Cocoa (macOS│   │
 │   │ - Native XCB Windows   │ (In Roadmap) │ (In Roadmap)│   │
-│   │ - 60 FPS Event Loop    │              │             │   │
+│   │ - Deadline Event Loop  │              │             │   │
 │   └────────────────────────┴──────────────┴─────────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -80,7 +80,7 @@ Floria Toolkit decouples widgets and menus from specific windowing systems via `
 
 ### 3. X11/XCB Backend & Event Loop (`Ft.Backend.X11`, `TFtX11Window`)
 - **Native X11/XCB Integration**: `TFtX11Window` inherits from `TFtWindow`, implementing native XCB window management, graphics context (`xcb_gcontext_t`), and surface blits.
-- **60 FPS Animation Scheduler**: The event dispatch loop measures frame delta times and advances active CSS animations with 16ms sleep pacing when active, reverting to event-driven idle sleeping when static.
+- **Deadline-Driven Event Loop**: The loop runs whatever is due, then sleeps until the next deadline — or blocks indefinitely in `poll()` when nothing is scheduled. Three sources can request the CPU at independent rates: active CSS animations and `ft_set_tick_callback` (every frame), and `ft_set_timer` (its own interval). Frame pacing waits for the *remainder* of the frame rather than a whole frame on top of the work, so a 16 ms frame runs at 60 fps rather than 31.
 - **Compositor & Blur Integration**: Supports modern EWMH window types, window opacity, and KDE/KWin blur behind window hints (`_KDE_NET_WM_BLUR_BEHIND_REGION`).
 
 ### 4. CSS & Theming Engine (`Ft.Css`, `Ft.Theme`)

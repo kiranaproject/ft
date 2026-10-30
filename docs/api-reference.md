@@ -6,34 +6,35 @@ This document provides a comprehensive reference for the Floria Toolkit C ABI ex
 
 ## Table of Contents
 1. [Core Lifecycle](#core-lifecycle)
-2. [Window Management](#window-management)
-3. [Widget Focus & Keyboard Navigation](#widget-focus--keyboard-navigation)
-4. [Push Button & Toggle Button](#push-button--toggle-button)
-5. [Toggle Switch](#toggle-switch)
-6. [CheckBox](#checkbox)
-7. [RadioButton](#radiobutton)
-8. [ComboBox (Dropdown Select)](#combobox-dropdown-select)
-9. [Slider](#slider)
-10. [ProgressBar](#progressbar)
-11. [Text / Label](#text--label)
-12. [Entry (Single-Line Input)](#entry-single-line-input)
-13. [TextArea (Multi-Line Text)](#textarea-multi-line-text)
-14. [ScrollBar](#scrollbar)
-15. [Container (Scrollable Viewport)](#container-scrollable-viewport)
-16. [Window Main Menu](#window-main-menu)
-17. [Pop-up & Context Menus](#pop-up--context-menus)
-18. [Menu Items](#menu-items)
-19. [Context Menu & Window Attachment](#context-menu--window-attachment)
-20. [Table & DataGrid](#table--datagrid)
-21. [Clipboard Management](#clipboard-management)
-22. [Theme Management](#theme-management)
-23. [CSS Styling & Animation](#css-styling--animation)
-24. [Typography & Screen DPI](#typography--screen-dpi)
-25. [URL Omnibox (`TFtUrlEntry`)](#url-omnibox)
-26. [Breadcrumb PathBar (`TFtPathBar`)](#breadcrumb-pathbar)
-27. [Native Modal File Dialog (`TFtFileDialog`)](#native-modal-file-dialog)
-28. [Desktop Integration, Struts & Event Filters](#desktop-integration-struts--event-filters)
-29. [Hardware Acceleration & EGL](#hardware-acceleration--egl)
+2. [Main Loop Pacing & Periodic Work](#main-loop-pacing--periodic-work)
+3. [Window Management](#window-management)
+4. [Widget Focus & Keyboard Navigation](#widget-focus--keyboard-navigation)
+5. [Push Button & Toggle Button](#push-button--toggle-button)
+6. [Toggle Switch](#toggle-switch)
+7. [CheckBox](#checkbox)
+8. [RadioButton](#radiobutton)
+9. [ComboBox (Dropdown Select)](#combobox-dropdown-select)
+10. [Slider](#slider)
+11. [ProgressBar](#progressbar)
+12. [Text / Label](#text--label)
+13. [Entry (Single-Line Input)](#entry-single-line-input)
+14. [TextArea (Multi-Line Text)](#textarea-multi-line-text)
+15. [ScrollBar](#scrollbar)
+16. [Container (Scrollable Viewport)](#container-scrollable-viewport)
+17. [Window Main Menu](#window-main-menu)
+18. [Pop-up & Context Menus](#pop-up--context-menus)
+19. [Menu Items](#menu-items)
+20. [Context Menu & Window Attachment](#context-menu--window-attachment)
+21. [Table & DataGrid](#table--datagrid)
+22. [Clipboard Management](#clipboard-management)
+23. [Theme Management](#theme-management)
+24. [CSS Styling & Animation](#css-styling--animation)
+25. [Typography & Screen DPI](#typography--screen-dpi)
+26. [URL Omnibox (`TFtUrlEntry`)](#url-omnibox)
+27. [Breadcrumb PathBar (`TFtPathBar`)](#breadcrumb-pathbar)
+28. [Native Modal File Dialog (`TFtFileDialog`)](#native-modal-file-dialog)
+29. [Desktop Integration, Struts & Event Filters](#desktop-integration-struts--event-filters)
+30. [Hardware Acceleration & EGL](#hardware-acceleration--egl)
 
 ---
 
@@ -44,6 +45,81 @@ This document provides a comprehensive reference for the Floria Toolkit C ABI ex
 | `void ft_init(void)` | Initializes the toolkit backend, font subsystem, CSS sheet, and theme manager. |
 | `void ft_main_loop(void)` | Enters the event dispatch loop. Blocks until all normal windows close or `ft_quit()` is called. |
 | `void ft_quit(void)` | Terminates the main loop and cleans up toolkit resources. |
+
+---
+
+## Main Loop Pacing & Periodic Work
+
+The main loop is **deadline-driven, not polling**. Each iteration runs whatever is due, then sleeps
+until the next thing that needs it — or blocks indefinitely in `poll()` if nothing is scheduled.
+
+Three independent sources can ask for the CPU, each at its own rate:
+
+| Source | Rate | Use for |
+|---|---|---|
+| CSS transitions / animations | Every frame, only while active | Hover fades, progress bars, meter easing |
+| `ft_set_tick_callback` | Every frame, unconditionally | GL/GPU render loops, games, continuous simulation |
+| `ft_set_timer` | Your interval, independent of frame rate | Clocks, status polling, periodic refresh |
+
+The loop sleeps until the **earlier** of the next frame boundary and the next timer deadline.
+
+### Choosing between a tick and a timer
+
+This distinction matters more than it looks. A tick callback forces the loop to wake every frame —
+which is correct for animation and wasteful for anything slow. A clock that changes once a second
+should not cost 60 wake-ups a second to discover 59 no-ops.
+
+```c
+/* WRONG for slow work: wakes 60x/second to find nothing to do */
+static void on_tick(void* ud) {
+    update_clock();          /* changes once per second */
+}
+ft_set_tick_callback(on_tick, NULL);
+
+/* RIGHT: wakes 1x/second, and the loop blocks in between */
+static void on_timer(void* ud) {
+    update_clock();
+}
+ft_set_timer(1000, on_timer, NULL);
+```
+
+Measured on a desktop shell panel doing exactly this: driving it from a 60 Hz tick cost **0.021
+cores** at idle; the same work on a 250 ms timer cost **0.010**. With a timer and no tick callback
+registered, the process sits at **0.000 cores** because the loop blocks in `poll()` between fires.
+
+| Function | Description |
+|---|---|
+| `void ft_set_tick_callback(FtTickCallback callback, void* user_data)` | Registers a callback invoked **once per frame** (nominally 60 Hz) for as long as the loop runs. Intended for GPU render loops and continuous animation. Pass `NULL` to remove. The loop never idles while a tick callback is installed. |
+| `void ft_set_timer(int32_t interval_ms, FtTickCallback callback, void* user_data)` | Registers a callback invoked every `interval_ms` milliseconds, **independent of the frame rate**. Only one timer is supported; a second call replaces the first. `interval_ms <= 0` or a `NULL` callback disables it. |
+| `void ft_register_event_filter(FtEventFilterFunc filter)` | Installs a process-wide filter that sees every X11 event before the toolkit dispatches it. Return `1` from the filter to consume the event. Signature: `int32_t (*)(void* event)`. |
+
+`FtTickCallback` is `void (*)(void* user_data)`.
+
+### Scheduling guarantees
+
+These are worth knowing if you rely on timing accuracy:
+
+- **No drift.** Timer deadlines advance from the *previous* deadline, not from "now", so a callback
+  that takes 5 ms out of a 100 ms interval does not silently stretch the interval to 105 ms.
+- **No catch-up bursts.** If the process stalls for longer than a whole interval, the timer
+  resynchronises rather than firing repeatedly to make up the lost ticks. A burst is worse than a
+  skipped tick for work that is not urgent.
+- **Frame pacing is remainder-based.** The loop sleeps for what is *left* of the frame, not a whole
+  frame on top of the work already done. A frame that takes 16 ms runs at 60 fps, not 31.
+- **Idle means blocked.** With no tick callback and no active animation, `poll()` blocks with no
+  timeout. An idle application consumes no CPU.
+
+### Not covered by this API
+
+There is no uncapped mode and no external frame source. Both the frame rate and `poll()` timeout
+assume a fixed ~60 Hz cadence:
+
+- **High-refresh displays (>60 Hz)** will be paced at 60 Hz. `ft_window_set_swap_interval(win, 0)`
+  disables vsync, but the loop's own frame pacing still applies.
+- **Embedding a browser engine** (CEF, Chromium) needs the opposite of a timer: the browser's
+  compositor must be able to say "render *this* frame *now*", phase-locked with our present. A timer
+  cannot express that, and getting it wrong shows up as judder even when both sides nominally run at
+  60 Hz.
 
 ---
 
@@ -590,15 +666,15 @@ This document provides a comprehensive reference for the Floria Toolkit C ABI ex
 |---|---|
 | `void ft_window_set_window_type(FtWidget window, int32_t window_type)` | Sets EWMH window type (`FT_WINDOW_TYPE_NORMAL`, `DOCK`, `DIALOG`, `TOOLBAR`, `POPUP_MENU`). |
 | `void ft_window_set_strut_partial(FtWidget window, ...)` | Configures `_NET_WM_STRUT_PARTIAL` desktop edge reservation for docks and panels. |
-| `int32_t ft_window_grab_pointer(FtWidget window, int32_t owner_events, uint32_t event_mask)` | Grabs X11 pointer input for popup menus, modal dialogs, and interactive drags. |
-| `void ft_window_ungrab_pointer(FtWidget window)` | Releases active pointer grab. |
-| `void ft_window_install_event_filter(FtWidget window, FtEventFilterCallback callback, void* user_data)` | Installs low-level X11 event filter hook for desktop shell integration. |
-| `void* ft_window_get_native_window(FtWidget window)` | Returns native X11 `Window` handle (XID). |
+| `void ft_window_grab_input(FtWidget window)` | Grabs X11 pointer input for popup menus, modal dialogs, and interactive drags. |
+| `void ft_window_ungrab_input(FtWidget window)` | Releases active pointer grab. |
+| `void* ft_window_get_native_handle(FtWidget window)` | Returns native X11 `Window` handle (XID). |
 | `int32_t ft_window_show_modal(FtWidget window)` | Displays window modally, disabling parent input and blocking until dismissed. |
-| `int32_t ft_window_is_modal(FtWidget window)` | Returns `1` if window is running in a modal loop. |
-| `void ft_widget_add_tick_callback(FtWidget widget, FtTickCallback callback, void* user_data)` | Adds periodic frame tick callback for animations or telemetry. |
-| `void ft_widget_remove_tick_callback(FtWidget widget, FtTickCallback callback, void* user_data)` | Removes registered tick callback. |
-| `void ft_window_button_draw(void* canvas, int32_t x, int32_t y, int32_t w, int32_t h, int32_t button_type, int32_t os_style, int32_t state, int32_t dark_mode, double transition_progress)` | Renders standalone window titlebar caption button directly onto canvas. |
+| `void ft_window_button_draw(void* canvas, double bx, double by, double bw, double bh, int32_t kind, int32_t style, int32_t state, int32_t dark_mode, double glyph_arm, double hover_progress)` | Renders standalone window titlebar caption button directly onto canvas. |
+
+> **Note:** for frame ticks, periodic work, and process-wide X11 event filtering, see
+> [Main Loop Pacing & Periodic Work](#main-loop-pacing--periodic-work). Those are process-scoped
+> (`ft_set_tick_callback`, `ft_set_timer`, `ft_register_event_filter`), not per-window.
 
 ---
 
@@ -608,7 +684,12 @@ This document provides a comprehensive reference for the Floria Toolkit C ABI ex
 |---|---|
 | `int32_t ft_window_is_hardware_accelerated(FtWidget window)` | Returns `1` if window is running on EGL/OpenGL ES 2.0 hardware pipeline. |
 | `void ft_window_set_swap_interval(FtWidget window, int32_t interval)` | Sets presentation swap interval (`0` = uncapped VSync off, `1` = standard 60 FPS VSync). |
-| `void* ft_window_get_egl_display(FtWidget window)` | Returns underlying `EGLDisplay` pointer (or `NULL` if software). |
-| `void* ft_window_get_egl_surface(FtWidget window)` | Returns underlying `EGLSurface` pointer. |
-| `void* ft_window_get_egl_context(FtWidget window)` | Returns underlying `EGLContext` pointer. |
 | `int32_t ft_gpu_is_available(void)` | Probes if EGL and OpenGL ES 2.0 drivers are supported on current host. |
+| `int32_t ft_egl_is_available(void)` | Returns `1` if an EGL display can be initialized on the current session. |
+| `void ft_backend_enable_egl(int32_t enable)` | Forces the EGL backend on or off (overrides the `FT_RENDERER` environment variable). |
+| `int32_t ft_backend_is_egl_enabled(void)` | Returns `1` if the EGL backend is currently active. |
+| `FtWidget ft_egl_window_create(int32_t w, int32_t h, const char* title)` | Creates a window bound to a dedicated EGL surface for direct GPU rendering. |
+
+> **Note:** `EGLDisplay`, `EGLSurface` and `EGLContext` handles are not exposed across the C ABI.
+> Use the `ft_window_on_gl_draw` callback to draw, and `ft_window_make_current` /
+> `ft_window_release_current` to control the GL context.

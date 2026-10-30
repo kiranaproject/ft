@@ -90,7 +90,7 @@ Floria Toolkit separates top-level window logic into an abstract base class and 
   - Modern EWMH title, icon, and window type management (`_NET_WM_WINDOW_TYPE_NORMAL`, `DIALOG`, `POPUP_MENU`, `TOOLTIP`, etc.).
   - Borderless, taskbar-skipping, and full compositor opacity options (`_NET_WM_WINDOW_OPACITY`).
   - KDE/KWin blur behind window integration (`_KDE_NET_WM_BLUR_BEHIND_REGION`).
-  - 60 FPS event loop with XCB event polling and animation scheduling.
+  - Deadline-driven event loop: sleeps until the next frame boundary or timer deadline, and blocks in `poll()` when nothing is scheduled.
 
 ---
 

@@ -53,7 +53,7 @@ A lightweight, high-performance native GUI toolkit engineered with Free Pascal, 
   - Full keyboard focus traversal (`Tab` / `Shift+Tab`) with theme focus rings and mnemonic accelerators.
 - **First-Class Native X11 & WM Infrastructure**:
   - Premier native X11/XCB integration with microsecond event dispatch, EWMH window management (`_NET_WM_WINDOW_TYPE_DOCK`), and desktop struts (`_NET_WM_STRUT_PARTIAL`).
-  - Pointer grab APIs (`ft_window_grab_pointer`, `ft_window_ungrab_pointer`), low-level event filter hooks (`ft_window_install_event_filter`), widget tick callbacks, and direct backend handle access (`ft_window_get_native_window`, `ft_window_get_egl_display`).
+  - Pointer grab APIs (`ft_window_grab_input`, `ft_window_ungrab_input`), process-wide event filters (`ft_register_event_filter`), frame ticks (`ft_set_tick_callback`), frame-rate-independent timers (`ft_set_timer`), and direct backend handle access (`ft_window_get_native_handle`, `ft_window_get_egl_display`).
   - Pluggable `TFtWindow` abstraction ready for future WinAPI and Cocoa backends.
 - **Internationalization, BiDi & Script Shaping**:
   - Full UTF-8 Unicode text rendering across global writing systems (Latin, Cyrillic, Greek, CJK, Thai, Indic/Devanagari, Arabic, Hebrew).

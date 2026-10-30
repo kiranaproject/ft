@@ -118,7 +118,8 @@ Stylesheets are written in standard `.css` syntax and parsed directly into abstr
 ### Zero CPU Waste at Idle
 Floria Toolkit is engineered to achieve 60 FPS fluidity when animated while dropping to 0% CPU consumption when idle:
 - **Partial Invalidation**: Indeterminate progress bars, glowing buttons, and hover transitions only invalidate the bounding box of the active widget (`InvalidateRect`). The event loop blits only the damaged dirty region to the display.
-- **Paced Event Loop**: The backend loop measures sub-millisecond delta times, sleeping for 16ms between frames while transitions are active, and falling back to kernel event blocking (`poll` / `epoll`) when no animations are running.
+- **Paced Event Loop**: The backend loop runs whatever is due, then sleeps until the next deadline — the earlier of the next frame boundary and the next timer deadline — or blocks in `poll()` / `epoll()` indefinitely when nothing is scheduled. Frame pacing waits for the *remainder* of the frame, so work already done is not paid for twice.
+- **Update Rate Is Not Frame Rate**: Slow periodic work (a clock, status polling) uses `ft_set_timer` at its own interval rather than a per-frame tick callback. Driving a 1 Hz clock from a 60 Hz callback costs 60 wake-ups a second to discover 59 no-ops; measured at 0.021 cores versus 0.010 on a timer, and 0.000 with no tick callback at all because the loop blocks between fires.
 - **Hierarchical Scissor Clipping**: Nested containers maintain a scissor rectangle stack in `TFtCanvasAgg`. Child widgets outside container viewports are clipped mathematically with zero overdraw.
 
 ### Virtualized Data Grids & The "Cell Stamp" Flyweight Pattern
