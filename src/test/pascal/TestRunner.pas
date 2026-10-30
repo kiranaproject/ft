@@ -137,6 +137,18 @@ type
     procedure TestWindowTypeDialog();
   end;
 
+  // Scheduling arithmetic for the low-rate timer (WM-28). Pure functions, so these
+  // run without a live main loop or an X server.
+  TFtTimerSchedulingTest = class(TTestCase)
+  published
+    procedure TestDeadlineAdvancesFromPreviousDeadline();
+    procedure TestDeadlineResynchronisesWhenFarBehind();
+    procedure TestDeadlineDisabledForNonPositiveInterval();
+    procedure TestWaitBudgetIsTheSmallerOfFrameAndTimer();
+    procedure TestWaitBudgetBlocksForeverWhenNothingScheduled();
+    procedure TestWaitBudgetClampsOverrunToZero();
+  end;
+
   TFtCanvasAndShapingTest = class(TTestCase)
   published
     procedure TestCanvasPolymorphicDispatch();
@@ -4188,6 +4200,68 @@ begin
   end;
 end;
 
+{ TFtTimerSchedulingTest }
+
+procedure TFtTimerSchedulingTest.TestDeadlineAdvancesFromPreviousDeadline();
+begin
+  // One fire: the next deadline is one interval after the LAST deadline, not after
+  // now. Advancing from now would accumulate the callback's own runtime as drift.
+  AssertEquals('advances from the previous deadline', QWord(1100),
+               AdvanceTimerDeadline(1000, 1050, 100));
+  // Slightly late: still lands on the grid, so the rate stays exact.
+  AssertEquals('late fire keeps the grid', QWord(1200),
+               AdvanceTimerDeadline(1100, 1180, 100));
+end;
+
+procedure TFtTimerSchedulingTest.TestDeadlineResynchronisesWhenFarBehind();
+begin
+  // Fell a whole interval or more behind (a long stall). Must not fire a burst to
+  // catch up; resynchronise from now instead.
+  AssertEquals('resync when a full interval behind', QWord(2100),
+               AdvanceTimerDeadline(1000, 2000, 100));
+  AssertEquals('resync when many intervals behind', QWord(5100),
+               AdvanceTimerDeadline(1000, 5000, 100));
+end;
+
+procedure TFtTimerSchedulingTest.TestDeadlineDisabledForNonPositiveInterval();
+begin
+  AssertEquals('zero interval disables', QWord(0), AdvanceTimerDeadline(1000, 1000, 0));
+  AssertEquals('negative interval disables', QWord(0), AdvanceTimerDeadline(1000, 1000, -5));
+end;
+
+procedure TFtTimerSchedulingTest.TestWaitBudgetIsTheSmallerOfFrameAndTimer();
+begin
+  // 4ms into a 16ms frame -> 12ms of frame budget left. Timer due in 5ms.
+  // The loop must wake for the timer.
+  AssertEquals('timer sooner than frame boundary', Int64(5),
+               WaitBudgetMs(1004, 1000, 16, 1000, 1009));
+  // Timer due in 30ms, frame has 12ms left -> frame wins.
+  AssertEquals('frame sooner than timer', Int64(12),
+               WaitBudgetMs(1004, 1000, 16, 1000, 1034));
+end;
+
+procedure TFtTimerSchedulingTest.TestWaitBudgetBlocksForeverWhenNothingScheduled();
+begin
+  // No tick, no animation, no timer: the loop should block in poll() until input
+  // rather than waking on a schedule. -1 is "infinite" for poll().
+  AssertEquals('blocks until input', Int64(-1),
+               WaitBudgetMs(5000, 5000, 0, 0, 0));
+end;
+
+procedure TFtTimerSchedulingTest.TestWaitBudgetClampsOverrunToZero();
+var
+  w: Int64;
+begin
+  // The frame already took longer than its budget: wait 0 so it runs again now.
+  // Never negative, which would be an invalid poll() timeout.
+  w := WaitBudgetMs(1030, 1000, 16, 0, 0);
+  AssertEquals('overrun clamps to zero', Int64(0), w);
+
+  // Same for an overdue timer.
+  w := WaitBudgetMs(2000, 2000, 0, 1000, 1500);
+  AssertEquals('overdue timer is due now', Int64(0), w);
+end;
+
 var
   Application: TTestRunner;
 
@@ -4203,6 +4277,7 @@ begin
     RegisterTest(TFtDesktopWidgetsTest);
     RegisterTest(TFtEGLBackendTest);
     RegisterTest(TFtWindowModalTest);
+    RegisterTest(TFtTimerSchedulingTest);
     RegisterTest(TFtCanvasAndShapingTest);
     Application.Initialize;
     Application.Run;

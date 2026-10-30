@@ -2955,6 +2955,11 @@ begin
   FtSetTickCallback(callback, user_data);
 end;
 
+procedure ft_set_timer(interval_ms: cint32; callback: TFtTickCallback; user_data: Pointer); cdecl; export;
+begin
+  FtSetTimer(interval_ms, callback, user_data);
+end;
+
 function ft_backend_get_connection(): Pointer; cdecl; export;
 begin
   Result := GConnection;
@@ -7132,6 +7137,7 @@ exports
   ft_screen_get_height,
   ft_register_event_filter,
   ft_set_tick_callback,
+  ft_set_timer,
   ft_backend_get_connection,
   ft_backend_get_screen,
   ft_backend_get_key_symbols,

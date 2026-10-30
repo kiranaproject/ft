@@ -167,8 +167,38 @@ var
   GTickCallback: TFtTickCallback = nil;
   GTickUserData: Pointer = nil;
 
+  // Optional low-rate timer, independent of the frame rate.
+  //
+  // A tick callback means "run this every frame", which is right for animation and
+  // wrong for anything slow: shellsama's clock changes once a second, and paying
+  // for 60 wake-ups a second to discover 59 no-ops was most of its idle cost.
+  //
+  // A timer runs at its own rate and the main loop sleeps until whichever comes
+  // first, the next frame boundary or the next timer deadline.
+  GTimerCallback: TFtTickCallback = nil;
+  GTimerUserData: Pointer = nil;
+  GTimerIntervalMs: Integer = 0;
+  GTimerNextDueMs: QWord = 0;
+
 procedure FtRegisterEventFilter(AFilter: TFtEventFilterFunc);
 procedure FtSetTickCallback(ACallback: TFtTickCallback; AUserData: Pointer);
+procedure FtSetTimer(AIntervalMs: Integer; ACallback: TFtTickCallback; AUserData: Pointer);
+
+// Pure scheduling helpers, exported so the arithmetic can be unit-tested without a
+// live main loop or an X server.
+//
+// AdvanceTimerDeadline returns the next deadline after one fire at ANowMs. It
+// advances from the previous deadline rather than from now, so a slow callback
+// does not accumulate drift and quietly stretch the interval. If it has fallen
+// more than a whole interval behind (a long stall, or a very short interval) it
+// resynchronises instead of firing repeatedly to catch up.
+function AdvanceTimerDeadline(const ALastDueMs, ANowMs: QWord; AIntervalMs: Integer): QWord;
+
+// WaitBudgetMs is how long the loop may sleep: the smaller of the frame budget and
+// the time until the timer. -1 means "block until input".
+function WaitBudgetMs(const ANowMs: QWord; const AFrameStartMs: QWord;
+                      const AFrameBudgetMs, AIntervalMs: Integer;
+                      const ALastDueMs: QWord): Int64;
 
 implementation
 
@@ -372,6 +402,71 @@ procedure FtSetTickCallback(ACallback: TFtTickCallback; AUserData: Pointer);
 begin
   GTickCallback := ACallback;
   GTickUserData := AUserData;
+end;
+
+procedure FtSetTimer(AIntervalMs: Integer; ACallback: TFtTickCallback; AUserData: Pointer);
+begin
+  GTimerCallback := ACallback;
+  GTimerUserData := AUserData;
+  GTimerIntervalMs := AIntervalMs;
+  // Fire the first one promptly rather than one full interval after startup, so a
+  // timer-driven UI does not begin with a blank or stale value.
+  GTimerNextDueMs := GetTickCount64();
+end;
+
+function AdvanceTimerDeadline(const ALastDueMs, ANowMs: QWord; AIntervalMs: Integer): QWord;
+begin
+  if AIntervalMs <= 0 then
+    Exit(0);
+
+  Result := ALastDueMs + QWord(AIntervalMs);
+  if Result <= ANowMs then
+    // Fell a whole interval or more behind. Resynchronise rather than firing a
+    // burst to catch up: a burst is worse than a skipped tick, because the work
+    // being scheduled is by definition not urgent.
+    Result := ANowMs + QWord(AIntervalMs);
+end;
+
+function WaitBudgetMs(const ANowMs: QWord; const AFrameStartMs: QWord;
+                      const AFrameBudgetMs, AIntervalMs: Integer;
+                      const ALastDueMs: QWord): Int64;
+var
+  frameWait, timerWait: Int64;
+  hasFrame, hasTimer: Boolean;
+begin
+  hasFrame := AFrameBudgetMs > 0;
+  hasTimer := AIntervalMs > 0;
+
+  frameWait := 0;
+  if hasFrame then
+  begin
+    frameWait := AFrameBudgetMs - Int64(ANowMs - AFrameStartMs);
+    if frameWait < 0 then
+      frameWait := 0;      // frame already overran; run again immediately
+  end;
+
+  timerWait := 0;
+  if hasTimer then
+  begin
+    if ALastDueMs > ANowMs then
+      timerWait := Int64(ALastDueMs - ANowMs)
+    else
+      timerWait := 0;      // already due, or overdue
+  end;
+
+  if hasFrame and hasTimer then
+  begin
+    if frameWait < timerWait then
+      Result := frameWait
+    else
+      Result := timerWait;
+  end
+  else if hasFrame then
+    Result := frameWait
+  else if hasTimer then
+    Result := timerWait
+  else
+    Result := -1;          // nothing scheduled: block until input
 end;
 
 function FindWindowByHandle(AWindow: xcb_window_t): TFtX11Window;
@@ -644,7 +739,9 @@ procedure FtBackendMainLoop();
 var
   frameStartMs, nowMs: QWord;
   elapsedMs: Integer;
-  waitMs: Integer;
+  // Signed on purpose: -1 means "block until input", which is what an idle app
+  // should do. Unsigned would make that inexpressible.
+  waitMs: Int64;
   animator: TFtAnimator;
   pfd: TFT_pollfd;
 begin
@@ -672,79 +769,55 @@ begin
       Break;
     end;
 
+    // Run the timer if one is due, then work out when we next need to wake.
+    //
+    // This is the only place that decides the loop's pacing, and it is deliberately
+    // a deadline rather than a mode. Three things can want the CPU at different
+    // rates:
+    //
+    //   a tick callback   -> every frame (animation, GL consumers)
+    //   active animations -> every frame (the animator itself)
+    //   a timer           -> its own interval (a clock, a task-list refresh)
+    //
+    // Sleeping until the earliest deadline serves all three, and it means a slow
+    // timer costs wake-ups at ITS rate, not the frame rate. Before this, installing
+    // a 1 Hz tick callback silently bought 60 wake-ups a second.
+    nowMs := GetTickCount64();
+    if Assigned(GTimerCallback) and (GTimerIntervalMs > 0) and (nowMs >= GTimerNextDueMs) then
+    begin
+      GTimerNextDueMs := AdvanceTimerDeadline(GTimerNextDueMs, nowMs, GTimerIntervalMs);
+      GTimerCallback(GTimerUserData);
+    end;
+
     if Assigned(GTickCallback) then
       GTickCallback(GTickUserData);
 
-    if Assigned(GTickCallback) then
-    begin
-      // Wait for input, or until the next tick is due.
-      //
-      // This branch used to poll with a zero timeout and then not sleep at all,
-      // on the theory that tick callbacks want continuous high-framerate
-      // rendering. The effect was that the process never blocked: it spun at
-      // roughly 6,700 iterations/second and burned 0.67 of a core with nothing
-      // happening on screen. Measured with strace: ~53k poll and ~53k
-      // clock_gettime calls in 8 seconds, against only a handful of actual X
-      // events.
-      //
-      // A tick callback needs to run frequently, not continuously. Ticks carry
-      // their own elapsed time, so pacing them costs nothing but CPU - and
-      // returning early is preserved by waking on input.
-      //
-      // IMPORTANT: poll for the REMAINDER of the frame, not a whole frame. The
-      // frame's work has already happened by the time we get here, so waiting a
-      // full 16ms makes the frame period work+16ms instead of max(work,16ms).
-      // An uncapped GPU benchmark running a 16ms frame then drops to 32ms - a
-      // flat 2x regression, measured at 52-60 fps before and 31 fps after.
-      if Assigned(GConnection) then
-      begin
-        xcb_flush(GConnection);
-        pfd.fd := xcb_get_file_descriptor(GConnection);
-        pfd.events := 1; // POLLIN
-        pfd.revents := 0;
-
-        nowMs := GetTickCount64();
-        if IsAnyWindowResizing(nowMs) then
-          waitMs := 1                     // stay responsive while resizing
-        else
-        begin
-          elapsedMs := Integer(nowMs - frameStartMs);
-          waitMs := FT_IDLE_TICK_MS - elapsedMs;
-          if waitMs < 0 then
-            waitMs := 0;                  // frame already overran; run again now
-        end;
-        libc_poll(@pfd, 1, waitMs);
-      end
-      else
-        Sleep(FT_IDLE_TICK_MS);
-    end
-    else if animator.HasActiveAnimations() then
-    begin
-      nowMs := GetTickCount64();
-      elapsedMs := Integer(nowMs - frameStartMs);
-      if IsAnyWindowResizing(nowMs) then
-        Sleep(1)
-      else if elapsedMs < 16 then
-        Sleep(16 - elapsedMs)
-      else
-        Sleep(1);
-    end
+    // Decide how long the loop may sleep: the smaller of the frame budget and the
+    // time until the timer, or -1 (block until input) when neither is scheduled.
+    //
+    // Frame pacing polls for the REMAINDER of the frame, not a whole frame. The
+    // frame's work has already happened by now, so waiting a full 16ms makes the
+    // period work+16ms instead of max(work,16ms). That exact mistake halved the
+    // frame rate of uncapped apps once (52-60 fps -> 31).
+    if IsAnyWindowResizing(nowMs) then
+      waitMs := 1                        // stay responsive while resizing
+    else if Assigned(GTickCallback) or animator.HasActiveAnimations() then
+      waitMs := WaitBudgetMs(nowMs, frameStartMs, FT_IDLE_TICK_MS,
+                             GTimerIntervalMs, GTimerNextDueMs)
     else
+      waitMs := WaitBudgetMs(nowMs, frameStartMs, 0,
+                             GTimerIntervalMs, GTimerNextDueMs);
+
+    if Assigned(GConnection) then
     begin
-      nowMs := GetTickCount64();
-      if IsAnyWindowResizing(nowMs) then
-        Sleep(1)
-      else if Assigned(GConnection) then
-      begin
-        xcb_flush(GConnection);
-        pfd.fd := xcb_get_file_descriptor(GConnection);
-        pfd.events := 1; // POLLIN
-        pfd.revents := 0;
-        libc_poll(@pfd, 1, 50);
-      end
-      else
-        Sleep(10);
-    end;
+      xcb_flush(GConnection);
+      pfd.fd := xcb_get_file_descriptor(GConnection);
+      pfd.events := 1; // POLLIN
+      pfd.revents := 0;
+      libc_poll(@pfd, 1, waitMs);
+    end
+    else if waitMs > 0 then
+      Sleep(waitMs);
   end;
 end;
 

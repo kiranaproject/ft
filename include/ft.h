@@ -739,6 +739,20 @@ typedef int32_t (*FtEventFilterFunc)(void* event);
 void ft_register_event_filter(FtEventFilterFunc filter);
 typedef void (*FtTickCallback)(void* user_data);
 void ft_set_tick_callback(FtTickCallback callback, void* user_data);
+
+/* Low-rate timer, independent of the frame rate.
+ *
+ * A tick callback runs every frame, which is right for animation and wasteful for
+ * anything slow: a clock that changes once a second would otherwise cost 60
+ * wake-ups a second to discover 59 no-ops.
+ *
+ * The main loop sleeps until the next frame boundary OR the next timer deadline,
+ * whichever comes first, so a timer costs wake-ups at its own rate.
+ *
+ * interval_ms <= 0, or a NULL callback, disables the timer.
+ * Only one timer is supported; a second call replaces the first.
+ */
+void ft_set_timer(int32_t interval_ms, FtTickCallback callback, void* user_data);
 void* ft_backend_get_connection(void);
 void* ft_backend_get_screen(void);
 void* ft_backend_get_key_symbols(void);
