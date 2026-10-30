@@ -152,6 +152,13 @@ procedure FtSetSelectionLostHandler(AHandler: TFtSelectionLostHandler);
 function FtGetScreenWidth(): Integer;
 function FtGetScreenHeight(): Integer;
 
+// Converts an X11 keysym to the UTF-8 text it produces, or '' for keys that
+// produce no text (modifiers, arrows, function keys).
+//
+// Exported so the keysym-to-text rules can be unit-tested: getting this wrong
+// silently injects characters into every text field.
+function KeySymToUtf8(sym: Cardinal): string;
+
 procedure FtShowHint(AWidget: TFtWidget; const AHintText: string; AScreenX, AScreenY: Integer);
 procedure FtHideHint();
 function FtIsHintVisible(): Boolean;
@@ -1888,28 +1895,61 @@ begin
   FtBackendProcessEvents();
 end;
 
-function KeySymToUtf8(sym: Cardinal): string;
+// Encodes a Unicode code point as UTF-8.
+function CodePointToUtf8(cp: Cardinal): string;
 var
   wc: WideString;
 begin
-  if (sym >= 32) and (sym <= 126) then
-    Result := Chr(sym)
-  else if (sym >= 160) and (sym <= $10FFFF) then
-  begin
-    if (sym >= $01000100) and (sym <= $0110FFFF) then
-      sym := sym - $01000000;
-    if sym <= $FFFF then
-      Result := UTF8Encode(WideChar(sym))
-    else
-    begin
-      SetLength(wc, 2);
-      wc[1] := WideChar($D800 + ((sym - $10000) shr 10));
-      wc[2] := WideChar($DC00 + ((sym - $10000) and $3FF));
-      Result := UTF8Encode(wc);
-    end;
-  end
+  Result := '';
+  if cp > $10FFFF then Exit;
+  // Surrogate halves are not characters and must not reach UTF8Encode.
+  if (cp >= $D800) and (cp <= $DFFF) then Exit;
+
+  if cp <= $FFFF then
+    Result := UTF8Encode(WideChar(cp))
   else
-    Result := '';
+  begin
+    SetLength(wc, 2);
+    wc[1] := WideChar($D800 + ((cp - $10000) shr 10));
+    wc[2] := WideChar($DC00 + ((cp - $10000) and $3FF));
+    Result := UTF8Encode(wc);
+  end;
+end;
+
+function KeySymToUtf8(sym: Cardinal): string;
+begin
+  Result := '';
+
+  // 1. Unicode keysyms: 0x01000000 + code point.
+  //
+  // Modern X servers send these for everything outside Latin-1 - CJK, Cyrillic,
+  // Greek, emoji, typographic punctuation. This branch was previously unreachable:
+  // the enclosing test was "sym <= 0x10FFFF", which rejects every value >=
+  // 0x01000000, so non-Latin-1 input silently produced nothing at all.
+  if (sym >= $01000000) and (sym <= $0110FFFF) then
+    Exit(CodePointToUtf8(sym - $01000000));
+
+  // 2. 0xFF00..0xFFFF is X11's function-key block: modifiers (Shift_L 0xFFE1,
+  //    Control_L 0xFFE3, Alt_L 0xFFE9, Super_L 0xFFEB), the cursor block (Left
+  //    0xFF51, Up 0xFF52, ...), Home/End/Insert/Delete, and F1..F35.
+  //
+  //    None of these is a character, but every one of them is numerically a valid
+  //    Unicode code point in the U+FF00 block. Treating them as characters is what
+  //    inserted a fullwidth pound sign on Shift and halfwidth katakana on the arrow
+  //    keys.
+  if (sym >= $FF00) and (sym <= $FFFF) then Exit;
+
+  // 3. Latin-1 maps directly: printable ASCII, then the upper half.
+  if (sym >= $20) and (sym <= $7E) then
+    Result := Chr(sym)
+  else if (sym >= $A0) and (sym <= $FF) then
+    Result := CodePointToUtf8(sym);
+
+  // 4. Everything left (0x0100..0xFEFF) is a legacy script keysym whose numeric
+  //    value is NOT a Unicode code point - XK_Cyrillic_a is 0x06C1, which as
+  //    Unicode is an Arabic letter. Emitting nothing is correct here: a plausible
+  //    but wrong character is worse than none, and modern servers use the Unicode
+  //    keysym form for these scripts anyway.
 end;
 
 procedure TFtX11Window.HandleGenericEvent(Event: Pxcb_generic_event_t);

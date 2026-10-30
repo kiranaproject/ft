@@ -139,6 +139,22 @@ type
 
   // Scheduling arithmetic for the low-rate timer (WM-28). Pure functions, so these
   // run without a live main loop or an X server.
+  // Regression: X11 function keys must not become text.
+  //
+  // KeySymToUtf8 treated every keysym >= 160 as a Unicode code point, which
+  // includes the whole 0xFF00..0xFFFF range that X11 reserves for function keys.
+  // Pressing Shift_L therefore produced U+FFE1 (a fullwidth pound sign) and the
+  // arrow keys produced halfwidth katakana, and every text widget inserted them.
+  TFtKeySymToTextTest = class(TTestCase)
+  published
+    procedure TestModifierKeysProduceNoText();
+    procedure TestNavigationKeysProduceNoText();
+    procedure TestFunctionKeysProduceNoText();
+    procedure TestPrintableAsciiStillWorks();
+    procedure TestLatin1StillWorks();
+    procedure TestUnicodeKeysymStillWorks();
+  end;
+
   TFtTimerSchedulingTest = class(TTestCase)
   published
     procedure TestDeadlineAdvancesFromPreviousDeadline();
@@ -4200,6 +4216,75 @@ begin
   end;
 end;
 
+{ TFtKeySymToTextTest }
+
+procedure TFtKeySymToTextTest.TestModifierKeysProduceNoText();
+begin
+  // 0xFFE1..0xFFEE are the modifier keysyms. Each of these used to yield a
+  // fullwidth symbol from the U+FFxx block.
+  AssertEquals('Shift_L', '', KeySymToUtf8($FFE1));
+  AssertEquals('Shift_R', '', KeySymToUtf8($FFE2));
+  AssertEquals('Control_L', '', KeySymToUtf8($FFE3));
+  AssertEquals('Control_R', '', KeySymToUtf8($FFE4));
+  AssertEquals('Caps_Lock', '', KeySymToUtf8($FFE5));
+  AssertEquals('Shift_Lock', '', KeySymToUtf8($FFE6));
+  AssertEquals('Meta_L', '', KeySymToUtf8($FFE7));
+  AssertEquals('Alt_L', '', KeySymToUtf8($FFE9));
+  AssertEquals('Alt_R', '', KeySymToUtf8($FFEA));
+  AssertEquals('Super_L', '', KeySymToUtf8($FFEB));
+  AssertEquals('Super_R', '', KeySymToUtf8($FFEC));
+  AssertEquals('Hyper_L', '', KeySymToUtf8($FFED));
+end;
+
+procedure TFtKeySymToTextTest.TestNavigationKeysProduceNoText();
+begin
+  // 0xFF50..0xFF57 are the cursor block; these used to yield halfwidth katakana.
+  AssertEquals('Home', '', KeySymToUtf8($FF50));
+  AssertEquals('Left', '', KeySymToUtf8($FF51));
+  AssertEquals('Up', '', KeySymToUtf8($FF52));
+  AssertEquals('Right', '', KeySymToUtf8($FF53));
+  AssertEquals('Down', '', KeySymToUtf8($FF54));
+  AssertEquals('Page_Up', '', KeySymToUtf8($FF55));
+  AssertEquals('Page_Down', '', KeySymToUtf8($FF56));
+  AssertEquals('End', '', KeySymToUtf8($FF57));
+  AssertEquals('Begin', '', KeySymToUtf8($FF58));
+end;
+
+procedure TFtKeySymToTextTest.TestFunctionKeysProduceNoText();
+begin
+  AssertEquals('BackSpace', '', KeySymToUtf8($FF08));
+  AssertEquals('Tab', '', KeySymToUtf8($FF09));
+  AssertEquals('Return', '', KeySymToUtf8($FF0D));
+  AssertEquals('Escape', '', KeySymToUtf8($FF1B));
+  AssertEquals('Delete', '', KeySymToUtf8($FFFF));
+  AssertEquals('Insert', '', KeySymToUtf8($FF63));
+  AssertEquals('F1', '', KeySymToUtf8($FFBE));
+  AssertEquals('KP_Enter', '', KeySymToUtf8($FF8D));
+end;
+
+procedure TFtKeySymToTextTest.TestPrintableAsciiStillWorks();
+begin
+  AssertEquals('space', ' ', KeySymToUtf8($20));
+  AssertEquals('a', 'a', KeySymToUtf8($61));
+  AssertEquals('A', 'A', KeySymToUtf8($41));
+  AssertEquals('0', '0', KeySymToUtf8($30));
+  AssertEquals('tilde', '~', KeySymToUtf8($7E));
+end;
+
+procedure TFtKeySymToTextTest.TestLatin1StillWorks();
+begin
+  // 0xA0..0xFF are Latin-1 and remain valid Unicode code points.
+  AssertEquals('eacute', UTF8Encode(WideChar($E9)), KeySymToUtf8($E9));
+  AssertEquals('ydiaeresis', UTF8Encode(WideChar($FF)), KeySymToUtf8($FF));
+end;
+
+procedure TFtKeySymToTextTest.TestUnicodeKeysymStillWorks();
+begin
+  // Non-Latin-1 characters arrive as 0x01000000 + codepoint.
+  AssertEquals('CJK yi', UTF8Encode(WideChar($4E00)), KeySymToUtf8($01000000 + $4E00));
+  AssertEquals('arrow', UTF8Encode(WideChar($2192)), KeySymToUtf8($01000000 + $2192));
+end;
+
 { TFtTimerSchedulingTest }
 
 procedure TFtTimerSchedulingTest.TestDeadlineAdvancesFromPreviousDeadline();
@@ -4277,6 +4362,7 @@ begin
     RegisterTest(TFtDesktopWidgetsTest);
     RegisterTest(TFtEGLBackendTest);
     RegisterTest(TFtWindowModalTest);
+    RegisterTest(TFtKeySymToTextTest);
     RegisterTest(TFtTimerSchedulingTest);
     RegisterTest(TFtCanvasAndShapingTest);
     Application.Initialize;
