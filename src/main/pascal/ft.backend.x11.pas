@@ -644,6 +644,7 @@ procedure FtBackendMainLoop();
 var
   frameStartMs, nowMs: QWord;
   elapsedMs: Integer;
+  waitMs: Integer;
   animator: TFtAnimator;
   pfd: TFT_pollfd;
 begin
@@ -687,8 +688,14 @@ begin
       // events.
       //
       // A tick callback needs to run frequently, not continuously. Ticks carry
-      // their own elapsed time, so delaying to the next frame boundary costs
-      // nothing but CPU - and returning early is preserved by waking on input.
+      // their own elapsed time, so pacing them costs nothing but CPU - and
+      // returning early is preserved by waking on input.
+      //
+      // IMPORTANT: poll for the REMAINDER of the frame, not a whole frame. The
+      // frame's work has already happened by the time we get here, so waiting a
+      // full 16ms makes the frame period work+16ms instead of max(work,16ms).
+      // An uncapped GPU benchmark running a 16ms frame then drops to 32ms - a
+      // flat 2x regression, measured at 52-60 fps before and 31 fps after.
       if Assigned(GConnection) then
       begin
         xcb_flush(GConnection);
@@ -698,9 +705,15 @@ begin
 
         nowMs := GetTickCount64();
         if IsAnyWindowResizing(nowMs) then
-          libc_poll(@pfd, 1, 1)          // stay responsive while resizing
+          waitMs := 1                     // stay responsive while resizing
         else
-          libc_poll(@pfd, 1, FT_IDLE_TICK_MS);
+        begin
+          elapsedMs := Integer(nowMs - frameStartMs);
+          waitMs := FT_IDLE_TICK_MS - elapsedMs;
+          if waitMs < 0 then
+            waitMs := 0;                  // frame already overran; run again now
+        end;
+        libc_poll(@pfd, 1, waitMs);
       end
       else
         Sleep(FT_IDLE_TICK_MS);
