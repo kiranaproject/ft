@@ -138,6 +138,7 @@ begin
   FDrawFrame := True;
   FDrawFocusRing := True;
   FBackdropBlur := 0.0;
+  FCornerRadius := -1.0;
 
   FText := AText;
   FPlaceholder := '';

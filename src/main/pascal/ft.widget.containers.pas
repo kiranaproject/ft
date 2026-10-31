@@ -131,7 +131,7 @@ begin
   FLastIntScrollY := 0;
   FContentWidth := 0.0;
   FContentHeight := 0.0;
-  FCornerRadius := 0.0;
+  FCornerRadius := -1.0;
   FBackdropBlur := -1.0;
   FPaddingX := 0.0;
   FPaddingY := 0.0;
@@ -576,8 +576,10 @@ begin
     st := GetResolvedStyle();
     if st.HasBorderRadius then
       Result := st.BorderRadius
+    else if FDrawFrame then
+      Result := FtGetTheme().CornerRadius
     else
-      Result := FtGetTheme().CornerRadius;
+      Result := 0.0;
   end;
   if (Height > 0) and (Width > 0) then
   begin

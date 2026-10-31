@@ -323,6 +323,7 @@ int32_t ft_entry_get_readonly(FtWidget entry);
 void ft_entry_on_change(FtWidget entry, FtEntryChangeCallback callback, void* user_data);
 void ft_entry_on_submit(FtWidget entry, FtEntrySubmitCallback callback, void* user_data);
 void ft_entry_set_corner_radius(FtWidget entry, double radius);
+double ft_entry_get_corner_radius(FtWidget entry);
 
 /* Widgets: PathBar (Nautilus-Style Breadcrumb Path Entry) */
 typedef enum {
@@ -402,6 +403,7 @@ void ft_textarea_set_readonly(FtWidget textarea, int32_t readonly_mode);
 int32_t ft_textarea_get_readonly(FtWidget textarea);
 void ft_textarea_on_change(FtWidget textarea, FtTextAreaChangeCallback callback, void* user_data);
 void ft_textarea_set_corner_radius(FtWidget textarea, double radius);
+double ft_textarea_get_corner_radius(FtWidget textarea);
 void ft_textarea_set_scrollbar_mode(FtWidget textarea, int32_t mode);
 int32_t ft_textarea_get_scrollbar_mode(FtWidget textarea);
 FtWidget ft_textarea_get_vscrollbar(FtWidget textarea);

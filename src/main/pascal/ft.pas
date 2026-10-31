@@ -1506,6 +1506,14 @@ begin
     TFtEntry(entry_widget).CornerRadius := radius;
 end;
 
+function ft_entry_get_corner_radius(entry_widget: Pointer): Double; cdecl; export;
+begin
+  if Assigned(entry_widget) and (TObject(entry_widget) is TFtEntry) then
+    Result := TFtEntry(entry_widget).CornerRadius
+  else
+    Result := 0.0;
+end;
+
 { PathBar Widgets (Nautilus-Style Breadcrumb Path Entry) }
 
 function ft_path_bar_create(parent: Pointer; x, y, w, h: cint32; initial_path: PChar): Pointer; cdecl; export;
@@ -1974,6 +1982,14 @@ procedure ft_textarea_set_corner_radius(textarea_widget: Pointer; radius: Double
 begin
   if Assigned(textarea_widget) and (TObject(textarea_widget) is TFtTextArea) then
     TFtTextArea(textarea_widget).CornerRadius := radius;
+end;
+
+function ft_textarea_get_corner_radius(textarea_widget: Pointer): Double; cdecl; export;
+begin
+  if Assigned(textarea_widget) and (TObject(textarea_widget) is TFtTextArea) then
+    Result := TFtTextArea(textarea_widget).CornerRadius
+  else
+    Result := 0.0;
 end;
 
 procedure ft_textarea_set_scrollbar_mode(textarea_widget: Pointer; mode: cint32); cdecl; export;
@@ -6721,6 +6737,7 @@ exports
   ft_entry_on_change,
   ft_entry_on_submit,
   ft_entry_set_corner_radius,
+  ft_entry_get_corner_radius,
   ft_textarea_create,
   ft_textarea_set_text,
   ft_textarea_get_text,
@@ -6730,6 +6747,7 @@ exports
   ft_textarea_get_readonly,
   ft_textarea_on_change,
   ft_textarea_set_corner_radius,
+  ft_textarea_get_corner_radius,
   ft_textarea_set_scrollbar_mode,
   ft_textarea_get_scrollbar_mode,
   ft_textarea_get_vscrollbar,

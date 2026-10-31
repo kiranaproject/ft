@@ -242,6 +242,7 @@ begin
   inherited Create(AParent);
   FPaddingX := 0.0;
   FPaddingY := 0.0;
+  FCornerRadius := -1.0;
   FColumns := TFPList.Create();
   FRows := TFPList.Create();
   FSelectedRow := -1;

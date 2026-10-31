@@ -214,6 +214,7 @@ begin
   FFocusable := True;
   FDrawFrame := True;
   FScrollBarMode := ftSbModeAutoBoth;
+  FCornerRadius := -1.0;
 end;
 
 destructor TFtTreeView.Destroy();

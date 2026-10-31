@@ -2741,6 +2741,10 @@ procedure TFtDesktopWidgetsTest.TestContainerVsPanelDefaults();
 var
   cont: TFtContainer;
   pan: TFtPanel;
+  ent: TFtEntry;
+  ta: TFtTextArea;
+  tbl: TFtTable;
+  tv: TFtTreeView;
 begin
   // 1. Native Pascal TFtContainer: transparent by default
   cont := TFtContainer.Create(nil);
@@ -2768,8 +2772,54 @@ begin
     AssertEquals('TFtPanel element type', 'panel', pan.GetElementType());
     AssertTrue('TFtPanel receives theme bg', pan.GetResolvedStyle().HasBgColor);
     AssertTrue('TFtPanel receives theme border', pan.GetResolvedStyle().HasBorderColor);
+    AssertTrue('TFtPanel has rounded corners (> 0)', pan.CornerRadius > 0.0);
   finally
     pan.Free();
+  end;
+
+  // 3. TFtEntry: rounded corners via theme CSS (5.0)
+  ent := TFtEntry.Create(nil);
+  try
+    AssertTrue('TFtEntry is TFtContainer', ent is TFtContainer);
+    AssertTrue('TFtEntry DrawFrame default is True', ent.DrawFrame);
+    AssertEquals('TFtEntry CornerRadius resolves to CSS border-radius', 5.0, ent.CornerRadius, 0.001);
+
+    // Explicit override
+    ent.CornerRadius := 0.0;
+    AssertEquals('TFtEntry CornerRadius explicit 0 override', 0.0, ent.CornerRadius, 0.001);
+    ent.CornerRadius := 10.0;
+    AssertEquals('TFtEntry CornerRadius explicit override', 10.0, ent.CornerRadius, 0.001);
+  finally
+    ent.Free();
+  end;
+
+  // 4. TFtTextArea: rounded corners via theme CSS (5.0)
+  ta := TFtTextArea.Create(nil);
+  try
+    AssertTrue('TFtTextArea is TFtContainer', ta is TFtContainer);
+    AssertTrue('TFtTextArea DrawFrame default is True', ta.DrawFrame);
+    AssertEquals('TFtTextArea CornerRadius resolves to CSS border-radius', 5.0, ta.CornerRadius, 0.001);
+  finally
+    ta.Free();
+  end;
+
+  // 5. TFtTable and TFtTreeView: rounded corners via theme default
+  tbl := TFtTable.Create(nil);
+  try
+    AssertTrue('TFtTable is TFtContainer', tbl is TFtContainer);
+    AssertTrue('TFtTable DrawFrame default is True', tbl.DrawFrame);
+    AssertTrue('TFtTable CornerRadius resolves to theme default (> 0)', tbl.CornerRadius > 0.0);
+  finally
+    tbl.Free();
+  end;
+
+  tv := TFtTreeView.Create(nil);
+  try
+    AssertTrue('TFtTreeView is TFtContainer', tv is TFtContainer);
+    AssertTrue('TFtTreeView DrawFrame default is True', tv.DrawFrame);
+    AssertTrue('TFtTreeView CornerRadius resolves to theme default (> 0)', tv.CornerRadius > 0.0);
+  finally
+    tv.Free();
   end;
 end;
 

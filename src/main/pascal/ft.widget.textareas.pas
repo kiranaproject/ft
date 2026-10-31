@@ -146,6 +146,7 @@ begin
   FDrawFrame := True;
   FDrawFocusRing := True;
   FBackdropBlur := 0.0;
+  FCornerRadius := -1.0;
 
   FLines := TStringList.Create();
   FLines.Text := NormalizeText(AText);
