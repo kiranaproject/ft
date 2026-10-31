@@ -2254,6 +2254,25 @@ begin
     finally
       canvas.Free();
     end;
+
+    // 8. Flat button behavior
+    AssertFalse('Default button is not flat', btn.Flat);
+    btn.Flat := True;
+    AssertTrue('Button is flat after assignment', btn.Flat);
+
+    canvas := TFtCanvasAgg.Create(@buf[0, 0], 100, 100);
+    try
+      // Normal state flat draw (no exception, draws cleanly without plate/border)
+      btn.Draw(canvas);
+      // Hovered state flat draw (draws hover highlight)
+      btn.MouseEnter();
+      btn.Draw(canvas);
+      btn.MouseLeave();
+    finally
+      canvas.Free();
+    end;
+    btn.Flat := False;
+    AssertFalse('Button Flat can be reset to False', btn.Flat);
   finally
     btn.Free();
   end;

@@ -789,6 +789,20 @@ begin
     Result := -1;
 end;
 
+procedure ft_button_set_flat(button: Pointer; flat: cint32); cdecl; export;
+begin
+  if Assigned(button) and (TObject(button) is TFtButton) then
+    TFtButton(button).Flat := (flat <> 0);
+end;
+
+function ft_button_get_flat(button: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(button) and (TObject(button) is TFtButton) and TFtButton(button).Flat then
+    Result := 1
+  else
+    Result := 0;
+end;
+
 procedure ft_button_set_caption(button: Pointer; caption: PChar); cdecl; export;
 begin
   if Assigned(button) and (TObject(button) is TFtButton) then
@@ -6633,6 +6647,8 @@ exports
   ft_button_get_corner_radius,
   ft_button_set_shadow,
   ft_button_get_shadow,
+  ft_button_set_flat,
+  ft_button_get_flat,
   ft_button_set_caption,
   ft_button_get_caption,
   ft_button_set_icon_file,

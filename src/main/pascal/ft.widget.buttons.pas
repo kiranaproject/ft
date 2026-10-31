@@ -34,6 +34,7 @@ type
     FIsMouseDown: Boolean;
     FCanToggle: Boolean;
     FToggled: Boolean;
+    FFlat: Boolean;
     FCornerRadius: Double;
     FEnableShadow: Integer;
     FOnClick: TFtClickCallback;
@@ -62,6 +63,8 @@ type
 
     procedure SetToggled(AValue: Boolean);
     procedure SetCanToggle(AValue: Boolean);
+    procedure SetFlat(AValue: Boolean);
+    function IsEffectiveFlat(): Boolean;
     procedure SetCornerRadius(AValue: Double);
     procedure SetEnableShadow(AValue: Integer);
     procedure SetIconPosition(AValue: TFtButtonIconPosition);
@@ -103,6 +106,7 @@ type
     property State: TFtButtonState read FState;
     property CanToggle: Boolean read FCanToggle write SetCanToggle;
     property Toggled: Boolean read FToggled write SetToggled;
+    property Flat: Boolean read FFlat write SetFlat;
     property CornerRadius: Double read FCornerRadius write SetCornerRadius;
     property EnableShadow: Integer read FEnableShadow write SetEnableShadow;
     property OnClick: TFtClickCallback read FOnClick write FOnClick;
@@ -223,6 +227,7 @@ begin
   FIsMouseDown := False;
   FCanToggle := False;
   FToggled := False;
+  FFlat := False;
   FCornerRadius := -1.0;
   FEnableShadow := -1;
   FOnClick := nil;
@@ -525,6 +530,20 @@ begin
   end;
 end;
 
+procedure TFtButton.SetFlat(AValue: Boolean);
+begin
+  if FFlat <> AValue then
+  begin
+    FFlat := AValue;
+    Invalidate();
+  end;
+end;
+
+function TFtButton.IsEffectiveFlat(): Boolean;
+begin
+  Result := FFlat or (Pos('flat', FStyleClass) > 0);
+end;
+
 procedure TFtButton.SetToggled(AValue: Boolean);
 begin
   if FToggled <> AValue then
@@ -677,11 +696,13 @@ var
   effAlign: TFtTextAlignment;
   padX: Double;
   curW: Double;
+  effFlat: Boolean;
 begin
   if not Visible then Exit;
 
   st := GetResolvedStyle();
   effAlign := GetEffectiveAlignment();
+  effFlat := IsEffectiveFlat();
   padX := 8.0;
   if FPaddingX >= 0.0 then padX := FPaddingX;
 
@@ -689,7 +710,7 @@ begin
   hasCustomIcon := Assigned(FOnPaintIcon);
   hasText := (Caption <> '') and (FIconPosition <> ftbipOnly);
 
-  if st.HasBgColor or st.HasBorderColor or st.HasBorderRadius or st.HasTextColor then
+  if st.HasBgColor or st.HasBorderColor or st.HasBorderRadius or st.HasBorderWidth or st.HasTextColor then
   begin
     if st.HasBorderRadius then
       effRadius := st.BorderRadius
@@ -719,24 +740,28 @@ begin
     end;
 
     // 2. Drop shadow
-    if (st.HasShadow and st.EnableShadow) or
+    if (not effFlat or (FState <> bsNormal) or FToggled) and
+       ((st.HasShadow and st.EnableShadow) or
        (not st.HasShadow and (FEnableShadow = 1)) or
-       (not st.HasShadow and (FEnableShadow = -1) and FtGetTheme().EnableShadow) then
+       (not st.HasShadow and (FEnableShadow = -1) and FtGetTheme().EnableShadow)) then
     begin
       if FState <> bsPressed then
         Canvas.DrawShadow(X, Y, Width, Height, effRadius, 0.0, FtGetTheme().ShadowOffsetY, FtGetTheme().ShadowBlur, 0.0, 0.0, 0.0, FtGetTheme().ShadowOpacity);
     end;
 
     // 3. Background
-    if st.HasBgColor then
-      Canvas.DrawRoundedRect(X, Y, Width, Height, effRadius, st.BgColor.R, st.BgColor.G, st.BgColor.B, st.BgColor.A)
-    else
-      Canvas.DrawRoundedRect(X, Y, Width, Height, effRadius, 0.23, 0.51, 0.96, 1.0);
+    if not effFlat or (FState <> bsNormal) or FToggled then
+    begin
+      if st.HasBgColor then
+        Canvas.DrawRoundedRect(X, Y, Width, Height, effRadius, st.BgColor.R, st.BgColor.G, st.BgColor.B, st.BgColor.A)
+      else
+        Canvas.DrawRoundedRect(X, Y, Width, Height, effRadius, 0.23, 0.51, 0.96, 1.0);
+    end;
 
     // 4. Border outline
     bw := 1.0;
     if st.HasBorderWidth then bw := st.BorderWidth;
-    if bw > 0.0 then
+    if (bw > 0.0) and (not effFlat or (FState <> bsNormal) or FToggled) then
     begin
       if st.HasBorderColor then
         Canvas.DrawRoundedRectOutline(X, Y, Width, Height, effRadius, bw, st.BorderColor.R, st.BorderColor.G, st.BorderColor.B, st.BorderColor.A)
@@ -747,9 +772,9 @@ begin
   else
   begin
     if (hasIcon or hasCustomIcon) or (effAlign <> taCenter) then
-      FtGetTheme().DrawButtonEx(Canvas, X, Y, Width, Height, FState, FToggled, '', GetFont(), FCornerRadius, FEnableShadow)
+      FtGetTheme().DrawButtonEx(Canvas, X, Y, Width, Height, FState, FToggled, '', GetFont(), FCornerRadius, FEnableShadow, effFlat)
     else
-      FtGetTheme().DrawButtonEx(Canvas, X, Y, Width, Height, FState, FToggled, Caption, GetFont(), FCornerRadius, FEnableShadow);
+      FtGetTheme().DrawButtonEx(Canvas, X, Y, Width, Height, FState, FToggled, Caption, GetFont(), FCornerRadius, FEnableShadow, effFlat);
   end;
 
   shiftY := 0;

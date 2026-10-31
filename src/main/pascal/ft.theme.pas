@@ -69,7 +69,8 @@ type
     procedure DrawButtonEx(Canvas: TFtCanvas; X, Y, W, H: Integer; 
                            State: TFtButtonState; Toggled: Boolean; 
                            const Caption: string; Font: TFtFont;
-                           CustomRadius: Double = -1.0; CustomShadow: Integer = -1); virtual;
+                           CustomRadius: Double = -1.0; CustomShadow: Integer = -1;
+                           Flat: Boolean = False); virtual;
     procedure DrawSwitch(Canvas: TFtCanvas; X, Y, W, H: Integer; 
                          State: TFtButtonState; Checked: Boolean; 
                          const Caption: string; Font: TFtFont); virtual;
@@ -637,7 +638,8 @@ end;
 procedure TFtTheme.DrawButtonEx(Canvas: TFtCanvas; X, Y, W, H: Integer; 
                                 State: TFtButtonState; Toggled: Boolean; 
                                 const Caption: string; Font: TFtFont;
-                                CustomRadius: Double; CustomShadow: Integer);
+                                CustomRadius: Double; CustomShadow: Integer;
+                                Flat: Boolean);
 var
   actualFont: TFtFont;
   rad, textR, textG, textB, plateR, plateG, plateB, borderR, borderG, borderB: Double;
@@ -724,14 +726,16 @@ begin
     Canvas.DrawRoundedRect(X - 1.5, Y - 1.5, W + 3.0, H + 3.0, rad + 1.0, haloR, haloG, haloB, 0.20);
 
   // 2. Drop shadow
-  if hasShadow and (State <> bsPressed) then
+  if hasShadow and (State <> bsPressed) and (not Flat or (State <> bsNormal) or Toggled) then
     Canvas.DrawShadow(X, Y, W, H, rad, 0.0, shOffY, shBlur, 0.0, 0.0, 0.0, shOpac);
 
   // 3. Button plate
-  Canvas.DrawRoundedRect(X, Y, W, H, rad, plateR, plateG, plateB);
+  if not Flat or (State <> bsNormal) or Toggled then
+    Canvas.DrawRoundedRect(X, Y, W, H, rad, plateR, plateG, plateB);
 
   // 4. Border outline
-  Canvas.DrawRoundedRectOutline(X, Y, W, H, rad, 1.0, borderR, borderG, borderB);
+  if not Flat or (State <> bsNormal) or Toggled then
+    Canvas.DrawRoundedRectOutline(X, Y, W, H, rad, 1.0, borderR, borderG, borderB);
 
   // 5. Centered text with tactile pressed shift
   if Caption <> '' then
