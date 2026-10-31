@@ -154,7 +154,7 @@ type
 implementation
 
 uses
-  Types, Ft.Window;
+  Types, Ft.Window, Ft.Backend.EGL;
 
 { TFtMenuItem }
 
@@ -251,6 +251,15 @@ begin
   popWin.Borderless := True;
   popWin.SkipTaskbar := True;
   popWin.Visible := False;
+  // Render popup menus on the software path, deliberately (WM-29). A menu is a
+  // short-lived override-redirect window that is created and destroyed far more
+  // often than any other window. On the EGL path its teardown (CleanupGLPipeline
+  // + eglDestroySurface/eglDestroyContext) corrupts the redirected storage of the
+  // OTHER EGL windows in the same process — measurably, destroying a task's
+  // context menu blanks the shellsama bottom panel under any compositor. Menus
+  // are small and drawn once per open, so software rendering is free.
+  if popWin is TFtEGLWindow then
+    TFtEGLWindow(popWin).IsHardwareAccelerated := False;
   FPopupWindow := popWin;
 
   Self.X := 0;
