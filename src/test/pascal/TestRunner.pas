@@ -2114,6 +2114,7 @@ var
   btn: TFtButton;
   buf: array[0..99, 0..99] of TBgraPixel;
   canvas: TFtCanvasAgg;
+  gw, gh: Integer;
 begin
   btn := TFtButton.Create(nil);
   try
@@ -2149,6 +2150,13 @@ begin
     AssertEquals('IconWidth is 20', 20, btn.IconWidth);
     AssertEquals('IconHeight is 20', 20, btn.IconHeight);
     AssertEquals('IconGap is 10', 10, btn.IconGap);
+
+    btn.SetIconSize(24, 24);
+    btn.GetIconSize(gw, gh);
+    AssertEquals('GetIconSize width is 24', 24, gw);
+    AssertEquals('GetIconSize height is 24', 24, gh);
+    AssertEquals('Reloaded icon bitmap width is 24', 24, btn.Icon.Width);
+    AssertEquals('Reloaded icon bitmap height is 24', 24, btn.Icon.Height);
 
     // 4. Rendering with icon
     canvas := TFtCanvasAgg.Create(@buf[0, 0], 100, 100);

@@ -45,6 +45,7 @@ type
     // Icon support
     FIcon: TFloriaImage;
     FOwnsIcon: Boolean;
+    FSVGContent: string;
     FIconPosition: TFtButtonIconPosition;
     FIconWidth: Integer;
     FIconHeight: Integer;
@@ -69,6 +70,7 @@ type
     procedure SetIconGap(AValue: Integer);
     procedure SetPaddingX(AValue: Double);
     procedure SetAlignment(AValue: TFtTextAlignment);
+    procedure ReloadIconSVG();
   public
     Caption: string;
     constructor Create(AParent: TFtWidget); override;
@@ -78,6 +80,8 @@ type
     procedure SetIconBitmap(ABitmap: TFloriaImage; AOwnsBitmap: Boolean = False);
     procedure LoadIconFromFile(const AFilePath: string);
     procedure LoadIconFromSVG(const ASVGContent: string);
+    procedure SetIconSize(AWidth, AHeight: Integer);
+    procedure GetIconSize(out AWidth, AHeight: Integer);
 
     function GetElementType(): string; override;
     function GetStatePseudoClass(): string; override;
@@ -259,6 +263,7 @@ begin
   else
     FIcon := nil;
   FOwnsIcon := False;
+  FSVGContent := '';
   Invalidate();
 end;
 
@@ -267,32 +272,53 @@ begin
   ClearIcon();
   FIcon := ABitmap;
   FOwnsIcon := AOwnsBitmap;
+  FSVGContent := '';
   Invalidate();
+end;
+
+procedure TFtButton.ReloadIconSVG();
+var
+  svgDoc: TSVGDocument;
+  tw, th: Integer;
+begin
+  if FSVGContent = '' then Exit;
+  try
+    svgDoc := TSVGParser.ParseString(FSVGContent);
+    if Assigned(svgDoc) then
+    begin
+      try
+        tw := FIconWidth;
+        th := FIconHeight;
+        if tw <= 0 then tw := 16;
+        if th <= 0 then th := 16;
+        if FOwnsIcon and Assigned(FIcon) then
+          FIcon.Free();
+        FIcon := TFloriaSVGRenderer.RenderToImage(svgDoc, tw, th, True);
+        FOwnsIcon := True;
+      finally
+        svgDoc.Free();
+      end;
+    end;
+  except
+    // Keep existing icon if reload fails
+  end;
 end;
 
 procedure TFtButton.LoadIconFromFile(const AFilePath: string);
 var
-  svgDoc: TSVGDocument;
-  tw, th: Integer;
+  sl: TStringList;
 begin
   ClearIcon();
   if not FileExists(AFilePath) then Exit;
   if LowerCase(ExtractFileExt(AFilePath)) = '.svg' then
   begin
     try
-      svgDoc := TSVGParser.ParseFile(AFilePath);
-      if Assigned(svgDoc) then
-      begin
-        try
-          tw := FIconWidth;
-          th := FIconHeight;
-          if tw <= 0 then tw := 16;
-          if th <= 0 then th := 16;
-          FIcon := TFloriaSVGRenderer.RenderToImage(svgDoc, tw, th, True);
-          FOwnsIcon := True;
-        finally
-          svgDoc.Free();
-        end;
+      sl := TStringList.Create();
+      try
+        sl.LoadFromFile(AFilePath);
+        LoadIconFromSVG(sl.Text);
+      finally
+        sl.Free();
       end;
     except
       FIcon := nil;
@@ -317,6 +343,7 @@ var
 begin
   ClearIcon();
   if ASVGContent = '' then Exit;
+  FSVGContent := ASVGContent;
   try
     svgDoc := TSVGParser.ParseString(ASVGContent);
     if Assigned(svgDoc) then
@@ -338,6 +365,24 @@ begin
   Invalidate();
 end;
 
+procedure TFtButton.SetIconSize(AWidth, AHeight: Integer);
+begin
+  if (FIconWidth <> AWidth) or (FIconHeight <> AHeight) then
+  begin
+    FIconWidth := AWidth;
+    FIconHeight := AHeight;
+    if FSVGContent <> '' then
+      ReloadIconSVG();
+    Invalidate();
+  end;
+end;
+
+procedure TFtButton.GetIconSize(out AWidth, AHeight: Integer);
+begin
+  AWidth := FIconWidth;
+  AHeight := FIconHeight;
+end;
+
 procedure TFtButton.SetIconPosition(AValue: TFtButtonIconPosition);
 begin
   if FIconPosition <> AValue then
@@ -352,6 +397,8 @@ begin
   if FIconWidth <> AValue then
   begin
     FIconWidth := AValue;
+    if FSVGContent <> '' then
+      ReloadIconSVG();
     Invalidate();
   end;
 end;
@@ -361,6 +408,8 @@ begin
   if FIconHeight <> AValue then
   begin
     FIconHeight := AValue;
+    if FSVGContent <> '' then
+      ReloadIconSVG();
     Invalidate();
   end;
 end;

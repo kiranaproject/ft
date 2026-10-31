@@ -856,18 +856,18 @@ end;
 procedure ft_button_set_icon_size(button: Pointer; width, height: cint32); cdecl; export;
 begin
   if Assigned(button) and (TObject(button) is TFtButton) then
-  begin
-    TFtButton(button).IconWidth := width;
-    TFtButton(button).IconHeight := height;
-  end;
+    TFtButton(button).SetIconSize(width, height);
 end;
 
 procedure ft_button_get_icon_size(button: Pointer; width, height: Pcint32); cdecl; export;
+var
+  w, h: Integer;
 begin
   if Assigned(button) and (TObject(button) is TFtButton) then
   begin
-    if Assigned(width) then width^ := TFtButton(button).IconWidth;
-    if Assigned(height) then height^ := TFtButton(button).IconHeight;
+    TFtButton(button).GetIconSize(w, h);
+    if Assigned(width) then width^ := w;
+    if Assigned(height) then height^ := h;
   end;
 end;
 
