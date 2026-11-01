@@ -1212,6 +1212,11 @@ begin
   if (FConnection = nil) or (FWindow = 0) or (GScreen = nil) then Exit;
   if atomNetWmMoveresize = 0 then Exit;
 
+  // Release client pointer grab before handing off to the window manager per EWMH spec
+  xcb_ungrab_pointer(FConnection, XCB_CURRENT_TIME);
+  xcb_flush(FConnection);
+  FPressedWidget := nil;
+
   FillChar(msg, SizeOf(msg), 0);
   msg.response_type := XCB_CLIENT_MESSAGE;
   msg.format := 32;
@@ -1241,6 +1246,11 @@ var
 begin
   if (FConnection = nil) or (FWindow = 0) or (GScreen = nil) then Exit;
   if atomNetWmMoveresize = 0 then Exit;
+
+  // Release client pointer grab before handing off to the window manager per EWMH spec
+  xcb_ungrab_pointer(FConnection, XCB_CURRENT_TIME);
+  xcb_flush(FConnection);
+  FPressedWidget := nil;
 
   FillChar(msg, SizeOf(msg), 0);
   msg.response_type := XCB_CLIENT_MESSAGE;

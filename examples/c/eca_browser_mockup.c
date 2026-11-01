@@ -143,20 +143,16 @@ static void on_window_mouse_down(FtWidget window, int32_t x, int32_t y, int32_t 
     (void)window;
     (void)user_data;
     if (button == 1 && s_window) {
-        // Top bar region drag initiation (Y <= HEADER_HEIGHT)
+        // Any click reaching the window within the header bar is on empty background space,
+        // because interactive tab buttons consume their own mouse down events.
         if (y <= HEADER_HEIGHT) {
-            int32_t tab_start_x = (s_controls_left > 0) ? (s_controls_left + 12) : 16;
-            int32_t tab_end_x = tab_start_x + (NUM_TABS * (TAB_WIDTH + TAB_GAP)) + 40;
-
-            // Only initiate move if not clicking inside the tab buttons zone
-            if (x < tab_start_x || x > tab_end_x) {
-                int32_t win_x = 0, win_y = 0;
-                ft_window_get_position(s_window, &win_x, &win_y);
-                int32_t root_x = win_x + x;
-                int32_t root_y = win_y + y;
-                printf("[ECA Browser] Window drag initiated via _NET_WM_MOVERESIZE at root (%d, %d)\n", root_x, root_y);
-                ft_window_begin_move(s_window, root_x, root_y);
-            }
+            int32_t win_x = 0, win_y = 0;
+            ft_window_get_position(s_window, &win_x, &win_y);
+            int32_t root_x = win_x + x;
+            int32_t root_y = win_y + y;
+            printf("[ECA Browser] Window drag initiated via _NET_WM_MOVERESIZE at root (%d, %d)\n", root_x, root_y);
+            fflush(stdout);
+            ft_window_begin_move(s_window, root_x, root_y);
         }
     }
 }
