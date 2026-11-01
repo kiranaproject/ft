@@ -9,7 +9,7 @@ uses
   Ft.Canvas, Floria.Canvas, Floria.Canvas.Agg, Floria.Canvas.GL, Floria.SVG.Rasterizer,
   Floria.Text.HarfBuzz, Floria.Unicode.BiDi,
   Ft.Widget, Ft.Widget.Containers, Ft.Widget.Images,
-  Ft.Widget.Tabs, Ft.Widget.Splitters, Ft.Widget.TreeViews, Ft.Widget.Tables,
+  Ft.Widget.Tabs, Ft.Widget.Splitters, Ft.Widget.TreeViews, Ft.Widget.Tables, Ft.Widget.IconViews,
   Ft.Widget.Texts, Ft.Widget.Buttons, Ft.Widget.Entries, Ft.Widget.TextAreas,
   Ft.Widget.Switches, Ft.Widget.Selectors, Ft.Widget.PathBars, Ft.Widget.UrlEntries, Ft.Window,
   Ft.Backend.X11, Ft.Backend.EGL, Floria.EGL, Ft.Theme, Floria.Font, Ft.Icons, Ft.Widget.Layouts,
@@ -88,6 +88,8 @@ type
     procedure TestFrostedGlassBackdropBlurInvalidation();
     procedure TestContainerVsPanelDefaults();
     procedure TestWidgetVisibilityAndShowing();
+    procedure TestIconViewLayoutAndItems();
+    procedure TestIconViewSelectionAndMarquee();
   end;
 
   TFtSvgTest = class(TTestCase)
@@ -2902,6 +2904,145 @@ begin
     AssertFalse('Child2 is not showing', child2.IsShowing());
   finally
     win.Free();
+  end;
+end;
+
+procedure TFtDesktopWidgetsTest.TestIconViewLayoutAndItems();
+var
+  iv: TFtIconView;
+  rx, ry, rw, rh: Double;
+  idx: Integer;
+begin
+  iv := TFtIconView.Create(nil);
+  try
+    iv.X := 0;
+    iv.Y := 0;
+    iv.Width := 400;
+    iv.Height := 300;
+
+    iv.AddItem('File1.txt');
+    iv.AddItem('File2.png');
+    iv.AddItem('File3.pdf');
+    iv.AddItem('Folder1');
+    iv.AddItem('Folder2');
+
+    AssertEquals('Item count is 5', 5, iv.ItemCount);
+    AssertEquals('Item 0 caption', 'File1.txt', iv.Items[0].Caption);
+    AssertEquals('Item 3 caption', 'Folder1', iv.Items[3].Caption);
+
+    // Default zoom is izlNormal: ItemWidth=96, SpacingX=8, PaddingX=8
+    // Width=400, availW = 400 - 16 = 384
+    // Columns = (384 + 8) / (96 + 8) = 392 / 104 = 3
+    AssertEquals('Columns computed as 3', 3, iv.Columns);
+
+    // 5 items in 3 columns = 2 rows
+    // Height = 16 + (2 * 104) + 8 = 232
+    AssertEquals('ContentHeight is 232', 232.0, iv.ContentHeight);
+
+    // Item 0 is at (0, 0): X = 8, Y = 8
+    AssertTrue('Item 0 rect ok', iv.GetItemRect(0, rx, ry, rw, rh));
+    AssertEquals('Item 0 X is 8', 8.0, rx);
+    AssertEquals('Item 0 Y is 8', 8.0, ry);
+    AssertEquals('Item 0 W is 96', 96.0, rw);
+    AssertEquals('Item 0 H is 104', 104.0, rh);
+
+    // Item 3 is at (0, 1): X = 8, Y = 8 + 104 + 8 = 120
+    AssertTrue('Item 3 rect ok', iv.GetItemRect(3, rx, ry, rw, rh));
+    AssertEquals('Item 3 X is 8', 8.0, rx);
+    AssertEquals('Item 3 Y is 120', 120.0, ry);
+
+    // Hit testing
+    idx := iv.ItemAtPosition(15, 15);
+    AssertEquals('Hit at (15, 15) is item 0', 0, idx);
+
+    idx := iv.ItemAtPosition(15, 125);
+    AssertEquals('Hit at (15, 125) is item 3', 3, idx);
+
+    // Subtext
+    iv.Items[0].SubText := '1.2 MB';
+    AssertEquals('Item 0 subtext is set', '1.2 MB', iv.Items[0].SubText);
+
+    // Zoom level change
+    iv.ZoomLevel := izlSmall;
+    AssertEquals('Icon size for small is 32', 32, iv.IconSize);
+    AssertEquals('Item width for small is 80', 80.0, iv.ItemWidth);
+
+    // Delete item
+    iv.DeleteItem(0);
+    AssertEquals('Item count after delete is 4', 4, iv.ItemCount);
+    AssertEquals('New item 0 is File2.png', 'File2.png', iv.Items[0].Caption);
+
+    // Clear
+    iv.Clear();
+    AssertEquals('Item count after clear is 0', 0, iv.ItemCount);
+  finally
+    iv.Free();
+  end;
+end;
+
+procedure TFtDesktopWidgetsTest.TestIconViewSelectionAndMarquee();
+var
+  iv: TFtIconView;
+  arr: TIntegerDynArray;
+begin
+  iv := TFtIconView.Create(nil);
+  try
+    iv.X := 0;
+    iv.Y := 0;
+    iv.Width := 400;
+    iv.Height := 300;
+
+    iv.AddItem('Item0');
+    iv.AddItem('Item1');
+    iv.AddItem('Item2');
+    iv.AddItem('Item3');
+    iv.AddItem('Item4');
+    iv.AddItem('Item5');
+
+    // Single selection
+    iv.SelectedIndex := 2;
+    AssertEquals('Selected index is 2', 2, iv.SelectedIndex);
+    AssertTrue('Item 2 is selected', iv.IsItemSelected(2));
+    AssertFalse('Item 0 is not selected', iv.IsItemSelected(0));
+
+    // Keyboard navigation Down (columns=3): from 2 moves to 5
+    iv.KeyDown($FF54, 0, '');
+    AssertEquals('KeyDown Down moved to index 5', 5, iv.SelectedIndex);
+
+    // Keyboard navigation Left: from 5 moves to 4
+    iv.KeyDown($FF51, 0, '');
+    AssertEquals('KeyDown Left moved to index 4', 4, iv.SelectedIndex);
+
+    // Keyboard navigation Up: from 4 moves to 1
+    iv.KeyDown($FF52, 0, '');
+    AssertEquals('KeyDown Up moved to index 1', 1, iv.SelectedIndex);
+
+    // Keyboard navigation Right: from 1 moves to 2
+    iv.KeyDown($FF53, 0, '');
+    AssertEquals('KeyDown Right moved to index 2', 2, iv.SelectedIndex);
+
+    // Multi-selection
+    iv.MultiSelect := True;
+    iv.SelectAll();
+    AssertEquals('SelectAll selected 6 items', 6, iv.GetSelectedCount());
+
+    arr := iv.GetSelectedIndices();
+    AssertEquals('Selected indices length is 6', 6, Length(arr));
+
+    iv.ClearSelection();
+    AssertEquals('ClearSelection cleared all items', 0, iv.GetSelectedCount());
+
+    // Marquee selection simulation: drag over items 0 and 1 in row 0 (Y: 8..112)
+    // Row 1 starts at Y: 120
+    iv.MouseDown(0, 0, 1);
+    iv.MouseMove(210, 100);
+    iv.MouseUp(210, 100, 1);
+
+    AssertTrue('Item 0 selected by marquee', iv.IsItemSelected(0));
+    AssertTrue('Item 1 selected by marquee', iv.IsItemSelected(1));
+    AssertFalse('Item 3 not selected by marquee', iv.IsItemSelected(3));
+  finally
+    iv.Free();
   end;
 end;
 

@@ -10,7 +10,7 @@ uses
   Floria.SVG.DOM, Floria.SVG.Parser, Floria.SVG.Rasterizer,
   Ft.Widget, Ft.Widget.Buttons, Ft.Widget.Entries, Ft.Widget.Texts,
   Ft.Widget.Containers, Ft.Widget.Splitters, Ft.Widget.TreeViews,
-  Ft.Widget.Tables, Ft.Widget.Selectors, Ft.Widget.PathBars,
+  Ft.Widget.Tables, Ft.Widget.IconViews, Ft.Widget.Selectors, Ft.Widget.PathBars,
   Ft.Widget.Layouts, Ft.Widget.Images, Ft.Widget.TextAreas,
   Ft.Window, Ft.Theme, Ft.Icons;
 
@@ -111,6 +111,11 @@ type
     fdtSelectFolder = 2
   );
 
+  TFtDialogViewMode = (
+    dvmList = 0,
+    dvmGrid = 1
+  );
+
   { TFtFileDialog — main file picker window }
   TFtFileDialog = class
   private
@@ -121,6 +126,7 @@ type
     FFilter:          string;
     FDefaultName:     string;
     FShowHiddenFiles: Boolean;
+    FViewMode:        TFtDialogViewMode;
 
     { Layout containers }
     FRightVBox:    TFtVBox;
@@ -135,11 +141,14 @@ type
     FPathBar:      TFtPathBar;
     FBtnNewFolder: TFtButton;
     FBtnHidden:    TFtButton;
+    FBtnViewList:  TFtButton;
+    FBtnViewGrid:  TFtButton;
 
     { Content area }
     FSplitter:    TFtSplitter;
     FPlacesTree:  TFtTreeView;
     FFileTable:   TFtTable;
+    FIconView:    TFtIconView;
 
     { Bottom bar }
     FLabelName:   TFtLabel;
@@ -182,6 +191,7 @@ type
     procedure GoForward();
     procedure GoUp();
     procedure CommitSelection();
+    procedure SetViewMode(AMode: TFtDialogViewMode);
     procedure UpdateNavButtons();
     procedure UpdateToolbarIcons();
     procedure UpdateLayout();
@@ -194,9 +204,13 @@ type
     class procedure CbBtnUp(Sender: Pointer; UserData: Pointer); cdecl; static;
     class procedure CbBtnNewFolder(Sender: Pointer; UserData: Pointer); cdecl; static;
     class procedure CbBtnHidden(Sender: Pointer; Toggled: cint32; UserData: Pointer); cdecl; static;
+    class procedure CbBtnViewList(Sender: Pointer; UserData: Pointer); cdecl; static;
+    class procedure CbBtnViewGrid(Sender: Pointer; UserData: Pointer); cdecl; static;
     class procedure CbPathBarNavigate(Sender: Pointer; const APath: PChar; UserData: Pointer); cdecl; static;
     class procedure CbPlaceSelect(Sender: Pointer; Node: Pointer; UserData: Pointer); cdecl; static;
     class procedure CbFileSelect(Sender: Pointer; RowIndex: Integer; UserData: Pointer); cdecl; static;
+    class procedure CbIconSelect(Sender: Pointer; ItemIndex: Integer; UserData: Pointer); cdecl; static;
+    class procedure CbIconActivate(Sender: Pointer; ItemIndex: Integer; UserData: Pointer); cdecl; static;
     class procedure CbBtnAction(Sender: Pointer; UserData: Pointer); cdecl; static;
     class procedure CbBtnCancel(Sender: Pointer; UserData: Pointer); cdecl; static;
     class procedure CbEntrySubmit(Sender: Pointer; Text: PChar; UserData: Pointer); cdecl; static;
@@ -213,6 +227,7 @@ type
     property DefaultName:     string read FDefaultName write FDefaultName;
     property Filter:          string read FFilter write FFilter;
     property ShowHiddenFiles: Boolean read FShowHiddenFiles write FShowHiddenFiles;
+    property ViewMode:        TFtDialogViewMode read FViewMode write SetViewMode;
     property SelectedPath:    string read FSelectedPath;
   end;
 
@@ -424,6 +439,7 @@ begin
   FFilter := '';
   FDefaultName := '';
   FShowHiddenFiles := False;
+  FViewMode := dvmList;
   FHistory := TStringList.Create();
   FHistoryPos := -1;
   FPendingNavigate := '';
@@ -550,6 +566,33 @@ begin
   FBtnHidden.OnToggle := @CbBtnHidden;
   FBtnHidden.UserData := Self;
 
+  { View mode switcher: [ List | Grid ] }
+  FBtnViewList := TFtButton.Create(FNavHBox);
+  FBtnViewList.SetBounds(0, 0, 30, 30);
+  FBtnViewList.Caption := '';
+  FBtnViewList.Hint := 'List View';
+  FBtnViewList.CanToggle := True;
+  FBtnViewList.Toggled := (FViewMode = dvmList);
+  FBtnViewList.IconPosition := ftbipOnly;
+  FBtnViewList.IconWidth := 16;
+  FBtnViewList.IconHeight := 16;
+  FBtnViewList.LoadIconFromSVG(FtGetIconSvg('view-list', FtGetDarkMode()));
+  FBtnViewList.OnClick := @CbBtnViewList;
+  FBtnViewList.UserData := Self;
+
+  FBtnViewGrid := TFtButton.Create(FNavHBox);
+  FBtnViewGrid.SetBounds(0, 0, 30, 30);
+  FBtnViewGrid.Caption := '';
+  FBtnViewGrid.Hint := 'Grid View';
+  FBtnViewGrid.CanToggle := True;
+  FBtnViewGrid.Toggled := (FViewMode = dvmGrid);
+  FBtnViewGrid.IconPosition := ftbipOnly;
+  FBtnViewGrid.IconWidth := 16;
+  FBtnViewGrid.IconHeight := 16;
+  FBtnViewGrid.LoadIconFromSVG(FtGetIconSvg('view-grid', FtGetDarkMode()));
+  FBtnViewGrid.OnClick := @CbBtnViewGrid;
+  FBtnViewGrid.UserData := Self;
+
   { ── Row 2: File Name input on top of file list ── }
   FNameHBox := TFtHBox.Create(FRightVBox);
   FNameHBox.Height := 30;
@@ -575,6 +618,7 @@ begin
   { ── Row 3: File Table ── }
   FFileTable := TFtTable.Create(FRightVBox);
   FFileTable.FlexGrow := 1.0;
+  FFileTable.Visible := (FViewMode = dvmList);
   FFileTable.ZebraStriping := True;
   FFileTable.ShowGridLines := False;
   FFileTable.OnSelectRowCb := @CbFileSelect;
@@ -587,6 +631,16 @@ begin
   FFileTable.AddColumn('Size', 80, taRight);
   FFileTable.AddColumn('Modified', 130, taLeft);
   FFileTable.AddColumn('Type', 80, taLeft);
+
+  { ── Row 3b: Icon / Grid View ── }
+  FIconView := TFtIconView.Create(FRightVBox);
+  FIconView.FlexGrow := 1.0;
+  FIconView.Visible := (FViewMode = dvmGrid);
+  FIconView.ZoomLevel := izlNormal;
+  FIconView.OnSelectItemCb := @CbIconSelect;
+  FIconView.OnItemActivateCb := @CbIconActivate;
+  FIconView.UserData := Self;
+  FIconView.OnItemActivateUserData := Self;
 
   { ── Row 4: Bottom bar ── }
   FBottomHBox := TFtHBox.Create(FRightVBox);
@@ -699,6 +753,8 @@ var
   rowIdx: Integer;
 begin
   FFileTable.ClearRows();
+  if Assigned(FIconView) then
+    FIconView.Clear();
   DirCount := 0;
   FileCount := 0;
   SetLength(Dirs, 0);
@@ -763,6 +819,12 @@ begin
     { Tag = 1 means directory }
     TFtTableRow(FFileTable.Rows[rowIdx]).Tag := 1;
     FFileTable.SetCellIcon(rowIdx, 0, FIconFolder);
+
+    if Assigned(FIconView) then
+    begin
+      rowIdx := FIconView.AddItem(Dirs[i].Name, FIconFolder);
+      FIconView.Items[rowIdx].Tag := 1;
+    end;
   end;
 
   { Insert files }
@@ -777,9 +839,18 @@ begin
       ext]);
     TFtTableRow(FFileTable.Rows[rowIdx]).Tag := 0;
     FFileTable.SetCellIcon(rowIdx, 0, GetFileIcon(ext));
+
+    if Assigned(FIconView) then
+    begin
+      rowIdx := FIconView.AddItem(Files[i].Name, GetFileIcon(ext));
+      FIconView.Items[rowIdx].Tag := 0;
+      FIconView.Items[rowIdx].SubText := FormatFileSize(Files[i].Size);
+    end;
   end;
 
   FFileTable.Invalidate();
+  if Assigned(FIconView) then
+    FIconView.Invalidate();
 end;
 
 procedure TFtFileDialog.NavigateTo(const APath: string);
@@ -855,8 +926,6 @@ var
   selName: string;
   fullPath: string;
 begin
-  selIdx := FFileTable.SelectedRow;
-
   if FDialogType = fdtSelectFolder then
   begin
     FSelectedPath := FCurrentDir;
@@ -865,17 +934,35 @@ begin
     Exit;
   end;
 
-  { Priority: table selection → name entry }
-  if (selIdx >= 0) and (selIdx < FFileTable.RowCount) and
-     (TFtTableRow(FFileTable.Rows[selIdx]).Tag = 0) then
+  if (FViewMode = dvmGrid) and Assigned(FIconView) then
   begin
-    selName := FFileTable.GetCell(selIdx, 0);
-    fullPath := IncludeTrailingPathDelimiter(FCurrentDir) + selName;
-    FEntryName.Text := selName;
-    FSelectedPath := fullPath;
-    FWindow.ModalResult := mrOk;
-    FWindow.Hide();
-    Exit;
+    selIdx := FIconView.SelectedIndex;
+    if (selIdx >= 0) and (selIdx < FIconView.ItemCount) and
+       (FIconView.Items[selIdx].Tag = 0) then
+    begin
+      selName := FIconView.Items[selIdx].Caption;
+      fullPath := IncludeTrailingPathDelimiter(FCurrentDir) + selName;
+      FEntryName.Text := selName;
+      FSelectedPath := fullPath;
+      FWindow.ModalResult := mrOk;
+      FWindow.Hide();
+      Exit;
+    end;
+  end
+  else
+  begin
+    selIdx := FFileTable.SelectedRow;
+    if (selIdx >= 0) and (selIdx < FFileTable.RowCount) and
+       (TFtTableRow(FFileTable.Rows[selIdx]).Tag = 0) then
+    begin
+      selName := FFileTable.GetCell(selIdx, 0);
+      fullPath := IncludeTrailingPathDelimiter(FCurrentDir) + selName;
+      FEntryName.Text := selName;
+      FSelectedPath := fullPath;
+      FWindow.ModalResult := mrOk;
+      FWindow.Hide();
+      Exit;
+    end;
   end;
 
   if Trim(FEntryName.Text) <> '' then
@@ -908,6 +995,8 @@ begin
   if Assigned(FBtnUp) then FBtnUp.LoadIconFromSVG(GetNavUpSvg(isDark));
   if Assigned(FBtnHidden) then FBtnHidden.LoadIconFromSVG(GetHiddenSvg(isDark));
   if Assigned(FBtnNewFolder) then FBtnNewFolder.LoadIconFromSVG(GetNewFolderSvg(isDark));
+  if Assigned(FBtnViewList) then FBtnViewList.LoadIconFromSVG(FtGetIconSvg('view-list', isDark));
+  if Assigned(FBtnViewGrid) then FBtnViewGrid.LoadIconFromSVG(FtGetIconSvg('view-grid', isDark));
 
   { Refresh outline place icons with new dark mode palette }
   FreeIcons();
@@ -1015,6 +1104,108 @@ begin
   dlg := TFtFileDialog(UserData);
   dlg.FShowHiddenFiles := (Toggled <> 0);
   dlg.RefreshList();
+end;
+
+procedure TFtFileDialog.SetViewMode(AMode: TFtDialogViewMode);
+var
+  selIdx: Integer;
+begin
+  FViewMode := AMode;
+  if Assigned(FBtnViewList) then
+    FBtnViewList.Toggled := (FViewMode = dvmList);
+  if Assigned(FBtnViewGrid) then
+    FBtnViewGrid.Toggled := (FViewMode = dvmGrid);
+
+  if Assigned(FFileTable) and Assigned(FIconView) then
+  begin
+    if FViewMode = dvmList then
+    begin
+      selIdx := FIconView.SelectedIndex;
+      FIconView.Visible := False;
+      FFileTable.Visible := True;
+      if (selIdx >= 0) and (selIdx < FFileTable.RowCount) then
+        FFileTable.SelectedRow := selIdx;
+    end
+    else
+    begin
+      selIdx := FFileTable.SelectedRow;
+      FFileTable.Visible := False;
+      FIconView.Visible := True;
+      if (selIdx >= 0) and (selIdx < FIconView.ItemCount) then
+        FIconView.SelectedIndex := selIdx;
+    end;
+  end;
+
+  if Assigned(FRightVBox) then
+    FRightVBox.UpdateLayout();
+  if Assigned(FWindow) then
+    FWindow.Invalidate();
+end;
+
+class procedure TFtFileDialog.CbBtnViewList(Sender: Pointer; UserData: Pointer); cdecl;
+begin
+  TFtFileDialog(UserData).SetViewMode(dvmList);
+end;
+
+class procedure TFtFileDialog.CbBtnViewGrid(Sender: Pointer; UserData: Pointer); cdecl;
+begin
+  TFtFileDialog(UserData).SetViewMode(dvmGrid);
+end;
+
+class procedure TFtFileDialog.CbIconSelect(Sender: Pointer; ItemIndex: Integer;
+  UserData: Pointer); cdecl;
+var
+  dlg: TFtFileDialog;
+  item: TFtIconViewItem;
+begin
+  dlg := TFtFileDialog(UserData);
+  if not Assigned(dlg.FIconView) or (ItemIndex < 0) or (ItemIndex >= dlg.FIconView.ItemCount) then
+    Exit;
+
+  item := dlg.FIconView.Items[ItemIndex];
+  if item.Tag = 1 then
+  begin
+    if dlg.FDialogType = fdtSelectFolder then
+      dlg.FEntryName.Text :=
+        IncludeTrailingPathDelimiter(dlg.FCurrentDir) + item.Caption;
+  end
+  else
+  begin
+    if dlg.FDialogType <> fdtSelectFolder then
+      dlg.FEntryName.Text := item.Caption;
+  end;
+
+  dlg.FEntryName.Invalidate();
+end;
+
+class procedure TFtFileDialog.CbIconActivate(Sender: Pointer; ItemIndex: Integer;
+  UserData: Pointer); cdecl;
+var
+  dlg: TFtFileDialog;
+  item: TFtIconViewItem;
+  fullPath: string;
+begin
+  dlg := TFtFileDialog(UserData);
+  if not Assigned(dlg.FIconView) or (ItemIndex < 0) or (ItemIndex >= dlg.FIconView.ItemCount) then
+    Exit;
+
+  item := dlg.FIconView.Items[ItemIndex];
+  fullPath := IncludeTrailingPathDelimiter(dlg.FCurrentDir) + item.Caption;
+
+  if item.Tag = 1 then
+  begin
+    dlg.FPendingNavigate := fullPath;
+  end
+  else
+  begin
+    if dlg.FDialogType <> fdtSelectFolder then
+    begin
+      dlg.FEntryName.Text := item.Caption;
+      dlg.FSelectedPath := fullPath;
+      dlg.FWindow.ModalResult := mrOk;
+      dlg.FWindow.Hide();
+    end;
+  end;
 end;
 
 class procedure TFtFileDialog.CbPathBarNavigate(Sender: Pointer;

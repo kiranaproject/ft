@@ -216,6 +216,19 @@ const
     '<path d="M 13.5 2.5 L 13.5 6.5 L 9.5 6.5" fill="none" stroke="#64748b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>' +
     '</svg>';
 
+  FT_ICON_VIEW_LIST =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<path d="M 2.5 4 L 13.5 4 M 2.5 8 L 13.5 8 M 2.5 12 L 13.5 12" fill="none" stroke="#64748b" stroke-width="1.8" stroke-linecap="round"/>' +
+    '</svg>';
+
+  FT_ICON_VIEW_GRID =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<rect x="2" y="2" width="5" height="5" rx="1" fill="#64748b"/>' +
+    '<rect x="9" y="2" width="5" height="5" rx="1" fill="#64748b"/>' +
+    '<rect x="2" y="9" width="5" height="5" rx="1" fill="#64748b"/>' +
+    '<rect x="9" y="9" width="5" height="5" rx="1" fill="#64748b"/>' +
+    '</svg>';
+
   { Dialog Icons (48x48) }
   FT_ICON_DIALOG_INFO =
     '<svg viewBox="0 0 48 48" width="48" height="48">' +
@@ -492,6 +505,10 @@ begin
   RegisterIcon('close', FT_ICON_CLOSE);
   RegisterIcon('search', FT_ICON_SEARCH);
   RegisterIcon('refresh', FT_ICON_REFRESH);
+  RegisterIcon('view-list', FT_ICON_VIEW_LIST);
+  RegisterIcon('list', FT_ICON_VIEW_LIST);
+  RegisterIcon('view-grid', FT_ICON_VIEW_GRID);
+  RegisterIcon('grid', FT_ICON_VIEW_GRID);
 
   { Dialog Severity Icons }
   RegisterIcon('dialog-info', FT_ICON_DIALOG_INFO);

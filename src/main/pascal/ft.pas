@@ -36,6 +36,7 @@ uses
   Ft.Widget.Splitters,
   Ft.Widget.TreeViews,
   Ft.Widget.Tables,
+  Ft.Widget.IconViews,
   Ft.Widget.PathBars,
   Ft.Widget.UrlEntries,
   Ft.Dialogs,
@@ -80,6 +81,8 @@ var
   gLastTabTitle: AnsiString;
   gLastTreeNodeText: AnsiString;
   gLastTableCellText: AnsiString;
+  gLastIconItemCaption: AnsiString;
+  gLastIconItemSubText: AnsiString;
   gLastTableColTitle: AnsiString;
 
 procedure ft_init(); cdecl; export;
@@ -5877,6 +5880,466 @@ begin
   tbl.SetOnColumnClickCb(callback, user_data);
 end;
 
+{ ──────────────────────── Icon Views ────────────────────────────────── }
+
+function ft_icon_view_create(parent: Pointer; x, y, w, h: cint32): Pointer; cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  AdjustChildCoordinates(parent, x, y);
+  iv := TFtIconView.Create(TFtWidget(parent));
+  iv.X := x;
+  iv.Y := y;
+  iv.Width := w;
+  iv.Height := h;
+  if Assigned(parent) and (TObject(parent) is TFtContainer) then
+    TFtContainer(parent).UpdateScrollBars();
+  Result := Pointer(iv);
+end;
+
+function ft_icon_view_add_item(icon_view: Pointer; caption: PAnsiChar; icon: Pointer): cint32; cdecl; export;
+var
+  iv: TFtIconView;
+  sCap: string;
+begin
+  Result := -1;
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  if Assigned(caption) then sCap := string(caption) else sCap := '';
+  Result := iv.AddItem(sCap, TFloriaImage(icon));
+end;
+
+function ft_icon_view_insert_item(icon_view: Pointer; index: cint32; caption: PAnsiChar; icon: Pointer): cint32; cdecl; export;
+var
+  iv: TFtIconView;
+  sCap: string;
+begin
+  Result := -1;
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  if Assigned(caption) then sCap := string(caption) else sCap := '';
+  Result := iv.InsertItem(index, sCap, TFloriaImage(icon));
+end;
+
+procedure ft_icon_view_delete_item(icon_view: Pointer; index: cint32); cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  iv.DeleteItem(index);
+end;
+
+procedure ft_icon_view_clear(icon_view: Pointer); cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  iv.Clear();
+end;
+
+function ft_icon_view_get_item_count(icon_view: Pointer): cint32; cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  Result := 0;
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  Result := iv.ItemCount;
+end;
+
+function ft_icon_view_get_item_caption(icon_view: Pointer; index: cint32): PAnsiChar; cdecl; export;
+var
+  iv: TFtIconView;
+  it: TFtIconViewItem;
+begin
+  Result := nil;
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  it := iv.Items[index];
+  if Assigned(it) then
+  begin
+    gLastIconItemCaption := AnsiString(it.Caption);
+    Result := PAnsiChar(gLastIconItemCaption);
+  end;
+end;
+
+procedure ft_icon_view_set_item_caption(icon_view: Pointer; index: cint32; caption: PAnsiChar); cdecl; export;
+var
+  iv: TFtIconView;
+  it: TFtIconViewItem;
+begin
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  it := iv.Items[index];
+  if Assigned(it) then
+  begin
+    if Assigned(caption) then it.Caption := string(caption) else it.Caption := '';
+    iv.Invalidate();
+  end;
+end;
+
+function ft_icon_view_get_item_subtext(icon_view: Pointer; index: cint32): PAnsiChar; cdecl; export;
+var
+  iv: TFtIconView;
+  it: TFtIconViewItem;
+begin
+  Result := nil;
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  it := iv.Items[index];
+  if Assigned(it) then
+  begin
+    gLastIconItemSubText := AnsiString(it.SubText);
+    Result := PAnsiChar(gLastIconItemSubText);
+  end;
+end;
+
+procedure ft_icon_view_set_item_subtext(icon_view: Pointer; index: cint32; subtext: PAnsiChar); cdecl; export;
+var
+  iv: TFtIconView;
+  it: TFtIconViewItem;
+begin
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  it := iv.Items[index];
+  if Assigned(it) then
+  begin
+    if Assigned(subtext) then it.SubText := string(subtext) else it.SubText := '';
+    iv.Invalidate();
+  end;
+end;
+
+function ft_icon_view_get_item_icon(icon_view: Pointer; index: cint32): Pointer; cdecl; export;
+var
+  iv: TFtIconView;
+  it: TFtIconViewItem;
+begin
+  Result := nil;
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  it := iv.Items[index];
+  if Assigned(it) then
+    Result := Pointer(it.Icon);
+end;
+
+procedure ft_icon_view_set_item_icon(icon_view: Pointer; index: cint32; icon: Pointer); cdecl; export;
+var
+  iv: TFtIconView;
+  it: TFtIconViewItem;
+begin
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  it := iv.Items[index];
+  if Assigned(it) then
+  begin
+    it.Icon := TFloriaImage(icon);
+    iv.Invalidate();
+  end;
+end;
+
+function ft_icon_view_get_item_tag(icon_view: Pointer; index: cint32): cint32; cdecl; export;
+var
+  iv: TFtIconView;
+  it: TFtIconViewItem;
+begin
+  Result := 0;
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  it := iv.Items[index];
+  if Assigned(it) then Result := it.Tag;
+end;
+
+procedure ft_icon_view_set_item_tag(icon_view: Pointer; index: cint32; tag: cint32); cdecl; export;
+var
+  iv: TFtIconView;
+  it: TFtIconViewItem;
+begin
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  it := iv.Items[index];
+  if Assigned(it) then it.Tag := tag;
+end;
+
+function ft_icon_view_get_item_data(icon_view: Pointer; index: cint32): Pointer; cdecl; export;
+var
+  iv: TFtIconView;
+  it: TFtIconViewItem;
+begin
+  Result := nil;
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  it := iv.Items[index];
+  if Assigned(it) then Result := it.Data;
+end;
+
+procedure ft_icon_view_set_item_data(icon_view: Pointer; index: cint32; data: Pointer); cdecl; export;
+var
+  iv: TFtIconView;
+  it: TFtIconViewItem;
+begin
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  it := iv.Items[index];
+  if Assigned(it) then it.Data := data;
+end;
+
+function ft_icon_view_get_selected_index(icon_view: Pointer): cint32; cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  Result := -1;
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  Result := iv.SelectedIndex;
+end;
+
+procedure ft_icon_view_set_selected_index(icon_view: Pointer; index: cint32); cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  iv.SelectedIndex := index;
+end;
+
+function ft_icon_view_get_multi_select(icon_view: Pointer): cint32; cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  Result := 0;
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  Result := Ord(iv.MultiSelect);
+end;
+
+procedure ft_icon_view_set_multi_select(icon_view: Pointer; enabled: cint32); cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  iv.MultiSelect := (enabled <> 0);
+end;
+
+function ft_icon_view_is_item_selected(icon_view: Pointer; index: cint32): cint32; cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  Result := 0;
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  Result := Ord(iv.IsItemSelected(index));
+end;
+
+procedure ft_icon_view_set_item_selected(icon_view: Pointer; index: cint32; selected: cint32); cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  iv.SetItemSelected(index, selected <> 0);
+end;
+
+procedure ft_icon_view_select_all(icon_view: Pointer); cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  iv.SelectAll();
+end;
+
+procedure ft_icon_view_clear_selection(icon_view: Pointer); cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  iv.ClearSelection();
+end;
+
+function ft_icon_view_get_selected_count(icon_view: Pointer): cint32; cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  Result := 0;
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  Result := iv.GetSelectedCount();
+end;
+
+function ft_icon_view_get_selected_indices(icon_view: Pointer; out_indices: Pcint32; max_count: cint32): cint32; cdecl; export;
+var
+  iv: TFtIconView;
+  arr: TIntegerDynArray;
+  i, copyCount: Integer;
+begin
+  Result := 0;
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) or not Assigned(out_indices) or (max_count <= 0) then Exit;
+  iv := TFtIconView(icon_view);
+  arr := iv.GetSelectedIndices();
+  copyCount := Min(Length(arr), max_count);
+  for i := 0 to copyCount - 1 do
+    out_indices[i] := arr[i];
+  Result := copyCount;
+end;
+
+function ft_icon_view_get_zoom_level(icon_view: Pointer): cint32; cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  Result := 1;
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  Result := Ord(iv.ZoomLevel);
+end;
+
+procedure ft_icon_view_set_zoom_level(icon_view: Pointer; level: cint32); cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  if (level >= Ord(Low(TFtIconZoomLevel))) and (level <= Ord(High(TFtIconZoomLevel))) then
+    iv.ZoomLevel := TFtIconZoomLevel(level);
+end;
+
+function ft_icon_view_get_icon_size(icon_view: Pointer): cint32; cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  Result := 48;
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  Result := iv.IconSize;
+end;
+
+procedure ft_icon_view_set_icon_size(icon_view: Pointer; size: cint32); cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  iv.IconSize := size;
+end;
+
+function ft_icon_view_get_item_width(icon_view: Pointer): Double; cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  Result := 96.0;
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  Result := iv.ItemWidth;
+end;
+
+procedure ft_icon_view_set_item_width(icon_view: Pointer; width: Double); cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  iv.ItemWidth := width;
+end;
+
+function ft_icon_view_get_item_height(icon_view: Pointer): Double; cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  Result := 104.0;
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  Result := iv.ItemHeight;
+end;
+
+procedure ft_icon_view_set_item_height(icon_view: Pointer; height: Double); cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  iv.ItemHeight := height;
+end;
+
+function ft_icon_view_get_spacing_x(icon_view: Pointer): Double; cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  Result := 8.0;
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  Result := iv.SpacingX;
+end;
+
+procedure ft_icon_view_set_spacing_x(icon_view: Pointer; spacing: Double); cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  iv.SpacingX := spacing;
+end;
+
+function ft_icon_view_get_spacing_y(icon_view: Pointer): Double; cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  Result := 8.0;
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  Result := iv.SpacingY;
+end;
+
+procedure ft_icon_view_set_spacing_y(icon_view: Pointer; spacing: Double); cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  iv.SpacingY := spacing;
+end;
+
+procedure ft_icon_view_scroll_into_view(icon_view: Pointer; index: cint32); cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  iv.ScrollIntoView(index);
+end;
+
+procedure ft_icon_view_on_select_item(icon_view: Pointer; callback: TFtIconSelectCallback; user_data: Pointer); cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  iv.OnSelectItemCb := callback;
+  iv.UserData := user_data;
+end;
+
+procedure ft_icon_view_on_item_activate(icon_view: Pointer; callback: TFtIconActivateCallback; user_data: Pointer); cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  iv.OnItemActivateCb := callback;
+  iv.OnItemActivateUserData := user_data;
+end;
+
+procedure ft_icon_view_on_context_menu(icon_view: Pointer; callback: TFtIconContextMenuCallback; user_data: Pointer); cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  iv.OnContextMenuCb := callback;
+  iv.OnContextMenuUserData := user_data;
+end;
+
 { ──────────────────────── File Dialogs ────────────────────────────────── }
 
 { Handle-based object API }
@@ -7162,6 +7625,50 @@ exports
   ft_table_auto_fit_columns,
   ft_table_on_column_resize,
   ft_table_on_column_click,
+
+  // IconView
+  ft_icon_view_create,
+  ft_icon_view_add_item,
+  ft_icon_view_insert_item,
+  ft_icon_view_delete_item,
+  ft_icon_view_clear,
+  ft_icon_view_get_item_count,
+  ft_icon_view_get_item_caption,
+  ft_icon_view_set_item_caption,
+  ft_icon_view_get_item_subtext,
+  ft_icon_view_set_item_subtext,
+  ft_icon_view_get_item_icon,
+  ft_icon_view_set_item_icon,
+  ft_icon_view_get_item_tag,
+  ft_icon_view_set_item_tag,
+  ft_icon_view_get_item_data,
+  ft_icon_view_set_item_data,
+  ft_icon_view_get_selected_index,
+  ft_icon_view_set_selected_index,
+  ft_icon_view_get_multi_select,
+  ft_icon_view_set_multi_select,
+  ft_icon_view_is_item_selected,
+  ft_icon_view_set_item_selected,
+  ft_icon_view_select_all,
+  ft_icon_view_clear_selection,
+  ft_icon_view_get_selected_count,
+  ft_icon_view_get_selected_indices,
+  ft_icon_view_get_zoom_level,
+  ft_icon_view_set_zoom_level,
+  ft_icon_view_get_icon_size,
+  ft_icon_view_set_icon_size,
+  ft_icon_view_get_item_width,
+  ft_icon_view_set_item_width,
+  ft_icon_view_get_item_height,
+  ft_icon_view_set_item_height,
+  ft_icon_view_get_spacing_x,
+  ft_icon_view_set_spacing_x,
+  ft_icon_view_get_spacing_y,
+  ft_icon_view_set_spacing_y,
+  ft_icon_view_scroll_into_view,
+  ft_icon_view_on_select_item,
+  ft_icon_view_on_item_activate,
+  ft_icon_view_on_context_menu,
 
   // PathBar
   ft_path_bar_create,

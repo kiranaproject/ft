@@ -1056,6 +1056,64 @@ void ft_table_auto_fit_column(FtTable table, int32_t col_idx);
 void ft_table_auto_fit_columns(FtTable table);
 void ft_table_on_column_resize(FtTable table, FtTableColumnResizeCallback callback, void* user_data);
 
+/* ─── Icon View ────────────────────────────────────────────────────────── */
+
+typedef void* FtIconView;
+
+enum {
+  FT_ICON_ZOOM_SMALL  = 0,
+  FT_ICON_ZOOM_NORMAL = 1,
+  FT_ICON_ZOOM_LARGE  = 2,
+  FT_ICON_ZOOM_HUGE   = 3
+};
+
+typedef void (*FtIconSelectCallback)(void* sender, int32_t item_index, void* user_data);
+typedef void (*FtIconActivateCallback)(void* sender, int32_t item_index, void* user_data);
+typedef void (*FtIconContextMenuCallback)(void* sender, int32_t item_index, int32_t screen_x, int32_t screen_y, void* user_data);
+
+FtIconView ft_icon_view_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h);
+int32_t ft_icon_view_add_item(FtIconView icon_view, const char* caption, FtBitmap icon);
+int32_t ft_icon_view_insert_item(FtIconView icon_view, int32_t index, const char* caption, FtBitmap icon);
+void ft_icon_view_delete_item(FtIconView icon_view, int32_t index);
+void ft_icon_view_clear(FtIconView icon_view);
+int32_t ft_icon_view_get_item_count(FtIconView icon_view);
+const char* ft_icon_view_get_item_caption(FtIconView icon_view, int32_t index);
+void ft_icon_view_set_item_caption(FtIconView icon_view, int32_t index, const char* caption);
+const char* ft_icon_view_get_item_subtext(FtIconView icon_view, int32_t index);
+void ft_icon_view_set_item_subtext(FtIconView icon_view, int32_t index, const char* subtext);
+FtBitmap ft_icon_view_get_item_icon(FtIconView icon_view, int32_t index);
+void ft_icon_view_set_item_icon(FtIconView icon_view, int32_t index, FtBitmap icon);
+int32_t ft_icon_view_get_item_tag(FtIconView icon_view, int32_t index);
+void ft_icon_view_set_item_tag(FtIconView icon_view, int32_t index, int32_t tag);
+void* ft_icon_view_get_item_data(FtIconView icon_view, int32_t index);
+void ft_icon_view_set_item_data(FtIconView icon_view, int32_t index, void* data);
+int32_t ft_icon_view_get_selected_index(FtIconView icon_view);
+void ft_icon_view_set_selected_index(FtIconView icon_view, int32_t index);
+int32_t ft_icon_view_get_multi_select(FtIconView icon_view);
+void ft_icon_view_set_multi_select(FtIconView icon_view, int32_t enabled);
+int32_t ft_icon_view_is_item_selected(FtIconView icon_view, int32_t index);
+void ft_icon_view_set_item_selected(FtIconView icon_view, int32_t index, int32_t selected);
+void ft_icon_view_select_all(FtIconView icon_view);
+void ft_icon_view_clear_selection(FtIconView icon_view);
+int32_t ft_icon_view_get_selected_count(FtIconView icon_view);
+int32_t ft_icon_view_get_selected_indices(FtIconView icon_view, int32_t* out_indices, int32_t max_count);
+int32_t ft_icon_view_get_zoom_level(FtIconView icon_view);
+void ft_icon_view_set_zoom_level(FtIconView icon_view, int32_t level);
+int32_t ft_icon_view_get_icon_size(FtIconView icon_view);
+void ft_icon_view_set_icon_size(FtIconView icon_view, int32_t size);
+double ft_icon_view_get_item_width(FtIconView icon_view);
+void ft_icon_view_set_item_width(FtIconView icon_view, double width);
+double ft_icon_view_get_item_height(FtIconView icon_view);
+void ft_icon_view_set_item_height(FtIconView icon_view, double height);
+double ft_icon_view_get_spacing_x(FtIconView icon_view);
+void ft_icon_view_set_spacing_x(FtIconView icon_view, double spacing);
+double ft_icon_view_get_spacing_y(FtIconView icon_view);
+void ft_icon_view_set_spacing_y(FtIconView icon_view, double spacing);
+void ft_icon_view_scroll_into_view(FtIconView icon_view, int32_t index);
+void ft_icon_view_on_select_item(FtIconView icon_view, FtIconSelectCallback callback, void* user_data);
+void ft_icon_view_on_item_activate(FtIconView icon_view, FtIconActivateCallback callback, void* user_data);
+void ft_icon_view_on_context_menu(FtIconView icon_view, FtIconContextMenuCallback callback, void* user_data);
+
 /* ─── File Dialogs ─────────────────────────────────────────────────────── */
 
 typedef void* FtFileDialog;
