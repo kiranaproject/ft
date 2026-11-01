@@ -139,6 +139,9 @@ type
     FBtnForward:   TFtButton;
     FBtnUp:        TFtButton;
     FPathBar:      TFtPathBar;
+    FBtnSearch:    TFtButton;
+    FSearchEntry:  TFtEntry;
+    FSearchFilter: string;
     FBtnNewFolder: TFtButton;
     FBtnHidden:    TFtButton;
     FBtnViewList:  TFtButton;
@@ -178,6 +181,9 @@ type
     FIconPictures:  TFloriaImage;
     FIconMusic:     TFloriaImage;
     FIconDrive:     TFloriaImage;
+    FIconVideos:    TFloriaImage;
+    FIconTrash:     TFloriaImage;
+    FIconBookmark:  TFloriaImage;
 
     procedure InitIcons();
     procedure FreeIcons();
@@ -192,6 +198,7 @@ type
     procedure GoUp();
     procedure CommitSelection();
     procedure SetViewMode(AMode: TFtDialogViewMode);
+    procedure ToggleSearch();
     procedure UpdateNavButtons();
     procedure UpdateToolbarIcons();
     procedure UpdateLayout();
@@ -202,6 +209,8 @@ type
     class procedure CbBtnBack(Sender: Pointer; UserData: Pointer); cdecl; static;
     class procedure CbBtnForward(Sender: Pointer; UserData: Pointer); cdecl; static;
     class procedure CbBtnUp(Sender: Pointer; UserData: Pointer); cdecl; static;
+    class procedure CbBtnSearch(Sender: Pointer; UserData: Pointer); cdecl; static;
+    class procedure CbSearchChange(Sender: Pointer; Text: PChar; UserData: Pointer); cdecl; static;
     class procedure CbBtnNewFolder(Sender: Pointer; UserData: Pointer); cdecl; static;
     class procedure CbBtnHidden(Sender: Pointer; Toggled: cint32; UserData: Pointer); cdecl; static;
     class procedure CbBtnViewList(Sender: Pointer; UserData: Pointer); cdecl; static;
@@ -214,6 +223,7 @@ type
     class procedure CbBtnAction(Sender: Pointer; UserData: Pointer); cdecl; static;
     class procedure CbBtnCancel(Sender: Pointer; UserData: Pointer); cdecl; static;
     class procedure CbEntrySubmit(Sender: Pointer; Text: PChar; UserData: Pointer); cdecl; static;
+    class procedure CbWindowKey(Sender: Pointer; KeySym: Cardinal; IsDown: cint32; UserData: Pointer); cdecl; static;
     procedure HandleColumnClick(Sender: TObject; ColumnIndex: Integer);
     procedure HandleFileDoubleClick(Sender: TObject; RowIndex: Integer);
   public
@@ -393,6 +403,9 @@ begin
   FIconPictures  := FtGetIconBitmap('outline-pictures', 16, 16, isDark);
   FIconMusic     := FtGetIconBitmap('outline-music', 16, 16, isDark);
   FIconDrive     := FtGetIconBitmap('outline-drive', 16, 16, isDark);
+  FIconVideos    := FtGetIconBitmap('outline-videos', 16, 16, isDark);
+  FIconTrash     := FtGetIconBitmap('outline-trash', 16, 16, isDark);
+  FIconBookmark  := FtGetIconBitmap('outline-bookmark', 16, 16, isDark);
 end;
 
 procedure TFtFileDialog.FreeIcons();
@@ -409,6 +422,9 @@ begin
   if Assigned(FIconPictures) then FreeAndNil(FIconPictures);
   if Assigned(FIconMusic) then FreeAndNil(FIconMusic);
   if Assigned(FIconDrive) then FreeAndNil(FIconDrive);
+  if Assigned(FIconVideos) then FreeAndNil(FIconVideos);
+  if Assigned(FIconTrash) then FreeAndNil(FIconTrash);
+  if Assigned(FIconBookmark) then FreeAndNil(FIconBookmark);
 end;
 
 function TFtFileDialog.GetFileIcon(const AExt: string): TFloriaImage;
@@ -470,6 +486,8 @@ begin
   FWindow := FtCreateWindow(DIALOG_W, DIALOG_H, title, ftwtDialog);
   FWindow.SetWindowType(ftwtDialog);
   FWindow.OnResize := @OnWindowResize;
+  FWindow.OnWindowKey := @CbWindowKey;
+  FWindow.WindowUserData := Self;
 
   { ── Splitter between Sidebar and Right Content ── }
   splitterX := 180;
@@ -593,6 +611,27 @@ begin
   FBtnViewGrid.OnClick := @CbBtnViewGrid;
   FBtnViewGrid.UserData := Self;
 
+  { Search / Filter button & expandable search entry }
+  FBtnSearch := TFtButton.Create(FNavHBox);
+  FBtnSearch.SetBounds(0, 0, 30, 30);
+  FBtnSearch.Caption := '';
+  FBtnSearch.Hint := 'Search / Filter (Ctrl+F)';
+  FBtnSearch.CanToggle := True;
+  FBtnSearch.IconPosition := ftbipOnly;
+  FBtnSearch.IconWidth := 16;
+  FBtnSearch.IconHeight := 16;
+  FBtnSearch.LoadIconFromSVG(FtGetIconSvg('search', FtGetDarkMode()));
+  FBtnSearch.OnClick := @CbBtnSearch;
+  FBtnSearch.UserData := Self;
+
+  FSearchEntry := TFtEntry.Create(FNavHBox);
+  FSearchEntry.Height := 28;
+  FSearchEntry.PreferredWidth := 140;
+  FSearchEntry.Visible := False;
+  FSearchEntry.Placeholder := 'Filter...';
+  FSearchEntry.OnChange := @CbSearchChange;
+  FSearchEntry.UserData := Self;
+
   { ── Row 2: File Name input on top of file list ── }
   FNameHBox := TFtHBox.Create(FRightVBox);
   FNameHBox.Height := 30;
@@ -693,16 +732,31 @@ end;
 
 procedure TFtFileDialog.PopulatePlaces();
 var
-  homeDir: string;
+  homeDir, bkmkFile, line, uri, bLabel, bPath, sub, dev, mnt, hexStr: string;
   node: TFtTreeNode;
-  buf: PChar;
-  i: Integer;
+  i, spacePos, codeVal: Integer;
+  tf: TextFile;
+  seenMounts: TStringList;
+
+  procedure FreeAllNodeData(ANode: TFtTreeNode);
+  var
+    j: Integer;
+  begin
+    if ANode = nil then Exit;
+    if Assigned(ANode.Data) then
+    begin
+      FreeMem(ANode.Data);
+      ANode.Data := nil;
+    end;
+    for j := 0 to ANode.ChildCount - 1 do
+      FreeAllNodeData(ANode.Children[j]);
+  end;
 
   procedure AddPlace(const ALabel, APath: string; AIcon: TFloriaImage);
   var
     pathBuf: PChar;
   begin
-    if (APath <> homeDir) and not DirectoryExists(APath) then
+    if (APath <> homeDir) and (APath <> '/') and not DirectoryExists(APath) then
       Exit;
     node := FPlacesTree.AddNode(ALabel);
     node.Icon := AIcon;
@@ -712,33 +766,164 @@ var
     node.Data := pathBuf;
   end;
 
+  function DecodeUri(const AUri: string): string;
+  var
+    s: string;
+    p: Integer;
+  begin
+    s := Trim(AUri);
+    if Pos('file://localhost/', s) = 1 then
+      s := Copy(s, 17, MaxInt)
+    else if Pos('file://localhost', s) = 1 then
+      s := Copy(s, 17, MaxInt)
+    else if Pos('file:///', s) = 1 then
+      s := Copy(s, 8, MaxInt)
+    else if Pos('file://', s) = 1 then
+      s := Copy(s, 8, MaxInt);
+
+    Result := '';
+    p := 1;
+    while p <= Length(s) do
+    begin
+      if (s[p] = '%') and (p + 2 <= Length(s)) then
+      begin
+        hexStr := '$' + Copy(s, p + 1, 2);
+        codeVal := StrToIntDef(hexStr, -1);
+        if codeVal >= 0 then
+        begin
+          Result := Result + Chr(codeVal);
+          Inc(p, 3);
+          Continue;
+        end;
+      end;
+      Result := Result + s[p];
+      Inc(p);
+    end;
+  end;
+
+  function DecodeMountEscape(const S: string): string;
+  begin
+    Result := StringReplace(S, '\040', ' ', [rfReplaceAll]);
+    Result := StringReplace(Result, '\011', #9, [rfReplaceAll]);
+    Result := StringReplace(Result, '\012', #10, [rfReplaceAll]);
+    Result := StringReplace(Result, '\134', '\', [rfReplaceAll]);
+  end;
+
 begin
   if Assigned(FPlacesTree.Root) then
   begin
     for i := 0 to FPlacesTree.Root.ChildCount - 1 do
-    begin
-      node := FPlacesTree.Root.Children[i];
-      if Assigned(node) and Assigned(node.Data) then
-      begin
-        FreeMem(node.Data);
-        node.Data := nil;
-      end;
-    end;
+      FreeAllNodeData(FPlacesTree.Root.Children[i]);
   end;
   FPlacesTree.Clear();
   homeDir := GetEnvironmentVariable('HOME');
   if homeDir = '' then
     homeDir := '/';
 
+  { Places }
   AddPlace('Home',      homeDir, FIconHome);
   AddPlace('Desktop',   homeDir + '/Desktop', FIconDesktop);
   AddPlace('Documents', homeDir + '/Documents', FIconDocuments);
   AddPlace('Downloads', homeDir + '/Downloads', FIconDownloads);
   AddPlace('Pictures',  homeDir + '/Pictures', FIconPictures);
   AddPlace('Music',     homeDir + '/Music', FIconMusic);
+  AddPlace('Videos',    homeDir + '/Videos', FIconVideos);
+  AddPlace('Trash',     homeDir + '/.local/share/Trash/files', FIconTrash);
 
-  { Root }
+  { Bookmarks from ~/.config/gtk-3.0/bookmarks }
+  bkmkFile := homeDir + '/.config/gtk-3.0/bookmarks';
+  if FileExists(bkmkFile) then
+  begin
+    AssignFile(tf, bkmkFile);
+    {$I-}
+    Reset(tf);
+    {$I+}
+    if IOResult = 0 then
+    begin
+      while not Eof(tf) do
+      begin
+        ReadLn(tf, line);
+        line := Trim(line);
+        if (line = '') or (line[1] = '#') then Continue;
+        if Pos('file://', line) = 1 then
+        begin
+          spacePos := Pos(' ', line);
+          if spacePos > 0 then
+          begin
+            uri := Copy(line, 1, spacePos - 1);
+            bLabel := Trim(Copy(line, spacePos + 1, MaxInt));
+          end
+          else
+          begin
+            uri := line;
+            bLabel := '';
+          end;
+          bPath := DecodeUri(uri);
+          if bLabel = '' then
+            bLabel := ExtractFileName(bPath);
+          if bLabel = '' then
+            bLabel := bPath;
+          if (bPath <> homeDir) and
+             (bPath <> homeDir + '/Desktop') and
+             (bPath <> homeDir + '/Documents') and
+             (bPath <> homeDir + '/Downloads') and
+             (bPath <> homeDir + '/Pictures') and
+             (bPath <> homeDir + '/Music') and
+             (bPath <> homeDir + '/Videos') and
+             DirectoryExists(bPath) then
+            AddPlace(bLabel, bPath, FIconBookmark);
+        end;
+      end;
+      CloseFile(tf);
+    end;
+  end;
+
+  { Devices / Mounts }
   AddPlace('File System', '/', FIconDrive);
+
+  seenMounts := TStringList.Create();
+  try
+    seenMounts.Add('/');
+    if FileExists('/proc/mounts') then
+    begin
+      AssignFile(tf, '/proc/mounts');
+      {$I-}
+      Reset(tf);
+      {$I+}
+      if IOResult = 0 then
+      begin
+        while not Eof(tf) do
+        begin
+          ReadLn(tf, line);
+          line := Trim(line);
+          if line = '' then Continue;
+          spacePos := Pos(' ', line);
+          if spacePos = 0 then Continue;
+          dev := Copy(line, 1, spacePos - 1);
+          sub := Trim(Copy(line, spacePos + 1, MaxInt));
+          spacePos := Pos(' ', sub);
+          if spacePos = 0 then Continue;
+          mnt := DecodeMountEscape(Copy(sub, 1, spacePos - 1));
+
+          if (Pos('/media/', mnt) = 1) or
+             (Pos('/run/media/', mnt) = 1) or
+             (Pos('/mnt/', mnt) = 1) then
+          begin
+            if (seenMounts.IndexOf(mnt) < 0) and DirectoryExists(mnt) then
+            begin
+              seenMounts.Add(mnt);
+              bLabel := ExtractFileName(mnt);
+              if bLabel = '' then bLabel := mnt;
+              AddPlace(bLabel, mnt, FIconDrive);
+            end;
+          end;
+        end;
+        CloseFile(tf);
+      end;
+    end;
+  finally
+    seenMounts.Free();
+  end;
 
   FPlacesTree.RebuildVisibleNodes();
 end;
@@ -769,6 +954,8 @@ begin
       if (Sr.Name = '.') or (Sr.Name = '..') then
         Continue;
       if (not FShowHiddenFiles) and (Length(Sr.Name) > 0) and (Sr.Name[1] = '.') then
+        Continue;
+      if (FSearchFilter <> '') and (Pos(LowerCase(FSearchFilter), LowerCase(Sr.Name)) = 0) then
         Continue;
 
       entry.Name := Sr.Name;
@@ -1325,6 +1512,145 @@ class procedure TFtFileDialog.CbEntrySubmit(Sender: Pointer;
   Text: PChar; UserData: Pointer); cdecl;
 begin
   TFtFileDialog(UserData).CommitSelection();
+end;
+
+procedure TFtFileDialog.ToggleSearch();
+begin
+  if not Assigned(FSearchEntry) then Exit;
+  if FSearchEntry.Visible then
+  begin
+    FSearchEntry.Visible := False;
+    FSearchEntry.Text := '';
+    FSearchFilter := '';
+    if Assigned(FBtnSearch) then
+      FBtnSearch.Toggled := False;
+    RefreshList();
+  end
+  else
+  begin
+    FSearchEntry.Visible := True;
+    if Assigned(FBtnSearch) then
+      FBtnSearch.Toggled := True;
+    FSearchEntry.SetFocus();
+    FSearchEntry.SelectAll();
+  end;
+  if Assigned(FNavHBox) then
+  begin
+    FNavHBox.UpdateLayout();
+    FNavHBox.Invalidate();
+  end;
+end;
+
+class procedure TFtFileDialog.CbBtnSearch(Sender: Pointer; UserData: Pointer); cdecl;
+begin
+  TFtFileDialog(UserData).ToggleSearch();
+end;
+
+class procedure TFtFileDialog.CbSearchChange(Sender: Pointer; Text: PChar; UserData: Pointer); cdecl;
+var
+  dlg: TFtFileDialog;
+begin
+  dlg := TFtFileDialog(UserData);
+  if Assigned(dlg) then
+  begin
+    dlg.FSearchFilter := Trim(StrPas(Text));
+    dlg.RefreshList();
+  end;
+end;
+
+class procedure TFtFileDialog.CbWindowKey(Sender: Pointer; KeySym: Cardinal; IsDown: cint32; UserData: Pointer); cdecl;
+var
+  dlg: TFtFileDialog;
+  mods: Cardinal;
+  hasCtrl, hasAlt: Boolean;
+begin
+  if IsDown = 0 then Exit;
+  dlg := TFtFileDialog(UserData);
+  if dlg = nil then Exit;
+
+  mods := FtGetKeyboardModifiers();
+  hasCtrl := (mods and 4) <> 0;
+  hasAlt := (mods and 8) <> 0;
+
+  // Escape ($FF1B):
+  // 1. If pathbar is in edit mode, revert to breadcrumbs
+  // 2. If search is active, clear search and hide search entry
+  // 3. Otherwise cancel dialog
+  if KeySym = $FF1B then
+  begin
+    if Assigned(dlg.FPathBar) and (dlg.FPathBar.Mode = pbmEdit) then
+    begin
+      dlg.FPathBar.CancelEdit();
+      Exit;
+    end;
+    if Assigned(dlg.FSearchEntry) and dlg.FSearchEntry.Visible and (dlg.FSearchEntry.Text <> '') then
+    begin
+      dlg.ToggleSearch();
+      Exit;
+    end;
+    dlg.FSelectedPath := '';
+    dlg.FWindow.ModalResult := mrCancel;
+    dlg.FWindow.Hide();
+    Exit;
+  end;
+
+  // Ctrl+L ($6C / $4C): Toggle path bar location entry mode
+  if hasCtrl and ((KeySym = $6C) or (KeySym = $4C)) then
+  begin
+    if Assigned(dlg.FPathBar) then
+    begin
+      if dlg.FPathBar.Mode = pbmBreadcrumbs then
+        dlg.FPathBar.Mode := pbmEdit
+      else
+        dlg.FPathBar.Mode := pbmBreadcrumbs;
+    end;
+    Exit;
+  end;
+
+  // Ctrl+F ($66 / $46): Toggle / focus search entry
+  if hasCtrl and ((KeySym = $66) or (KeySym = $46)) then
+  begin
+    dlg.ToggleSearch();
+    Exit;
+  end;
+
+  // Ctrl+H ($68 / $48): Toggle hidden files
+  if hasCtrl and ((KeySym = $68) or (KeySym = $48)) then
+  begin
+    dlg.FShowHiddenFiles := not dlg.FShowHiddenFiles;
+    if Assigned(dlg.FBtnHidden) then
+      dlg.FBtnHidden.Toggled := dlg.FShowHiddenFiles;
+    dlg.RefreshList();
+    Exit;
+  end;
+
+  // Alt+Up ($FF52): Go up
+  if hasAlt and (KeySym = $FF52) then
+  begin
+    dlg.GoUp();
+    Exit;
+  end;
+
+  // Alt+Left ($FF51): Go back
+  if hasAlt and (KeySym = $FF51) then
+  begin
+    dlg.GoBack();
+    Exit;
+  end;
+
+  // Alt+Right ($FF53): Go forward
+  if hasAlt and (KeySym = $FF53) then
+  begin
+    dlg.GoForward();
+    Exit;
+  end;
+
+  // F5 ($FFC2): Refresh
+  if KeySym = $FFC2 then
+  begin
+    dlg.RefreshList();
+    Exit;
+  end;
 end;
 
 { ── Execute ── }

@@ -180,6 +180,24 @@ const
     '<path d="M 9.5 1 L 9.5 4.5 L 13 4.5" fill="none" stroke="#64748b" stroke-width="1.3" stroke-linejoin="round"/>' +
     '</svg>';
 
+  FT_ICON_OUTLINE_TRASH =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<path d="M 2.5 4.5 L 13.5 4.5 M 5.5 4.5 L 5.5 2.5 C 5.5 2 6 1.5 6.5 1.5 L 9.5 1.5 C 10 1.5 10.5 2 10.5 2.5 L 10.5 4.5" fill="none" stroke="#64748b" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>' +
+    '<path d="M 3.5 4.5 L 4.5 14 C 4.5 14.5 5 15 5.5 15 L 10.5 15 C 11 15 11.5 14.5 11.5 14 L 12.5 4.5" fill="none" stroke="#64748b" stroke-width="1.3" stroke-linejoin="round"/>' +
+    '<path d="M 6.5 7 L 6.5 12.5 M 9.5 7 L 9.5 12.5" stroke="#64748b" stroke-width="1.2" stroke-linecap="round"/>' +
+    '</svg>';
+
+  FT_ICON_OUTLINE_VIDEOS =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="#64748b" stroke-width="1.4"/>' +
+    '<path d="M 6.5 5.5 L 11 8 L 6.5 10.5 Z" fill="#64748b"/>' +
+    '</svg>';
+
+  FT_ICON_OUTLINE_BOOKMARK =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<path d="M 3.5 2 C 3.5 1.7 3.7 1.5 4 1.5 L 12 1.5 C 12.3 1.5 12.5 1.7 12.5 2 L 12.5 14.5 L 8 11.5 L 3.5 14.5 Z" fill="none" stroke="#64748b" stroke-width="1.4" stroke-linejoin="round"/>' +
+    '</svg>';
+
   { General UI / Utility Icons }
   FT_ICON_GEAR =
     '<svg viewBox="0 0 16 16" width="16" height="16">' +
@@ -496,6 +514,21 @@ begin
   RegisterIcon('folder-outline', FT_ICON_OUTLINE_FOLDER);
   RegisterIcon('outline-file', FT_ICON_OUTLINE_FILE);
   RegisterIcon('file-outline', FT_ICON_OUTLINE_FILE);
+  RegisterIcon('outline-trash', FT_ICON_OUTLINE_TRASH);
+  RegisterIcon('trash-outline', FT_ICON_OUTLINE_TRASH);
+  RegisterIcon('place-trash-outline', FT_ICON_OUTLINE_TRASH);
+  RegisterIcon('trash', FT_ICON_OUTLINE_TRASH);
+  RegisterIcon('place-trash', FT_ICON_OUTLINE_TRASH);
+  RegisterIcon('outline-videos', FT_ICON_OUTLINE_VIDEOS);
+  RegisterIcon('videos-outline', FT_ICON_OUTLINE_VIDEOS);
+  RegisterIcon('place-videos-outline', FT_ICON_OUTLINE_VIDEOS);
+  RegisterIcon('videos', FT_ICON_OUTLINE_VIDEOS);
+  RegisterIcon('place-videos', FT_ICON_OUTLINE_VIDEOS);
+  RegisterIcon('outline-bookmark', FT_ICON_OUTLINE_BOOKMARK);
+  RegisterIcon('bookmark-outline', FT_ICON_OUTLINE_BOOKMARK);
+  RegisterIcon('place-bookmark-outline', FT_ICON_OUTLINE_BOOKMARK);
+  RegisterIcon('bookmark', FT_ICON_OUTLINE_BOOKMARK);
+  RegisterIcon('place-bookmark', FT_ICON_OUTLINE_BOOKMARK);
 
   { Utility Icons }
   RegisterIcon('gear', FT_ICON_GEAR);

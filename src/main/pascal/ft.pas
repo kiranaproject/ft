@@ -231,6 +231,11 @@ begin
   end;
 end;
 
+function ft_get_keyboard_modifiers(): cuint32; cdecl; export;
+begin
+  Result := cuint32(FtGetKeyboardModifiers());
+end;
+
 procedure ft_window_on_resize(window: Pointer; callback: TFtWindowResizeCallback; user_data: Pointer); cdecl; export;
 begin
   if Assigned(window) and (TObject(window) is TFtWindow) then
@@ -465,6 +470,19 @@ begin
   Result := 0;
   if Assigned(window) and (TObject(window) is TFtWindow) then
     Result := cint32(TFtWindow(window).ShowModal());
+end;
+
+procedure ft_window_set_modal_result(window: Pointer; modal_result: cint32); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    TFtWindow(window).ModalResult := modal_result;
+end;
+
+function ft_window_get_modal_result(window: Pointer): cint32; cdecl; export;
+begin
+  Result := 0;
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    Result := cint32(TFtWindow(window).ModalResult);
 end;
 
 procedure ft_window_bring_to_front(window: Pointer); cdecl; export;
@@ -1578,6 +1596,18 @@ begin
     Result := TFtEntry(entry_widget).CornerRadius
   else
     Result := 0.0;
+end;
+
+procedure ft_entry_select_all(entry_widget: Pointer); cdecl; export;
+begin
+  if Assigned(entry_widget) and (TObject(entry_widget) is TFtEntry) then
+    TFtEntry(entry_widget).SelectAll();
+end;
+
+procedure ft_entry_clear_selection(entry_widget: Pointer); cdecl; export;
+begin
+  if Assigned(entry_widget) and (TObject(entry_widget) is TFtEntry) then
+    TFtEntry(entry_widget).ClearSelection();
 end;
 
 { PathBar Widgets (Nautilus-Style Breadcrumb Path Entry) }
@@ -7138,6 +7168,8 @@ exports
   ft_window_begin_move,
   ft_window_begin_resize,
   ft_window_show_modal,
+  ft_window_set_modal_result,
+  ft_window_get_modal_result,
   ft_window_bring_to_front,
   ft_widget_show,
   ft_widget_hide,
@@ -7281,6 +7313,8 @@ exports
   ft_entry_on_submit,
   ft_entry_set_corner_radius,
   ft_entry_get_corner_radius,
+  ft_entry_select_all,
+  ft_entry_clear_selection,
   ft_textarea_create,
   ft_textarea_set_text,
   ft_textarea_get_text,
@@ -7766,6 +7800,7 @@ exports
   ft_window_on_mouse_up,
   ft_window_on_mouse_move,
   ft_window_on_key,
+  ft_get_keyboard_modifiers,
   ft_window_on_resize,
   ft_window_on_close,
 

@@ -2508,6 +2508,14 @@ begin
     pb.MouseDown(350, 20, 1);
     AssertEquals('Clicking empty area switches to edit mode', Ord(pbmEdit), Ord(pb.Mode));
     AssertTrue('Entry visible after empty space click', pb.Entry.Visible);
+
+    // 11. Tab Auto-Completion
+    if DirectoryExists('/usr/bin') then
+    begin
+      pb.Entry.Text := '/usr/bi';
+      pb.Entry.KeyDown($FF09, 0, '');
+      AssertEquals('Tab auto-completes /usr/bi to /usr/bin/', '/usr/bin/', pb.Entry.Text);
+    end;
   finally
     pb.Free();
   end;

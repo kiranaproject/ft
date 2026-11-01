@@ -93,6 +93,8 @@ void ft_window_set_strut_partial(FtWidget window,
     int32_t top_start_x, int32_t top_end_x,
     int32_t bottom_start_x, int32_t bottom_end_x);
 int32_t ft_window_show_modal(FtWidget window);
+void ft_window_set_modal_result(FtWidget window, int32_t modal_result);
+int32_t ft_window_get_modal_result(FtWidget window);
 void ft_window_bring_to_front(FtWidget window);
 void ft_window_grab_input(FtWidget window);
 void ft_window_ungrab_input(FtWidget window);
@@ -341,6 +343,8 @@ void ft_entry_on_change(FtWidget entry, FtEntryChangeCallback callback, void* us
 void ft_entry_on_submit(FtWidget entry, FtEntrySubmitCallback callback, void* user_data);
 void ft_entry_set_corner_radius(FtWidget entry, double radius);
 double ft_entry_get_corner_radius(FtWidget entry);
+void ft_entry_select_all(FtWidget entry);
+void ft_entry_clear_selection(FtWidget entry);
 
 /* Widgets: PathBar (Nautilus-Style Breadcrumb Path Entry) */
 typedef enum {
@@ -1354,6 +1358,7 @@ void ft_window_on_mouse_down(FtWidget window, FtWindowMouseCallback callback, vo
 void ft_window_on_mouse_up(FtWidget window, FtWindowMouseCallback callback, void* user_data);
 void ft_window_on_mouse_move(FtWidget window, FtWindowMouseMoveCallback callback, void* user_data);
 void ft_window_on_key(FtWidget window, FtWindowKeyCallback callback, void* user_data);
+uint32_t ft_get_keyboard_modifiers(void);
 void ft_window_on_resize(FtWidget window, FtWindowResizeCallback callback, void* user_data);
 
 /* Global GPU Status */

@@ -5,7 +5,7 @@ unit Ft.Widget.PathBars;
 interface
 
 uses
-  ctypes, SysUtils, Classes, Math, Floria.Canvas.Agg, Ft.Canvas, Floria.Font,
+  ctypes, SysUtils, Classes, Math, StrUtils, Floria.Canvas.Agg, Ft.Canvas, Floria.Font,
   Ft.Widget, Ft.Theme, Ft.Widget.Containers, Ft.Widget.ScrollBars, Ft.Widget.Entries, Ft.Css;
 
 type
@@ -31,6 +31,7 @@ type
   TFtPathBarEntry = class(TFtEntry)
   private
     FPathBar: TFtPathBar;
+    procedure AutoCompletePath();
   protected
     procedure DrawBackground(Canvas: TFtCanvas); override;
     procedure KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string); override;
@@ -112,6 +113,7 @@ begin
   DrawFrame := False;
   DrawFocusRing := False;
   ScrollBarMode := ftSbModeNone;
+  AcceptsTab := True;
   Visible := False;
 end;
 
@@ -120,8 +122,133 @@ begin
   // Seamless inside TFtPathBar: do not draw separate background or frame
 end;
 
-procedure TFtPathBarEntry.KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string);
+procedure TFtPathBarEntry.AutoCompletePath();
+var
+  curr, expanded, dirPart, prefix, candidate, commonPref, subDir: string;
+  homeDir, fullDir, fullCandidate: string;
+  sr: TSearchRec;
+  matches: TStringList;
+  isDir, wasTilde: Boolean;
+  i: Integer;
 begin
+  curr := Text;
+  if curr = '' then
+    curr := '/';
+
+  wasTilde := False;
+  homeDir := GetEnvironmentVariable('HOME');
+  if (curr = '~') or (Pos('~/', curr) = 1) then
+  begin
+    wasTilde := True;
+    if curr = '~' then
+      expanded := homeDir + '/'
+    else
+      expanded := homeDir + Copy(curr, 2, MaxInt);
+  end
+  else
+    expanded := curr;
+
+  if (expanded <> '') and (expanded[Length(expanded)] = '/') then
+  begin
+    dirPart := expanded;
+    prefix := '';
+  end
+  else
+  begin
+    dirPart := ExtractFilePath(expanded);
+    prefix := ExtractFileName(expanded);
+  end;
+
+  if dirPart = '' then
+    dirPart := './';
+
+  fullDir := ExpandFileName(dirPart);
+  if not DirectoryExists(fullDir) then Exit;
+
+  matches := TStringList.Create();
+  try
+    if FindFirst(IncludeTrailingPathDelimiter(fullDir) + '*', faAnyFile, sr) = 0 then
+    begin
+      repeat
+        if (sr.Name = '.') or (sr.Name = '..') then Continue;
+        if (prefix = '') or AnsiStartsText(prefix, sr.Name) then
+        begin
+          fullCandidate := IncludeTrailingPathDelimiter(fullDir) + sr.Name;
+          isDir := DirectoryExists(fullCandidate);
+          if isDir then
+            matches.Add(sr.Name + '/')
+          else
+            matches.Add(sr.Name);
+        end;
+      until FindNext(sr) <> 0;
+      FindClose(sr);
+    end;
+
+    if matches.Count = 0 then Exit;
+    matches.Sort();
+
+    if matches.Count = 1 then
+    begin
+      candidate := matches[0];
+      if wasTilde and (Pos(homeDir, fullDir) = 1) then
+      begin
+        subDir := Copy(fullDir, Length(homeDir) + 1, MaxInt);
+        if (subDir <> '') and (subDir[1] = '/') then
+          subDir := Copy(subDir, 2, MaxInt);
+        if subDir <> '' then
+          subDir := IncludeTrailingPathDelimiter(subDir);
+        Text := '~/' + subDir + candidate;
+      end
+      else
+        Text := IncludeTrailingPathDelimiter(dirPart) + candidate;
+    end
+    else
+    begin
+      // Multiple matches: find longest common prefix
+      commonPref := matches[0];
+      for i := 1 to matches.Count - 1 do
+      begin
+        while (Length(commonPref) > 0) and not AnsiStartsText(commonPref, matches[i]) do
+          Delete(commonPref, Length(commonPref), 1);
+        if commonPref = '' then Break;
+      end;
+
+      if Length(commonPref) > Length(prefix) then
+      begin
+        if wasTilde and (Pos(homeDir, fullDir) = 1) then
+        begin
+          subDir := Copy(fullDir, Length(homeDir) + 1, MaxInt);
+          if (subDir <> '') and (subDir[1] = '/') then
+            subDir := Copy(subDir, 2, MaxInt);
+          if subDir <> '' then
+            subDir := IncludeTrailingPathDelimiter(subDir);
+          Text := '~/' + subDir + commonPref;
+        end
+        else
+          Text := IncludeTrailingPathDelimiter(dirPart) + commonPref;
+      end;
+    end;
+  finally
+    matches.Free();
+  end;
+
+  Invalidate();
+  if Assigned(FPathBar) then
+    FPathBar.Invalidate();
+end;
+
+procedure TFtPathBarEntry.KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string);
+const
+  ControlMask = 4;
+begin
+  // Ctrl+L ($6C / $4C) -> toggle back to breadcrumbs mode
+  if ((AState and ControlMask) <> 0) and ((AKeySym = $6C) or (AKeySym = $4C)) then
+  begin
+    if Assigned(FPathBar) then
+      FPathBar.CancelEdit();
+    Exit;
+  end;
+
   // Return / Enter ($FF0D / $FF8D) -> commit edit & navigate
   if (AKeySym = $FF0D) or (AKeySym = $FF8D) then
   begin
@@ -135,6 +262,13 @@ begin
   begin
     if Assigned(FPathBar) then
       FPathBar.CancelEdit();
+    Exit;
+  end;
+
+  // Tab ($FF09) -> auto-complete path
+  if (AKeySym = $FF09) then
+  begin
+    AutoCompletePath();
     Exit;
   end;
 

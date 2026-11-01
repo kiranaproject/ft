@@ -227,11 +227,14 @@ procedure c_free(p: Pointer); cdecl; external 'c' name 'free';
 var
   atomWMProtocols: xcb_atom_t = 0;
   atomWMDeleteWindow: xcb_atom_t = 0;
+  atomWMTakeFocus: xcb_atom_t = 0;
   atomWMName: xcb_atom_t = 0;
   atomWMNormalHints: xcb_atom_t = 0;
   atomClipboard: xcb_atom_t = 0;
   atomUTF8String: xcb_atom_t = 0;
   atomTargets: xcb_atom_t = 0;
+  atomGnomeCopiedFiles: xcb_atom_t = 0;
+  atomUriList: xcb_atom_t = 0;
   atomFtSelection: xcb_atom_t = 0;
   atomMotifWmHints: xcb_atom_t = 0;
   atomNetWmName: xcb_atom_t = 0;
@@ -290,6 +293,7 @@ procedure InitAtoms();
 begin
   atomWMProtocols := InternAtom('WM_PROTOCOLS');
   atomWMDeleteWindow := InternAtom('WM_DELETE_WINDOW');
+  atomWMTakeFocus := InternAtom('WM_TAKE_FOCUS');
   atomWMName := InternAtom('WM_NAME');
   atomWMNormalHints := InternAtom('WM_NORMAL_HINTS');
   if atomWMNormalHints = 0 then
@@ -297,6 +301,8 @@ begin
   atomClipboard := InternAtom('CLIPBOARD');
   atomUTF8String := InternAtom('UTF8_STRING');
   atomTargets := InternAtom('TARGETS');
+  atomGnomeCopiedFiles := InternAtom('x-special/gnome-copied-files');
+  atomUriList := InternAtom('text/uri-list');
   atomFtSelection := InternAtom('FT_SELECTION');
   atomMotifWmHints := InternAtom('_MOTIF_WM_HINTS');
   atomNetWmName := InternAtom('_NET_WM_NAME');
@@ -949,6 +955,8 @@ var
   vis32: xcb_visualid_t;
   mask: Cardinal;
   valList: xcb_create_window_value_list_t;
+  protocols: array[0..1] of xcb_atom_t;
+  wmHints: array[0..8] of Cardinal;
 begin
   inherited Create(W, H, ATitle);
   if (GConnection = nil) and (GetEnvironmentVariable('DISPLAY') <> '') then
@@ -1017,9 +1025,18 @@ begin
   FLastConfigureTime := 0;
   FLastResizeRenderTime := 0;
 
-  // Configure WM_PROTOCOLS for graceful window close
+  // Configure WM_PROTOCOLS for graceful window close and focus
+  protocols[0] := atomWMDeleteWindow;
+  protocols[1] := atomWMTakeFocus;
   xcb_change_property(FConnection, XCB_PROP_MODE_REPLACE, FWindow,
-                      atomWMProtocols, XCB_ATOM_ATOM, 32, 1, @atomWMDeleteWindow);
+                      atomWMProtocols, XCB_ATOM_ATOM, 32, 2, @protocols[0]);
+
+  // Configure WM_HINTS so window managers assign keyboard input focus
+  FillChar(wmHints, SizeOf(wmHints), 0);
+  wmHints[0] := 1; // InputHint
+  wmHints[1] := 1; // input = True
+  xcb_change_property(FConnection, XCB_PROP_MODE_REPLACE, FWindow,
+                      XCB_ATOM_WM_HINTS, XCB_ATOM_WM_HINTS, 32, 9, @wmHints[0]);
 
   FGC := xcb_generate_id(FConnection);
   xcb_create_gc(FConnection, FGC, FWindow, 0, nil);
@@ -2209,7 +2226,7 @@ var
   kr: Pxcb_key_release_event_t;
   req: Pxcb_selection_request_event_t;
   resp: xcb_selection_notify_event_t;
-  targets: array[0..2] of xcb_atom_t;
+  targets: array[0..4] of xcb_atom_t;
   sendText: string;
   sc: Pxcb_selection_clear_event_t;
   cm: Pxcb_client_message_event_t;
@@ -2402,6 +2419,9 @@ begin
           Target := nil;
         if not (bp^.detail in [4, 5, 6, 7]) then
         begin
+          if (FWindowType in [ftwtNormal, ftwtDialog]) and (FConnection <> nil) then
+            xcb_set_input_focus(FConnection, XCB_INPUT_FOCUS_POINTER_ROOT, FWindow, bp^.time);
+
           focusTarget := FindFocusableWidget(Target);
           if not Assigned(focusTarget) then
           begin
@@ -2514,10 +2534,12 @@ begin
       begin
         Close();
       end
-      else if Assigned(FFocusedWidget) then
-        FFocusedWidget.KeyDown(keysym, kp^.state, strUtf8)
       else
+      begin
+        if Assigned(FFocusedWidget) then
+          FFocusedWidget.KeyDown(keysym, kp^.state, strUtf8);
         Self.KeyDown(keysym, kp^.state, strUtf8);
+      end;
     end;
 
     XCB_KEY_RELEASE:
@@ -2528,9 +2550,8 @@ begin
       if (kr^.state and 1) <> 0 then col := 1;
       keysym := xcb_key_release_lookup_keysym(GKeySymbols, kr, col);
       if Assigned(FFocusedWidget) then
-        FFocusedWidget.KeyUp(keysym, kr^.state)
-      else
-        Self.KeyUp(keysym, kr^.state);
+        FFocusedWidget.KeyUp(keysym, kr^.state);
+      Self.KeyUp(keysym, kr^.state);
     end;
 
     XCB_SELECTION_REQUEST:
@@ -2549,11 +2570,15 @@ begin
         targets[0] := atomTargets;
         targets[1] := atomUTF8String;
         targets[2] := XCB_ATOM_STRING;
+        targets[3] := atomGnomeCopiedFiles;
+        targets[4] := atomUriList;
         xcb_change_property(FConnection, XCB_PROP_MODE_REPLACE, req^.requestor,
-                            req^.property_, XCB_ATOM_ATOM, 32, 3, @targets[0]);
+                            req^.property_, XCB_ATOM_ATOM, 32, 5, @targets[0]);
         resp.property_ := req^.property_;
       end
-      else if (req^.target = atomUTF8String) or (req^.target = XCB_ATOM_STRING) then
+      else if (req^.target = atomUTF8String) or (req^.target = XCB_ATOM_STRING) or
+              ((atomGnomeCopiedFiles <> 0) and (req^.target = atomGnomeCopiedFiles)) or
+              ((atomUriList <> 0) and (req^.target = atomUriList)) then
       begin
         if req^.selection = 1 then
           sendText := gPrimarySelectionText
@@ -2614,6 +2639,10 @@ begin
         end
         else
           Hide();
+      end
+      else if (cm^.format = 32) and (PCardinal(@cm^.data.raw[0])^ = atomWMTakeFocus) then
+      begin
+        xcb_set_input_focus(FConnection, XCB_INPUT_FOCUS_POINTER_ROOT, FWindow, PCardinal(@cm^.data.raw[4])^);
       end;
     end;
 
