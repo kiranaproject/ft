@@ -1077,6 +1077,7 @@ typedef void (*FtIconContextMenuCallback)(void* sender, int32_t item_index, int3
 
 FtIconView ft_icon_view_create(FtWidget parent, int32_t x, int32_t y, int32_t w, int32_t h);
 int32_t ft_icon_view_add_item(FtIconView icon_view, const char* caption, FtBitmap icon);
+int32_t ft_icon_view_add_item_named(FtIconView icon_view, const char* caption, const char* icon_name);
 int32_t ft_icon_view_insert_item(FtIconView icon_view, int32_t index, const char* caption, FtBitmap icon);
 void ft_icon_view_delete_item(FtIconView icon_view, int32_t index);
 void ft_icon_view_clear(FtIconView icon_view);
@@ -1087,6 +1088,8 @@ const char* ft_icon_view_get_item_subtext(FtIconView icon_view, int32_t index);
 void ft_icon_view_set_item_subtext(FtIconView icon_view, int32_t index, const char* subtext);
 FtBitmap ft_icon_view_get_item_icon(FtIconView icon_view, int32_t index);
 void ft_icon_view_set_item_icon(FtIconView icon_view, int32_t index, FtBitmap icon);
+void ft_icon_view_item_set_icon_name(FtIconView icon_view, int32_t index, const char* icon_name);
+const char* ft_icon_view_item_get_icon_name(FtIconView icon_view, int32_t index);
 int32_t ft_icon_view_get_item_tag(FtIconView icon_view, int32_t index);
 void ft_icon_view_set_item_tag(FtIconView icon_view, int32_t index, int32_t tag);
 void* ft_icon_view_get_item_data(FtIconView icon_view, int32_t index);
@@ -1103,6 +1106,8 @@ int32_t ft_icon_view_get_selected_count(FtIconView icon_view);
 int32_t ft_icon_view_get_selected_indices(FtIconView icon_view, int32_t* out_indices, int32_t max_count);
 int32_t ft_icon_view_get_zoom_level(FtIconView icon_view);
 void ft_icon_view_set_zoom_level(FtIconView icon_view, int32_t level);
+void ft_icon_view_zoom_in(FtIconView icon_view);
+void ft_icon_view_zoom_out(FtIconView icon_view);
 int32_t ft_icon_view_get_icon_size(FtIconView icon_view);
 void ft_icon_view_set_icon_size(FtIconView icon_view, int32_t size);
 double ft_icon_view_get_item_width(FtIconView icon_view);

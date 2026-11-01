@@ -5939,6 +5939,46 @@ begin
   Result := iv.AddItem(sCap, TFloriaImage(icon));
 end;
 
+function ft_icon_view_add_item_named(icon_view: Pointer; caption: PAnsiChar; icon_name: PAnsiChar): cint32; cdecl; export;
+var
+  iv: TFtIconView;
+  sCap, sName: string;
+begin
+  Result := -1;
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  if Assigned(caption) then sCap := string(caption) else sCap := '';
+  if Assigned(icon_name) then sName := string(icon_name) else sName := '';
+  Result := iv.AddItem(sCap, nil, sName);
+end;
+
+procedure ft_icon_view_item_set_icon_name(icon_view: Pointer; index: cint32; icon_name: PAnsiChar); cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  if (index >= 0) and (index < iv.ItemCount) then
+  begin
+    if Assigned(icon_name) then
+      iv.Items[index].IconName := string(icon_name)
+    else
+      iv.Items[index].IconName := '';
+    iv.Invalidate();
+  end;
+end;
+
+function ft_icon_view_item_get_icon_name(icon_view: Pointer; index: cint32): PAnsiChar; cdecl; export;
+var
+  iv: TFtIconView;
+begin
+  Result := '';
+  if not Assigned(icon_view) or not (TObject(icon_view) is TFtIconView) then Exit;
+  iv := TFtIconView(icon_view);
+  if (index >= 0) and (index < iv.ItemCount) then
+    Result := PAnsiChar(iv.Items[index].IconName);
+end;
+
 function ft_icon_view_insert_item(icon_view: Pointer; index: cint32; caption: PAnsiChar; icon: Pointer): cint32; cdecl; export;
 var
   iv: TFtIconView;
@@ -6234,6 +6274,18 @@ begin
   iv := TFtIconView(icon_view);
   if (level >= Ord(Low(TFtIconZoomLevel))) and (level <= Ord(High(TFtIconZoomLevel))) then
     iv.ZoomLevel := TFtIconZoomLevel(level);
+end;
+
+procedure ft_icon_view_zoom_in(icon_view: Pointer); cdecl; export;
+begin
+  if Assigned(icon_view) and (TObject(icon_view) is TFtIconView) then
+    TFtIconView(icon_view).ZoomIn();
+end;
+
+procedure ft_icon_view_zoom_out(icon_view: Pointer); cdecl; export;
+begin
+  if Assigned(icon_view) and (TObject(icon_view) is TFtIconView) then
+    TFtIconView(icon_view).ZoomOut();
 end;
 
 function ft_icon_view_get_icon_size(icon_view: Pointer): cint32; cdecl; export;
@@ -7663,6 +7715,9 @@ exports
   // IconView
   ft_icon_view_create,
   ft_icon_view_add_item,
+  ft_icon_view_add_item_named,
+  ft_icon_view_item_set_icon_name,
+  ft_icon_view_item_get_icon_name,
   ft_icon_view_insert_item,
   ft_icon_view_delete_item,
   ft_icon_view_clear,
@@ -7689,6 +7744,8 @@ exports
   ft_icon_view_get_selected_indices,
   ft_icon_view_get_zoom_level,
   ft_icon_view_set_zoom_level,
+  ft_icon_view_zoom_in,
+  ft_icon_view_zoom_out,
   ft_icon_view_get_icon_size,
   ft_icon_view_set_icon_size,
   ft_icon_view_get_item_width,

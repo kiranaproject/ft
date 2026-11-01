@@ -169,25 +169,31 @@ type
     FPendingNavigate: string;
 
     { Cached icon bitmaps }
-    FIconFolder:    TFloriaImage;
-    FIconFile:      TFloriaImage;
-    FIconImage:     TFloriaImage;
-    FIconCode:      TFloriaImage;
-    FIconArchive:   TFloriaImage;
-    FIconHome:      TFloriaImage;
-    FIconDesktop:   TFloriaImage;
-    FIconDocuments: TFloriaImage;
-    FIconDownloads: TFloriaImage;
-    FIconPictures:  TFloriaImage;
-    FIconMusic:     TFloriaImage;
-    FIconDrive:     TFloriaImage;
-    FIconVideos:    TFloriaImage;
-    FIconTrash:     TFloriaImage;
-    FIconBookmark:  TFloriaImage;
+    FIconFolder:      TFloriaImage;
+    FIconFile:        TFloriaImage;
+    FIconImage:       TFloriaImage;
+    FIconCode:        TFloriaImage;
+    FIconArchive:     TFloriaImage;
+    FIconFolderGrid:  TFloriaImage;
+    FIconFileGrid:    TFloriaImage;
+    FIconImageGrid:   TFloriaImage;
+    FIconCodeGrid:    TFloriaImage;
+    FIconArchiveGrid: TFloriaImage;
+    FIconHome:        TFloriaImage;
+    FIconDesktop:     TFloriaImage;
+    FIconDocuments:   TFloriaImage;
+    FIconDownloads:   TFloriaImage;
+    FIconPictures:    TFloriaImage;
+    FIconMusic:       TFloriaImage;
+    FIconDrive:       TFloriaImage;
+    FIconVideos:      TFloriaImage;
+    FIconTrash:       TFloriaImage;
+    FIconBookmark:    TFloriaImage;
 
     procedure InitIcons();
     procedure FreeIcons();
-    function GetFileIcon(const AExt: string): TFloriaImage;
+    function GetFileIcon(const AExt: string; AGrid: Boolean = False): TFloriaImage;
+    function GetFileIconName(const AExt: string): string;
 
     procedure BuildUI();
     procedure PopulatePlaces();
@@ -391,21 +397,26 @@ var
   isDark: Boolean;
 begin
   isDark := FtGetDarkMode();
-  FIconFolder    := FtGetIconBitmap('folder', 16, 16);
-  FIconFile      := FtGetIconBitmap('file', 16, 16);
-  FIconImage     := FtGetIconBitmap('file-image', 16, 16);
-  FIconCode      := FtGetIconBitmap('file-code', 16, 16);
-  FIconArchive   := FtGetIconBitmap('file-archive', 16, 16);
-  FIconHome      := FtGetIconBitmap('outline-home', 16, 16, isDark);
-  FIconDesktop   := FtGetIconBitmap('outline-desktop', 16, 16, isDark);
-  FIconDocuments := FtGetIconBitmap('outline-documents', 16, 16, isDark);
-  FIconDownloads := FtGetIconBitmap('outline-downloads', 16, 16, isDark);
-  FIconPictures  := FtGetIconBitmap('outline-pictures', 16, 16, isDark);
-  FIconMusic     := FtGetIconBitmap('outline-music', 16, 16, isDark);
-  FIconDrive     := FtGetIconBitmap('outline-drive', 16, 16, isDark);
-  FIconVideos    := FtGetIconBitmap('outline-videos', 16, 16, isDark);
-  FIconTrash     := FtGetIconBitmap('outline-trash', 16, 16, isDark);
-  FIconBookmark  := FtGetIconBitmap('outline-bookmark', 16, 16, isDark);
+  FIconFolder      := FtGetIconBitmap('folder', 16, 16);
+  FIconFile        := FtGetIconBitmap('file', 16, 16);
+  FIconImage       := FtGetIconBitmap('file-image', 16, 16);
+  FIconCode        := FtGetIconBitmap('file-code', 16, 16);
+  FIconArchive     := FtGetIconBitmap('file-archive', 16, 16);
+  FIconFolderGrid  := FtGetIconBitmap('folder', 48, 48);
+  FIconFileGrid    := FtGetIconBitmap('file', 48, 48);
+  FIconImageGrid   := FtGetIconBitmap('file-image', 48, 48);
+  FIconCodeGrid    := FtGetIconBitmap('file-code', 48, 48);
+  FIconArchiveGrid := FtGetIconBitmap('file-archive', 48, 48);
+  FIconHome        := FtGetIconBitmap('outline-home', 16, 16, isDark);
+  FIconDesktop     := FtGetIconBitmap('outline-desktop', 16, 16, isDark);
+  FIconDocuments   := FtGetIconBitmap('outline-documents', 16, 16, isDark);
+  FIconDownloads   := FtGetIconBitmap('outline-downloads', 16, 16, isDark);
+  FIconPictures    := FtGetIconBitmap('outline-pictures', 16, 16, isDark);
+  FIconMusic       := FtGetIconBitmap('outline-music', 16, 16, isDark);
+  FIconDrive       := FtGetIconBitmap('outline-drive', 16, 16, isDark);
+  FIconVideos      := FtGetIconBitmap('outline-videos', 16, 16, isDark);
+  FIconTrash       := FtGetIconBitmap('outline-trash', 16, 16, isDark);
+  FIconBookmark    := FtGetIconBitmap('outline-bookmark', 16, 16, isDark);
 end;
 
 procedure TFtFileDialog.FreeIcons();
@@ -415,6 +426,11 @@ begin
   if Assigned(FIconImage) then FreeAndNil(FIconImage);
   if Assigned(FIconCode) then FreeAndNil(FIconCode);
   if Assigned(FIconArchive) then FreeAndNil(FIconArchive);
+  if Assigned(FIconFolderGrid) then FreeAndNil(FIconFolderGrid);
+  if Assigned(FIconFileGrid) then FreeAndNil(FIconFileGrid);
+  if Assigned(FIconImageGrid) then FreeAndNil(FIconImageGrid);
+  if Assigned(FIconCodeGrid) then FreeAndNil(FIconCodeGrid);
+  if Assigned(FIconArchiveGrid) then FreeAndNil(FIconArchiveGrid);
   if Assigned(FIconHome) then FreeAndNil(FIconHome);
   if Assigned(FIconDesktop) then FreeAndNil(FIconDesktop);
   if Assigned(FIconDocuments) then FreeAndNil(FIconDocuments);
@@ -427,21 +443,46 @@ begin
   if Assigned(FIconBookmark) then FreeAndNil(FIconBookmark);
 end;
 
-function TFtFileDialog.GetFileIcon(const AExt: string): TFloriaImage;
+function TFtFileDialog.GetFileIconName(const AExt: string): string;
 begin
   if (AExt = 'png') or (AExt = 'jpg') or (AExt = 'jpeg') or (AExt = 'bmp') or
      (AExt = 'svg') or (AExt = 'gif') or (AExt = 'webp') or (AExt = 'ico') then
-    Result := FIconImage
+    Result := 'file-image'
   else if (AExt = 'pas') or (AExt = 'pp') or (AExt = 'c') or (AExt = 'h') or
           (AExt = 'cpp') or (AExt = 'py') or (AExt = 'sh') or (AExt = 'bash') or
           (AExt = 'json') or (AExt = 'xml') or (AExt = 'html') or (AExt = 'css') or
           (AExt = 'md') or (AExt = 'js') or (AExt = 'ts') or (AExt = 'sql') then
-    Result := FIconCode
+    Result := 'file-code'
   else if (AExt = 'zip') or (AExt = 'tar') or (AExt = 'gz') or (AExt = 'xz') or
           (AExt = '7z') or (AExt = 'bz2') or (AExt = 'rar') then
-    Result := FIconArchive
+    Result := 'file-archive'
   else
-    Result := FIconFile;
+    Result := 'file';
+end;
+
+function TFtFileDialog.GetFileIcon(const AExt: string; AGrid: Boolean = False): TFloriaImage;
+begin
+  if (AExt = 'png') or (AExt = 'jpg') or (AExt = 'jpeg') or (AExt = 'bmp') or
+     (AExt = 'svg') or (AExt = 'gif') or (AExt = 'webp') or (AExt = 'ico') then
+  begin
+    if AGrid then Result := FIconImageGrid else Result := FIconImage;
+  end
+  else if (AExt = 'pas') or (AExt = 'pp') or (AExt = 'c') or (AExt = 'h') or
+          (AExt = 'cpp') or (AExt = 'py') or (AExt = 'sh') or (AExt = 'bash') or
+          (AExt = 'json') or (AExt = 'xml') or (AExt = 'html') or (AExt = 'css') or
+          (AExt = 'md') or (AExt = 'js') or (AExt = 'ts') or (AExt = 'sql') then
+  begin
+    if AGrid then Result := FIconCodeGrid else Result := FIconCode;
+  end
+  else if (AExt = 'zip') or (AExt = 'tar') or (AExt = 'gz') or (AExt = 'xz') or
+          (AExt = '7z') or (AExt = 'bz2') or (AExt = 'rar') then
+  begin
+    if AGrid then Result := FIconArchiveGrid else Result := FIconArchive;
+  end
+  else
+  begin
+    if AGrid then Result := FIconFileGrid else Result := FIconFile;
+  end;
 end;
 
 constructor TFtFileDialog.Create(ADialogType: TFtDialogType);
@@ -1009,7 +1050,7 @@ begin
 
     if Assigned(FIconView) then
     begin
-      rowIdx := FIconView.AddItem(Dirs[i].Name, FIconFolder);
+      rowIdx := FIconView.AddItem(Dirs[i].Name, FIconFolderGrid, 'folder');
       FIconView.Items[rowIdx].Tag := 1;
     end;
   end;
@@ -1025,11 +1066,11 @@ begin
       FormatFileTime(Files[i].ModTime),
       ext]);
     TFtTableRow(FFileTable.Rows[rowIdx]).Tag := 0;
-    FFileTable.SetCellIcon(rowIdx, 0, GetFileIcon(ext));
+    FFileTable.SetCellIcon(rowIdx, 0, GetFileIcon(ext, False));
 
     if Assigned(FIconView) then
     begin
-      rowIdx := FIconView.AddItem(Files[i].Name, GetFileIcon(ext));
+      rowIdx := FIconView.AddItem(Files[i].Name, GetFileIcon(ext, True), GetFileIconName(ext));
       FIconView.Items[rowIdx].Tag := 0;
       FIconView.Items[rowIdx].SubText := FormatFileSize(Files[i].Size);
     end;
@@ -1318,6 +1359,7 @@ begin
       selIdx := FFileTable.SelectedRow;
       FFileTable.Visible := False;
       FIconView.Visible := True;
+      FIconView.SetFocus();
       if (selIdx >= 0) and (selIdx < FIconView.ItemCount) then
         FIconView.SelectedIndex := selIdx;
     end;
@@ -1622,6 +1664,36 @@ begin
       dlg.FBtnHidden.Toggled := dlg.FShowHiddenFiles;
     dlg.RefreshList();
     Exit;
+  end;
+
+  // Ctrl + Plus / Equal / KP_Add: Zoom In Grid View
+  if hasCtrl and ((KeySym = $002B) or (KeySym = $003D) or (KeySym = $FFAB)) then
+  begin
+    if (dlg.FViewMode = dvmGrid) and Assigned(dlg.FIconView) then
+    begin
+      dlg.FIconView.ZoomIn();
+      Exit;
+    end;
+  end;
+
+  // Ctrl + Minus / KP_Subtract: Zoom Out Grid View
+  if hasCtrl and ((KeySym = $002D) or (KeySym = $FFAD)) then
+  begin
+    if (dlg.FViewMode = dvmGrid) and Assigned(dlg.FIconView) then
+    begin
+      dlg.FIconView.ZoomOut();
+      Exit;
+    end;
+  end;
+
+  // Ctrl + 0: Reset Grid View Zoom
+  if hasCtrl and ((KeySym = $0030) or (KeySym = $FFB0)) then
+  begin
+    if (dlg.FViewMode = dvmGrid) and Assigned(dlg.FIconView) then
+    begin
+      dlg.FIconView.ZoomLevel := izlNormal;
+      Exit;
+    end;
   end;
 
   // Alt+Up ($FF52): Go up

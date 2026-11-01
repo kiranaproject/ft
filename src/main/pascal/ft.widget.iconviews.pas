@@ -10,7 +10,7 @@ interface
 uses
   SysUtils, Classes, Math, Types,
   Floria.Image.Core, Ft.Canvas, Floria.Font, Ft.Widget, Ft.Widget.Containers,
-  Ft.Widget.ScrollBars, Ft.Theme, Ft.Css;
+  Ft.Widget.ScrollBars, Ft.Theme, Ft.Css, Ft.Icons;
 
 type
   TFtIconZoomLevel = (izlSmall, izlNormal, izlLarge, izlHuge);
@@ -20,19 +20,31 @@ type
     FCaption: string;
     FSubText: string;
     FIcon: TFloriaImage;
+    FIconName: string;
     FSelected: Boolean;
     FTag: Integer;
     FData: Pointer;
   public
-    constructor Create(const ACaption: string = ''; AIcon: TFloriaImage = nil);
+    constructor Create(const ACaption: string = ''; AIcon: TFloriaImage = nil; const AIconName: string = '');
     destructor Destroy(); override;
 
     property Caption: string read FCaption write FCaption;
     property SubText: string read FSubText write FSubText;
     property Icon: TFloriaImage read FIcon write FIcon;
+    property IconName: string read FIconName write FIconName;
     property Selected: Boolean read FSelected write FSelected;
     property Tag: Integer read FTag write FTag;
     property Data: Pointer read FData write FData;
+  end;
+
+  TFtIconCacheEntry = class
+  public
+    Name: string;
+    Size: Integer;
+    DarkMode: Boolean;
+    Image: TFloriaImage;
+    constructor Create(const AName: string; ASize: Integer; ADarkMode: Boolean; AImage: TFloriaImage);
+    destructor Destroy(); override;
   end;
 
   TFtIconSelectEvent = procedure(Sender: TObject; ItemIndex: Integer) of object;
@@ -45,6 +57,7 @@ type
   TFtIconView = class(TFtContainer)
   private
     FItems: TFPList; // TFtIconViewItem
+    FIconCache: TFPList; // TFtIconCacheEntry
     FSelectedIndex: Integer;
     FSelAnchorIndex: Integer;
     FHoveredIndex: Integer;
@@ -90,6 +103,8 @@ type
     function GetItemCount(): Integer;
     function GetItem(AIndex: Integer): TFtIconViewItem;
     procedure WrapTwoLines(const AText: string; AFont: TFtFont; AMaxW: Double; out Line1, Line2: string);
+    function GetCachedIcon(const AName: string; ASize: Integer; ADarkMode: Boolean): TFloriaImage;
+    procedure ClearIconCache();
   protected
     procedure DrawContent(Canvas: TFtCanvas); override;
     procedure GetRenderArea(out AX, AY, AW, AH, ARadius: Double); override;
@@ -105,8 +120,11 @@ type
     procedure RecalculateLayout();
     procedure ScrollIntoView(AIndex: Integer);
 
-    function AddItem(const ACaption: string; AIcon: TFloriaImage = nil): Integer;
-    function InsertItem(AIndex: Integer; const ACaption: string; AIcon: TFloriaImage = nil): Integer;
+    procedure ZoomIn();
+    procedure ZoomOut();
+
+    function AddItem(const ACaption: string; AIcon: TFloriaImage = nil; const AIconName: string = ''): Integer;
+    function InsertItem(AIndex: Integer; const ACaption: string; AIcon: TFloriaImage = nil; const AIconName: string = ''): Integer;
     procedure DeleteItem(AIndex: Integer);
     procedure Clear();
 
@@ -150,14 +168,33 @@ type
 
 implementation
 
+{ TFtIconCacheEntry }
+
+constructor TFtIconCacheEntry.Create(const AName: string; ASize: Integer; ADarkMode: Boolean; AImage: TFloriaImage);
+begin
+  inherited Create();
+  Name := AName;
+  Size := ASize;
+  DarkMode := ADarkMode;
+  Image := AImage;
+end;
+
+destructor TFtIconCacheEntry.Destroy();
+begin
+  if Assigned(Image) then
+    FreeAndNil(Image);
+  inherited Destroy();
+end;
+
 { TFtIconViewItem }
 
-constructor TFtIconViewItem.Create(const ACaption: string = ''; AIcon: TFloriaImage = nil);
+constructor TFtIconViewItem.Create(const ACaption: string = ''; AIcon: TFloriaImage = nil; const AIconName: string = '');
 begin
   inherited Create();
   FCaption := ACaption;
   FSubText := '';
   FIcon := AIcon;
+  FIconName := AIconName;
   FSelected := False;
   FTag := 0;
   FData := nil;
@@ -174,6 +211,7 @@ constructor TFtIconView.Create(AParent: TFtWidget);
 begin
   inherited Create(AParent);
   FItems := TFPList.Create();
+  FIconCache := TFPList.Create();
   FSelectedIndex := -1;
   FSelAnchorIndex := -1;
   FHoveredIndex := -1;
@@ -198,10 +236,24 @@ begin
   FCornerRadius := -1.0;
 end;
 
+procedure TFtIconView.ClearIconCache();
+var
+  i: Integer;
+begin
+  if Assigned(FIconCache) then
+  begin
+    for i := 0 to FIconCache.Count - 1 do
+      TFtIconCacheEntry(FIconCache[i]).Free();
+    FIconCache.Clear();
+  end;
+end;
+
 destructor TFtIconView.Destroy();
 var
   i: Integer;
 begin
+  ClearIconCache();
+  FreeAndNil(FIconCache);
   for i := 0 to FItems.Count - 1 do
     TFtIconViewItem(FItems[i]).Free();
   FreeAndNil(FItems);
@@ -317,6 +369,51 @@ begin
     end;
   end;
   RecalculateLayout();
+end;
+
+procedure TFtIconView.ZoomIn();
+begin
+  case FZoomLevel of
+    izlSmall: SetZoomLevel(izlNormal);
+    izlNormal: SetZoomLevel(izlLarge);
+    izlLarge: SetZoomLevel(izlHuge);
+    izlHuge: ; // already maximum
+  end;
+end;
+
+procedure TFtIconView.ZoomOut();
+begin
+  case FZoomLevel of
+    izlHuge: SetZoomLevel(izlLarge);
+    izlLarge: SetZoomLevel(izlNormal);
+    izlNormal: SetZoomLevel(izlSmall);
+    izlSmall: ; // already minimum
+  end;
+end;
+
+function TFtIconView.GetCachedIcon(const AName: string; ASize: Integer; ADarkMode: Boolean): TFloriaImage;
+var
+  i: Integer;
+  entry: TFtIconCacheEntry;
+  img: TFloriaImage;
+begin
+  Result := nil;
+  if (AName = '') or (FIconCache = nil) then Exit;
+
+  for i := 0 to FIconCache.Count - 1 do
+  begin
+    entry := TFtIconCacheEntry(FIconCache[i]);
+    if (entry.Name = AName) and (entry.Size = ASize) and (entry.DarkMode = ADarkMode) then
+      Exit(entry.Image);
+  end;
+
+  img := FtGetIconBitmap(AName, ASize, ASize, ADarkMode);
+  if Assigned(img) then
+  begin
+    entry := TFtIconCacheEntry.Create(AName, ASize, ADarkMode, img);
+    FIconCache.Add(entry);
+    Result := img;
+  end;
 end;
 
 procedure TFtIconView.SetItemWidth(AValue: Double);
@@ -470,21 +567,21 @@ begin
     SetScrollY(itemBottom - viewH + FPaddingY);
 end;
 
-function TFtIconView.AddItem(const ACaption: string; AIcon: TFloriaImage = nil): Integer;
+function TFtIconView.AddItem(const ACaption: string; AIcon: TFloriaImage = nil; const AIconName: string = ''): Integer;
 var
   item: TFtIconViewItem;
 begin
-  item := TFtIconViewItem.Create(ACaption, AIcon);
+  item := TFtIconViewItem.Create(ACaption, AIcon, AIconName);
   Result := FItems.Add(item);
   RecalculateLayout();
 end;
 
-function TFtIconView.InsertItem(AIndex: Integer; const ACaption: string; AIcon: TFloriaImage = nil): Integer;
+function TFtIconView.InsertItem(AIndex: Integer; const ACaption: string; AIcon: TFloriaImage = nil; const AIconName: string = ''): Integer;
 var
   item: TFtIconViewItem;
 begin
   if (AIndex < 0) or (AIndex > FItems.Count) then AIndex := FItems.Count;
-  item := TFtIconViewItem.Create(ACaption, AIcon);
+  item := TFtIconViewItem.Create(ACaption, AIcon, AIconName);
   FItems.Insert(AIndex, item);
   if (FSelectedIndex >= AIndex) and (FSelectedIndex >= 0) then
     Inc(FSelectedIndex);
@@ -715,14 +812,26 @@ var
   isDblClick: Boolean;
   minIdx, maxIdx, i: Integer;
 begin
+  mods := FtGetKeyboardModifiers();
+  hasCtrl := (mods and FT_KEY_MOD_CONTROL) <> 0;
+  hasShift := (mods and FT_KEY_MOD_SHIFT) <> 0;
+
+  // Ctrl + MouseWheel zoom
+  if hasCtrl and (AButton = 4) then
+  begin
+    ZoomIn();
+    Exit;
+  end;
+  if hasCtrl and (AButton = 5) then
+  begin
+    ZoomOut();
+    Exit;
+  end;
+
   inherited MouseDown(AX, AY, AButton);
 
   if not FFocused and CanFocus() then
     SetFocus();
-
-  mods := FtGetKeyboardModifiers();
-  hasCtrl := (mods and FT_KEY_MOD_CONTROL) <> 0;
-  hasShift := (mods and FT_KEY_MOD_SHIFT) <> 0;
 
   hitIdx := ItemAtPosition(AX, AY);
 
@@ -991,6 +1100,27 @@ begin
     Exit;
   end;
 
+  // Ctrl + Plus / Equal / KP_Add: Zoom In
+  if hasCtrl and ((AKeySym = $002B) or (AKeySym = $003D) or (AKeySym = $FFAB)) then
+  begin
+    ZoomIn();
+    Exit;
+  end;
+
+  // Ctrl + Minus / KP_Subtract: Zoom Out
+  if hasCtrl and ((AKeySym = $002D) or (AKeySym = $FFAD)) then
+  begin
+    ZoomOut();
+    Exit;
+  end;
+
+  // Ctrl + 0: Reset Zoom
+  if hasCtrl and ((AKeySym = $0030) or (AKeySym = $FFB0)) then
+  begin
+    SetZoomLevel(izlNormal);
+    Exit;
+  end;
+
   if FItems.Count = 0 then Exit;
 
   targetIdx := FSelectedIndex;
@@ -1120,6 +1250,7 @@ var
   line1, line2: string;
   fnt: TFtFont;
   mqX1, mqY1, mqW, mqH: Double;
+  iconImg, cachedImg: TFloriaImage;
 begin
   theme := FtGetTheme();
   accent := theme.GetAccentColor();
@@ -1171,8 +1302,15 @@ begin
     // Draw Icon (centered horizontally)
     iconX := Round(cellX + (cellW - FIconSize) * 0.5);
     iconY := Round(cellY + 8.0);
-    if Assigned(item.Icon) and (item.Icon.Width > 0) and (item.Icon.Height > 0) then
-      Canvas.DrawImageScaled(iconX, iconY, FIconSize, FIconSize, item.Icon, 1.0);
+    iconImg := item.Icon;
+    if (item.IconName <> '') then
+    begin
+      cachedImg := GetCachedIcon(item.IconName, FIconSize, theme.DarkMode);
+      if Assigned(cachedImg) then
+        iconImg := cachedImg;
+    end;
+    if Assigned(iconImg) and (iconImg.Width > 0) and (iconImg.Height > 0) then
+      Canvas.DrawImageScaled(iconX, iconY, FIconSize, FIconSize, iconImg, 1.0);
 
     // Draw Caption text
     textX := cellX + 4.0;
