@@ -311,7 +311,8 @@ end;
 
 procedure TFtCheckBox.MouseDown(AX, AY: Integer; AButton: Integer);
 begin
-  inherited MouseDown(AX, AY, AButton);
+  if (AButton in [4, 5, 6, 7]) and Assigned(Parent) then
+    Parent.MouseDown(AX, AY, AButton);
   if (AButton = 1) and FEnabled then
   begin
     FIsMouseDown := True;
@@ -605,7 +606,8 @@ end;
 
 procedure TFtRadioButton.MouseDown(AX, AY: Integer; AButton: Integer);
 begin
-  inherited MouseDown(AX, AY, AButton);
+  if (AButton in [4, 5, 6, 7]) and Assigned(Parent) then
+    Parent.MouseDown(AX, AY, AButton);
   if (AButton = 1) and FEnabled then
   begin
     FIsMouseDown := True;

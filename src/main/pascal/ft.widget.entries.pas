@@ -539,7 +539,8 @@ var
   nowTime: QWord;
   clickChar, sMin, sMax: Integer;
 begin
-  inherited MouseDown(AX, AY, AButton);
+  if (AButton in [4, 5, 6, 7]) and Assigned(Parent) then
+    Parent.MouseDown(AX, AY, AButton);
   if AButton = 3 then
   begin
     SetFocus();
