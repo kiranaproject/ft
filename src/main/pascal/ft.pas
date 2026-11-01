@@ -5868,6 +5868,15 @@ begin
   tbl.SetOnColumnResizeCb(callback, user_data);
 end;
 
+procedure ft_table_on_column_click(table: Pointer; callback: TFtTableColumnClickCallback; user_data: Pointer); cdecl; export;
+var
+  tbl: TFtTable;
+begin
+  if not Assigned(table) or not (TObject(table) is TFtTable) then Exit;
+  tbl := TFtTable(table);
+  tbl.SetOnColumnClickCb(callback, user_data);
+end;
+
 { ──────────────────────── File Dialogs ────────────────────────────────── }
 
 { Handle-based object API }
@@ -7152,6 +7161,7 @@ exports
   ft_table_auto_fit_column,
   ft_table_auto_fit_columns,
   ft_table_on_column_resize,
+  ft_table_on_column_click,
 
   // PathBar
   ft_path_bar_create,

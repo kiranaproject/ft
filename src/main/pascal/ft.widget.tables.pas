@@ -42,6 +42,7 @@ type
 
   TFtTableRowSelectEvent = procedure(Sender: TObject; RowIndex: Integer) of object;
   TFtTableColumnClickEvent = procedure(Sender: TObject; ColumnIndex: Integer) of object;
+  TFtTableColumnClickCallback = procedure(Sender: Pointer; ColumnIndex: Integer; UserData: Pointer); cdecl;
   TFtTableColumnResizeEvent = procedure(Sender: TObject; ColumnIndex: Integer; NewWidth: Double) of object;
   TFtTableRowSelectCallback = procedure(Sender: Pointer; RowIndex: Integer; UserData: Pointer); cdecl;
   TFtTableColumnResizeCallback = procedure(Sender: Pointer; ColumnIndex: Integer; NewWidth: Double; UserData: Pointer); cdecl;
@@ -91,6 +92,8 @@ type
     FOnColumnResizeUserData: Pointer;
     FOnRowDoubleClickCb: TFtTableRowDoubleClickCallback;
     FOnRowDoubleClickUserData: Pointer;
+    FOnColumnClickCb: TFtTableColumnClickCallback;
+    FOnColumnClickUserData: Pointer;
     FOnDrawHeader: TFtTableDrawHeaderEvent;
     FOnDrawHeaderCb: TFtTableDrawHeaderCallback;
     FOnDrawHeaderUserData: Pointer;
@@ -140,6 +143,7 @@ type
     procedure SetOnDrawCellCb(ACallback: TFtTableDrawCellCallback; AUserData: Pointer);
     procedure SetOnRowDoubleClickCb(ACallback: TFtTableRowDoubleClickCallback; AUserData: Pointer);
     procedure SetOnColumnResizeCb(ACallback: TFtTableColumnResizeCallback; AUserData: Pointer);
+    procedure SetOnColumnClickCb(ACallback: TFtTableColumnClickCallback; AUserData: Pointer);
     procedure DeleteRow(AIndex: Integer);
     procedure ClearRows();
     procedure ClearAll();
@@ -469,6 +473,12 @@ procedure TFtTable.SetOnColumnResizeCb(ACallback: TFtTableColumnResizeCallback; 
 begin
   FOnColumnResizeCb := ACallback;
   FOnColumnResizeUserData := AUserData;
+end;
+
+procedure TFtTable.SetOnColumnClickCb(ACallback: TFtTableColumnClickCallback; AUserData: Pointer);
+begin
+  FOnColumnClickCb := ACallback;
+  FOnColumnClickUserData := AUserData;
 end;
 
 procedure TFtTable.AutoFitColumn(AColIndex: Integer);
@@ -1666,6 +1676,8 @@ begin
       begin
         if Assigned(FOnColumnClick) then
           FOnColumnClick(Self, FPressedHeaderCol);
+        if Assigned(FOnColumnClickCb) then
+          FOnColumnClickCb(Self, FPressedHeaderCol, FOnColumnClickUserData);
       end;
       FPressedHeaderCol := -1;
       Exit;
