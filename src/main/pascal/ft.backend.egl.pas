@@ -525,19 +525,25 @@ end;
 
 procedure TFtEGLWindow.CleanupEGL();
 begin
-  if Assigned(FCanvasGL) then
+  if FHardwareAccelerated then
+  begin
+    MakeCurrent();
+    if Assigned(FCanvasGL) then
+    begin
+      if FCanvas = FCanvasGL then
+        FCanvas := nil;
+      FreeAndNil(FCanvasGL);
+      FGPURendererMode := False;
+    end;
+    CleanupGLPipeline();
+    ReleaseCurrent();
+  end
+  else if Assigned(FCanvasGL) then
   begin
     if FCanvas = FCanvasGL then
       FCanvas := nil;
     FreeAndNil(FCanvasGL);
     FGPURendererMode := False;
-  end;
-
-  if FHardwareAccelerated then
-  begin
-    MakeCurrent();
-    CleanupGLPipeline();
-    ReleaseCurrent();
   end;
 
   if (FEGLDisplay <> EGL_NO_DISPLAY) then
