@@ -69,6 +69,23 @@ void ft_window_set_background_opacity(FtWidget window, double opacity);
 double ft_window_get_background_opacity(FtWidget window);
 void ft_window_set_background_blur(FtWidget window, int32_t blur);
 int32_t ft_window_get_background_blur(FtWidget window);
+
+/* Extended Client Area (ECA) & Window Controls Insets */
+typedef struct FtWindowControlsInset {
+    int32_t left;
+    int32_t right;
+    int32_t top;
+    int32_t bottom;
+} FtWindowControlsInset;
+
+typedef void (*FtWindowControlsInsetCallback)(FtWidget window, int32_t left, int32_t right, int32_t top, int32_t bottom, void* user_data);
+
+void ft_window_set_extended_client_area(FtWidget window, int32_t eca);
+int32_t ft_window_get_extended_client_area(FtWidget window);
+void ft_window_get_controls_inset(FtWidget window, int32_t* left, int32_t* right, int32_t* top, int32_t* bottom);
+void ft_window_on_controls_inset_changed(FtWidget window, FtWindowControlsInsetCallback callback, void* user_data);
+void ft_window_begin_move(FtWidget window, int32_t root_x, int32_t root_y);
+void ft_window_begin_resize(FtWidget window, int32_t root_x, int32_t root_y, int32_t direction);
 void ft_window_set_strut_partial(FtWidget window,
     int32_t left, int32_t right, int32_t top, int32_t bottom,
     int32_t left_start_y, int32_t left_end_y,

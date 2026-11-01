@@ -408,6 +408,55 @@ begin
     Result := 0;
 end;
 
+procedure ft_window_set_extended_client_area(window: Pointer; eca: cint32); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    TFtWindow(window).SetExtendedClientArea(eca <> 0);
+end;
+
+function ft_window_get_extended_client_area(window: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtWindow) and TFtWindow(window).ExtendedClientArea then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+procedure ft_window_get_controls_inset(window: Pointer; left, right, top, bottom: pcint32); cdecl; export;
+var
+  ins: TFtWindowControlsInset;
+begin
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    ins := TFtWindow(window).WindowControlsInset
+  else
+    FillChar(ins, SizeOf(ins), 0);
+  if Assigned(left) then left^ := ins.Left;
+  if Assigned(right) then right^ := ins.Right;
+  if Assigned(top) then top^ := ins.Top;
+  if Assigned(bottom) then bottom^ := ins.Bottom;
+end;
+
+procedure ft_window_on_controls_inset_changed(window: Pointer; callback: TFtWindowControlsInsetCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+  begin
+    TFtWindow(window).OnControlsInsetCallback := callback;
+    TFtWindow(window).OnControlsInsetUserData := user_data;
+  end;
+end;
+
+procedure ft_window_begin_move(window: Pointer; root_x, root_y: cint32); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    TFtWindow(window).BeginWindowMove(root_x, root_y);
+end;
+
+procedure ft_window_begin_resize(window: Pointer; root_x, root_y, direction: cint32); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    TFtWindow(window).BeginWindowResize(root_x, root_y, direction);
+end;
+
 function ft_window_show_modal(window: Pointer): cint32; cdecl; export;
 begin
   Result := 0;
@@ -6610,6 +6659,12 @@ exports
   ft_window_get_background_opacity,
   ft_window_set_background_blur,
   ft_window_get_background_blur,
+  ft_window_set_extended_client_area,
+  ft_window_get_extended_client_area,
+  ft_window_get_controls_inset,
+  ft_window_on_controls_inset_changed,
+  ft_window_begin_move,
+  ft_window_begin_resize,
   ft_window_show_modal,
   ft_window_bring_to_front,
   ft_widget_show,

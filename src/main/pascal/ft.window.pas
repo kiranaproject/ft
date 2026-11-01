@@ -39,6 +39,16 @@ type
   TFtWindowKeyCallback = procedure(AWindow: Pointer; AKeySym: Cardinal; AIsDown: Integer; AUserData: Pointer); cdecl;
   TFtWindowResizeCallback = procedure(AWindow: Pointer; AWidth, AHeight: Integer; AUserData: Pointer); cdecl;
   TFtWindowCloseCallback = function(AWindow: Pointer; AUserData: Pointer): cint32; cdecl;
+  TFtWindowControlsInsetCallback = procedure(AWindow: Pointer; ALeft, ARight, ATop, ABottom: cint32; AUserData: Pointer); cdecl;
+
+  TFtWindowControlsInset = record
+    Left   : Integer;
+    Right  : Integer;
+    Top    : Integer;
+    Bottom : Integer;
+  end;
+
+  TFtWindowControlsInsetChangedEvent = procedure(Sender: TObject; const AInset: TFtWindowControlsInset) of object;
 
   TFtWindow = class(TFtWidget)
   protected
@@ -75,6 +85,11 @@ type
     FWindowUserData: Pointer;
     FOnCloseCallback: TFtWindowCloseCallback;
     FOnCloseUserData: Pointer;
+    FExtendedClientArea: Boolean;
+    FWindowControlsInset: TFtWindowControlsInset;
+    FOnControlsInsetChanged: TFtWindowControlsInsetChangedEvent;
+    FOnControlsInsetCallback: TFtWindowControlsInsetCallback;
+    FOnControlsInsetUserData: Pointer;
 
     procedure OnThemeChanged(); virtual;
     procedure OnStyleSheetChanged(); virtual;
@@ -111,6 +126,10 @@ type
     procedure SetOpacity(AValue: Double); override;
     procedure SetBackgroundOpacity(AValue: Double); virtual;
     procedure SetBackgroundBlur(AValue: Boolean); virtual;
+    procedure SetExtendedClientArea(AValue: Boolean); virtual;
+    procedure BeginWindowMove(const ARootX, ARootY: Integer); virtual;
+    procedure BeginWindowResize(const ARootX, ARootY: Integer; const ADirection: Integer); virtual;
+    procedure OnWindowControlsInsetChanged(); virtual;
     procedure BringToFront(); virtual;
     procedure UpdateCursor(); virtual;
     procedure ClaimClipboard(); virtual;
@@ -145,6 +164,11 @@ type
     property PixelBuffer: PByte read FPixelBuffer;
     property Title: string read FTitle write SetTitle;
     property Borderless: Boolean read FBorderless write SetBorderless;
+    property ExtendedClientArea: Boolean read FExtendedClientArea write SetExtendedClientArea;
+    property WindowControlsInset: TFtWindowControlsInset read FWindowControlsInset write FWindowControlsInset;
+    property OnControlsInsetChanged: TFtWindowControlsInsetChangedEvent read FOnControlsInsetChanged write FOnControlsInsetChanged;
+    property OnControlsInsetCallback: TFtWindowControlsInsetCallback read FOnControlsInsetCallback write FOnControlsInsetCallback;
+    property OnControlsInsetUserData: Pointer read FOnControlsInsetUserData write FOnControlsInsetUserData;
     property SkipTaskbar: Boolean read FSkipTaskbar write SetSkipTaskbar;
     property WindowType: TFtWindowType read FWindowType write SetWindowType;
     property WindowOpacity: Double read GetWindowOpacity write SetWindowOpacity;
@@ -318,6 +342,11 @@ begin
   FWindowUserData := nil;
   FOnCloseCallback := nil;
   FOnCloseUserData := nil;
+  FExtendedClientArea := False;
+  FillChar(FWindowControlsInset, SizeOf(FWindowControlsInset), 0);
+  FOnControlsInsetChanged := nil;
+  FOnControlsInsetCallback := nil;
+  FOnControlsInsetUserData := nil;
 
   if (Width > 0) and (Height > 0) then
   begin
@@ -734,6 +763,32 @@ begin
     FBackgroundBlur := AValue;
     Invalidate();
   end;
+end;
+
+procedure TFtWindow.SetExtendedClientArea(AValue: Boolean);
+begin
+  FExtendedClientArea := AValue;
+end;
+
+procedure TFtWindow.BeginWindowMove(const ARootX, ARootY: Integer);
+begin
+  // Handled by platform backend
+end;
+
+procedure TFtWindow.BeginWindowResize(const ARootX, ARootY: Integer; const ADirection: Integer);
+begin
+  // Handled by platform backend
+end;
+
+procedure TFtWindow.OnWindowControlsInsetChanged();
+begin
+  if Assigned(FOnControlsInsetChanged) then
+    FOnControlsInsetChanged(Self, FWindowControlsInset);
+  if Assigned(FOnControlsInsetCallback) then
+    FOnControlsInsetCallback(Self, FWindowControlsInset.Left, FWindowControlsInset.Right,
+                             FWindowControlsInset.Top, FWindowControlsInset.Bottom,
+                             FOnControlsInsetUserData);
+  Invalidate();
 end;
 
 procedure TFtWindow.BringToFront();

@@ -43,6 +43,7 @@ eval gcc $CFLAGS examples/c/form_grid_and_splitter.c $LDFLAGS -o target/example_
 eval gcc $CFLAGS examples/c/message_dialog.c $LDFLAGS -o target/example_c_message_dialog
 eval gcc $CFLAGS examples/c/creative_canvas.c $LDFLAGS -lm -o target/example_c_creative_canvas
 eval gcc $CFLAGS examples/c/floating_nav_bar.c $LDFLAGS -lm -o target/example_c_floating_nav_bar
+eval gcc $CFLAGS examples/c/extended_client_area.c $LDFLAGS -o target/example_c_extended_client_area
 
 echo "[INFO] Successfully built all C examples in target/:"
 ls -lh target/example_c_*

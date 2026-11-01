@@ -26,6 +26,7 @@ type
   end;
 
   Pxcb_map_notify_event_t = ^xcb_map_notify_event_t;
+  Pxcb_property_notify_event_t = ^xcb_property_notify_event_t;
 
 function libc_poll(fds: Pointer; nfds: culong; timeout: cint): cint; cdecl; external 'c' name 'poll';
 
@@ -54,6 +55,7 @@ type
     procedure UpdateNetWmState();
     procedure UpdateBlurBehindRegion();
     procedure UpdateWmNormalHints();
+    procedure QueryControlsInset();
     procedure PresentPixels(dirtyX, dirtyY, dirtyW, dirtyH: Integer; isPartial: Boolean); virtual;
   public
     function GetScreenWidth(): Integer; override;
@@ -72,6 +74,9 @@ type
                               ATopStartX, ATopEndX, ABottomStartX, ABottomEndX: Cardinal); override;
     procedure SetWindowOpacity(AOpacity: Double); override;
     procedure SetBackgroundBlur(AValue: Boolean); override;
+    procedure SetExtendedClientArea(AValue: Boolean); override;
+    procedure BeginWindowMove(const ARootX, ARootY: Integer); override;
+    procedure BeginWindowResize(const ARootX, ARootY: Integer; const ADirection: Integer); override;
     procedure SetPosition(NewX, NewY: Integer); override;
     procedure GetPosition(out OutX, OutY: Integer); override;
     function ClientToScreen(AX, AY: Integer): TPoint; override;
@@ -252,6 +257,10 @@ var
   atomNetActiveWindow: xcb_atom_t = 0;
   atomNetWmStateModal: xcb_atom_t = 0;
   atomNetWmStateAbove: xcb_atom_t = 0;
+  atomNetWmMoveresize: xcb_atom_t = 0;
+  atomNetWmExtendedClientArea: xcb_atom_t = 0;
+  atomNetWmStateExtendedClientArea: xcb_atom_t = 0;
+  atomNetWmWindowControlsInset: xcb_atom_t = 0;
 
   GHintWindow: TFtHintWindow = nil;
   GHintTargetWidget: TFtWidget = nil;
@@ -315,6 +324,10 @@ begin
   atomNetWmWindowOpacity := InternAtom('_NET_WM_WINDOW_OPACITY');
   atomBlurRegionNet := InternAtom('_NET_WM_BLUR_BEHIND_REGION');
   atomBlurRegionKde := InternAtom('_KDE_NET_WM_BLUR_BEHIND_REGION');
+  atomNetWmMoveresize := InternAtom('_NET_WM_MOVERESIZE');
+  atomNetWmExtendedClientArea := InternAtom('_NET_WM_EXTENDED_CLIENT_AREA');
+  atomNetWmStateExtendedClientArea := InternAtom('_NET_WM_STATE_EXTENDED_CLIENT_AREA');
+  atomNetWmWindowControlsInset := InternAtom('_NET_WM_WINDOW_CONTROLS_INSET');
 end;
 
 function FindVisual(screen: Pxcb_screen_t; targetDepth: Integer): xcb_visualid_t;
@@ -652,6 +665,7 @@ begin
       XCB_SELECTION_NOTIFY: winId := Pxcb_selection_notify_event_t(ev)^.requestor;
       XCB_CLIENT_MESSAGE: winId := Pxcb_client_message_event_t(ev)^.window;
       XCB_DESTROY_NOTIFY: winId := Pxcb_destroy_notify_event_t(ev)^.window;
+      XCB_PROPERTY_NOTIFY: winId := Pxcb_property_notify_event_t(ev)^.window;
     end;
 
     win := FindWindowByHandle(winId);
@@ -1059,7 +1073,7 @@ end;
 
 procedure TFtX11Window.UpdateNetWmState();
 var
-  stateAtoms: array[0..3] of xcb_atom_t;
+  stateAtoms: array[0..4] of xcb_atom_t;
   count: Integer;
 begin
   if (FWindow = 0) or (FConnection = nil) then Exit;
@@ -1090,6 +1104,11 @@ begin
       Inc(count);
     end;
   end;
+  if FExtendedClientArea and (atomNetWmStateExtendedClientArea <> 0) then
+  begin
+    stateAtoms[count] := atomNetWmStateExtendedClientArea;
+    Inc(count);
+  end;
 
   if count > 0 then
     xcb_change_property(FConnection, XCB_PROP_MODE_REPLACE, FWindow, atomNetWmState, XCB_ATOM_ATOM, 32, count, @stateAtoms[0])
@@ -1112,6 +1131,137 @@ begin
     inherited SetIsModal(AValue);
     UpdateNetWmState();
   end;
+end;
+
+procedure TFtX11Window.SetExtendedClientArea(AValue: Boolean);
+var
+  val: Cardinal;
+begin
+  if FExtendedClientArea = AValue then Exit;
+  inherited SetExtendedClientArea(AValue);
+  if not AValue then
+  begin
+    FillChar(FWindowControlsInset, SizeOf(FWindowControlsInset), 0);
+    OnWindowControlsInsetChanged();
+  end;
+  if (FWindow <> 0) and (FConnection <> nil) then
+  begin
+    if FExtendedClientArea then val := 1 else val := 0;
+    if atomNetWmExtendedClientArea <> 0 then
+      xcb_change_property(FConnection, XCB_PROP_MODE_REPLACE, FWindow,
+                          atomNetWmExtendedClientArea, XCB_ATOM_CARDINAL, 32, 1, @val);
+    UpdateNetWmState();
+    xcb_flush(FConnection);
+  end;
+end;
+
+procedure TFtX11Window.QueryControlsInset();
+var
+  cookie: xcb_get_property_cookie_t;
+  reply: Pxcb_get_property_reply_t;
+  pVals: PCardinal;
+  newLeft, newRight, newTop, newBottom: Integer;
+  changed: Boolean;
+begin
+  if (FWindow = 0) or (FConnection = nil) or (atomNetWmWindowControlsInset = 0) then Exit;
+
+  cookie := xcb_get_property(FConnection, 0, FWindow, atomNetWmWindowControlsInset, XCB_ATOM_CARDINAL, 0, 4);
+  reply := xcb_get_property_reply(FConnection, cookie, nil);
+  if reply = nil then Exit;
+
+  try
+    if (reply^.format = 32) and (reply^.value_len >= 4) then
+    begin
+      pVals := PCardinal(xcb_get_property_value(reply));
+      newLeft := Integer(pVals[0]);
+      newRight := Integer(pVals[1]);
+      newTop := Integer(pVals[2]);
+      newBottom := Integer(pVals[3]);
+    end
+    else
+    begin
+      newLeft := 0;
+      newRight := 0;
+      newTop := 0;
+      newBottom := 0;
+    end;
+
+    changed := (FWindowControlsInset.Left <> newLeft) or
+               (FWindowControlsInset.Right <> newRight) or
+               (FWindowControlsInset.Top <> newTop) or
+               (FWindowControlsInset.Bottom <> newBottom);
+
+    if changed then
+    begin
+      FWindowControlsInset.Left := newLeft;
+      FWindowControlsInset.Right := newRight;
+      FWindowControlsInset.Top := newTop;
+      FWindowControlsInset.Bottom := newBottom;
+      OnWindowControlsInsetChanged();
+    end;
+  finally
+    c_free(reply);
+  end;
+end;
+
+procedure TFtX11Window.BeginWindowMove(const ARootX, ARootY: Integer);
+var
+  msg: xcb_client_message_event_t;
+  data32: PCardinal;
+begin
+  if (FConnection = nil) or (FWindow = 0) or (GScreen = nil) then Exit;
+  if atomNetWmMoveresize = 0 then Exit;
+
+  FillChar(msg, SizeOf(msg), 0);
+  msg.response_type := XCB_CLIENT_MESSAGE;
+  msg.format := 32;
+  msg.window := FWindow;
+  msg.type_ := atomNetWmMoveresize;
+  data32 := PCardinal(@msg.data.raw[0]);
+  data32[0] := ARootX;
+  data32[1] := ARootY;
+  data32[2] := 8; // _NET_WM_MOVERESIZE_MOVE
+  data32[3] := 1; // Button 1
+  data32[4] := 1; // Normal application source
+
+  xcb_send_event(
+    FConnection,
+    0,
+    GScreen^.root,
+    XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT or XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY,
+    PAnsiChar(@msg)
+  );
+  xcb_flush(FConnection);
+end;
+
+procedure TFtX11Window.BeginWindowResize(const ARootX, ARootY: Integer; const ADirection: Integer);
+var
+  msg: xcb_client_message_event_t;
+  data32: PCardinal;
+begin
+  if (FConnection = nil) or (FWindow = 0) or (GScreen = nil) then Exit;
+  if atomNetWmMoveresize = 0 then Exit;
+
+  FillChar(msg, SizeOf(msg), 0);
+  msg.response_type := XCB_CLIENT_MESSAGE;
+  msg.format := 32;
+  msg.window := FWindow;
+  msg.type_ := atomNetWmMoveresize;
+  data32 := PCardinal(@msg.data.raw[0]);
+  data32[0] := ARootX;
+  data32[1] := ARootY;
+  data32[2] := ADirection;
+  data32[3] := 1; // Button 1
+  data32[4] := 1; // Normal application source
+
+  xcb_send_event(
+    FConnection,
+    0,
+    GScreen^.root,
+    XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT or XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY,
+    PAnsiChar(@msg)
+  );
+  xcb_flush(FConnection);
 end;
 
 procedure TFtX11Window.BringToFront();
@@ -1488,6 +1638,8 @@ begin
     UpdateWmNormalHints();
     xcb_map_window(FConnection, FWindow);
     FNeedsRepaint := True;
+    if FExtendedClientArea then
+      QueryControlsInset();
     xcb_flush(FConnection);
     if FIsModal or (FWindowType in [ftwtDialog, ftwtPopupMenu, ftwtDropdownMenu, ftwtUtility]) then
       BringToFront();
@@ -2051,6 +2203,7 @@ var
   sendText: string;
   sc: Pxcb_selection_clear_event_t;
   cm: Pxcb_client_message_event_t;
+  prop: Pxcb_property_notify_event_t;
   stackVal: Cardinal;
 begin
   if Event = nil then Exit;
@@ -2076,6 +2229,8 @@ begin
 
     XCB_MAP_NOTIFY:
     begin
+      if FExtendedClientArea then
+        QueryControlsInset();
       if FWindowType = ftwtDesktop then
       begin
         stackVal := XCB_STACK_MODE_BELOW;
@@ -2459,6 +2614,13 @@ begin
         if not HasMainWindows() then
           GRunning := False;
       end;
+    end;
+
+    XCB_PROPERTY_NOTIFY:
+    begin
+      prop := Pxcb_property_notify_event_t(Event);
+      if (prop^.atom = atomNetWmWindowControlsInset) and (atomNetWmWindowControlsInset <> 0) then
+        QueryControlsInset();
     end;
   end;
 end;

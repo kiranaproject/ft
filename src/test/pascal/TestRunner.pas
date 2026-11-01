@@ -135,6 +135,7 @@ type
     procedure TestBringToFront();
     procedure TestModalShowAndResult();
     procedure TestWindowTypeDialog();
+    procedure TestExtendedClientArea();
   end;
 
   // Scheduling arithmetic for the low-rate timer (WM-28). Pure functions, so these
@@ -3096,6 +3097,63 @@ begin
     AssertTrue('dlg is active window', FtGetActiveWindow() = dlg);
   finally
     dlg.Free();
+  end;
+end;
+
+type
+  TInsetCallbackHelper = class
+  public
+    Called: Boolean;
+    LastInset: TFtWindowControlsInset;
+    procedure HandleInsetChanged(Sender: TObject; const AInset: TFtWindowControlsInset);
+  end;
+
+procedure TInsetCallbackHelper.HandleInsetChanged(Sender: TObject; const AInset: TFtWindowControlsInset);
+begin
+  Called := True;
+  LastInset := AInset;
+end;
+
+procedure TFtWindowModalTest.TestExtendedClientArea();
+var
+  win: TFtWindow;
+  helper: TInsetCallbackHelper;
+  ins: TFtWindowControlsInset;
+begin
+  win := FtCreateWindow(400, 300, 'Test ECA Window');
+  helper := TInsetCallbackHelper.Create();
+  try
+    AssertFalse('Default ExtendedClientArea is False', win.ExtendedClientArea);
+    AssertEquals('Default Inset Left is 0', 0, win.WindowControlsInset.Left);
+    AssertEquals('Default Inset Right is 0', 0, win.WindowControlsInset.Right);
+    AssertEquals('Default Inset Top is 0', 0, win.WindowControlsInset.Top);
+    AssertEquals('Default Inset Bottom is 0', 0, win.WindowControlsInset.Bottom);
+
+    win.OnControlsInsetChanged := @helper.HandleInsetChanged;
+    win.ExtendedClientArea := True;
+    AssertTrue('ExtendedClientArea set to True', win.ExtendedClientArea);
+
+    ins.Left := 0;
+    ins.Right := 130;
+    ins.Top := 36;
+    ins.Bottom := 0;
+    win.WindowControlsInset := ins;
+    win.OnWindowControlsInsetChanged();
+
+    AssertTrue('Callback was invoked', helper.Called);
+    AssertEquals('Inset Right is 130', 130, helper.LastInset.Right);
+    AssertEquals('Inset Top is 36', 36, helper.LastInset.Top);
+
+    win.ExtendedClientArea := False;
+    AssertFalse('ExtendedClientArea set to False', win.ExtendedClientArea);
+    AssertEquals('Reset Inset Right is 0', 0, win.WindowControlsInset.Right);
+    AssertEquals('Reset Inset Top is 0', 0, win.WindowControlsInset.Top);
+
+    win.BeginWindowMove(100, 100);
+    win.BeginWindowResize(100, 100, 8);
+  finally
+    helper.Free();
+    win.Free();
   end;
 end;
 
