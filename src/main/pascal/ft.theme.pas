@@ -62,7 +62,10 @@ type
     procedure SetEnableShadow(AValue: Boolean); virtual;
 
     function HasDarkMode(): Boolean; virtual;
-    procedure DrawWindowBackground(Canvas: TFtCanvas; W, H: Integer; AOpacity: Double = 1.0); virtual;
+    // ARadius > 0 rounds the background and leaves the corners unpainted, so the
+    // window surface must be ARGB and start transparent (see TFtWindow.Paint).
+    procedure DrawWindowBackground(Canvas: TFtCanvas; W, H: Integer;
+                                   AOpacity: Double = 1.0; ARadius: Double = 0.0); virtual;
     procedure DrawButton(Canvas: TFtCanvas; X, Y, W, H: Integer; 
                          State: TFtButtonState; Toggled: Boolean; 
                          const Caption: string; Font: TFtFont); virtual;
@@ -612,7 +615,8 @@ begin
   FColorsCached := True;
 end;
 
-procedure TFtTheme.DrawWindowBackground(Canvas: TFtCanvas; W, H: Integer; AOpacity: Double = 1.0);
+procedure TFtTheme.DrawWindowBackground(Canvas: TFtCanvas; W, H: Integer;
+  AOpacity: Double; ARadius: Double);
 var
   effA: Double;
 begin
@@ -620,12 +624,25 @@ begin
   if FCachedWindowBgHasColor then
   begin
     effA := FCachedWindowBgA * AOpacity;
-    Canvas.DrawRect(0, 0, W, H, FCachedWindowBgR, FCachedWindowBgG, FCachedWindowBgB, effA);
+    if ARadius > 0.0 then
+      Canvas.DrawRoundedRect(0, 0, W, H, ARadius, FCachedWindowBgR, FCachedWindowBgG, FCachedWindowBgB, effA)
+    else
+      Canvas.DrawRect(0, 0, W, H, FCachedWindowBgR, FCachedWindowBgG, FCachedWindowBgB, effA);
   end
   else if FDarkMode then
-    Canvas.DrawRect(0, 0, W, H, 0.09, 0.09, 0.11, AOpacity)
+  begin
+    if ARadius > 0.0 then
+      Canvas.DrawRoundedRect(0, 0, W, H, ARadius, 0.09, 0.09, 0.11, AOpacity)
+    else
+      Canvas.DrawRect(0, 0, W, H, 0.09, 0.09, 0.11, AOpacity);
+  end
   else
-    Canvas.DrawRect(0, 0, W, H, 0.94, 0.95, 0.96, AOpacity);
+  begin
+    if ARadius > 0.0 then
+      Canvas.DrawRoundedRect(0, 0, W, H, ARadius, 0.94, 0.95, 0.96, AOpacity)
+    else
+      Canvas.DrawRect(0, 0, W, H, 0.94, 0.95, 0.96, AOpacity);
+  end;
 end;
 
 procedure TFtTheme.DrawButton(Canvas: TFtCanvas; X, Y, W, H: Integer; 

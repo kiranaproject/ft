@@ -471,6 +471,7 @@ var
   dirtyX, dirtyY, dirtyW, dirtyH: Integer;
   isTranslucent: Boolean;
   effBgA: Double;
+  bgRadius: Double;
   rowY: Integer;
 begin
   if (Width <= 0) or (Height <= 0) or not Assigned(FCanvas) then Exit;
@@ -490,7 +491,14 @@ begin
   end;
 
   st := GetResolvedStyle();
+  bgRadius := 0.0;
+  if st.HasBorderRadius and (st.BorderRadius > 0.0) then
+    bgRadius := st.BorderRadius;
+
+  // A rounded background leaves its corners unpainted, which only works if the
+  // surface starts transparent, so a radius makes the window translucent too.
   isTranslucent := ((FBackgroundOpacity < 0.999) or (st.HasBgColor and (st.BgColor.A < 0.999)) or
+                    (bgRadius > 0.0) or
                     (FWindowType in [ftwtPopupMenu, ftwtDropdownMenu, ftwtTooltip]));
 
   if isPartial then
@@ -514,10 +522,14 @@ begin
         if st.HasBgColor then
         begin
           effBgA := st.BgColor.A * FBackgroundOpacity;
-          FCanvas.DrawRect(0, 0, Width, Height, st.BgColor.R, st.BgColor.G, st.BgColor.B, effBgA);
+          if bgRadius > 0.0 then
+            FCanvas.DrawRoundedRect(0, 0, Width, Height, bgRadius,
+                                    st.BgColor.R, st.BgColor.G, st.BgColor.B, effBgA)
+          else
+            FCanvas.DrawRect(0, 0, Width, Height, st.BgColor.R, st.BgColor.G, st.BgColor.B, effBgA);
         end
         else
-          FtGetTheme().DrawWindowBackground(FCanvas, Width, Height, FBackgroundOpacity);
+          FtGetTheme().DrawWindowBackground(FCanvas, Width, Height, FBackgroundOpacity, bgRadius);
       end;
       Self.Draw(FCanvas);
     finally
@@ -538,10 +550,14 @@ begin
       if st.HasBgColor then
       begin
         effBgA := st.BgColor.A * FBackgroundOpacity;
-        FCanvas.DrawRect(0, 0, Width, Height, st.BgColor.R, st.BgColor.G, st.BgColor.B, effBgA);
+        if bgRadius > 0.0 then
+          FCanvas.DrawRoundedRect(0, 0, Width, Height, bgRadius,
+                                  st.BgColor.R, st.BgColor.G, st.BgColor.B, effBgA)
+        else
+          FCanvas.DrawRect(0, 0, Width, Height, st.BgColor.R, st.BgColor.G, st.BgColor.B, effBgA);
       end
       else
-        FtGetTheme().DrawWindowBackground(FCanvas, Width, Height, FBackgroundOpacity);
+        FtGetTheme().DrawWindowBackground(FCanvas, Width, Height, FBackgroundOpacity, bgRadius);
     end;
     Self.Draw(FCanvas);
   end;

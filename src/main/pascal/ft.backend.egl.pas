@@ -752,6 +752,7 @@ var
   st: TFtWidgetStyle;
   isTranslucent: Boolean;
   effBgA: Double;
+  bgRadius: Double;
   curTheme: TFtTheme;
   themeBg: TFtRgbColor;
 begin
@@ -771,7 +772,13 @@ begin
     begin
       try
         st := GetResolvedStyle();
+        bgRadius := 0.0;
+        if st.HasBorderRadius and (st.BorderRadius > 0.0) then
+          bgRadius := st.BorderRadius;
+        // Same rule as the software path: a rounded background needs a transparent
+        // clear, or the corners keep the previous frame.
         isTranslucent := ((FBackgroundOpacity < 0.999) or (st.HasBgColor and (st.BgColor.A < 0.999)) or
+                          (bgRadius > 0.0) or
                           (FWindowType in [ftwtPopupMenu, ftwtDropdownMenu, ftwtTooltip]));
         curTheme := FtGetTheme();
         themeBg := curTheme.GetWindowBgColor();
@@ -807,10 +814,14 @@ begin
           if st.HasBgColor then
           begin
             effBgA := st.BgColor.A * FBackgroundOpacity;
-            FCanvasGL.DrawRect(0, 0, Width, Height, st.BgColor.R, st.BgColor.G, st.BgColor.B, effBgA);
+            if bgRadius > 0.0 then
+              FCanvasGL.DrawRoundedRect(0, 0, Width, Height, bgRadius,
+                                        st.BgColor.R, st.BgColor.G, st.BgColor.B, effBgA)
+            else
+              FCanvasGL.DrawRect(0, 0, Width, Height, st.BgColor.R, st.BgColor.G, st.BgColor.B, effBgA);
           end
           else
-            curTheme.DrawWindowBackground(FCanvasGL, Width, Height, FBackgroundOpacity);
+            curTheme.DrawWindowBackground(FCanvasGL, Width, Height, FBackgroundOpacity, bgRadius);
         end;
 
         // 4. Draw widgets hierarchy

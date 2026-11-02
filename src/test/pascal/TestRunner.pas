@@ -140,6 +140,16 @@ type
     procedure TestExtendedClientArea();
   end;
 
+  // A window style's border radius must actually round the background. Before this,
+  // the window paint path filled a plain rectangle and ignored the radius entirely,
+  // which is why a dock styled with `border-radius` still came out square.
+  TFtWindowBackgroundRadiusTest = class(TTestCase)
+  published
+    procedure TestRoundedBackgroundLeavesCornersUnpainted();
+    procedure TestSquareBackgroundCoversCorners();
+    procedure TestWindowPaintHonoursStyleRadius();
+  end;
+
   // Scheduling arithmetic for the low-rate timer (WM-28). Pure functions, so these
   // run without a live main loop or an X server.
   // Regression: X11 function keys must not become text.
@@ -4667,6 +4677,93 @@ end;
 var
   Application: TTestRunner;
 
+{ TFtWindowBackgroundRadiusTest }
+
+// Draws the theme window background into a transparent buffer and reports the alpha
+// at a point. Alpha 0 means nothing was painted there.
+function BackgroundAlphaAt(ARadius: Double; AX, AY: Integer): Byte;
+const
+  W = 120;
+  H = 80;
+var
+  buf: array of Byte;
+  canvas: TFtCanvasAgg;
+  theme: TFtTheme;
+begin
+  SetLength(buf, W * H * 4);
+  FillChar(buf[0], Length(buf), 0);
+  canvas := TFtCanvasAgg.Create(@buf[0], W, H);
+  theme := FtGetTheme();
+  try
+    // Both branches are covered by passing a background colour through the theme;
+    // the theme in use may or may not define one, so assert on what was painted.
+    theme.DrawWindowBackground(canvas, W, H, 1.0, ARadius);
+    Result := buf[(AY * W + AX) * 4 + 3];
+  finally
+    canvas.Free();
+  end;
+end;
+
+procedure TFtWindowBackgroundRadiusTest.TestRoundedBackgroundLeavesCornersUnpainted();
+const
+  RADIUS = 18;
+begin
+  // Just inside the bounding box but outside the curve: with an 18px radius the
+  // point (1,1) is well away from the filled area.
+  AssertEquals('corner is transparent with a radius', 0,
+               BackgroundAlphaAt(RADIUS, 1, 1));
+  AssertEquals('far corner is transparent', 0,
+               BackgroundAlphaAt(RADIUS, 118, 78));
+  // The middle must still be painted, or "transparent corner" is just "nothing drawn".
+  AssertTrue('centre is painted', BackgroundAlphaAt(RADIUS, 60, 40) > 0);
+end;
+
+// The theme function being right is not enough: the window paint path has to read
+// the style's radius and use it. Without this test, deleting that wiring left the
+// suite green.
+procedure TFtWindowBackgroundRadiusTest.TestWindowPaintHonoursStyleRadius();
+var
+  win: TFtWindow;
+  w, h: Integer;
+  cornerAlpha, centreAlpha: Byte;
+begin
+  win := FtCreateWindow(120, 80, 'radius-paint-test');
+  if win = nil then
+    raise EIgnoredTest.Create('no window: cannot test the paint path');
+  try
+    // Paint once square first, so the corner really holds pixels. A fresh buffer is
+    // already zeroed, which would let a missing "rounded implies translucent" rule
+    // pass unnoticed: the corner would look transparent for the wrong reason.
+    win.InlineStyle := 'background-color: rgba(24, 24, 32, 1.0);';
+    win.Repaint();
+
+    w := win.Width;
+    h := win.Height;
+    AssertTrue('square paint fills the corner first',
+               win.PixelBuffer[(1 * w + 1) * 4 + 3] > 0);
+
+    // Now round it and repaint. The corner must be cleared, not merely skipped.
+    win.InlineStyle := 'background-color: rgba(24, 24, 32, 1.0); border-radius: 18px;';
+    win.Repaint();
+
+    cornerAlpha := win.PixelBuffer[(1 * w + 1) * 4 + 3];
+    centreAlpha := win.PixelBuffer[((h div 2) * w + (w div 2)) * 4 + 3];
+
+    AssertEquals('window paint clears the corner', 0, cornerAlpha);
+    AssertTrue('window paint fills the centre', centreAlpha > 0);
+  finally
+    win.Free();
+  end;
+end;
+
+procedure TFtWindowBackgroundRadiusTest.TestSquareBackgroundCoversCorners();
+begin
+  // Radius 0 keeps the old behaviour: the whole rectangle is filled, corners included.
+  // This is the guard that the rounding change did not alter every other window.
+  AssertTrue('corner is painted with no radius', BackgroundAlphaAt(0.0, 1, 1) > 0);
+  AssertTrue('centre is painted with no radius', BackgroundAlphaAt(0.0, 60, 40) > 0);
+end;
+
 begin
   Application := TTestRunner.Create(nil);
   try
@@ -4682,6 +4779,7 @@ begin
     RegisterTest(TFtKeySymToTextTest);
     RegisterTest(TFtTimerSchedulingTest);
     RegisterTest(TFtCanvasAndShapingTest);
+    RegisterTest(TFtWindowBackgroundRadiusTest);
     Application.Initialize;
     Application.Run;
   finally
