@@ -166,6 +166,9 @@ function FtParseTransition(const S: string; out Prop: string; out DurationMs: In
 function FtGetStyleSheet(): TFtStyleSheet;
 function FtLoadStyleSheet(const APath: string): Boolean;
 function FtLoadStyleSheetString(const ACss: string): Boolean;
+// Append rules to the sheet already loaded, instead of replacing it. A consumer that
+// wants to restyle a few widgets should not have to reproduce the whole theme.
+function FtAppendStyleSheet(const ACss: string): Boolean;
 procedure FtSetCssDarkMode(AValue: Boolean);
 function FtGetCssDarkMode(): Boolean;
 
@@ -2333,6 +2336,18 @@ end;
 function FtLoadStyleSheetString(const ACss: string): Boolean;
 begin
   Result := FtGetStyleSheet().LoadFromString(ACss);
+end;
+
+function FtAppendStyleSheet(const ACss: string): Boolean;
+begin
+  Result := False;
+  if Trim(ACss) = '' then Exit;
+  try
+    FtGetStyleSheet().FResolver.AddCSS(ACss);
+    Result := True;
+  except
+    Result := False;
+  end;
 end;
 
 finalization

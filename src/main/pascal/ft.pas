@@ -3666,6 +3666,14 @@ begin
     Result := 0;
 end;
 
+function ft_style_append_css_string(css_string: PChar): cint32; cdecl; export;
+begin
+  if Assigned(css_string) and FtAppendStyleSheet(StrPas(css_string)) then
+    Result := 1
+  else
+    Result := 0;
+end;
+
 function ft_animation_is_running(): cint32; cdecl; export;
 begin
   if FtGetAnimator().HasActiveAnimations() then
@@ -7546,6 +7554,7 @@ exports
   ft_widget_get_parent_render_area,
   ft_style_load_css_file,
   ft_style_load_css_string,
+  ft_style_append_css_string,
   ft_animation_is_running,
   ft_bitmap_create,
   ft_bitmap_load_file,

@@ -815,6 +815,8 @@ void ft_widget_set_style(FtWidget widget, const char* inline_css);
 const char* ft_widget_get_style(FtWidget widget);
 int32_t ft_style_load_css_file(const char* filepath);
 int32_t ft_style_load_css_string(const char* css_string);
+/* Append rules to the loaded sheet instead of replacing it. */
+int32_t ft_style_append_css_string(const char* css_string);
 
 /* Animation Engine */
 int32_t ft_animation_is_running(void);
