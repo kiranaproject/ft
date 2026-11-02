@@ -65,6 +65,14 @@ type
     procedure UpdateWmNormalHints();
     procedure QueryControlsInset();
     procedure PresentPixels(dirtyX, dirtyY, dirtyW, dirtyH: Integer; isPartial: Boolean); virtual;
+  public
+    // Width the input shape was last applied at, and the window height it was applied
+    // for. A window whose Repaint override forgets to shape keeps the old value; that
+    // is invisible on screen but makes everything past it click-through.
+    property InputShapeWidth  : Integer read FShapeW;
+    property InputShapeHeight : Integer read FShapeH;
+    property InputShapeApplied: Boolean read FShapeApplied;
+  protected
     // Shape the window's INPUT region to its rounded background, so the transparent
     // corners do not swallow clicks meant for whatever is behind them.
     procedure ApplyInputShape();
@@ -2506,6 +2514,9 @@ begin
       else
       begin
         Target := HitTest(bp^.event_x, bp^.event_y);
+        if Width < 400 then
+        begin
+        end;
         if Target = Self then
           Target := nil;
         if not (bp^.detail in [4, 5, 6, 7]) then

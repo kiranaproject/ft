@@ -1064,6 +1064,9 @@ begin
         child := TFtWidget(Children[i]);
         if (child <> FVScrollBar) and (child <> FHScrollBar) and child.Visible then
         begin
+          if Width < 400 then
+          begin
+          end;
           target := child.HitTest(AX, AY);
           if Assigned(target) then
             Exit(target);

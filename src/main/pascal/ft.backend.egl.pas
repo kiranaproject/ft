@@ -756,6 +756,12 @@ var
   curTheme: TFtTheme;
   themeBg: TFtRgbColor;
 begin
+  // This class overrides Repaint, so the base class's hook never runs here. Without
+  // this the input shape is applied once at creation and then stays at the original
+  // size: after a resize, everything beyond the old width is click-through and the
+  // window looks half dead. Both paint paths must shape.
+  ApplyInputShape();
+
   if FDirectGPUMode and FHardwareAccelerated then
   begin
     FNeedsRepaint := False;

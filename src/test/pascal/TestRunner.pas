@@ -148,6 +148,8 @@ type
     procedure TestRoundedBackgroundLeavesCornersUnpainted();
     procedure TestSquareBackgroundCoversCorners();
     procedure TestWindowPaintHonoursStyleRadius();
+    procedure TestInputShapeFollowsResize();
+    procedure TestEglWindowInputShapeFollowsResize();
   end;
 
   // The input region a rounded window is shaped to. With the corners excluded,
@@ -4764,6 +4766,86 @@ begin
     AssertTrue('window paint fills the centre', centreAlpha > 0);
   finally
     win.Free();
+  end;
+end;
+
+// The input shape must follow the window's size. It is invisible on screen, so the
+// failure mode is subtle: everything past the old width becomes click-through while
+// still looking perfectly normal. That is exactly what happened when the EGL window
+// class overrode Repaint and skipped the shaping hook.
+procedure TFtWindowBackgroundRadiusTest.TestInputShapeFollowsResize();
+var
+  win: TFtWindow;
+  x11: TFtX11Window;
+  w0, w1: Integer;
+begin
+  win := FtCreateWindow(120, 80, 'shape-follows-resize');
+  if win = nil then
+    raise EIgnoredTest.Create('no window: cannot test the input shape');
+  if not (win is TFtX11Window) then
+    raise EIgnoredTest.Create('not an X11/EGL window');
+  x11 := TFtX11Window(win);
+  try
+    win.InlineStyle := 'background-color: rgba(24, 24, 32, 1.0); border-radius: 18px;';
+    win.Repaint();
+
+    AssertTrue('shape was applied', x11.InputShapeApplied);
+    AssertEquals('shape width matches the window', win.Width, x11.InputShapeWidth);
+
+    w0 := win.Width;
+    w1 := w0 + 54;
+    win.Resize(w1, win.Height);
+
+    AssertEquals('window is wider', w1, win.Width);
+    AssertEquals('shape followed the resize', w1, x11.InputShapeWidth);
+    AssertEquals('shape height unchanged', win.Height, x11.InputShapeHeight);
+  finally
+    win.Free();
+  end;
+end;
+
+// The EGL window class overrides Repaint, so it needs its own shaping hook. This is
+// the variant that runs in a real shell: the toolkit enables EGL whenever it is
+// available, and a missing hook there left the input shape stuck at the width the
+// window had when it was created.
+procedure TFtWindowBackgroundRadiusTest.TestEglWindowInputShapeFollowsResize();
+var
+  win: TFtWindow;
+  x11: TFtX11Window;
+  w1: Integer;
+  eglWasEnabled: Boolean;
+begin
+  try
+    eglWasEnabled := FtEnableEGLBackend(True);
+  except
+    raise EIgnoredTest.Create('EGL backend cannot be enabled here');
+  end;
+
+  try
+    if not eglWasEnabled then
+      raise EIgnoredTest.Create('EGL unavailable: cannot exercise the EGL paint path');
+
+    win := FtCreateWindow(120, 80, 'egl-shape-follows-resize');
+    if win = nil then
+      raise EIgnoredTest.Create('no window created');
+    try
+      if not (win is TFtEGLWindow) then
+        raise EIgnoredTest.Create('window is not an EGL window: ' + win.ClassName);
+      x11 := TFtX11Window(win);
+
+      win.InlineStyle := 'background-color: rgba(24, 24, 32, 1.0); border-radius: 18px;';
+      win.Repaint();
+      AssertTrue('shape applied on the EGL path', x11.InputShapeApplied);
+
+      w1 := win.Width + 54;
+      win.Resize(w1, win.Height);
+
+      AssertEquals('EGL shape followed the resize', w1, x11.InputShapeWidth);
+    finally
+      win.Free();
+    end;
+  finally
+    FtEnableEGLBackend(False);
   end;
 end;
 
