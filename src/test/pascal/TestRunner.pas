@@ -150,6 +150,17 @@ type
     procedure TestWindowPaintHonoursStyleRadius();
   end;
 
+  // The input region a rounded window is shaped to. With the corners excluded,
+  // clicks there fall through to whatever is behind the window.
+  TFtRoundedInputRegionTest = class(TTestCase)
+  published
+    procedure TestNoRadiusProducesNoRects();
+    procedure TestRectsStayInsideTheWindow();
+    procedure TestCornersAreExcludedAndCentreIsIncluded();
+    procedure TestRadiusIsClampedToHalfTheWindow();
+    procedure TestRoundedAreaIsSmallerThanTheRectangle();
+  end;
+
   // Scheduling arithmetic for the low-rate timer (WM-28). Pure functions, so these
   // run without a live main loop or an X server.
   // Regression: X11 function keys must not become text.
@@ -4764,6 +4775,121 @@ begin
   AssertTrue('centre is painted with no radius', BackgroundAlphaAt(0.0, 60, 40) > 0);
 end;
 
+{ TFtRoundedInputRegionTest }
+
+// Coverage grid for the rectangles: does any rect contain (AX, AY)?
+function RectCovers(const ARects: TFtXcbRectArray; AX, AY: Integer): Boolean;
+var
+  i: Integer;
+begin
+  Result := False;
+  for i := 0 to High(ARects) do
+    if (AX >= ARects[i].x) and (AX < ARects[i].x + Integer(ARects[i].width)) and
+       (AY >= ARects[i].y) and (AY < ARects[i].y + Integer(ARects[i].height)) then
+      Exit(True);
+end;
+
+procedure TFtRoundedInputRegionTest.TestNoRadiusProducesNoRects();
+var
+  rects: TFtXcbRectArray;
+begin
+  // No radius means no shape at all; the caller shapes the whole window instead.
+  rects := FtBuildRoundedInputRects(120, 80, 0.0);
+  AssertEquals('no radius gives no rects', 0, Length(rects));
+
+  rects := FtBuildRoundedInputRects(0, 80, 12.0);
+  AssertEquals('zero width gives no rects', 0, Length(rects));
+end;
+
+procedure TFtRoundedInputRegionTest.TestRectsStayInsideTheWindow();
+const
+  W = 120;
+  H = 80;
+  R = 18.0;
+var
+  rects: TFtXcbRectArray;
+  i: Integer;
+begin
+  rects := FtBuildRoundedInputRects(W, H, R);
+  AssertTrue('rects produced', Length(rects) > 0);
+  for i := 0 to High(rects) do
+  begin
+    AssertTrue(Format('rect %d: x >= 0', [i]), rects[i].x >= 0);
+    AssertTrue(Format('rect %d: y >= 0', [i]), rects[i].y >= 0);
+    AssertTrue(Format('rect %d: inside right edge', [i]),
+               rects[i].x + Integer(rects[i].width) <= W);
+    AssertTrue(Format('rect %d: inside bottom edge', [i]),
+               rects[i].y + Integer(rects[i].height) <= H);
+    AssertTrue(Format('rect %d: non-empty', [i]), rects[i].width > 0);
+  end;
+end;
+
+procedure TFtRoundedInputRegionTest.TestCornersAreExcludedAndCentreIsIncluded();
+var
+  rects: TFtXcbRectArray;
+begin
+  rects := FtBuildRoundedInputRects(120, 80, 18.0);
+
+  // The four corners of the bounding box fall outside an 18px radius.
+  AssertFalse('top-left excluded', RectCovers(rects, 0, 0));
+  AssertFalse('top-right excluded', RectCovers(rects, 119, 0));
+  AssertFalse('bottom-left excluded', RectCovers(rects, 0, 79));
+  AssertFalse('bottom-right excluded', RectCovers(rects, 119, 79));
+
+  // Everything a shape should keep.
+  AssertTrue('centre included', RectCovers(rects, 60, 40));
+  AssertTrue('top edge middle included', RectCovers(rects, 60, 0));
+  AssertTrue('left edge middle included', RectCovers(rects, 0, 40));
+  AssertTrue('just inside the curve included', RectCovers(rects, 12, 12));
+end;
+
+procedure TFtRoundedInputRegionTest.TestRadiusIsClampedToHalfTheWindow();
+var
+  rects: TFtXcbRectArray;
+  i: Integer;
+begin
+  // A radius larger than the window must not produce out-of-range rectangles; it is
+  // clamped to half the shorter side, which yields a full ellipse-ish shape.
+  rects := FtBuildRoundedInputRects(40, 20, 500.0);
+  AssertTrue('clamped radius still produces rects', Length(rects) > 0);
+  for i := 0 to High(rects) do
+  begin
+    AssertTrue(Format('rect %d: x >= 0', [i]), rects[i].x >= 0);
+    AssertTrue(Format('rect %d: width fits', [i]),
+               rects[i].x + Integer(rects[i].width) <= 40);
+    AssertTrue(Format('rect %d: height fits', [i]),
+               rects[i].y + Integer(rects[i].height) <= 20);
+  end;
+  AssertFalse('corner still excluded at the clamp', RectCovers(rects, 0, 0));
+  AssertTrue('centre included at the clamp', RectCovers(rects, 20, 10));
+end;
+
+procedure TFtRoundedInputRegionTest.TestRoundedAreaIsSmallerThanTheRectangle();
+var
+  rects: TFtXcbRectArray;
+  full: TFtXcbRectArray;
+  i, roundedRows, roundedArea, expectedRows: Integer;
+begin
+  // Sanity: the shape is genuinely cut, not just a full rectangle in disguise.
+  // Area is compared row by row, because the middle band is one tall rect.
+  full := FtBuildRoundedInputRects(120, 80, 1.0);
+  rects := FtBuildRoundedInputRects(120, 80, 18.0);
+
+  roundedArea := 0;
+  for i := 0 to High(rects) do
+    Inc(roundedArea, Integer(rects[i].width) * Integer(rects[i].height));
+  roundedRows := Length(rects);
+
+  AssertTrue('rounded shape is smaller than the full rectangle',
+             roundedArea < 120 * 80);
+  // 2 * radius row rects + 1 middle strip.
+  expectedRows := (2 * 18) + 1;
+  AssertEquals('one rect per corner row plus the middle strip',
+               expectedRows, roundedRows);
+  AssertTrue('the full-radius case is a single row per line or fewer',
+             Length(full) <= 80);
+end;
+
 begin
   Application := TTestRunner.Create(nil);
   try
@@ -4780,6 +4906,7 @@ begin
     RegisterTest(TFtTimerSchedulingTest);
     RegisterTest(TFtCanvasAndShapingTest);
     RegisterTest(TFtWindowBackgroundRadiusTest);
+    RegisterTest(TFtRoundedInputRegionTest);
     Application.Initialize;
     Application.Run;
   finally

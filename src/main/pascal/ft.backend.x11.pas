@@ -6,10 +6,13 @@ interface
 
 uses
   ctypes, SysUtils, Classes, dynlibs,
-  Floria.XCB, Floria.XCB.Keysyms, Floria.XCB.Cursor, Floria.XCB.ICCCM, Floria.X11.KeySym,
+  Floria.XCB, Floria.XCB.Keysyms, Floria.XCB.Cursor, Floria.XCB.ICCCM, Floria.XCB.Shape, Floria.X11.KeySym,
   Floria.Canvas.Agg, Ft.Canvas, Ft.Widget, Ft.Theme, Ft.Css, Ft.Animation, Ft.Window;
 
 type
+  TFtXcbRectArray = array of xcb_rectangle_t;
+
+
   TMWMHints = record
     flags: culong;
     functions: culong;
@@ -51,12 +54,22 @@ type
     FLastConfigureTime: QWord;
     FLastResizeRenderTime: QWord;
     FCurrentCursor: xcb_cursor_t;
+    // Last input shape applied, so a repaint does not re-issue the same request.
+    FShapeRadius: Double;
+    FShapeW: Integer;
+    FShapeH: Integer;
+    FShapeApplied: Boolean;
 
     procedure UpdateNetWmState();
     procedure UpdateBlurBehindRegion();
     procedure UpdateWmNormalHints();
     procedure QueryControlsInset();
     procedure PresentPixels(dirtyX, dirtyY, dirtyW, dirtyH: Integer; isPartial: Boolean); virtual;
+    // Shape the window's INPUT region to its rounded background, so the transparent
+    // corners do not swallow clicks meant for whatever is behind them.
+    procedure ApplyInputShape();
+    // Row rectangles covering a rounded rectangle. Empty when ARadius <= 0.
+    function BuildRoundedInputRects(AW, AH: Integer; ARadius: Double): TFtXcbRectArray;
   public
     function GetScreenWidth(): Integer; override;
     function GetScreenHeight(): Integer; override;
@@ -216,6 +229,11 @@ function AdvanceTimerDeadline(const ALastDueMs, ANowMs: QWord; AIntervalMs: Inte
 function WaitBudgetMs(const ANowMs: QWord; const AFrameStartMs: QWord;
                       const AFrameBudgetMs, AIntervalMs: Integer;
                       const ALastDueMs: QWord): Int64;
+
+// Row rectangles covering a rounded rectangle, used to shape a window's input region
+// to its rounded background. Empty when there is no radius, which callers read as
+// "no shape". Exposed for tests: the arithmetic is the part that can be wrong.
+function FtBuildRoundedInputRects(AW, AH: Integer; ARadius: Double): TFtXcbRectArray;
 
 implementation
 
@@ -1664,6 +1682,7 @@ begin
   begin
     UpdateWmNormalHints();
     xcb_map_window(FConnection, FWindow);
+    ApplyInputShape();
     FNeedsRepaint := True;
     if FExtendedClientArea then
       QueryControlsInset();
@@ -1696,6 +1715,10 @@ var
 begin
   if (Width <= 0) or (Height <= 0) or (FWindow = 0) or not Assigned(FCanvas) or not Assigned(FConnection) then Exit;
 
+  // Style is resolved during paint, so this is the point at which a radius change is
+  // known. Cheap: it returns immediately unless the shape would actually differ.
+  ApplyInputShape();
+
   isPartial := FHasDirtyRect and not FFullRepaint;
   if FHasDirtyRect then
   begin
@@ -1712,6 +1735,74 @@ begin
   inherited Repaint();
 
   PresentPixels(dirtyX, dirtyY, dirtyW, dirtyH, isPartial);
+end;
+
+// Row rectangles covering a rounded rectangle of AW x AH with corner radius ARadius.
+// Only the corner bands need one rectangle per row; the middle is a single full-width
+// strip. Returns an empty array when there is no radius, which means "no shape".
+function TFtX11Window.BuildRoundedInputRects(AW, AH: Integer; ARadius: Double): TFtXcbRectArray;
+begin
+  Result := FtBuildRoundedInputRects(AW, AH, ARadius);
+end;
+
+procedure TFtX11Window.ApplyInputShape();
+var
+  st: TFtWidgetStyle;
+  radius: Double;
+  cookie: xcb_query_extension_cookie_t;
+  extReply: Pxcb_query_extension_reply_t;
+  rects: array of xcb_rectangle_t;
+begin
+  if (FWindow = 0) or not Assigned(FConnection) then Exit;
+
+  st := GetResolvedStyle();
+  radius := 0.0;
+  if st.HasBorderRadius and (st.BorderRadius > 0.0) then
+    radius := st.BorderRadius;
+
+  // Nothing to do unless the shape would actually change.
+  if FShapeApplied and (Abs(FShapeRadius - radius) < 0.01) and
+     (FShapeW = Width) and (FShapeH = Height) then
+    Exit;
+
+  // Without the SHAPE extension there is nothing to set; leave the window rectangular
+  // rather than sending a request the server will reject.
+  cookie := xcb_query_extension(FConnection, 5, 'SHAPE');
+  extReply := xcb_query_extension_reply(FConnection, cookie, nil);
+  if extReply = nil then Exit;
+  try
+    if extReply^.present = 0 then Exit;
+  finally
+    // XCB allocated this buffer with malloc; FreeMem would corrupt the Pascal heap.
+    // xcb_free is inline in the C header, so the C free itself is what is bound here.
+    c_free(extReply);
+  end;
+
+  if radius > 0.0 then
+  begin
+    rects := BuildRoundedInputRects(Width, Height, radius);
+    if Length(rects) > 0 then
+      xcb_shape_rectangles(FConnection, XCB_SHAPE_SO_SET, XCB_SHAPE_SK_INPUT,
+                           XCB_SHAPE_SO_SET, FWindow, 0, 0, Length(rects), @rects[0]);
+  end
+  else
+  begin
+    // No radius: one rectangle covering the window, i.e. the default input region.
+    // Clearing the region outright would make the whole window click-through.
+    SetLength(rects, 1);
+    rects[0].x := 0;
+    rects[0].y := 0;
+    rects[0].width := Cardinal(Width);
+    rects[0].height := Cardinal(Height);
+    xcb_shape_rectangles(FConnection, XCB_SHAPE_SO_SET, XCB_SHAPE_SK_INPUT,
+                         XCB_SHAPE_SO_SET, FWindow, 0, 0, 1, @rects[0]);
+  end;
+
+  FShapeRadius := radius;
+  FShapeW := Width;
+  FShapeH := Height;
+  FShapeApplied := True;
+  xcb_flush(FConnection);
 end;
 
 procedure TFtX11Window.PresentPixels(dirtyX, dirtyY, dirtyW, dirtyH: Integer; isPartial: Boolean);
@@ -2916,6 +3007,71 @@ begin
   Result := IsAnyWindowResizing(GetTickCount64());
 end;
 
+function FtBuildRoundedInputRects(AW, AH: Integer; ARadius: Double): TFtXcbRectArray;
+var
+  r, dyF: Double;
+  rowY, n, rad, inset, innerW: Integer;
+begin
+  SetLength(Result, 0);
+  if (AW <= 0) or (AH <= 0) or (ARadius <= 0.0) then Exit;
+
+  // A radius larger than half the smaller side is not a rounded rectangle any more.
+  r := ARadius;
+  if r > (AW / 2) then r := AW / 2;
+  if r > (AH / 2) then r := AH / 2;
+  rad := Round(r);
+  if rad <= 0 then Exit;
+  // Two integer bands of `rad` rows can overlap on a very short window.
+  if (2 * rad) > AH then
+    rad := AH div 2;
+  if rad <= 0 then Exit;
+
+  SetLength(Result, (2 * rad) + 1);
+  n := 0;
+
+  // Top band: the inset at each row comes from the circle centred at (r, r).
+  // rowY + 0.5 is the row's centre, so the outermost row is not over-inset.
+  for rowY := 0 to rad - 1 do
+  begin
+    dyF := r - (rowY + 0.5);
+    if dyF < 0.0 then dyF := 0.0;
+    inset := Round(r - Sqrt((r * r) - (dyF * dyF)));
+    if inset < 0 then inset := 0;
+    innerW := AW - (2 * inset);
+    if innerW < 1 then innerW := 1;
+    Result[n].x := SmallInt(inset);
+    Result[n].y := SmallInt(rowY);
+    Result[n].width := Word(innerW);
+    Result[n].height := 1;
+    Inc(n);
+  end;
+
+  // Middle: full width, no inset.
+  Result[n].x := 0;
+  Result[n].y := SmallInt(rad);
+  Result[n].width := Word(AW);
+  Result[n].height := Word(AH - (2 * rad));
+  Inc(n);
+
+  // Bottom band, mirrored.
+  for rowY := 0 to rad - 1 do
+  begin
+    dyF := r - (rad - rowY - 0.5);
+    if dyF < 0.0 then dyF := 0.0;
+    inset := Round(r - Sqrt((r * r) - (dyF * dyF)));
+    if inset < 0 then inset := 0;
+    innerW := AW - (2 * inset);
+    if innerW < 1 then innerW := 1;
+    Result[n].x := SmallInt(inset);
+    Result[n].y := SmallInt(AH - rad + rowY);
+    Result[n].width := Word(innerW);
+    Result[n].height := 1;
+    Inc(n);
+  end;
+
+  SetLength(Result, n);
+end;
+
 initialization
   FtRegisterWindowClass(TFtX11Window);
   FtRegisterProcessEventsProc(@FtBackendProcessEvents);
@@ -2923,5 +3079,7 @@ initialization
 
 finalization
   FtBackendCleanup();
+
+
 
 end.
