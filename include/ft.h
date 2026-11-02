@@ -62,6 +62,10 @@ int32_t ft_window_get_skip_taskbar(FtWidget window);
 void ft_window_set_window_type(FtWidget window, int32_t window_type);
 int32_t ft_window_get_window_type(FtWidget window);
 void ft_window_set_position(FtWidget window, int32_t x, int32_t y);
+/* Resize in place. Prefer this over recreating the window: a destroyed window
+   drops its strut, which makes maximized clients expand into the gap and snap
+   back when the replacement maps. */
+void ft_window_set_size(FtWidget window, int32_t w, int32_t h);
 void ft_window_get_position(FtWidget window, int32_t* x, int32_t* y);
 void ft_window_set_opacity(FtWidget window, double opacity);
 double ft_window_get_opacity(FtWidget window);

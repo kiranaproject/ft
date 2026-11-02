@@ -360,6 +360,16 @@ begin
     TFtWindow(window).SetPosition(x, y);
 end;
 
+// Resize a window in place. Deliberately not a create/destroy pair: destroying the
+// window drops its strut, which makes every maximized window on the desktop expand
+// into the space and snap back when the new window maps. A dock whose width follows
+// its contents needs this.
+procedure ft_window_set_size(window: Pointer; w, h: cint32); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    TFtWindow(window).Resize(w, h);
+end;
+
 procedure ft_window_get_position(window: Pointer; out_x, out_y: pcint32); cdecl; export;
 var
   wx, wy: Integer;
@@ -7206,6 +7216,7 @@ exports
   ft_window_set_window_type,
   ft_window_get_window_type,
   ft_window_set_position,
+  ft_window_set_size,
   ft_window_get_position,
   ft_window_set_opacity,
   ft_window_get_opacity,
