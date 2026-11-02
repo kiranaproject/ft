@@ -150,6 +150,8 @@ type
     procedure TestWindowPaintHonoursStyleRadius();
     procedure TestInputShapeFollowsResize();
     procedure TestEglWindowInputShapeFollowsResize();
+    procedure TestFocusRingDrawsNothing();
+    procedure TestFocusPseudoClassAppliesStyle();
   end;
 
   // The input region a rounded window is shaped to. With the corners excluded,
@@ -4971,6 +4973,78 @@ begin
   AssertTrue('the full-radius case is a single row per line or fewer',
              Length(full) <= 80);
 end;
+
+// The focus ring used to paint a static accent outline around every focused widget.
+// It now draws nothing, and focus is expressed by a `:focus` style rule instead.
+procedure TFtWindowBackgroundRadiusTest.TestFocusRingDrawsNothing();
+const
+  W = 60;
+  H = 30;
+var
+  buf: array of Byte;
+  canvas: TFtCanvasAgg;
+  theme: TFtTheme;
+  i: Integer;
+  painted: Boolean;
+begin
+  SetLength(buf, W * H * 4);
+  FillChar(buf[0], Length(buf), 0);
+  canvas := TFtCanvasAgg.Create(@buf[0], W, H);
+  theme := FtGetTheme();
+  try
+    theme.DrawFocusRing(canvas, 10, 5, 40, 20, 6.0);
+
+    painted := False;
+    for i := 3 to (W * H * 4) - 1 do
+      if (i mod 4 = 3) and (buf[i] <> 0) then
+      begin
+        painted := True;
+        Break;
+      end;
+
+    AssertFalse('the focus ring paints nothing', painted);
+  finally
+    canvas.Free();
+  end;
+end;
+
+// The replacement for the ring: a widget can style itself on focus. This is the
+// mechanism the panels use, so it has to keep working.
+procedure TFtWindowBackgroundRadiusTest.TestFocusPseudoClassAppliesStyle();
+var
+  b: TFtButton;
+  normalStyle, focusedStyle: TFtWidgetStyle;
+  rBefore, rAfter: Double;
+begin
+  // Inline CSS is a declaration list, so a `:focus` rule has to live in a stylesheet.
+  // That is the supported way to replace the removed focus ring.
+  if not FtLoadStyleSheetString(
+    'button.focusable-test { background-color: rgba(10, 20, 30, 1.0); } ' +
+    'button.focusable-test:focus { background-color: rgba(200, 10, 10, 1.0); }') then
+    raise EIgnoredTest.Create('stylesheet failed to load');
+
+  b := TFtButton.Create(nil);
+  try
+    // No inline style here: inline declarations are merged last and would override
+    // the :focus rule, which is what made the first version of this test fail.
+    b.StyleClass := 'focusable-test';
+    b.InvalidateStyle();
+
+    normalStyle := b.GetResolvedStyle();
+    rBefore := normalStyle.BgColor.R;
+    b.GotFocus();
+    focusedStyle := b.GetResolvedStyle();
+    rAfter := focusedStyle.BgColor.R;
+
+    // The stylesheet below is loaded by the suite's setup for this class.
+    AssertTrue('the :focus rule changed the resolved background',
+               Abs(rAfter - rBefore) > 0.01);
+    AssertTrue('the focused colour came from the :focus rule', rAfter > 0.5);
+  finally
+    b.Free();
+  end;
+end;
+
 
 begin
   Application := TTestRunner.Create(nil);

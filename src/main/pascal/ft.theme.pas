@@ -914,9 +914,18 @@ begin
     Result := MakeRgb(0.60, 0.63, 0.68);
 end;
 
+// Intentionally draws nothing.
+//
+// This used to paint a static accent outline around every focused widget, which read
+// as heavy and dated and competed with the widget's own hover and pressed feedback.
+// Focus is now expressed by style instead: a widget can declare a `:focus` rule (and
+// transitions on it), so the appearance on focus is a design decision per widget
+// rather than one fixed ring imposed on all of them.
+//
+// Kept as a virtual so a theme can still opt back in.
 procedure TFtTheme.DrawFocusRing(Canvas: TFtCanvas; X, Y, W, H: Double; Radius: Double);
 begin
-  Canvas.DrawRoundedRectOutline(X - 1.5, Y - 1.5, W + 3.0, H + 3.0, Radius + 1.5, 2.0, 0.23, 0.51, 0.96, 0.6);
+  // Deliberately empty. See the comment above.
 end;
 
 procedure TFtTheme.DrawInputPlate(Canvas: TFtCanvas; X, Y, W, H: Double; Focused: Boolean; CustomRadius: Double);
