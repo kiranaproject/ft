@@ -307,8 +307,48 @@ begin
   Result := GGLInitialized;
 end;
 
+// True when the X server offers a DRI3 device, which is what EGL needs to accelerate.
+//
+// Measured, and the reason this exists: on a server without DRI3 (a nested Xephyr, a
+// remote display, a VM without passthrough) Mesa still loads, still initialises, still
+// accepts a context, and silently renders with llvmpipe. So `ft_init` enabled the EGL
+// backend on a machine that could not accelerate, and every repaint went through
+// gallium's software path -- which grows the process without bound: 66MB per 30s of
+// preview refresh, against a flat 156kB on the toolkit's own CPU canvas.
+//
+// The vendor string cannot tell the cases apart (it is "Mesa Project" either way), but
+// the server names the condition itself: with no DRI3 device, Mesa prints "Could not get
+// DRI3 device" and falls back. Asking the server whether DRI3 is present is the same
+// question, asked before the cost is paid.
+//
+// A false negative here costs only the CPU path, which is the safe direction.
+// XCB allocates reply buffers with malloc, so FreeMem would corrupt the heap.
+procedure XcbFree(p: Pointer); cdecl; external 'c' name 'free';
+
+function FtEGLHasHardwareDevice(): Boolean;
+var
+  cookie: xcb_query_extension_cookie_t;
+  reply: Pxcb_query_extension_reply_t;
+  extName: PChar;
+begin
+  Result := False;
+  if (GConnection = nil) or not FtEGLIsAvailable() then Exit;
+
+  extName := 'DRI3';
+  cookie := xcb_query_extension(GConnection, 4, extName);
+  reply := xcb_query_extension_reply(GConnection, cookie, nil);
+  if reply = nil then Exit;
+  try
+    Result := reply^.present <> 0;
+  finally
+    XcbFree(reply);
+  end;
+end;
+
 function FtEGLIsAvailable(): Boolean;
 begin
+  // Only asks whether Mesa can be loaded. Whether it can actually accelerate is a
+  // different question, answered by FtEGLHasHardwareDevice below.
   Result := FloriaEGLIsAvailable() and LoadGLSymbols();
 end;
 
@@ -316,7 +356,7 @@ function FtEnableEGLBackend(AEnable: Boolean): Boolean;
 begin
   if AEnable then
   begin
-    if FtEGLIsAvailable() then
+    if FtEGLIsAvailable() and FtEGLHasHardwareDevice() then
     begin
       GEGLEnabled := True;
       FtRegisterWindowClass(TFtEGLWindow);
