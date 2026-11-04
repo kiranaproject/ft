@@ -148,7 +148,7 @@ type
   end;
 
 function FtEGLIsAvailable(): Boolean;
-function FtEnableEGLBackend(AEnable: Boolean = True): Boolean;
+function FtEnableEGLBackend(AEnable: Boolean = True; AForce: Boolean = False): Boolean;
 function FtIsEGLEnabled(): Boolean;
 
 implementation
@@ -352,11 +352,13 @@ begin
   Result := FloriaEGLIsAvailable() and LoadGLSymbols();
 end;
 
-function FtEnableEGLBackend(AEnable: Boolean): Boolean;
+function FtEnableEGLBackend(AEnable: Boolean; AForce: Boolean = False): Boolean;
 begin
   if AEnable then
   begin
-    if FtEGLIsAvailable() and FtEGLHasHardwareDevice() then
+    // AForce skips the hardware probe. It exists for FT_RENDERER=gpu, so a user who knows
+    // their machine can accelerate is not blocked by a probe that guessed wrong.
+    if FtEGLIsAvailable() and (AForce or FtEGLHasHardwareDevice()) then
     begin
       GEGLEnabled := True;
       FtRegisterWindowClass(TFtEGLWindow);

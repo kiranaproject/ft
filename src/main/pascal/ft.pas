@@ -91,10 +91,21 @@ var
 begin
   SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision]);
   FtBackendInit();
+  // Renderer choice, in order of authority:
+  //
+  //   FT_RENDERER=software  always the CPU canvas
+  //   FT_RENDERER=gpu       always EGL, even if the hardware probe disagrees
+  //   unset                 EGL only when the server can actually accelerate
+  //
+  // The third case used to be "whenever Mesa loads", which enabled EGL on servers with
+  // no DRI3 device where Mesa silently falls back to llvmpipe. That path is slower than
+  // the toolkit's own canvas and grows without bound under continuous repaint.
   env := LowerCase(GetEnvironmentVariable('FT_RENDERER'));
   if env = 'software' then
     FtEnableEGLBackend(False)
-  else if (env = 'gpu') or FtEGLIsAvailable() then
+  else if env = 'gpu' then
+    FtEnableEGLBackend(True, True)
+  else
     FtEnableEGLBackend(True);
 end;
 
