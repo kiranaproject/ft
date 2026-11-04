@@ -40,6 +40,10 @@ type
   TFtWindowResizeCallback = procedure(AWindow: Pointer; AWidth, AHeight: Integer; AUserData: Pointer); cdecl;
   TFtWindowCloseCallback = function(AWindow: Pointer; AUserData: Pointer): cint32; cdecl;
   TFtWindowControlsInsetCallback = procedure(AWindow: Pointer; ALeft, ARight, ATop, ABottom: cint32; AUserData: Pointer); cdecl;
+  // Called when a popup holding a popup grab has to close: the user pressed outside it,
+  // or pressed Escape. The grab is released before this runs, so a handler only has to
+  // hide or free the window.
+  TFtPopupDismissCallback = procedure(AUserData: Pointer); cdecl;
 
   TFtWindowControlsInset = record
     Left   : Integer;
@@ -90,6 +94,8 @@ type
     FOnControlsInsetChanged: TFtWindowControlsInsetChangedEvent;
     FOnControlsInsetCallback: TFtWindowControlsInsetCallback;
     FOnControlsInsetUserData: Pointer;
+    FOnPopupDismiss: TFtPopupDismissCallback;
+    FPopupDismissUserData: Pointer;
 
     procedure OnThemeChanged(); virtual;
     procedure OnStyleSheetChanged(); virtual;
@@ -138,6 +144,17 @@ type
     function FetchClipboardText(): string; virtual;
     function FetchPrimarySelectionText(): string; virtual;
     procedure GrabInput(); virtual;
+    // A grab that routes every pointer event to this window, including events that
+    // would otherwise go to another window of the same client. An outside click then
+    // arrives here with coordinates outside the window, which is what makes
+    // OnPopupDismiss possible. Menus use GrabInput instead: they need clicks inside
+    // their own application to keep flowing normally, so clicking another menu title
+    // switches menus rather than closing them.
+    procedure GrabPopupInput(); virtual;
+    // Releases the popup grab and calls OnPopupDismiss. Public so a caller can close a
+    // popup for its own reasons (the icon being clicked again, for instance) without
+    // duplicating the ungrab-then-notify order.
+    procedure DismissPopup(); virtual;
     procedure UngrabInput(); virtual;
     function GetNativeHandle(): Pointer; virtual;
 
@@ -198,6 +215,8 @@ type
     property OnWindowKey: TFtWindowKeyCallback read FOnKey write FOnKey;
     property OnWindowResize: TFtWindowResizeCallback read FOnWindowResize write FOnWindowResize;
     property WindowUserData: Pointer read FWindowUserData write FWindowUserData;
+    property OnPopupDismiss: TFtPopupDismissCallback read FOnPopupDismiss write FOnPopupDismiss;
+    property PopupDismissUserData: Pointer read FPopupDismissUserData write FPopupDismissUserData;
     property OnCloseCallback: TFtWindowCloseCallback read FOnCloseCallback write FOnCloseCallback;
     property OnCloseUserData: Pointer read FOnCloseUserData write FOnCloseUserData;
   end;
@@ -209,6 +228,9 @@ var
   GActiveWindow: TFtWindow = nil;
   GDefaultWindowClass: TFtWindowClass = nil;
   GGrabbedPopup: TFtWidget = nil;
+  // The window holding a popup grab, when it is not a menu. Menus are tracked by
+  // GGrabbedPopup instead, because keyboard navigation needs the menu object itself.
+  GGrabbedPopupWindow: TFtWindow = nil;
   GModalWindow: TFtWindow = nil;
   gClipboardText: string = '';
   gPrimarySelectionText: string = '';
@@ -382,6 +404,8 @@ begin
 
   if GGrabbedPopup = Self then
     GGrabbedPopup := nil;
+  if GGrabbedPopupWindow = Self then
+    GGrabbedPopupWindow := nil;
 
   if Assigned(FCanvas) then
     FreeAndNil(FCanvas);
@@ -842,8 +866,29 @@ procedure TFtWindow.GrabInput();
 begin
 end;
 
+procedure TFtWindow.GrabPopupInput();
+begin
+  GGrabbedPopupWindow := Self;
+end;
+
+procedure TFtWindow.DismissPopup();
+var
+  handler: TFtPopupDismissCallback;
+  data: Pointer;
+begin
+  // Copy first: the handler is allowed to free this window, and reading the fields
+  // after that would be a use-after-free.
+  handler := FOnPopupDismiss;
+  data := FPopupDismissUserData;
+  UngrabInput();
+  if Assigned(handler) then
+    handler(data);
+end;
+
 procedure TFtWindow.UngrabInput();
 begin
+  if GGrabbedPopupWindow = Self then
+    GGrabbedPopupWindow := nil;
 end;
 
 function TFtWindow.GetNativeHandle(): Pointer;

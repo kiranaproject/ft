@@ -113,6 +113,7 @@ type
     function FetchClipboardText(): string; override;
     function FetchPrimarySelectionText(): string; override;
     procedure GrabInput(); override;
+    procedure GrabPopupInput(); override;
     procedure UngrabInput(); override;
     function GetNativeHandle(): Pointer; override;
     procedure WidgetDestroyed(AWidget: TFtWidget); override;
@@ -608,6 +609,31 @@ begin
       xcb_flush(xwin.FConnection);
     end;
   end;
+end;
+
+// Children[0] when this window is a menu popup that actually hosts a menu. A popup
+// window without a menu child dispatches like any other window: the menu branches must
+// not run for it, or its child widget never sees the events.
+function PopupMenuChildOf(AWindow: TFtX11Window): TFtPopupMenu;
+begin
+  Result := nil;
+  if not (AWindow.FWindowType in [ftwtPopupMenu, ftwtDropdownMenu]) then Exit;
+  if (AWindow.Children.Count = 0) or
+     not (TFtWidget(AWindow.Children[0]) is TFtPopupMenu) then Exit;
+  Result := TFtPopupMenu(AWindow.Children[0]);
+end;
+
+// Closes whatever popup currently owns the grab: a menu through its own dismissal,
+// a non-menu popup through OnPopupDismiss. Every dismissal site funnels through here so
+// the two cases cannot drift apart.
+procedure DismissGrabbedPopup();
+begin
+  if Assigned(GGrabbedPopup) then
+    TFtPopupMenu(GGrabbedPopup).DismissAll()
+  else if Assigned(GGrabbedPopupWindow) then
+    // DismissPopup releases the grab before calling the handler, so the handler can
+    // hide or free the window without leaving the pointer captured.
+    GGrabbedPopupWindow.DismissPopup();
 end;
 
 procedure CheckHintTimer();
@@ -2151,9 +2177,32 @@ begin
   FtGrabMenuInput(Self);
 end;
 
+procedure TFtX11Window.GrabPopupInput();
+var
+  mask: Word;
+begin
+  if (FWindow = 0) or not Assigned(FConnection) then Exit;
+
+  // owner_events = 0 is the whole difference from FtGrabMenuInput. Every pointer event
+  // is reported to this window, so a click on another window of the same client still
+  // arrives here, with coordinates outside the window. With owner_events = 1 those
+  // clicks would go to the other window and a popup would never learn it was dismissed.
+  mask := XCB_EVENT_MASK_BUTTON_PRESS or
+          XCB_EVENT_MASK_BUTTON_RELEASE or
+          XCB_EVENT_MASK_POINTER_MOTION;
+  xcb_grab_pointer(FConnection, 0, FWindow, mask,
+                   XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, 0, 0, XCB_CURRENT_TIME);
+  xcb_grab_keyboard(FConnection, 1, FWindow, XCB_CURRENT_TIME,
+                    XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC);
+  xcb_flush(FConnection);
+
+  inherited GrabPopupInput();
+end;
+
 procedure TFtX11Window.UngrabInput();
 begin
   FtUngrabMenuInput(Self);
+  inherited UngrabInput();
 end;
 
 function TFtX11Window.GetNativeHandle(): Pointer;
@@ -2314,6 +2363,7 @@ var
   col: Integer;
   strUtf8: string;
   navPop: TFtPopupMenu;
+  menuChild: TFtPopupMenu;
   clickedIdx: Integer;
   wasSameItem: Boolean;
 
@@ -2370,11 +2420,8 @@ begin
     begin
       mp := Pxcb_motion_notify_event_t(Event);
       GCurrentKeyboardModifiers := mp^.state;
-      if FWindowType in [ftwtPopupMenu, ftwtDropdownMenu] then
-      begin
-        if (Children.Count > 0) and (TFtWidget(Children[0]) is TFtPopupMenu) then
-          TFtPopupMenu(Children[0]).MouseMove(mp^.event_x, mp^.event_y);
-      end
+      if PopupMenuChildOf(Self) <> nil then
+        PopupMenuChildOf(Self).MouseMove(mp^.event_x, mp^.event_y)
       else if Assigned(GGrabbedPopup) and Assigned(FMainMenu) and
               (TFtMainMenu(FMainMenu).ActiveIndex >= 0) and
               (FMainMenu.HitTest(mp^.event_x, mp^.event_y) <> nil) then
@@ -2434,21 +2481,23 @@ begin
       GHintHoverStartMs := 0;
       bp := Pxcb_button_press_event_t(Event);
       GCurrentKeyboardModifiers := bp^.state;
-      if FWindowType in [ftwtPopupMenu, ftwtDropdownMenu] then
+      // A popup that is not a menu still has to close when the user clicks away from it.
+      // Its grab reports that click here with coordinates outside the window, which is
+      // the only place the toolkit can notice it.
+      if Assigned(GGrabbedPopupWindow) and
+         ((bp^.event_x < 0) or (bp^.event_x >= Width) or
+          (bp^.event_y < 0) or (bp^.event_y >= Height)) then
+        DismissGrabbedPopup()
+      else if PopupMenuChildOf(Self) <> nil then
       begin
+        menuChild := PopupMenuChildOf(Self);
         if (bp^.event_x < 0) or (bp^.event_x >= Width) or
            (bp^.event_y < 0) or (bp^.event_y >= Height) then
-        begin
-          if Assigned(GGrabbedPopup) then
-            TFtPopupMenu(GGrabbedPopup).DismissAll();
-        end
+          DismissGrabbedPopup()
         else
         begin
-          if (Children.Count > 0) and (TFtWidget(Children[0]) is TFtPopupMenu) then
-          begin
-            FPressedWidget := TFtPopupMenu(Children[0]);
-            TFtPopupMenu(Children[0]).MouseDown(bp^.event_x, bp^.event_y, bp^.detail);
-          end;
+          FPressedWidget := menuChild;
+          menuChild.MouseDown(bp^.event_x, bp^.event_y, bp^.detail);
         end;
       end
       else if Assigned(GGrabbedPopup) then
@@ -2549,13 +2598,11 @@ begin
     begin
       bp := Pxcb_button_release_event_t(Event);
       GCurrentKeyboardModifiers := bp^.state;
-      if FWindowType in [ftwtPopupMenu, ftwtDropdownMenu] then
+      if PopupMenuChildOf(Self) <> nil then
       begin
-        if (Children.Count > 0) and (TFtWidget(Children[0]) is TFtPopupMenu) then
-        begin
-          TFtPopupMenu(Children[0]).MouseUp(bp^.event_x, bp^.event_y, bp^.detail);
-          TFtPopupMenu(Children[0]).Click();
-        end;
+        menuChild := PopupMenuChildOf(Self);
+        menuChild.MouseUp(bp^.event_x, bp^.event_y, bp^.detail);
+        menuChild.Click();
         FPressedWidget := nil;
         UpdateCursor();
       end
@@ -2624,6 +2671,8 @@ begin
           end;
         end;
       end
+      else if (keysym = XK_Escape) and Assigned(GGrabbedPopupWindow) then
+        DismissGrabbedPopup()
       else if (keysym = XK_Tab) or (keysym = XK_ISO_Left_Tab) then
       begin
         { Widgets such as terminal or code editors consume Tab themselves. }

@@ -22,6 +22,7 @@ eval gcc $CFLAGS examples/c/containers.c $LDFLAGS -o target/example_c_containers
 eval gcc $CFLAGS examples/c/container_render_area.c $LDFLAGS -o target/example_c_container_render_area
 eval gcc $CFLAGS examples/c/menus.c $LDFLAGS -o target/example_c_menus
 eval gcc $CFLAGS examples/c/outside_menu.c $LDFLAGS -o target/example_c_outside_menus
+eval gcc $CFLAGS examples/c/popup_dismiss.c $LDFLAGS -o target/example_c_popup_dismiss
 eval gcc $CFLAGS examples/c/widget_context_menus.c $LDFLAGS -o target/example_c_widget_context_menus
 eval gcc $CFLAGS examples/c/css_button.c $LDFLAGS -o target/example_c_css_button
 eval gcc $CFLAGS examples/c/css_animation.c $LDFLAGS -o target/example_c_css_animation

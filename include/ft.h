@@ -102,6 +102,22 @@ int32_t ft_window_get_modal_result(FtWidget window);
 void ft_window_bring_to_front(FtWidget window);
 void ft_window_grab_input(FtWidget window);
 void ft_window_ungrab_input(FtWidget window);
+
+/* Popup dismissal.
+
+   ft_window_grab_popup_input takes a pointer and keyboard grab that routes every
+   pointer event to the window, including clicks on other windows of the same client.
+   A click outside then arrives at the window with coordinates outside its bounds, which
+   is what makes dismissal possible.
+
+   ft_window_on_popup_dismiss registers what to do about it. The callback runs on an
+   outside click or Escape, after the grab has been released, so it only has to hide or
+   free the window. Menus keep using ft_window_grab_input: they need clicks inside their
+   own application to keep flowing normally so that clicking another menu title switches
+   menus instead of closing them. */
+typedef void (*FtPopupDismissCallback)(void* user_data);
+void ft_window_grab_popup_input(FtWidget window);
+void ft_window_on_popup_dismiss(FtWidget window, FtPopupDismissCallback callback, void* user_data);
 void* ft_window_get_native_handle(FtWidget window);
 void ft_window_set_layout(FtWidget window, FtWidget layout);
 typedef int32_t (*FtWindowCloseCallback)(FtWidget window, void* user_data);

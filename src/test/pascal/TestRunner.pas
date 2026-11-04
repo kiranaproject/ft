@@ -4,6 +4,7 @@ program TestRunner;
 
 uses
   ctypes, Classes, SysUtils, Math, Types, fpcunit, testregistry, consoletestrunner,
+  Floria.XCB,
   Floria.SVG.DOM, Floria.SVG.Parser,
   Ft.Css, Floria.Image.Core, Floria.Image.BMP, Floria.Image.PNG, Floria.Image.JPEG, Floria.Image.Blur,
   Ft.Canvas, Floria.Canvas, Floria.Canvas.Agg, Floria.Canvas.GL, Floria.SVG.Rasterizer,
@@ -156,6 +157,16 @@ type
 
   // The input region a rounded window is shaped to. With the corners excluded,
   // clicks there fall through to whatever is behind the window.
+  TFtPopupDismissTest = class(TTestCase)
+  published
+    procedure TestDismissNotifiesAndReleasesTheGrab();
+    procedure TestTheHandlerRunsAfterTheGrabIsReleased();
+    procedure TestDestroyingThePopupClearsTheGrabOwner();
+    procedure TestNonMenuPopupChildReceivesClicks();
+    procedure TestOutsideClickDismissesANonMenuPopup();
+    procedure TestClickInsideANonMenuPopupDoesNotDismiss();
+  end;
+
   TFtRoundedInputRegionTest = class(TTestCase)
   published
     procedure TestNoRadiusProducesNoRects();
@@ -4859,6 +4870,219 @@ begin
   AssertTrue('centre is painted with no radius', BackgroundAlphaAt(0.0, 60, 40) > 0);
 end;
 
+{ TFtPopupDismissTest }
+
+// XCB allocates reply buffers with malloc, so FreeMem would corrupt the heap. The
+// backend binds free() the same way for the same reason.
+procedure c_free(p: Pointer); cdecl; external 'c' name 'free';
+
+var
+  // Counters and flags the cdecl callbacks write to. TFtDrawingMouseEvent is cdecl, so
+  // it cannot be a method of the test case.
+  GPopupClicks: Integer;
+  GPopupDismissals: Integer;
+  GGrabHeldDuringDismiss: Boolean;
+
+procedure PopupClickCounter(Sender: TFtWidget; X, Y: Integer; Button: Integer;
+  UserData: Pointer); cdecl;
+begin
+  Inc(GPopupClicks);
+end;
+
+procedure PopupDismissCounter(AUserData: Pointer); cdecl;
+begin
+  Inc(GPopupDismissals);
+  // The contract: the grab is released before the handler runs, so a handler that
+  // frees the window cannot leave the pointer captured.
+  GGrabHeldDuringDismiss := GGrabbedPopupWindow <> nil;
+end;
+
+// Sends a synthetic button press to AWindow. Synthetic events are enough here: the
+// handler only reads the coordinates, and going through the server exercises the real
+// dispatch rather than calling an internal method.
+procedure SendButtonPress(AWindow: TFtWindow; AX, AY, AButton: Integer);
+var
+  ev: xcb_button_press_event_t;
+  winId: xcb_window_t;
+  reply: Pxcb_get_input_focus_reply_t;
+begin
+  winId := xcb_window_t(PtrUInt(AWindow.GetNativeHandle()));
+  if (winId = 0) or not Assigned(GConnection) then Exit;
+
+  FillChar(ev, SizeOf(ev), 0);
+  ev.response_type := XCB_BUTTON_PRESS;
+  ev.detail := AButton;
+  ev.event := winId;
+  ev.event_x := AX;
+  ev.event_y := AY;
+  ev.same_screen := 1;
+
+  // Send on the toolkit's own connection. A second connection would make this a
+  // cross-client delivery, and the event could still be in flight when the pump below
+  // runs, which turns the test into a race.
+  xcb_send_event(GConnection, 0, winId, XCB_EVENT_MASK_BUTTON_PRESS, PChar(@ev));
+  xcb_flush(GConnection);
+
+  // Round-trip before pumping. xcb_poll_for_event only reads what has already arrived,
+  // so without this the server may not have queued the synthetic event yet and the pump
+  // returns with nothing, which looks exactly like a dispatch bug.
+  reply := xcb_get_input_focus_reply(GConnection,
+    xcb_get_input_focus(GConnection), nil);
+  if reply <> nil then
+    c_free(reply);
+
+  FtBackendProcessEvents();
+end;
+
+function MakePopup(AWindowType: TFtWindowType): TFtWindow;
+begin
+  // FtCreateWindow, not TFtWindow.Create: the latter builds the base class, which has no
+  // X window behind it, so a synthetic event would have nowhere to go.
+  Result := FtCreateWindow(300, 200, 'popup-test', AWindowType);
+  Result.Borderless := True;
+  Result.Show();
+  FtBackendProcessEvents();
+end;
+
+procedure TFtPopupDismissTest.TestDismissNotifiesAndReleasesTheGrab();
+var
+  win: TFtWindow;
+begin
+  GPopupDismissals := 0;
+  win := MakePopup(ftwtPopupMenu);
+  try
+    win.OnPopupDismiss := @PopupDismissCounter;
+    win.GrabPopupInput();
+    AssertTrue('the window owns the popup grab', GGrabbedPopupWindow = win);
+
+    win.DismissPopup();
+    AssertEquals('the handler ran exactly once', 1, GPopupDismissals);
+    AssertTrue('the grab was released', GGrabbedPopupWindow = nil);
+  finally
+    win.UngrabInput();
+    win.Free();
+  end;
+end;
+
+procedure TFtPopupDismissTest.TestTheHandlerRunsAfterTheGrabIsReleased();
+var
+  win: TFtWindow;
+begin
+  GPopupDismissals := 0;
+  GGrabHeldDuringDismiss := True;
+  win := MakePopup(ftwtPopupMenu);
+  try
+    win.OnPopupDismiss := @PopupDismissCounter;
+    win.GrabPopupInput();
+    win.DismissPopup();
+    AssertEquals('the handler ran', 1, GPopupDismissals);
+    AssertFalse('the grab was already gone when the handler ran',
+                GGrabHeldDuringDismiss);
+  finally
+    win.UngrabInput();
+    win.Free();
+  end;
+end;
+
+procedure TFtPopupDismissTest.TestDestroyingThePopupClearsTheGrabOwner();
+var
+  win: TFtWindow;
+begin
+  win := MakePopup(ftwtPopupMenu);
+  win.GrabPopupInput();
+  AssertTrue('the window owns the grab', GGrabbedPopupWindow = win);
+
+  // A freed window must not stay reachable through the global: the next outside click
+  // would call DismissPopup on released memory.
+  win.Free();
+  AssertTrue('no dangling grab owner after the popup is freed',
+             GGrabbedPopupWindow = nil);
+end;
+
+procedure TFtPopupDismissTest.TestNonMenuPopupChildReceivesClicks();
+var
+  win: TFtWindow;
+  area: TFtDrawingArea;
+begin
+  GPopupClicks := 0;
+  win := MakePopup(ftwtPopupMenu);
+  try
+    area := TFtDrawingArea.Create(win);
+    area.X := 0;
+    area.Y := 0;
+    area.Width := 300;
+    area.Height := 200;
+    area.OnMouseDown := @PopupClickCounter;
+    area.Visible := True;
+    FtBackendProcessEvents();
+
+    SendButtonPress(win, 40, 40, 1);
+    AssertEquals('a popup window whose child is not a menu still dispatches to it',
+                 1, GPopupClicks);
+  finally
+    win.Free();
+  end;
+end;
+
+procedure TFtPopupDismissTest.TestOutsideClickDismissesANonMenuPopup();
+var
+  win: TFtWindow;
+  area: TFtDrawingArea;
+begin
+  GPopupDismissals := 0;
+  win := MakePopup(ftwtPopupMenu);
+  try
+    area := TFtDrawingArea.Create(win);
+    area.X := 0;
+    area.Y := 0;
+    area.Width := 300;
+    area.Height := 200;
+    area.Visible := True;
+
+    win.OnPopupDismiss := @PopupDismissCounter;
+    win.GrabPopupInput();
+    FtBackendProcessEvents();
+
+    // A press outside the window: the grab reports it here with negative coordinates.
+    SendButtonPress(win, -40, -40, 1);
+    AssertEquals('the outside click closed the popup', 1, GPopupDismissals);
+    AssertTrue('and released the grab', GGrabbedPopupWindow = nil);
+  finally
+    win.UngrabInput();
+    win.Free();
+  end;
+end;
+
+procedure TFtPopupDismissTest.TestClickInsideANonMenuPopupDoesNotDismiss();
+var
+  win: TFtWindow;
+  area: TFtDrawingArea;
+begin
+  GPopupDismissals := 0;
+  GPopupClicks := 0;
+  win := MakePopup(ftwtPopupMenu);
+  try
+    area := TFtDrawingArea.Create(win);
+    area.X := 0;
+    area.Y := 0;
+    area.Width := 300;
+    area.Height := 200;
+    area.OnMouseDown := @PopupClickCounter;
+    area.Visible := True;
+
+    win.OnPopupDismiss := @PopupDismissCounter;
+    win.GrabPopupInput();
+    FtBackendProcessEvents();
+
+    SendButtonPress(win, 50, 50, 1);
+    AssertEquals('a click inside does not close the popup', 0, GPopupDismissals);
+    AssertEquals('and reaches the child widget', 1, GPopupClicks);
+  finally
+    win.UngrabInput();
+    win.Free();
+  end;
+end;
+
 { TFtRoundedInputRegionTest }
 
 // Coverage grid for the rectangles: does any rect contain (AX, AY)?
@@ -5063,6 +5287,7 @@ begin
     RegisterTest(TFtCanvasAndShapingTest);
     RegisterTest(TFtWindowBackgroundRadiusTest);
     RegisterTest(TFtRoundedInputRegionTest);
+    RegisterTest(TFtPopupDismissTest);
     Application.Initialize;
     Application.Run;
   finally

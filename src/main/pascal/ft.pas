@@ -513,6 +513,22 @@ begin
     TFtWindow(window).UngrabInput();
 end;
 
+procedure ft_window_grab_popup_input(window: Pointer); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    TFtWindow(window).GrabPopupInput();
+end;
+
+procedure ft_window_on_popup_dismiss(window: Pointer; callback: TFtPopupDismissCallback;
+  user_data: Pointer); cdecl; export;
+begin
+  if FtIsValidWidget(window) and (TObject(window) is TFtWindow) then
+  begin
+    TFtWindow(window).OnPopupDismiss := callback;
+    TFtWindow(window).PopupDismissUserData := user_data;
+  end;
+end;
+
 function ft_window_get_native_handle(window: Pointer): Pointer; cdecl; export;
 begin
   if Assigned(window) and (TObject(window) is TFtWindow) then
@@ -7847,6 +7863,8 @@ exports
   // Window grab & native handle
   ft_window_grab_input,
   ft_window_ungrab_input,
+  ft_window_grab_popup_input,
+  ft_window_on_popup_dismiss,
   ft_window_get_native_handle,
 
   // Screen & Backend
