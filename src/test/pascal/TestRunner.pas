@@ -165,6 +165,7 @@ type
     procedure TestNonMenuPopupChildReceivesClicks();
     procedure TestOutsideClickDismissesANonMenuPopup();
     procedure TestClickInsideANonMenuPopupDoesNotDismiss();
+    procedure TestGrabBeforeMappingIsDeferredUntilViewable();
   end;
 
   TFtRoundedInputRegionTest = class(TTestCase)
@@ -5077,6 +5078,45 @@ begin
     SendButtonPress(win, 50, 50, 1);
     AssertEquals('a click inside does not close the popup', 0, GPopupDismissals);
     AssertEquals('and reaches the child widget', 1, GPopupClicks);
+  finally
+    win.UngrabInput();
+    win.Free();
+  end;
+end;
+
+// A WM-managed window is not viewable when the client asks for it: the map becomes a
+// MapRequest, the WM reparents and maps the frame, and only then is the client mapped. A
+// popup grab requested at that moment fails with NotViewable, and if that is not handled
+// the popup can never be dismissed -- which is exactly what happened to the launcher:
+// pressing Super opened it and clicking anywhere outside did nothing.
+procedure TFtPopupDismissTest.TestGrabBeforeMappingIsDeferredUntilViewable();
+var
+  win: TFtWindow;
+  waited: Integer;
+begin
+  win := FtCreateWindow(200, 120, 'grab-before-map', ftwtUtility);
+  AssertNotNull('window created', win);
+  try
+    // Not mapped yet: the grab cannot succeed, and it must not claim to.
+    AssertTrue('the window is not visible yet', not win.Visible);
+    win.GrabPopupInput();
+    AssertTrue('no grab owner is recorded for a window that could not be grabbed',
+               GGrabbedPopupWindow = nil);
+
+    // Map it and pump until the map is reported. A window manager sits between the
+    // MapWindow request and the client becoming viewable, so this is genuinely
+    // asynchronous: one or two event pumps is not enough on a live desktop.
+    win.Show();
+    waited := 0;
+    while (GGrabbedPopupWindow <> win) and (waited < 2000) do
+    begin
+      FtBackendProcessEvents();
+      Sleep(10);
+      Inc(waited, 10);
+    end;
+
+    AssertTrue('the grab is taken once the window is viewable',
+               GGrabbedPopupWindow = win);
   finally
     win.UngrabInput();
     win.Free();

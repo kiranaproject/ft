@@ -48,6 +48,11 @@ type
     FDepth: Byte;
     FColormap: xcb_colormap_t;
     FHasPendingResize: Boolean;
+    // A popup grab requested before the window was viewable. A window managed by a WM is
+    // not mapped when the client asks for it: the request becomes a MapRequest, the WM
+    // reparents and maps the frame, and only then is the client viewable. Grabbing
+    // immediately therefore fails with NotViewable, and the popup would never dismiss.
+    FPopupGrabPending: Boolean;
     FPendingResizeW: Integer;
     FPendingResizeH: Integer;
     FLastResizeTime: QWord;
@@ -114,6 +119,10 @@ type
     function FetchPrimarySelectionText(): string; override;
     procedure GrabInput(); override;
     procedure GrabPopupInput(); override;
+    // Takes the popup grab, reporting whether the server accepted it. Separate from
+    // GrabPopupInput so the not-viewable case can be retried later instead of silently
+    // leaving the popup with no way to close.
+    function TryGrabPopupInput(): Boolean;
     procedure UngrabInput(); override;
     function GetNativeHandle(): Pointer; override;
     procedure WidgetDestroyed(AWidget: TFtWidget); override;
@@ -2177,10 +2186,16 @@ begin
   FtGrabMenuInput(Self);
 end;
 
-procedure TFtX11Window.GrabPopupInput();
+// Takes the popup grab. Returns False when the server refuses because the window is not
+// viewable yet, which is the normal case for a window a WM has not mapped.
+function TFtX11Window.TryGrabPopupInput(): Boolean;
 var
   mask: Word;
+  cookie: xcb_grab_pointer_cookie_t;
+  reply: Pxcb_grab_pointer_reply_t;
+  err: Pxcb_generic_error_t;
 begin
+  Result := False;
   if (FWindow = 0) or not Assigned(FConnection) then Exit;
 
   // owner_events = 0 is the whole difference from FtGrabMenuInput. Every pointer event
@@ -2190,17 +2205,46 @@ begin
   mask := XCB_EVENT_MASK_BUTTON_PRESS or
           XCB_EVENT_MASK_BUTTON_RELEASE or
           XCB_EVENT_MASK_POINTER_MOTION;
-  xcb_grab_pointer(FConnection, 0, FWindow, mask,
-                   XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, 0, 0, XCB_CURRENT_TIME);
-  xcb_grab_keyboard(FConnection, 1, FWindow, XCB_CURRENT_TIME,
-                    XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC);
-  xcb_flush(FConnection);
 
-  inherited GrabPopupInput();
+  err := nil;
+  cookie := xcb_grab_pointer(FConnection, 0, FWindow, mask,
+                             XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, 0, 0,
+                             XCB_CURRENT_TIME);
+  reply := xcb_grab_pointer_reply(FConnection, cookie, @err);
+  if reply <> nil then
+  begin
+    // GrabSuccess is 0. NotViewable is 3 and is the one worth retrying; anything else
+    // (AlreadyGrabbed, Frozen) will not improve by waiting for this window to map.
+    Result := reply^.status = 0;
+    if (not Result) and (reply^.status <> 3) then
+      FPopupGrabPending := False;
+    c_free(reply);
+  end;
+  if err <> nil then c_free(err);
+
+  if Result then
+  begin
+    xcb_grab_keyboard(FConnection, 1, FWindow, XCB_CURRENT_TIME,
+                      XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC);
+    xcb_flush(FConnection);
+  end;
+end;
+
+procedure TFtX11Window.GrabPopupInput();
+begin
+  if TryGrabPopupInput() then
+  begin
+    FPopupGrabPending := False;
+    inherited GrabPopupInput();
+  end
+  else
+    // Not viewable yet. Retried from the map handler below.
+    FPopupGrabPending := True;
 end;
 
 procedure TFtX11Window.UngrabInput();
 begin
+  FPopupGrabPending := False;
   FtUngrabMenuInput(Self);
   inherited UngrabInput();
 end;
@@ -2414,6 +2458,18 @@ begin
       end
       else if FIsModal or (FWindowType in [ftwtDialog, ftwtPopupMenu, ftwtDropdownMenu, ftwtUtility]) then
         BringToFront();
+
+      // The popup grab was requested before this window was viewable, which is what
+      // happens for any window a WM maps on the client's behalf. Now that it is mapped,
+      // take it, so the popup can be dismissed by a click outside.
+      if FPopupGrabPending then
+      begin
+        if TryGrabPopupInput() then
+        begin
+          FPopupGrabPending := False;
+          inherited GrabPopupInput();
+        end;
+      end;
     end;
 
     XCB_MOTION_NOTIFY:
