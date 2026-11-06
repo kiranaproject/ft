@@ -4565,6 +4565,12 @@ begin
     TFtCanvas(ACanvas).DrawRoundedRectOutline(AX, AY, AW, AH, ARadius, ABorderWidth, AR, AG, AB, AA);
 end;
 
+procedure ft_canvas_draw_shadow(ACanvas: Pointer; AX, AY, AW, AH, ARadius, AOffsetX, AOffsetY, ABlurRadius, AShadowR, AShadowG, AShadowB, AShadowOpacity: cdouble); cdecl; export;
+begin
+  if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvas) then
+    TFtCanvas(ACanvas).DrawShadow(AX, AY, AW, AH, ARadius, AOffsetX, AOffsetY, ABlurRadius, AShadowR, AShadowG, AShadowB, AShadowOpacity);
+end;
+
 procedure ft_canvas_draw_line(ACanvas: Pointer; AX1, AY1, AX2, AY2, AWidth, AR, AG, AB, AA: cdouble); cdecl; export;
 begin
   if Assigned(ACanvas) and (TObject(ACanvas) is TFtCanvas) then
@@ -7621,6 +7627,7 @@ exports
   ft_canvas_draw_rect,
   ft_canvas_draw_rounded_rect,
   ft_canvas_draw_rounded_rect_outline,
+  ft_canvas_draw_shadow,
   ft_canvas_draw_line,
   ft_canvas_draw_circle,
   ft_canvas_draw_text,

@@ -897,6 +897,7 @@ double ft_canvas_get_alpha(void* canvas);
 void ft_canvas_draw_rect(void* canvas, int32_t x, int32_t y, int32_t w, int32_t h, double r, double g, double b, double a);
 void ft_canvas_draw_rounded_rect(void* canvas, double x, double y, double w, double h, double radius, double r, double g, double b, double a);
 void ft_canvas_draw_rounded_rect_outline(void* canvas, double x, double y, double w, double h, double radius, double border_width, double r, double g, double b, double a);
+void ft_canvas_draw_shadow(void* canvas, double x, double y, double w, double h, double radius, double offset_x, double offset_y, double blur_radius, double shadow_r, double shadow_g, double shadow_b, double shadow_opacity);
 void ft_canvas_draw_line(void* canvas, double x1, double y1, double x2, double y2, double width, double r, double g, double b, double a);
 void ft_canvas_draw_circle(void* canvas, double cx, double cy, double radius, double r, double g, double b, double a);
 void ft_canvas_draw_text(void* canvas, double x, double y, const char* text, void* font, double r, double g, double b);
