@@ -5305,6 +5305,46 @@ begin
   Result := Pointer(n.Icon);
 end;
 
+procedure ft_treenode_set_icon_selected(node: Pointer; icon: Pointer); cdecl; export;
+var
+  n: TFtTreeNode;
+begin
+  if not Assigned(node) or not (TObject(node) is TFtTreeNode) then Exit;
+  n := TFtTreeNode(node);
+  n.IconSelected := TFloriaImage(icon);
+  if Assigned(n.TreeView) then
+    n.TreeView.Invalidate();
+end;
+
+function ft_treenode_get_icon_selected(node: Pointer): Pointer; cdecl; export;
+var
+  n: TFtTreeNode;
+begin
+  Result := nil;
+  if not Assigned(node) or not (TObject(node) is TFtTreeNode) then Exit;
+  n := TFtTreeNode(node);
+  Result := Pointer(n.IconSelected);
+end;
+
+procedure ft_treenode_set_is_header(node: Pointer; is_header: cint32); cdecl; export;
+var
+  n: TFtTreeNode;
+begin
+  if not Assigned(node) or not (TObject(node) is TFtTreeNode) then Exit;
+  n := TFtTreeNode(node);
+  n.IsHeader := is_header <> 0;
+end;
+
+function ft_treenode_get_is_header(node: Pointer): cint32; cdecl; export;
+var
+  n: TFtTreeNode;
+begin
+  Result := 0;
+  if not Assigned(node) or not (TObject(node) is TFtTreeNode) then Exit;
+  n := TFtTreeNode(node);
+  if n.IsHeader then Result := 1 else Result := 0;
+end;
+
 procedure ft_treenode_set_data(node: Pointer; data: Pointer); cdecl; export;
 var
   n: TFtTreeNode;
@@ -7712,6 +7752,10 @@ exports
   ft_treenode_get_expanded,
   ft_treenode_set_icon,
   ft_treenode_get_icon,
+  ft_treenode_set_icon_selected,
+  ft_treenode_get_icon_selected,
+  ft_treenode_set_is_header,
+  ft_treenode_get_is_header,
   ft_treenode_set_data,
   ft_treenode_get_data,
   ft_treenode_set_tag,

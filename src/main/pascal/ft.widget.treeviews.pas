@@ -22,12 +22,15 @@ type
     FTag: Integer;
     FExpanded: Boolean;
     FIcon: TFloriaImage;
+    FIconSelected: TFloriaImage;
+    FIsHeader: Boolean;
     FParent: TFtTreeNode;
     FChildren: TFPList; // TFtTreeNode
     FTreeView: TFtTreeView;
     function GetChild(AIndex: Integer): TFtTreeNode;
     function GetChildCount(): Integer;
     function GetLevel(): Integer;
+    procedure SetIsHeader(AValue: Boolean);
   public
     constructor Create(ATreeView: TFtTreeView; AParent: TFtTreeNode = nil); virtual;
     destructor Destroy(); override;
@@ -43,6 +46,8 @@ type
     property Tag: Integer read FTag write FTag;
     property Expanded: Boolean read FExpanded write FExpanded;
     property Icon: TFloriaImage read FIcon write FIcon;
+    property IconSelected: TFloriaImage read FIconSelected write FIconSelected;
+    property IsHeader: Boolean read FIsHeader write SetIsHeader;
     property Parent: TFtTreeNode read FParent;
     property Level: Integer read GetLevel;
     property ChildCount: Integer read GetChildCount;
@@ -109,6 +114,8 @@ begin
   FTag := 0;
   FExpanded := False;
   FIcon := nil;
+  FIconSelected := nil;
+  FIsHeader := False;
   FChildren := TFPList.Create();
 end;
 
@@ -120,6 +127,8 @@ begin
     TFtTreeNode(FChildren[i]).Free();
   FChildren.Clear();
   FreeAndNil(FChildren);
+  FIcon := nil;
+  FIconSelected := nil;
   inherited Destroy();
 end;
 
@@ -144,8 +153,22 @@ begin
   p := FParent;
   while Assigned(p) and (p <> FTreeView.Root) do
   begin
-    Inc(Result);
+    if not p.IsHeader then
+      Inc(Result);
     p := p.Parent;
+  end;
+end;
+
+procedure TFtTreeNode.SetIsHeader(AValue: Boolean);
+begin
+  if FIsHeader <> AValue then
+  begin
+    FIsHeader := AValue;
+    if Assigned(FTreeView) and not FTreeView.Destroying then
+    begin
+      FTreeView.RebuildVisibleNodes();
+      FTreeView.Invalidate();
+    end;
   end;
 end;
 
@@ -292,6 +315,7 @@ end;
 
 procedure TFtTreeView.SetSelectedNode(AValue: TFtTreeNode);
 begin
+  if Assigned(AValue) and AValue.IsHeader then Exit;
   if FSelectedNode <> AValue then
   begin
     FSelectedNode := AValue;
@@ -390,6 +414,7 @@ var
   arrowCX, arrowCY: Double;
   textR, textG, textB: Double;
   textStartX, iconW, iconH, iconY: Double;
+  curIcon: TFloriaImage;
   vBarW: Double;
 begin
   theme := FtGetTheme();
@@ -409,21 +434,34 @@ begin
       Continue;
 
     nodeX := X + FPaddingX + 4.0 + (node.Level * FIndentWidth);
+
+    if node.IsHeader then
+    begin
+      // Section header label (muted gray, non-selectable, no expander arrow)
+      if theme.DarkMode then
+      begin textR := 0.60; textG := 0.64; textB := 0.70; end
+      else
+      begin textR := 0.45; textG := 0.50; textB := 0.58; end;
+
+      Canvas.DrawTextLeft(nodeX + 4.0, nodeY + 2.0, Width - (nodeX + 4.0 - X) - vBarW, FItemHeight - 4.0, node.Text, Font, textR, textG, textB);
+      Continue;
+    end;
+
     isSelected := (node = FSelectedNode);
     isHovered := (node = FHoveredNode);
 
     // Row selection background
     if isSelected then
     begin
-      Canvas.DrawRoundedRect(X + FPaddingX, nodeY + 1.0, Width - (FPaddingX * 2.0) - vBarW, FItemHeight - 2.0, 4.0, accent.R, accent.G, accent.B, 0.85);
+      Canvas.DrawRoundedRect(X + FPaddingX, nodeY + 1.0, Width - (FPaddingX * 2.0) - vBarW, FItemHeight - 2.0, 8.0, accent.R, accent.G, accent.B, 1.0);
       textR := 1.0; textG := 1.0; textB := 1.0;
     end
     else if isHovered then
     begin
       if theme.DarkMode then
-        Canvas.DrawRoundedRect(X + FPaddingX, nodeY + 1.0, Width - (FPaddingX * 2.0) - vBarW, FItemHeight - 2.0, 4.0, 0.25, 0.26, 0.32, 0.6)
+        Canvas.DrawRoundedRect(X + FPaddingX, nodeY + 1.0, Width - (FPaddingX * 2.0) - vBarW, FItemHeight - 2.0, 8.0, 0.25, 0.26, 0.32, 0.6)
       else
-        Canvas.DrawRoundedRect(X + FPaddingX, nodeY + 1.0, Width - (FPaddingX * 2.0) - vBarW, FItemHeight - 2.0, 4.0, 0.88, 0.90, 0.94, 0.6);
+        Canvas.DrawRoundedRect(X + FPaddingX, nodeY + 1.0, Width - (FPaddingX * 2.0) - vBarW, FItemHeight - 2.0, 8.0, 0.88, 0.90, 0.94, 0.6);
       if theme.DarkMode then
       begin textR := 0.9; textG := 0.9; textB := 0.9; end
       else
@@ -454,17 +492,29 @@ begin
         Canvas.DrawLine(arrowCX - 2.0, arrowCY - 4.0, arrowCX + 3.0, arrowCY, 1.5, textR, textG, textB, 0.9);
         Canvas.DrawLine(arrowCX + 3.0, arrowCY, arrowCX - 2.0, arrowCY + 4.0, 1.5, textR, textG, textB, 0.9);
       end;
+      textStartX := nodeX + 16.0;
+    end
+    else
+    begin
+      if Assigned(node.Parent) and node.Parent.IsHeader then
+        textStartX := nodeX + 6.0
+      else
+        textStartX := nodeX + 16.0;
     end;
 
     // Node icon & text
-    textStartX := nodeX + 16.0;
-    if Assigned(node.Icon) and (node.Icon.Width > 0) and (node.Icon.Height > 0) then
+    if isSelected and Assigned(node.IconSelected) then
+      curIcon := node.IconSelected
+    else
+      curIcon := node.Icon;
+
+    if Assigned(curIcon) and (curIcon.Width > 0) and (curIcon.Height > 0) then
     begin
       iconH := Min(FItemHeight - 6.0, 16.0);
-      iconW := (node.Icon.Width / node.Icon.Height) * iconH;
+      iconW := (curIcon.Width / curIcon.Height) * iconH;
       iconY := Round(nodeY + (FItemHeight - iconH) * 0.5);
-      Canvas.DrawImageScaled(Round(textStartX), iconY, Round(iconW), Round(iconH), node.Icon, 1.0);
-      textStartX := Round(textStartX + iconW + 4.0);
+      Canvas.DrawImageScaled(Round(textStartX), iconY, Round(iconW), Round(iconH), curIcon, 1.0);
+      textStartX := Round(textStartX + iconW + 6.0);
     end;
 
     Canvas.DrawTextLeft(textStartX, nodeY + 2.0, Width - (textStartX + FPaddingX - X) - vBarW, FItemHeight - 4.0, node.Text, Font, textR, textG, textB);
@@ -484,6 +534,8 @@ begin
     node := NodeAtPosition(AY, inArrow);
     if Assigned(node) then
     begin
+      if node.IsHeader then Exit;
+
       nodeX := X + FPaddingX + 4.0 + (node.Level * FIndentWidth);
       // Check if click was on arrow (within 16px of node start)
       if node.HasChildren() and (AX >= nodeX - 2.0) and (AX <= nodeX + 14.0) then
@@ -515,6 +567,9 @@ begin
   inherited MouseMove(AX, AY);
 
   node := NodeAtPosition(AY, inArrow);
+  if Assigned(node) and node.IsHeader then
+    node := nil;
+
   if FHoveredNode <> node then
   begin
     FHoveredNode := node;
@@ -534,13 +589,17 @@ end;
 
 procedure TFtTreeView.KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string);
 var
-  idx: Integer;
+  idx, targetIdx: Integer;
 begin
   inherited KeyDown(AKeySym, AState, AChar);
 
   if not Assigned(FSelectedNode) and (FVisibleNodes.Count > 0) then
   begin
-    SelectedNode := TFtTreeNode(FVisibleNodes[0]);
+    targetIdx := 0;
+    while (targetIdx < FVisibleNodes.Count) and TFtTreeNode(FVisibleNodes[targetIdx]).IsHeader do
+      Inc(targetIdx);
+    if targetIdx < FVisibleNodes.Count then
+      SelectedNode := TFtTreeNode(FVisibleNodes[targetIdx]);
     Exit;
   end;
 
@@ -550,12 +609,20 @@ begin
   // Up Arrow ($FF52): Previous visible node
   if (AKeySym = $FF52) and (idx > 0) then
   begin
-    SelectedNode := TFtTreeNode(FVisibleNodes[idx - 1]);
+    targetIdx := idx - 1;
+    while (targetIdx >= 0) and TFtTreeNode(FVisibleNodes[targetIdx]).IsHeader do
+      Dec(targetIdx);
+    if targetIdx >= 0 then
+      SelectedNode := TFtTreeNode(FVisibleNodes[targetIdx]);
   end
   // Down Arrow ($FF54): Next visible node
   else if (AKeySym = $FF54) and (idx < FVisibleNodes.Count - 1) then
   begin
-    SelectedNode := TFtTreeNode(FVisibleNodes[idx + 1]);
+    targetIdx := idx + 1;
+    while (targetIdx < FVisibleNodes.Count) and TFtTreeNode(FVisibleNodes[targetIdx]).IsHeader do
+      Inc(targetIdx);
+    if targetIdx < FVisibleNodes.Count then
+      SelectedNode := TFtTreeNode(FVisibleNodes[targetIdx]);
   end
   // Right Arrow ($FF53): Expand node or go to first child
   else if AKeySym = $FF53 then
