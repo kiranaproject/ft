@@ -247,6 +247,78 @@ const
     '<rect x="9" y="9" width="5" height="5" rx="1" fill="#64748b"/>' +
     '</svg>';
 
+  { Settings & System Icons }
+  FT_ICON_WLAN =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<path d="M 1.5 5 C 5.5 1.5 10.5 1.5 14.5 5" fill="none" stroke="#64748b" stroke-width="1.5" stroke-linecap="round"/>' +
+    '<path d="M 3.8 7.8 C 6.2 5.5 9.8 5.5 12.2 7.8" fill="none" stroke="#64748b" stroke-width="1.5" stroke-linecap="round"/>' +
+    '<path d="M 6.1 10.6 C 7.2 9.5 8.8 9.5 9.9 10.6" fill="none" stroke="#64748b" stroke-width="1.5" stroke-linecap="round"/>' +
+    '<circle cx="8" cy="13.2" r="1.1" fill="#64748b"/>' +
+    '</svg>';
+
+  FT_ICON_WIRED =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<rect x="2.5" y="2.5" width="11" height="11" rx="2.5" fill="none" stroke="#64748b" stroke-width="1.4"/>' +
+    '<path d="M 5.5 5.5 L 5.5 8.5 M 8 5.5 L 8 8.5 M 10.5 5.5 L 10.5 8.5" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/>' +
+    '<path d="M 6 13.5 L 6 11.5 L 10 11.5 L 10 13.5" fill="none" stroke="#64748b" stroke-width="1.3" stroke-linejoin="round"/>' +
+    '</svg>';
+
+  FT_ICON_DISPLAY =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<rect x="1.5" y="2.5" width="13" height="9" rx="1.5" fill="none" stroke="#64748b" stroke-width="1.4"/>' +
+    '<path d="M 8 11.5 L 8 14 M 5 14 L 11 14" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/>' +
+    '</svg>';
+
+  FT_ICON_APPEARANCE =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<path d="M 8 1.5 C 3.8 1.5 1.5 4.5 1.5 8 C 1.5 11.5 4.2 14.5 7.5 14.5 C 8.6 14.5 9.2 13.8 9.2 13 C 9.2 12.4 8.9 11.9 8.9 11.3 C 8.9 10.4 9.6 9.8 10.5 9.8 L 11.8 9.8 C 13.6 9.8 14.5 8.2 14.5 6.5 C 14.5 3.5 11.8 1.5 8 1.5 Z" fill="#64748b"/>' +
+    '<circle cx="4.5" cy="6" r="1" fill="#ffffff"/>' +
+    '<circle cx="7.5" cy="4.5" r="1" fill="#ffffff"/>' +
+    '<circle cx="10.8" cy="5.5" r="1" fill="#ffffff"/>' +
+    '<circle cx="5" cy="9.5" r="1" fill="#ffffff"/>' +
+    '<circle cx="11.5" cy="11.8" r="1.1" fill="#ffffff"/>' +
+    '</svg>';
+
+  FT_ICON_BACKGROUND =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<rect x="1.5" y="2.5" width="13" height="11" rx="2" fill="none" stroke="#64748b" stroke-width="1.4"/>' +
+    '<circle cx="5.2" cy="6" r="1.1" fill="#64748b"/>' +
+    '<path d="M 2.2 12.5 L 6.2 7.5 L 9 10.5 L 11 8.5 L 13.8 12.5 Z" fill="#64748b"/>' +
+    '</svg>';
+
+  FT_ICON_DOCK =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<rect x="1.5" y="2.5" width="13" height="11" rx="2" fill="none" stroke="#64748b" stroke-width="1.4"/>' +
+    '<line x1="1.5" y1="9.5" x2="14.5" y2="9.5" stroke="#64748b" stroke-width="1.3"/>' +
+    '<rect x="5.5" y="11" width="5" height="1.2" rx="0.6" fill="#64748b"/>' +
+    '</svg>';
+
+  FT_ICON_USER =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<circle cx="8" cy="8" r="6.5" fill="none" stroke="#64748b" stroke-width="1.4"/>' +
+    '<circle cx="8" cy="5.8" r="2" fill="#64748b"/>' +
+    '<path d="M 3.8 12.5 C 4.5 10.2 6.1 9.2 8 9.2 C 9.9 9.2 11.5 10.2 12.2 12.5" fill="none" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/>' +
+    '</svg>';
+
+  FT_ICON_LANGUAGE =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<path d="M 2.5 13.5 L 7.4 2.5 L 8.6 2.5 L 13.5 13.5 M 4.8 9.5 L 11.2 9.5" fill="none" stroke="#64748b" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' +
+    '</svg>';
+
+  FT_ICON_BATTERY =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<rect x="1.5" y="4.5" width="11.5" height="7" rx="1.5" fill="none" stroke="#64748b" stroke-width="1.4"/>' +
+    '<path d="M 14.5 6.8 L 14.5 9.2" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/>' +
+    '<rect x="3.5" y="6.5" width="5.5" height="3" rx="0.8" fill="#64748b"/>' +
+    '</svg>';
+
+  FT_ICON_LOCK =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<rect x="3" y="6.5" width="10" height="7.5" rx="1.5" fill="none" stroke="#64748b" stroke-width="1.4"/>' +
+    '<path d="M 5.5 6.5 L 5.5 4.5 C 5.5 3.1 6.6 2 8 2 C 9.4 2 10.5 3.1 10.5 4.5 L 10.5 6.5" fill="none" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/>' +
+    '<circle cx="8" cy="10.2" r="1" fill="#64748b"/>' +
+    '</svg>';
+
   { Dialog Icons (48x48) }
   FT_ICON_DIALOG_INFO =
     '<svg viewBox="0 0 48 48" width="48" height="48">' +
@@ -456,6 +528,13 @@ begin
 end;
 
 procedure TFtIconManager.RegisterDefaults();
+
+  procedure RegisterWithWhite(const AName, ASvg: string);
+  begin
+    RegisterIcon(AName, ASvg);
+    RegisterIcon(AName + '-white', StringReplace(ASvg, '#64748b', '#ffffff', [rfReplaceAll, rfIgnoreCase]));
+  end;
+
 begin
   { Navigation }
   RegisterIcon('nav-back', FT_ICON_NAV_BACK);
@@ -542,6 +621,40 @@ begin
   RegisterIcon('list', FT_ICON_VIEW_LIST);
   RegisterIcon('view-grid', FT_ICON_VIEW_GRID);
   RegisterIcon('grid', FT_ICON_VIEW_GRID);
+
+  { Settings & System Icons }
+  RegisterWithWhite('wlan', FT_ICON_WLAN);
+  RegisterWithWhite('wifi', FT_ICON_WLAN);
+  RegisterWithWhite('network-wireless', FT_ICON_WLAN);
+  RegisterWithWhite('wired', FT_ICON_WIRED);
+  RegisterWithWhite('network-wired', FT_ICON_WIRED);
+  RegisterWithWhite('ethernet', FT_ICON_WIRED);
+  RegisterWithWhite('display', FT_ICON_DISPLAY);
+  RegisterWithWhite('monitor', FT_ICON_DISPLAY);
+  RegisterWithWhite('preferences-desktop-display', FT_ICON_DISPLAY);
+  RegisterWithWhite('appearance', FT_ICON_APPEARANCE);
+  RegisterWithWhite('palette', FT_ICON_APPEARANCE);
+  RegisterWithWhite('theme', FT_ICON_APPEARANCE);
+  RegisterWithWhite('preferences-desktop-theme', FT_ICON_APPEARANCE);
+  RegisterWithWhite('background', FT_ICON_BACKGROUND);
+  RegisterWithWhite('wallpaper', FT_ICON_BACKGROUND);
+  RegisterWithWhite('preferences-desktop-wallpaper', FT_ICON_BACKGROUND);
+  RegisterWithWhite('dock', FT_ICON_DOCK);
+  RegisterWithWhite('preferences-desktop-dock', FT_ICON_DOCK);
+  RegisterWithWhite('user', FT_ICON_USER);
+  RegisterWithWhite('avatar', FT_ICON_USER);
+  RegisterWithWhite('account', FT_ICON_USER);
+  RegisterWithWhite('system-users', FT_ICON_USER);
+  RegisterWithWhite('language', FT_ICON_LANGUAGE);
+  RegisterWithWhite('locale', FT_ICON_LANGUAGE);
+  RegisterWithWhite('preferences-desktop-locale', FT_ICON_LANGUAGE);
+  RegisterWithWhite('battery', FT_ICON_BATTERY);
+  RegisterWithWhite('power', FT_ICON_BATTERY);
+  RegisterWithWhite('battery-full', FT_ICON_BATTERY);
+  RegisterWithWhite('lock', FT_ICON_LOCK);
+  RegisterWithWhite('security', FT_ICON_LOCK);
+  RegisterWithWhite('padlock', FT_ICON_LOCK);
+  RegisterWithWhite('about', FT_ICON_INFO);
 
   { Dialog Severity Icons }
   RegisterIcon('dialog-info', FT_ICON_DIALOG_INFO);

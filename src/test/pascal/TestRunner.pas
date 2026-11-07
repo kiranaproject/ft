@@ -241,6 +241,22 @@ begin
   AssertTrue('Has outline-music icon', FtIconManager().HasIcon('outline-music'));
   AssertTrue('Has outline-drive icon', FtIconManager().HasIcon('outline-drive'));
   AssertTrue('Has outline-folder icon', FtIconManager().HasIcon('outline-folder'));
+
+  { Settings & System Icons }
+  AssertTrue('Has wlan icon', FtIconManager().HasIcon('wlan'));
+  AssertTrue('Has wifi icon', FtIconManager().HasIcon('wifi'));
+  AssertTrue('Has wlan-white icon', FtIconManager().HasIcon('wlan-white'));
+  AssertTrue('Has wired icon', FtIconManager().HasIcon('wired'));
+  AssertTrue('Has display icon', FtIconManager().HasIcon('display'));
+  AssertTrue('Has appearance icon', FtIconManager().HasIcon('appearance'));
+  AssertTrue('Has background icon', FtIconManager().HasIcon('background'));
+  AssertTrue('Has dock icon', FtIconManager().HasIcon('dock'));
+  AssertTrue('Has user icon', FtIconManager().HasIcon('user'));
+  AssertTrue('Has language icon', FtIconManager().HasIcon('language'));
+  AssertTrue('Has battery icon', FtIconManager().HasIcon('battery'));
+  AssertTrue('Has lock icon', FtIconManager().HasIcon('lock'));
+  AssertTrue('Has about icon', FtIconManager().HasIcon('about'));
+
   AssertFalse('Does not have invalid icon', FtIconManager().HasIcon('non_existent_icon_xyz'));
 
   AssertTrue('Folder SVG non-empty', Length(FtGetIconSvg('folder')) > 0);
@@ -318,6 +334,39 @@ begin
   AssertNotNull('Outline-home bitmap not nil', img);
   AssertEquals('Outline-home bitmap width 16', 16, img.Width);
   AssertEquals('Outline-home bitmap height 16', 16, img.Height);
+  img.Free();
+
+  img := FtGetIconBitmap('wlan', 16, 16, False);
+  AssertNotNull('WLAN bitmap not nil', img);
+  AssertEquals('WLAN bitmap width 16', 16, img.Width);
+  img.Free();
+
+  img := FtGetIconBitmap('wired', 16, 16, False);
+  AssertNotNull('Wired bitmap not nil', img);
+  img.Free();
+
+  img := FtGetIconBitmap('appearance', 16, 16, False);
+  AssertNotNull('Appearance bitmap not nil', img);
+  img.Free();
+
+  img := FtGetIconBitmap('dock', 16, 16, False);
+  AssertNotNull('Dock bitmap not nil', img);
+  img.Free();
+
+  img := FtGetIconBitmap('user', 16, 16, False);
+  AssertNotNull('User bitmap not nil', img);
+  img.Free();
+
+  img := FtGetIconBitmap('language', 16, 16, False);
+  AssertNotNull('Language bitmap not nil', img);
+  img.Free();
+
+  img := FtGetIconBitmap('battery', 16, 16, False);
+  AssertNotNull('Battery bitmap not nil', img);
+  img.Free();
+
+  img := FtGetIconBitmap('lock', 16, 16, False);
+  AssertNotNull('Lock bitmap not nil', img);
   img.Free();
 end;
 
