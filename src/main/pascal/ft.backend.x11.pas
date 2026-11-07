@@ -2198,16 +2198,16 @@ begin
   Result := False;
   if (FWindow = 0) or not Assigned(FConnection) then Exit;
 
-  // owner_events = 0 is the whole difference from FtGrabMenuInput. Every pointer event
-  // is reported to this window, so a click on another window of the same client still
-  // arrives here, with coordinates outside the window. With owner_events = 1 those
-  // clicks would go to the other window and a popup would never learn it was dismissed.
+  // owner_events = 1 reports pointer events over other windows of the same client
+  // normally to those windows, enabling hover transitions and interactions across
+  // sibling widgets (e.g. top panel applets and toolbars). Pointer events outside the
+  // client are reported to FWindow so the popup learns it was dismissed.
   mask := XCB_EVENT_MASK_BUTTON_PRESS or
           XCB_EVENT_MASK_BUTTON_RELEASE or
           XCB_EVENT_MASK_POINTER_MOTION;
 
   err := nil;
-  cookie := xcb_grab_pointer(FConnection, 0, FWindow, mask,
+  cookie := xcb_grab_pointer(FConnection, 1, FWindow, mask,
                              XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, 0, 0,
                              XCB_CURRENT_TIME);
   reply := xcb_grab_pointer_reply(FConnection, cookie, @err);
@@ -2410,6 +2410,7 @@ var
   menuChild: TFtPopupMenu;
   clickedIdx: Integer;
   wasSameItem: Boolean;
+  wasOtherWin: Boolean;
 
   ep: Pxcb_expose_event_t;
   cp: Pxcb_configure_notify_event_t;
@@ -2541,9 +2542,27 @@ begin
       // Its grab reports that click here with coordinates outside the window, which is
       // the only place the toolkit can notice it.
       if Assigned(GGrabbedPopupWindow) and
-         ((bp^.event_x < 0) or (bp^.event_x >= Width) or
+         ((Self <> GGrabbedPopupWindow) or
+          (bp^.event_x < 0) or (bp^.event_x >= Width) or
           (bp^.event_y < 0) or (bp^.event_y >= Height)) then
-        DismissGrabbedPopup()
+      begin
+        wasOtherWin := (Self <> GGrabbedPopupWindow);
+        DismissGrabbedPopup();
+        if wasOtherWin then
+        begin
+          Target := HitTest(bp^.event_x, bp^.event_y);
+          if Target = Self then
+            Target := nil;
+          focusTarget := FindFocusableWidget(Target);
+          if Assigned(focusTarget) then
+            SetFocusedWidget(focusTarget);
+          if Assigned(Target) then
+          begin
+            FPressedWidget := Target;
+            Target.MouseDown(bp^.event_x, bp^.event_y, bp^.detail);
+          end;
+        end;
+      end
       else if PopupMenuChildOf(Self) <> nil then
       begin
         menuChild := PopupMenuChildOf(Self);
