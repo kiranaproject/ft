@@ -57,6 +57,7 @@ type
   TFtWindow = class(TFtWidget)
   protected
     FTitle: string;
+    FWindowClass: string;
     FBorderless: Boolean;
     FSkipTaskbar: Boolean;
     FWindowType: TFtWindowType;
@@ -121,6 +122,7 @@ type
     function ClientToScreen(AX, AY: Integer): TPoint; virtual;
     function ScreenToClient(AX, AY: Integer): TPoint; virtual;
     procedure SetTitle(const ATitle: string); virtual;
+    procedure SetWindowClass(const AValue: string); virtual;
     procedure SetBorderless(ABorderless: Boolean); virtual;
     procedure SetSkipTaskbar(ASkip: Boolean); virtual;
     procedure SetWindowType(AType: TFtWindowType); virtual;
@@ -180,6 +182,7 @@ type
     property Canvas: TFtCanvas read FCanvas;
     property PixelBuffer: PByte read FPixelBuffer;
     property Title: string read FTitle write SetTitle;
+    property WindowClass: string read FWindowClass write SetWindowClass;
     property Borderless: Boolean read FBorderless write SetBorderless;
     property ExtendedClientArea: Boolean read FExtendedClientArea write SetExtendedClientArea;
     property WindowControlsInset: TFtWindowControlsInset read FWindowControlsInset write FWindowControlsInset;
@@ -333,6 +336,7 @@ constructor TFtWindow.Create(W, H: Integer; const ATitle: string);
 begin
   inherited Create(nil);
   FTitle := ATitle;
+  FWindowClass := '';
   X := 0;
   Y := 0;
   Width := W;
@@ -739,6 +743,11 @@ end;
 procedure TFtWindow.SetTitle(const ATitle: string);
 begin
   FTitle := ATitle;
+end;
+
+procedure TFtWindow.SetWindowClass(const AValue: string);
+begin
+  FWindowClass := AValue;
 end;
 
 procedure TFtWindow.SetBorderless(ABorderless: Boolean);

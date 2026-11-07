@@ -320,6 +320,12 @@ begin
     TFtWindow(window).SetTitle(StrPas(title));
 end;
 
+procedure ft_window_set_window_class(window: Pointer; class_name: PChar); cdecl; export;
+begin
+  if Assigned(window) and (TObject(window) is TFtWindow) then
+    TFtWindow(window).WindowClass := StrPas(class_name);
+end;
+
 procedure ft_window_set_borderless(window: Pointer; borderless: cint32); cdecl; export;
 begin
   if Assigned(window) and (TObject(window) is TFtWindow) then
@@ -7250,6 +7256,7 @@ exports
   ft_widget_invalidate,
   ft_window_repaint,
   ft_window_set_title,
+  ft_window_set_window_class,
   ft_window_set_borderless,
   ft_window_get_borderless,
   ft_window_set_skip_taskbar,

@@ -90,6 +90,8 @@ type
     destructor Destroy(); override;
     procedure Resize(NewW, NewH: Integer; AApplyToBackend: Boolean = True); override;
     procedure SetTitle(const ATitle: string); override;
+    procedure SetWindowClass(const AValue: string); override;
+    procedure UpdateWmClass();
     procedure SetBorderless(ABorderless: Boolean); override;
     procedure SetSkipTaskbar(ASkip: Boolean); override;
     procedure SetIsModal(AValue: Boolean); override;
@@ -259,6 +261,7 @@ uses
   Math, Floria.Font, Ft.Widget.Menus;
 
 procedure c_free(p: Pointer); cdecl; external 'c' name 'free';
+function libc_getpid(): cint; cdecl; external 'c' name 'getpid';
 
 var
   atomWMProtocols: xcb_atom_t = 0;
@@ -266,6 +269,7 @@ var
   atomWMTakeFocus: xcb_atom_t = 0;
   atomWMName: xcb_atom_t = 0;
   atomWMNormalHints: xcb_atom_t = 0;
+  atomNetWmPid: xcb_atom_t = 0;
   atomClipboard: xcb_atom_t = 0;
   atomUTF8String: xcb_atom_t = 0;
   atomTargets: xcb_atom_t = 0;
@@ -370,6 +374,7 @@ begin
   atomNetWmExtendedClientArea := InternAtom('_NET_WM_EXTENDED_CLIENT_AREA');
   atomNetWmStateExtendedClientArea := InternAtom('_NET_WM_STATE_EXTENDED_CLIENT_AREA');
   atomNetWmWindowControlsInset := InternAtom('_NET_WM_WINDOW_CONTROLS_INSET');
+  atomNetWmPid := InternAtom('_NET_WM_PID');
 end;
 
 function FindVisual(screen: Pxcb_screen_t; targetDepth: Integer): xcb_visualid_t;
@@ -1018,6 +1023,7 @@ var
   valList: xcb_create_window_value_list_t;
   protocols: array[0..1] of xcb_atom_t;
   wmHints: array[0..8] of Cardinal;
+  pidVal: Cardinal;
 begin
   inherited Create(W, H, ATitle);
   if (GConnection = nil) and (GetEnvironmentVariable('DISPLAY') <> '') then
@@ -1078,6 +1084,15 @@ begin
 
   SetTitle(ATitle);
   UpdateWmNormalHints();
+  UpdateWmClass();
+
+  // Configure _NET_WM_PID so window managers and docks identify the owning process
+  if atomNetWmPid <> 0 then
+  begin
+    pidVal := Cardinal(libc_getpid());
+    xcb_change_property(FConnection, XCB_PROP_MODE_REPLACE, FWindow,
+                        atomNetWmPid, XCB_ATOM_CARDINAL, 32, 1, @pidVal);
+  end;
   FCurrentCursor := High(xcb_cursor_t);
   FHasPendingResize := False;
   FPendingResizeW := 0;
@@ -1121,6 +1136,37 @@ begin
     xcb_change_property(FConnection, XCB_PROP_MODE_REPLACE, FWindow, atomWMName, atomUTF8String, 8, len, p);
     xcb_flush(FConnection);
   end;
+end;
+
+procedure TFtX11Window.UpdateWmClass();
+var
+  inst, cls, classBuf: string;
+begin
+  if (FWindow = 0) or (FConnection = nil) then Exit;
+  inst := LowerCase(ChangeFileExt(ExtractFileName(ParamStr(0)), ''));
+  if inst = '' then
+    inst := 'floria';
+
+  if FWindowClass <> '' then
+    cls := FWindowClass
+  else
+  begin
+    cls := inst;
+    if Length(cls) > 0 then
+      cls[1] := UpCase(cls[1]);
+  end;
+
+  classBuf := inst + #0 + cls + #0;
+  xcb_change_property(FConnection, XCB_PROP_MODE_REPLACE, FWindow,
+                      XCB_ATOM_WM_CLASS, XCB_ATOM_STRING, 8, Length(classBuf), PChar(classBuf));
+end;
+
+procedure TFtX11Window.SetWindowClass(const AValue: string);
+begin
+  inherited SetWindowClass(AValue);
+  UpdateWmClass();
+  if Assigned(FConnection) then
+    xcb_flush(FConnection);
 end;
 
 procedure TFtX11Window.SetBorderless(ABorderless: Boolean);
