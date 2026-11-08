@@ -788,7 +788,7 @@ begin
     rad := GetEffectiveCornerRadius();
 
     // Drop shadow
-    drawShadow := (st.HasShadow and st.EnableShadow) or (not st.HasShadow and FtGetTheme().EnableShadow);
+    drawShadow := (st.HasShadow and st.EnableShadow) or (not st.HasShadow and FDrawFrame and FtGetTheme().EnableShadow);
     if drawShadow and Canvas.GetClipRect(cx, cy, cw, ch) then
     begin
       // If clip rect is strictly inside the container interior, the outer shadow is not touched
