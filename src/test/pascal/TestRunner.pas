@@ -774,10 +774,14 @@ begin
     stLabelLight := sheet.ResolveStyle('label', '', '', '');
     AssertFalse('Label light has no border color', stLabelLight.HasBorderColor);
     AssertFalse('Label light has no border width', stLabelLight.HasBorderWidth);
+    AssertTrue('Label light has text color', stLabelLight.HasTextColor);
+    AssertTrue('Label light text ~ #1e293b', Abs(stLabelLight.TextColor.R - (30.0 / 255.0)) < 0.03);
 
     stLabelDark := sheet.ResolveStyle('label', '', 'dark', '');
     AssertFalse('Label dark has no border color', stLabelDark.HasBorderColor);
     AssertFalse('Label dark has no border width', stLabelDark.HasBorderWidth);
+    AssertTrue('Label dark has text color', stLabelDark.HasTextColor);
+    AssertTrue('Label dark text ~ #f1f5f9', Abs(stLabelDark.TextColor.R - (241.0 / 255.0)) < 0.03);
 
     // 7. Menu disabled text color
     stMenuDisLight := sheet.ResolveStyle('menu', '', '', ':disabled');

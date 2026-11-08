@@ -908,7 +908,7 @@ begin
   // so descendant rules like "window button" or ".dark button" match as well as compound selectors
   if (FParent = nil) and (not SameText(FTagName, 'window')) then
   begin
-    if HasClass('dark') then
+    if HasClass('dark') or GCssDarkMode then
       FParent := TFtCSSElementAdapter.Create('window', '', 'dark', '', nil)
     else
       FParent := TFtCSSElementAdapter.Create('window', '', '', '', nil);
@@ -1186,7 +1186,7 @@ begin
     if Result <> '' then Exit;
   end;
 
-  isDark := (Pos('dark', LowerCase(AClasses)) > 0);
+  isDark := (Pos('dark', LowerCase(AClasses)) > 0) or GCssDarkMode;
 
   // 2. If dark mode, check state root or dark base root
   if isDark then
