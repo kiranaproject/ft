@@ -503,7 +503,7 @@ begin
     end;
 
     // Node icon & text
-    if isSelected and Assigned(node.IconSelected) then
+    if (isSelected or theme.DarkMode) and Assigned(node.IconSelected) then
       curIcon := node.IconSelected
     else
       curIcon := node.Icon;
