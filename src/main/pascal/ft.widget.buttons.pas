@@ -721,7 +721,7 @@ begin
       effRadius := FtGetTheme().CornerRadius;
 
     // 1. Signature Floria squircle hover halo bloom
-    if (FState = bsHovered) and (effRadius > 0.0) then
+    if not effFlat and (FState = bsHovered) and (effRadius > 0.0) then
     begin
       if st.HasBorderColor then
       begin
@@ -741,7 +741,7 @@ begin
     end;
 
     // 2. Drop shadow
-    if (not effFlat or (FState <> bsNormal) or FToggled) and
+    if not effFlat and
        ((st.HasShadow and st.EnableShadow) or
        (not st.HasShadow and (FEnableShadow = 1)) or
        (not st.HasShadow and (FEnableShadow = -1) and FtGetTheme().EnableShadow)) then
@@ -751,18 +751,33 @@ begin
     end;
 
     // 3. Background
-    if not effFlat or (FState <> bsNormal) or FToggled then
+    if st.HasBgColor then
     begin
-      if st.HasBgColor then
-        Canvas.DrawRoundedRect(X, Y, Width, Height, effRadius, st.BgColor.R, st.BgColor.G, st.BgColor.B, st.BgColor.A)
+      if (not effFlat or (FState <> bsNormal) or FToggled) and (st.BgColor.A > 0.0) then
+        Canvas.DrawRoundedRect(X, Y, Width, Height, effRadius, st.BgColor.R, st.BgColor.G, st.BgColor.B, st.BgColor.A);
+    end
+    else if not effFlat or FToggled then
+      Canvas.DrawRoundedRect(X, Y, Width, Height, effRadius, 0.23, 0.51, 0.96, 1.0)
+    else if FState = bsHovered then
+    begin
+      if FtGetDarkMode() then
+        Canvas.DrawRoundedRect(X, Y, Width, Height, effRadius, 1.0, 1.0, 1.0, 0.08)
       else
-        Canvas.DrawRoundedRect(X, Y, Width, Height, effRadius, 0.23, 0.51, 0.96, 1.0);
+        Canvas.DrawRoundedRect(X, Y, Width, Height, effRadius, 0.0, 0.0, 0.0, 0.06);
+    end
+    else if FState = bsPressed then
+    begin
+      if FtGetDarkMode() then
+        Canvas.DrawRoundedRect(X, Y, Width, Height, effRadius, 1.0, 1.0, 1.0, 0.14)
+      else
+        Canvas.DrawRoundedRect(X, Y, Width, Height, effRadius, 0.0, 0.0, 0.0, 0.12);
     end;
 
     // 4. Border outline
     bw := 1.0;
-    if st.HasBorderWidth then bw := st.BorderWidth;
-    if (bw > 0.0) and (not effFlat or (FState <> bsNormal) or FToggled) then
+    if st.HasBorderWidth then bw := st.BorderWidth
+    else if effFlat then bw := 0.0;
+    if (bw > 0.0) and (not effFlat or FToggled) then
     begin
       if st.HasBorderColor then
         Canvas.DrawRoundedRectOutline(X, Y, Width, Height, effRadius, bw, st.BorderColor.R, st.BorderColor.G, st.BorderColor.B, st.BorderColor.A)

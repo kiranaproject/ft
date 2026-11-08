@@ -739,19 +739,33 @@ begin
   end;
 
   // 1. Signature Floria squircle hover halo bloom
-  if (State = bsHovered) and (rad > 0.0) then
+  if not Flat and (State = bsHovered) and (rad > 0.0) then
     Canvas.DrawRoundedRect(X - 1.5, Y - 1.5, W + 3.0, H + 3.0, rad + 1.0, haloR, haloG, haloB, 0.20);
 
   // 2. Drop shadow
-  if hasShadow and (State <> bsPressed) and (not Flat or (State <> bsNormal) or Toggled) then
+  if not Flat and hasShadow and (State <> bsPressed) then
     Canvas.DrawShadow(X, Y, W, H, rad, 0.0, shOffY, shBlur, 0.0, 0.0, 0.0, shOpac);
 
   // 3. Button plate
-  if not Flat or (State <> bsNormal) or Toggled then
-    Canvas.DrawRoundedRect(X, Y, W, H, rad, plateR, plateG, plateB);
+  if not Flat or Toggled then
+    Canvas.DrawRoundedRect(X, Y, W, H, rad, plateR, plateG, plateB)
+  else if State = bsHovered then
+  begin
+    if FDarkMode then
+      Canvas.DrawRoundedRect(X, Y, W, H, rad, 1.0, 1.0, 1.0, 0.08)
+    else
+      Canvas.DrawRoundedRect(X, Y, W, H, rad, 0.0, 0.0, 0.0, 0.06);
+  end
+  else if State = bsPressed then
+  begin
+    if FDarkMode then
+      Canvas.DrawRoundedRect(X, Y, W, H, rad, 1.0, 1.0, 1.0, 0.14)
+    else
+      Canvas.DrawRoundedRect(X, Y, W, H, rad, 0.0, 0.0, 0.0, 0.12);
+  end;
 
   // 4. Border outline
-  if not Flat or (State <> bsNormal) or Toggled then
+  if not Flat or Toggled then
     Canvas.DrawRoundedRectOutline(X, Y, W, H, rad, 1.0, borderR, borderG, borderB);
 
   // 5. Centered text with tactile pressed shift

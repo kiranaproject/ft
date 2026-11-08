@@ -256,6 +256,10 @@ begin
   AssertTrue('Has battery icon', FtIconManager().HasIcon('battery'));
   AssertTrue('Has lock icon', FtIconManager().HasIcon('lock'));
   AssertTrue('Has about icon', FtIconManager().HasIcon('about'));
+  AssertTrue('Has info-accent icon', FtIconManager().HasIcon('info-accent'));
+  AssertTrue('Has about-accent icon', FtIconManager().HasIcon('about-accent'));
+  AssertTrue('info-accent light has #3b82f6', Pos('#3b82f6', FtGetIconSvg('info-accent', False)) > 0);
+  AssertTrue('info-accent dark has #60a5fa', Pos('#60a5fa', FtGetIconSvg('info-accent', True)) > 0);
 
   AssertFalse('Does not have invalid icon', FtIconManager().HasIcon('non_existent_icon_xyz'));
 

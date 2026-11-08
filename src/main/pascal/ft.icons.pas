@@ -212,6 +212,20 @@ const
     '<path d="M 8 7.5 L 8 11.5" stroke="#64748b" stroke-width="1.5" stroke-linecap="round"/>' +
     '</svg>';
 
+  FT_ICON_INFO_ACCENT =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<circle cx="8" cy="8" r="6.5" fill="none" stroke="#3b82f6" stroke-width="1.4"/>' +
+    '<circle cx="8" cy="5" r="0.9" fill="#3b82f6"/>' +
+    '<path d="M 8 7.5 L 8 11.5" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round"/>' +
+    '</svg>';
+
+  FT_ICON_INFO_ACCENT_DARK =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<circle cx="8" cy="8" r="6.5" fill="none" stroke="#60a5fa" stroke-width="1.4"/>' +
+    '<circle cx="8" cy="5" r="0.9" fill="#60a5fa"/>' +
+    '<path d="M 8 7.5 L 8 11.5" stroke="#60a5fa" stroke-width="1.5" stroke-linecap="round"/>' +
+    '</svg>';
+
   FT_ICON_CHECK =
     '<svg viewBox="0 0 16 16" width="16" height="16">' +
     '<path d="M 3.5 8.5 L 6.5 11.5 L 12.5 4.5" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
@@ -613,6 +627,9 @@ begin
   RegisterIcon('gear', FT_ICON_GEAR);
   RegisterIcon('settings', FT_ICON_GEAR);
   RegisterIcon('info', FT_ICON_INFO);
+  RegisterIcon('info-accent', FT_ICON_INFO_ACCENT, FT_ICON_INFO_ACCENT_DARK);
+  RegisterIcon('about-accent', FT_ICON_INFO_ACCENT, FT_ICON_INFO_ACCENT_DARK);
+  RegisterIcon('info-blue', FT_ICON_INFO_ACCENT, FT_ICON_INFO_ACCENT_DARK);
   RegisterIcon('check', FT_ICON_CHECK);
   RegisterIcon('close', FT_ICON_CLOSE);
   RegisterIcon('search', FT_ICON_SEARCH);
