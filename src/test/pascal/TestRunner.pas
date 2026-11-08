@@ -91,6 +91,7 @@ type
     procedure TestWidgetVisibilityAndShowing();
     procedure TestIconViewLayoutAndItems();
     procedure TestIconViewSelectionAndMarquee();
+    procedure TestSegmentedControl();
   end;
 
   TFtSvgTest = class(TTestCase)
@@ -260,6 +261,14 @@ begin
   AssertTrue('Has about-accent icon', FtIconManager().HasIcon('about-accent'));
   AssertTrue('info-accent light has #3b82f6', Pos('#3b82f6', FtGetIconSvg('info-accent', False)) > 0);
   AssertTrue('info-accent dark has #60a5fa', Pos('#60a5fa', FtGetIconSvg('info-accent', True)) > 0);
+  AssertTrue('Has brightness-low icon', FtIconManager().HasIcon('brightness-low'));
+  AssertTrue('Has brightness-high icon', FtIconManager().HasIcon('brightness-high'));
+  AssertTrue('Has selector icon', FtIconManager().HasIcon('selector'));
+  AssertTrue('Has rotate-0 icon', FtIconManager().HasIcon('rotate-0'));
+  AssertTrue('Has theme-light icon', FtIconManager().HasIcon('theme-light'));
+  AssertTrue('Has theme-dark icon', FtIconManager().HasIcon('theme-dark'));
+  AssertTrue('Has battery-bolt icon', FtIconManager().HasIcon('battery-bolt'));
+  AssertTrue('Has display-scale icon', FtIconManager().HasIcon('display-scale'));
 
   AssertFalse('Does not have invalid icon', FtIconManager().HasIcon('non_existent_icon_xyz'));
 
@@ -351,6 +360,18 @@ begin
 
   img := FtGetIconBitmap('appearance', 16, 16, False);
   AssertNotNull('Appearance bitmap not nil', img);
+  AssertEquals('Appearance bitmap width 16', 16, img.Width);
+  AssertEquals('Appearance bitmap height 16', 16, img.Height);
+  img.Free();
+
+  img := FtGetIconBitmap('appearance', 16, 16, True);
+  AssertNotNull('Appearance dark bitmap not nil', img);
+  AssertEquals('Appearance dark bitmap width 16', 16, img.Width);
+  img.Free();
+
+  img := FtGetIconBitmap('appearance-white', 16, 16, False);
+  AssertNotNull('Appearance white bitmap not nil', img);
+  AssertEquals('Appearance white bitmap width 16', 16, img.Width);
   img.Free();
 
   img := FtGetIconBitmap('dock', 16, 16, False);
@@ -3145,6 +3166,91 @@ begin
     AssertFalse('Item 3 not selected by marquee', iv.IsItemSelected(3));
   finally
     iv.Free();
+  end;
+end;
+
+procedure TFtDesktopWidgetsTest.TestSegmentedControl();
+var
+  sc: TFtSegmentedControl;
+  nb: TFtNotebook;
+  p1, p2, p3: TFtTabPage;
+  buf: array[0..39, 0..199] of TBgraPixel;
+  canvas: TFtCanvasAgg;
+begin
+  sc := TFtSegmentedControl.Create(nil);
+  try
+    sc.SetBounds(0, 0, 200, 34);
+    AssertEquals('Initial segment count is 0', 0, sc.SegmentCount);
+    AssertEquals('Initial selected index is -1', -1, sc.SelectedIndex);
+
+    sc.ItemsText := '100%, 125%, 150%, 175%, 200%';
+    AssertEquals('Parsed segment count is 5', 5, sc.SegmentCount);
+    AssertEquals('Default selected index is 0', 0, sc.SelectedIndex);
+    AssertEquals('Selected text is 100%', '100%', sc.SelectedText);
+
+    sc.SelectedIndex := 2;
+    AssertEquals('Updated selected index is 2', 2, sc.SelectedIndex);
+    AssertEquals('Selected text is 150%', '150%', sc.SelectedText);
+
+    // Hit testing
+    AssertEquals('Hit test segment 0', 0, sc.HitTestSegment(20, 15));
+    AssertEquals('Hit test segment 2', 2, sc.HitTestSegment(100, 15));
+    AssertEquals('Hit test segment 4', 4, sc.HitTestSegment(180, 15));
+    AssertEquals('Hit test out of bounds', -1, sc.HitTestSegment(-5, 15));
+
+    // Mouse click selection
+    sc.MouseDown(20, 15, 1);
+    sc.MouseUp(20, 15, 1);
+    AssertEquals('Mouse click selected segment 0', 0, sc.SelectedIndex);
+
+    // Window coordinate hit testing with non-zero X, Y
+    sc.SetBounds(100, 50, 200, 34);
+    AssertEquals('Window coord hit test segment 0', 0, sc.HitTestSegment(120, 65));
+    AssertEquals('Window coord hit test segment 2', 2, sc.HitTestSegment(200, 65));
+    AssertEquals('Window coord hit test segment 4', 4, sc.HitTestSegment(280, 65));
+    AssertEquals('Window coord hit test out of bounds', -1, sc.HitTestSegment(50, 65));
+
+    // Mouse click selection with window coordinates
+    sc.MouseDown(200, 65, 1);
+    sc.MouseUp(200, 65, 1);
+    AssertEquals('Mouse click selected segment 2 with window coords', 2, sc.SelectedIndex);
+
+    // Reset selection for keyboard navigation
+    sc.SelectedIndex := 0;
+
+    // Keyboard navigation
+    sc.KeyDown($FF53, 0, ''); // Right Arrow
+    AssertEquals('Right arrow moved to segment 1', 1, sc.SelectedIndex);
+    sc.KeyDown($FF51, 0, ''); // Left Arrow
+    AssertEquals('Left arrow moved back to segment 0', 0, sc.SelectedIndex);
+
+    // Test Notebook attachment
+    nb := TFtNotebook.Create(nil);
+    try
+      p1 := nb.AddTab('Tab One');
+      p2 := nb.AddTab('Tab Two');
+      p3 := nb.AddTab('Tab Three');
+
+      sc.ClearSegments();
+      sc.AttachToNotebook(nb);
+      AssertEquals('Attached notebook populated segments', 3, sc.SegmentCount);
+      AssertEquals('First segment text matches tab 1', 'Tab One', sc.GetSegmentText(0));
+
+      sc.SelectedIndex := 1;
+      AssertEquals('Notebook active index synchronized', 1, nb.ActiveIndex);
+    finally
+      nb.Free();
+    end;
+
+    // Test drawing without crash
+    canvas := TFtCanvasAgg.Create(@buf[0, 0], 200, 40);
+    try
+      sc.Draw(canvas);
+    finally
+      canvas.Free();
+    end;
+  finally
+    sc.Free();
   end;
 end;
 

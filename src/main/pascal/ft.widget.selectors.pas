@@ -18,6 +18,16 @@ type
   { ComboBox Callbacks }
   TFtComboChangeCallback = procedure(Sender: Pointer; SelectedIndex: cint32; Text: PChar; UserData: Pointer); cdecl;
 
+  { SegmentedControl Callbacks }
+  TFtSegmentSelectCallback = procedure(Sender: Pointer; SelectedIndex: cint32; Text: PChar; UserData: Pointer); cdecl;
+  TFtSegmentSelectEvent = procedure(Sender: TFtWidget; SelectedIndex: Integer) of object;
+
+  TFtSegmentItem = record
+    Text: string;
+    Icon: string;
+    Enabled: Boolean;
+  end;
+
   { TFtCheckBox }
   TFtCheckBox = class(TFtWidget)
   private
@@ -145,7 +155,76 @@ type
     property UserData: Pointer read FUserData write FUserData;
   end;
 
+  { TFtSegmentedControl — multi-segment option and view switcher }
+  TFtSegmentedControl = class(TFtWidget)
+  private
+    FSegments: array of TFtSegmentItem;
+    FSelectedIndex: Integer;
+    FHoverIndex: Integer;
+    FPressedIndex: Integer;
+    FIsMouseDown: Boolean;
+    FCornerRadius: Double;
+    FAttachedNotebook: TFtWidget;
+    FOnSelect: TFtSegmentSelectEvent;
+    FOnSelectCb: TFtSegmentSelectCallback;
+    FUserData: Pointer;
+
+    procedure SetSelectedIndex(AValue: Integer);
+    procedure SetCornerRadius(AValue: Double);
+    function  GetSegmentCount(): Integer;
+    function  GetItemsText(): string;
+    procedure SetItemsText(const AValue: string);
+    function  GetSelectedText(): string;
+    procedure DoSelect(AIndex: Integer);
+  public
+    constructor Create(AParent: TFtWidget); override;
+    destructor Destroy(); override;
+
+    function  AddSegment(const AText: string; const AIcon: string = ''): Integer;
+    procedure SetSegment(AIndex: Integer; const AText: string; const AIcon: string = '');
+    procedure InsertSegment(AIndex: Integer; const AText: string; const AIcon: string = '');
+    procedure RemoveSegment(AIndex: Integer);
+    procedure ClearSegments();
+
+    function  GetSegmentText(AIndex: Integer): string;
+    procedure SetSegmentText(AIndex: Integer; const AText: string);
+    function  GetSegmentIcon(AIndex: Integer): string;
+    procedure SetSegmentIcon(AIndex: Integer; const AIcon: string);
+    function  GetSegmentEnabled(AIndex: Integer): Boolean;
+    procedure SetSegmentEnabled(AIndex: Integer; AEnabled: Boolean);
+
+    function  HitTestSegment(AX, AY: Integer): Integer;
+    function  GetSegmentRect(AIndex: Integer; out RX, RY, RW, RH: Double): Boolean;
+    procedure AttachToNotebook(ANotebook: TFtWidget);
+
+    procedure Draw(Canvas: TFtCanvas); override;
+    procedure MouseEnter(); override;
+    procedure MouseLeave(); override;
+    procedure MouseDown(AX, AY: Integer; AButton: Integer); override;
+    procedure MouseUp(AX, AY: Integer; AButton: Integer); override;
+    procedure MouseMove(AX, AY: Integer); override;
+    procedure KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string); override;
+
+    function  GetElementType(): string; override;
+    function  GetStatePseudoClass(): string; override;
+    function  GetEffectiveHint(): string; override;
+    function  GetPreferredWidth(): Integer; override;
+    function  GetPreferredHeight(): Integer; override;
+
+    property SegmentCount: Integer read GetSegmentCount;
+    property SelectedIndex: Integer read FSelectedIndex write SetSelectedIndex;
+    property SelectedText: string read GetSelectedText;
+    property ItemsText: string read GetItemsText write SetItemsText;
+    property CornerRadius: Double read FCornerRadius write SetCornerRadius;
+    property OnSelect: TFtSegmentSelectEvent read FOnSelect write FOnSelect;
+    property OnSelectCb: TFtSegmentSelectCallback read FOnSelectCb write FOnSelectCb;
+    property UserData: Pointer read FUserData write FUserData;
+  end;
+
 implementation
+
+uses
+  Floria.Image.Core, Ft.Icons, Ft.Widget.Tabs;
 
 function GetWidgetScreenPosition(AWidget: TFtWidget): TPoint;
 var
@@ -1079,6 +1158,681 @@ begin
   arrowY := Y + (Height / 2.0) - 1.5;
   Canvas.DrawLine(arrowX - 4.0, arrowY - 2.0, arrowX, arrowY + 2.5, 1.8, txR, txG, txB, 0.75);
   Canvas.DrawLine(arrowX, arrowY + 2.5, arrowX + 4.0, arrowY - 2.0, 1.8, txR, txG, txB, 0.75);
+end;
+
+{ TFtSegmentedControl }
+
+constructor TFtSegmentedControl.Create(AParent: TFtWidget);
+begin
+  inherited Create(AParent);
+  FFocusable := True;
+  SetLength(FSegments, 0);
+  FSelectedIndex := -1;
+  FHoverIndex := -1;
+  FPressedIndex := -1;
+  FIsMouseDown := False;
+  FCornerRadius := 6.0;
+  FAttachedNotebook := nil;
+  FOnSelect := nil;
+  FOnSelectCb := nil;
+  FUserData := nil;
+  Width := 200;
+  Height := 34;
+end;
+
+destructor TFtSegmentedControl.Destroy();
+begin
+  SetLength(FSegments, 0);
+  inherited Destroy();
+end;
+
+function TFtSegmentedControl.GetSegmentCount(): Integer;
+begin
+  Result := Length(FSegments);
+end;
+
+function TFtSegmentedControl.AddSegment(const AText: string; const AIcon: string): Integer;
+var
+  idx: Integer;
+begin
+  idx := Length(FSegments);
+  SetLength(FSegments, idx + 1);
+  FSegments[idx].Text := AText;
+  FSegments[idx].Icon := AIcon;
+  FSegments[idx].Enabled := True;
+  if (FSelectedIndex = -1) and (idx = 0) then
+    FSelectedIndex := 0;
+  Invalidate();
+  Result := idx;
+end;
+
+procedure TFtSegmentedControl.SetSegment(AIndex: Integer; const AText: string; const AIcon: string);
+begin
+  if (AIndex >= 0) and (AIndex < Length(FSegments)) then
+  begin
+    FSegments[AIndex].Text := AText;
+    FSegments[AIndex].Icon := AIcon;
+    Invalidate();
+  end;
+end;
+
+procedure TFtSegmentedControl.InsertSegment(AIndex: Integer; const AText: string; const AIcon: string);
+var
+  i, count: Integer;
+begin
+  count := Length(FSegments);
+  if AIndex < 0 then AIndex := 0;
+  if AIndex > count then AIndex := count;
+
+  SetLength(FSegments, count + 1);
+  for i := count downto AIndex + 1 do
+    FSegments[i] := FSegments[i - 1];
+
+  FSegments[AIndex].Text := AText;
+  FSegments[AIndex].Icon := AIcon;
+  FSegments[AIndex].Enabled := True;
+
+  if FSelectedIndex >= AIndex then
+    Inc(FSelectedIndex)
+  else if FSelectedIndex = -1 then
+    FSelectedIndex := 0;
+
+  Invalidate();
+end;
+
+procedure TFtSegmentedControl.RemoveSegment(AIndex: Integer);
+var
+  i, count: Integer;
+begin
+  count := Length(FSegments);
+  if (AIndex < 0) or (AIndex >= count) then Exit();
+
+  for i := AIndex to count - 2 do
+    FSegments[i] := FSegments[i + 1];
+  SetLength(FSegments, count - 1);
+
+  if FSelectedIndex = AIndex then
+  begin
+    if Length(FSegments) = 0 then
+      FSelectedIndex := -1
+    else if FSelectedIndex >= Length(FSegments) then
+      SetSelectedIndex(Length(FSegments) - 1)
+    else
+      DoSelect(FSelectedIndex);
+  end
+  else if FSelectedIndex > AIndex then
+    Dec(FSelectedIndex);
+
+  Invalidate();
+end;
+
+procedure TFtSegmentedControl.ClearSegments();
+begin
+  SetLength(FSegments, 0);
+  FSelectedIndex := -1;
+  FHoverIndex := -1;
+  FPressedIndex := -1;
+  Invalidate();
+end;
+
+function TFtSegmentedControl.GetSegmentText(AIndex: Integer): string;
+begin
+  if (AIndex >= 0) and (AIndex < Length(FSegments)) then
+    Result := FSegments[AIndex].Text
+  else
+    Result := '';
+end;
+
+procedure TFtSegmentedControl.SetSegmentText(AIndex: Integer; const AText: string);
+begin
+  if (AIndex >= 0) and (AIndex < Length(FSegments)) then
+  begin
+    FSegments[AIndex].Text := AText;
+    Invalidate();
+  end;
+end;
+
+function TFtSegmentedControl.GetSegmentIcon(AIndex: Integer): string;
+begin
+  if (AIndex >= 0) and (AIndex < Length(FSegments)) then
+    Result := FSegments[AIndex].Icon
+  else
+    Result := '';
+end;
+
+procedure TFtSegmentedControl.SetSegmentIcon(AIndex: Integer; const AIcon: string);
+begin
+  if (AIndex >= 0) and (AIndex < Length(FSegments)) then
+  begin
+    FSegments[AIndex].Icon := AIcon;
+    Invalidate();
+  end;
+end;
+
+function TFtSegmentedControl.GetSegmentEnabled(AIndex: Integer): Boolean;
+begin
+  if (AIndex >= 0) and (AIndex < Length(FSegments)) then
+    Result := FSegments[AIndex].Enabled
+  else
+    Result := False;
+end;
+
+procedure TFtSegmentedControl.SetSegmentEnabled(AIndex: Integer; AEnabled: Boolean);
+begin
+  if (AIndex >= 0) and (AIndex < Length(FSegments)) then
+  begin
+    FSegments[AIndex].Enabled := AEnabled;
+    Invalidate();
+  end;
+end;
+
+function TFtSegmentedControl.GetSelectedText(): string;
+begin
+  Result := GetSegmentText(FSelectedIndex);
+end;
+
+function TFtSegmentedControl.GetItemsText(): string;
+var
+  i: Integer;
+begin
+  Result := '';
+  for i := 0 to High(FSegments) do
+  begin
+    if i > 0 then Result := Result + ', ';
+    Result := Result + FSegments[i].Text;
+  end;
+end;
+
+procedure TFtSegmentedControl.SetItemsText(const AValue: string);
+var
+  s, item: string;
+  p: Integer;
+begin
+  ClearSegments();
+  s := AValue;
+  while s <> '' do
+  begin
+    p := Pos(',', s);
+    if p > 0 then
+    begin
+      item := Trim(Copy(s, 1, p - 1));
+      Delete(s, 1, p);
+    end
+    else
+    begin
+      item := Trim(s);
+      s := '';
+    end;
+    if item <> '' then
+      AddSegment(item);
+  end;
+  if (Length(FSegments) > 0) and (FSelectedIndex < 0) then
+    FSelectedIndex := 0;
+  Invalidate();
+end;
+
+procedure TFtSegmentedControl.SetSelectedIndex(AValue: Integer);
+begin
+  if (AValue < -1) or (AValue >= Length(FSegments)) then Exit();
+  if FSelectedIndex <> AValue then
+  begin
+    FSelectedIndex := AValue;
+    DoSelect(FSelectedIndex);
+    Invalidate();
+  end;
+end;
+
+procedure TFtSegmentedControl.SetCornerRadius(AValue: Double);
+begin
+  if Abs(FCornerRadius - AValue) > 1e-4 then
+  begin
+    FCornerRadius := AValue;
+    Invalidate();
+  end;
+end;
+
+procedure TFtSegmentedControl.DoSelect(AIndex: Integer);
+var
+  txt: string;
+begin
+  if (FAttachedNotebook <> nil) and (FAttachedNotebook is TFtNotebook) then
+  begin
+    if (AIndex >= 0) and (AIndex < TFtNotebook(FAttachedNotebook).PageCount) then
+      TFtNotebook(FAttachedNotebook).ActiveIndex := AIndex;
+  end;
+
+  if Assigned(FOnSelect) then
+    FOnSelect(Self, AIndex);
+
+  if Assigned(FOnSelectCb) then
+  begin
+    if (AIndex >= 0) and (AIndex < Length(FSegments)) then
+      txt := FSegments[AIndex].Text
+    else
+      txt := '';
+    FOnSelectCb(Pointer(Self), AIndex, PChar(txt), FUserData);
+  end;
+end;
+
+function TFtSegmentedControl.HitTestSegment(AX, AY: Integer): Integer;
+var
+  count: Integer;
+  segW, localX, localY: Double;
+  idx: Integer;
+begin
+  count := Length(FSegments);
+  if count = 0 then Exit(-1);
+
+  localX := AX - X;
+  localY := AY - Y;
+
+  if (localX < 0.0) or (localX >= Width) or (localY < 0.0) or (localY >= Height) then
+  begin
+    if ((X <> 0) or (Y <> 0)) and (AX >= 0) and (AX < Width) and (AY >= 0) and (AY < Height) then
+    begin
+      localX := AX;
+      localY := AY;
+    end
+    else
+      Exit(-1);
+  end;
+
+  segW := Width / count;
+  if segW <= 0.0 then Exit(-1);
+
+  idx := Floor(localX / segW);
+  if idx < 0 then idx := 0;
+  if idx >= count then idx := count - 1;
+  Result := idx;
+end;
+
+function TFtSegmentedControl.GetSegmentRect(AIndex: Integer; out RX, RY, RW, RH: Double): Boolean;
+var
+  count: Integer;
+  segW: Double;
+begin
+  count := Length(FSegments);
+  if (AIndex < 0) or (AIndex >= count) then
+  begin
+    RX := 0.0; RY := 0.0; RW := 0.0; RH := 0.0;
+    Exit(False);
+  end;
+
+  segW := Width / count;
+  RX := X + AIndex * segW;
+  RY := Y;
+  RW := segW;
+  RH := Height;
+  Result := True;
+end;
+
+procedure TFtSegmentedControl.AttachToNotebook(ANotebook: TFtWidget);
+var
+  nb: TFtNotebook;
+  i: Integer;
+begin
+  FAttachedNotebook := ANotebook;
+  if (ANotebook <> nil) and (ANotebook is TFtNotebook) then
+  begin
+    nb := TFtNotebook(ANotebook);
+    if Length(FSegments) = 0 then
+    begin
+      for i := 0 to nb.PageCount - 1 do
+        AddSegment(nb.GetPage(i).Title);
+    end;
+    if (FSelectedIndex >= 0) and (FSelectedIndex < nb.PageCount) then
+      nb.ActiveIndex := FSelectedIndex
+    else if nb.PageCount > 0 then
+      FSelectedIndex := nb.ActiveIndex;
+    Invalidate();
+  end;
+end;
+
+procedure TFtSegmentedControl.MouseEnter();
+begin
+  inherited MouseEnter();
+end;
+
+procedure TFtSegmentedControl.MouseLeave();
+begin
+  inherited MouseLeave();
+  FIsMouseDown := False;
+  FHoverIndex := -1;
+  FPressedIndex := -1;
+  Invalidate();
+end;
+
+procedure TFtSegmentedControl.MouseMove(AX, AY: Integer);
+var
+  oldHover: Integer;
+begin
+  inherited MouseMove(AX, AY);
+  oldHover := FHoverIndex;
+  FHoverIndex := HitTestSegment(AX, AY);
+  if oldHover <> FHoverIndex then
+    Invalidate();
+end;
+
+procedure TFtSegmentedControl.MouseDown(AX, AY: Integer; AButton: Integer);
+begin
+  if (AButton in [4, 5, 6, 7]) and Assigned(Parent) then
+    Parent.MouseDown(AX, AY, AButton);
+
+  if (AButton = 1) and FEnabled then
+  begin
+    FIsMouseDown := True;
+    FPressedIndex := HitTestSegment(AX, AY);
+    Invalidate();
+  end;
+end;
+
+procedure TFtSegmentedControl.MouseUp(AX, AY: Integer; AButton: Integer);
+var
+  seg: Integer;
+begin
+  if (AButton = 1) and FEnabled and FIsMouseDown then
+  begin
+    FIsMouseDown := False;
+    seg := HitTestSegment(AX, AY);
+    if (seg >= 0) and (seg = FPressedIndex) and FSegments[seg].Enabled then
+      SetSelectedIndex(seg);
+    FPressedIndex := -1;
+    Invalidate();
+  end;
+end;
+
+procedure TFtSegmentedControl.KeyDown(AKeySym: Cardinal; AState: Cardinal; const AChar: string);
+var
+  count, newIdx: Integer;
+begin
+  inherited KeyDown(AKeySym, AState, AChar);
+  if not FEnabled then Exit();
+  count := Length(FSegments);
+  if count = 0 then Exit();
+
+  case AKeySym of
+    $FF51: // Left Arrow
+    begin
+      newIdx := FSelectedIndex - 1;
+      while (newIdx >= 0) and not FSegments[newIdx].Enabled do
+        Dec(newIdx);
+      if newIdx >= 0 then
+        SetSelectedIndex(newIdx);
+    end;
+    $FF53: // Right Arrow
+    begin
+      newIdx := FSelectedIndex + 1;
+      while (newIdx < count) and not FSegments[newIdx].Enabled do
+        Inc(newIdx);
+      if newIdx < count then
+        SetSelectedIndex(newIdx);
+    end;
+    $FF50: // Home
+    begin
+      newIdx := 0;
+      while (newIdx < count) and not FSegments[newIdx].Enabled do
+        Inc(newIdx);
+      if newIdx < count then
+        SetSelectedIndex(newIdx);
+    end;
+    $FF57: // End
+    begin
+      newIdx := count - 1;
+      while (newIdx >= 0) and not FSegments[newIdx].Enabled do
+        Dec(newIdx);
+      if newIdx >= 0 then
+        SetSelectedIndex(newIdx);
+    end;
+  end;
+end;
+
+function TFtSegmentedControl.GetElementType(): string;
+begin
+  Result := 'segmentedcontrol';
+end;
+
+function TFtSegmentedControl.GetStatePseudoClass(): string;
+begin
+  if not FEnabled then
+    Result := ':disabled'
+  else if FFocused then
+    Result := ':focus'
+  else
+    Result := '';
+end;
+
+function TFtSegmentedControl.GetEffectiveHint(): string;
+begin
+  if not FShowHint or not Visible then Exit('');
+  if (FHoverIndex >= 0) and (FHoverIndex < Length(FSegments)) and (FSegments[FHoverIndex].Text <> '') then
+    Result := FSegments[FHoverIndex].Text
+  else
+    Result := FHint;
+end;
+
+function TFtSegmentedControl.GetPreferredWidth(): Integer;
+var
+  i, count: Integer;
+  fnt: TFtFont;
+  maxSegW, segW: Double;
+begin
+  count := Length(FSegments);
+  if count = 0 then Exit(120);
+
+  fnt := GetFont();
+  if fnt = nil then fnt := FtGetSystemFont();
+
+  maxSegW := 40.0;
+  for i := 0 to count - 1 do
+  begin
+    segW := 24.0;
+    if FSegments[i].Icon <> '' then segW := segW + 20.0;
+    if Assigned(fnt) and (FSegments[i].Text <> '') then
+      segW := segW + fnt.GetTextWidth(FSegments[i].Text);
+    if segW > maxSegW then maxSegW := segW;
+  end;
+  Result := Round(maxSegW * count);
+end;
+
+function TFtSegmentedControl.GetPreferredHeight(): Integer;
+begin
+  Result := 34;
+end;
+
+procedure TFtSegmentedControl.Draw(Canvas: TFtCanvas);
+var
+  i, count: Integer;
+  rad, pillRad: Double;
+  segW, segX, segY, segWidth, segHeight: Double;
+  bgR, bgG, bgB, bgA: Double;
+  bdR, bdG, bdB, bdA: Double;
+  divX, divY1, divY2: Double;
+  txR, txG, txB: Double;
+  fnt: TFtFont;
+  textW, textX, textY: Double;
+  dispText: string;
+  isDark: Boolean;
+  hasIcon: Boolean;
+  iconImg: TFloriaImage;
+  iconW, iconH, iconX, iconY: Double;
+  totalContentW: Double;
+  accent: TFtRgbColor;
+begin
+  if not Visible then Exit();
+
+  isDark := FtGetDarkMode();
+  count := Length(FSegments);
+
+  if FCornerRadius < 0.0 then
+    rad := Height / 2.0
+  else
+    rad := FCornerRadius;
+
+  // Outer Trough colors
+  if isDark then
+  begin
+    bgR := 0.13; bgG := 0.13; bgB := 0.16; bgA := 1.0;
+    bdR := 0.25; bdG := 0.25; bdB := 0.30; bdA := 1.0;
+  end
+  else
+  begin
+    bgR := 0.92; bgG := 0.93; bgB := 0.95; bgA := 1.0;
+    bdR := 0.82; bdG := 0.84; bdB := 0.88; bdA := 1.0;
+  end;
+
+  // Draw Outer Trough
+  Canvas.DrawRoundedRect(X, Y, Width, Height, rad, bgR, bgG, bgB, bgA);
+  Canvas.DrawRoundedRectOutline(X, Y, Width, Height, rad, 1.0, bdR, bdG, bdB, bdA);
+
+  if count = 0 then Exit();
+
+  segW := Width / count;
+  pillRad := Math.Max(2.0, rad - 2.0);
+
+  // Inactive segment dividers
+  for i := 0 to count - 2 do
+  begin
+    if (i <> FSelectedIndex) and (i + 1 <> FSelectedIndex) and
+       (i <> FHoverIndex) and (i + 1 <> FHoverIndex) then
+    begin
+      divX := X + (i + 1) * segW;
+      divY1 := Y + 6.0;
+      divY2 := Y + Height - 6.0;
+      if isDark then
+        Canvas.DrawLine(divX, divY1, divX, divY2, 1.0, 0.28, 0.28, 0.34, 0.9)
+      else
+        Canvas.DrawLine(divX, divY1, divX, divY2, 1.0, 0.78, 0.80, 0.84, 0.9);
+    end;
+  end;
+
+  // Inactive segment hover / pressed highlight
+  if (FHoverIndex >= 0) and (FHoverIndex < count) and (FHoverIndex <> FSelectedIndex) and
+     FSegments[FHoverIndex].Enabled and FEnabled then
+  begin
+    segX := X + FHoverIndex * segW + 2.0;
+    segY := Y + 2.0;
+    segWidth := segW - 4.0;
+    segHeight := Height - 4.0;
+    if FIsMouseDown and (FPressedIndex = FHoverIndex) then
+    begin
+      if isDark then
+        Canvas.DrawRoundedRect(segX, segY, segWidth, segHeight, pillRad, 1.0, 1.0, 1.0, 0.14)
+      else
+        Canvas.DrawRoundedRect(segX, segY, segWidth, segHeight, pillRad, 0.0, 0.0, 0.0, 0.08);
+    end
+    else
+    begin
+      if isDark then
+        Canvas.DrawRoundedRect(segX, segY, segWidth, segHeight, pillRad, 1.0, 1.0, 1.0, 0.08)
+      else
+        Canvas.DrawRoundedRect(segX, segY, segWidth, segHeight, pillRad, 1.0, 1.0, 1.0, 0.50);
+    end;
+  end;
+
+  // Active Segment Pill
+  if (FSelectedIndex >= 0) and (FSelectedIndex < count) then
+  begin
+    segX := X + FSelectedIndex * segW + 2.0;
+    segY := Y + 2.0;
+    segWidth := segW - 4.0;
+    segHeight := Height - 4.0;
+
+    if isDark then
+    begin
+      Canvas.DrawShadow(segX, segY, segWidth, segHeight, pillRad, 0.0, 1.0, 3.0, 0.0, 0.0, 0.0, 0.30);
+      Canvas.DrawRoundedRect(segX, segY, segWidth, segHeight, pillRad, 0.22, 0.22, 0.27, 1.0);
+      Canvas.DrawRoundedRectOutline(segX, segY, segWidth, segHeight, pillRad, 1.0, 0.35, 0.35, 0.42, 1.0);
+    end
+    else
+    begin
+      Canvas.DrawShadow(segX, segY, segWidth, segHeight, pillRad, 0.0, 1.0, 3.0, 0.0, 0.0, 0.0, 0.10);
+      Canvas.DrawRoundedRect(segX, segY, segWidth, segHeight, pillRad, 1.0, 1.0, 1.0, 1.0);
+      Canvas.DrawRoundedRectOutline(segX, segY, segWidth, segHeight, pillRad, 1.0, 0.82, 0.84, 0.88, 1.0);
+    end;
+  end;
+
+  // Draw Segment Content (Icon + Text)
+  fnt := GetFont();
+  if fnt = nil then fnt := FtGetSystemFont();
+
+  for i := 0 to count - 1 do
+  begin
+    dispText := FSegments[i].Text;
+    hasIcon := FSegments[i].Icon <> '';
+    iconImg := nil;
+    if hasIcon then
+      iconImg := FtGetIconBitmap(FSegments[i].Icon, 16, 16, isDark);
+    hasIcon := (iconImg <> nil);
+    if hasIcon then
+    begin
+      iconW := 16.0; iconH := 16.0;
+    end
+    else
+    begin
+      iconW := 0.0; iconH := 0.0;
+    end;
+
+    if not FSegments[i].Enabled or not FEnabled then
+    begin
+      if isDark then
+      begin txR := 0.42; txG := 0.44; txB := 0.48; end
+      else
+      begin txR := 0.62; txG := 0.64; txB := 0.68; end;
+    end
+    else if i = FSelectedIndex then
+    begin
+      if isDark then
+      begin txR := 0.98; txG := 0.98; txB := 1.00; end
+      else
+      begin txR := 0.08; txG := 0.10; txB := 0.14; end;
+    end
+    else
+    begin
+      if isDark then
+      begin txR := 0.65; txG := 0.68; txB := 0.74; end
+      else
+      begin txR := 0.35; txG := 0.38; txB := 0.44; end;
+    end;
+
+    if Assigned(fnt) and (dispText <> '') then
+      textW := fnt.GetTextWidth(dispText)
+    else
+      textW := 0.0;
+
+    if hasIcon and (dispText <> '') then
+    begin
+      totalContentW := iconW + 6.0 + textW;
+      iconX := X + i * segW + (segW - totalContentW) / 2.0;
+      iconY := Y + (Height - iconH) / 2.0;
+      textX := iconX + iconW + 6.0;
+      if Assigned(fnt) then
+        textY := Y + (Height / 2.0) + (fnt.Ascent - fnt.Descent) / 2.0
+      else
+        textY := Y + Height / 2.0;
+      Canvas.DrawImageScaled(iconX, iconY, iconW, iconH, iconImg, 1.0);
+      if Assigned(fnt) then
+        Canvas.DrawText(textX, textY, dispText, fnt, txR, txG, txB);
+    end
+    else if hasIcon then
+    begin
+      iconX := X + i * segW + (segW - iconW) / 2.0;
+      iconY := Y + (Height - iconH) / 2.0;
+      Canvas.DrawImageScaled(iconX, iconY, iconW, iconH, iconImg, 1.0);
+    end
+    else if (dispText <> '') and Assigned(fnt) then
+    begin
+      textX := X + i * segW + (segW - textW) / 2.0;
+      textY := Y + (Height / 2.0) + (fnt.Ascent - fnt.Descent) / 2.0;
+      Canvas.DrawText(textX, textY, dispText, fnt, txR, txG, txB);
+    end;
+  end;
+
+  // Focus Ring
+  if FFocused then
+  begin
+    accent := FtGetTheme().GetAccentColor();
+    Canvas.DrawRoundedRectOutline(X - 1.5, Y - 1.5, Width + 3.0, Height + 3.0, rad + 1.5, 1.8, accent.R, accent.G, accent.B, 0.7);
+  end;
 end;
 
 end.

@@ -285,12 +285,7 @@ const
 
   FT_ICON_APPEARANCE =
     '<svg viewBox="0 0 16 16" width="16" height="16">' +
-    '<path d="M 8 1.5 C 3.8 1.5 1.5 4.5 1.5 8 C 1.5 11.5 4.2 14.5 7.5 14.5 C 8.6 14.5 9.2 13.8 9.2 13 C 9.2 12.4 8.9 11.9 8.9 11.3 C 8.9 10.4 9.6 9.8 10.5 9.8 L 11.8 9.8 C 13.6 9.8 14.5 8.2 14.5 6.5 C 14.5 3.5 11.8 1.5 8 1.5 Z" fill="#64748b"/>' +
-    '<circle cx="4.5" cy="6" r="1" fill="#ffffff"/>' +
-    '<circle cx="7.5" cy="4.5" r="1" fill="#ffffff"/>' +
-    '<circle cx="10.8" cy="5.5" r="1" fill="#ffffff"/>' +
-    '<circle cx="5" cy="9.5" r="1" fill="#ffffff"/>' +
-    '<circle cx="11.5" cy="11.8" r="1.1" fill="#ffffff"/>' +
+    '<path d="M 8 1.5 C 3.8 1.5 1.5 4.5 1.5 8 C 1.5 11.5 4.2 14.5 7.5 14.5 C 8.6 14.5 9.2 13.8 9.2 13 C 9.2 12.4 8.9 11.9 8.9 11.3 C 8.9 10.4 9.6 9.8 10.5 9.8 L 11.8 9.8 C 13.6 9.8 14.5 8.2 14.5 6.5 C 14.5 3.5 11.8 1.5 8 1.5 Z M 4.5 5 C 5.052 5 5.5 5.448 5.5 6 C 5.5 6.552 5.052 7 4.5 7 C 3.948 7 3.5 6.552 3.5 6 C 3.5 5.448 3.948 5 4.5 5 Z M 7.5 3.5 C 8.052 3.5 8.5 3.948 8.5 4.5 C 8.5 5.052 8.052 5.5 7.5 5.5 C 6.948 5.5 6.5 5.052 6.5 4.5 C 6.5 3.948 6.948 3.5 7.5 3.5 Z M 10.8 4.5 C 11.352 4.5 11.8 4.948 11.8 5.5 C 11.8 6.052 11.352 6.5 10.8 6.5 C 10.248 6.5 9.8 6.052 9.8 5.5 C 9.8 4.948 10.248 4.5 10.8 4.5 Z M 5 8.5 C 5.552 8.5 6 8.948 6 9.5 C 6 10.052 5.552 10.5 5 10.5 C 4.448 10.5 4 10.052 4 9.5 C 4 8.948 4.448 8.5 5 8.5 Z" fill="#64748b" fill-rule="evenodd"/>' +
     '</svg>';
 
   FT_ICON_BACKGROUND =
@@ -331,6 +326,100 @@ const
     '<rect x="3" y="6.5" width="10" height="7.5" rx="1.5" fill="none" stroke="#64748b" stroke-width="1.4"/>' +
     '<path d="M 5.5 6.5 L 5.5 4.5 C 5.5 3.1 6.6 2 8 2 C 9.4 2 10.5 3.1 10.5 4.5 L 10.5 6.5" fill="none" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/>' +
     '<circle cx="8" cy="10.2" r="1" fill="#64748b"/>' +
+    '</svg>';
+
+  FT_ICON_BRIGHTNESS_LOW =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<circle cx="8" cy="8" r="3" fill="none" stroke="#64748b" stroke-width="1.3"/>' +
+    '<path d="M 8 1.5 L 8 3 M 8 13 L 8 14.5 M 1.5 8 L 3 8 M 13 8 L 14.5 8" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/>' +
+    '</svg>';
+
+  FT_ICON_BRIGHTNESS_HIGH =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<circle cx="8" cy="8" r="3.4" fill="#64748b"/>' +
+    '<path d="M 8 1.2 L 8 3 M 8 13 L 8 14.8 M 1.2 8 L 3 8 M 13 8 L 14.8 8 M 3.2 3.2 L 4.5 4.5 M 11.5 11.5 L 12.8 12.8 M 3.2 12.8 L 4.5 11.5 M 11.5 4.5 L 12.8 3.2" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/>' +
+    '</svg>';
+
+  FT_ICON_SELECTOR =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<path d="M 5 6 L 8 3 L 11 6 M 5 10 L 8 13 L 11 10" stroke="#64748b" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
+    '</svg>';
+
+  FT_ICON_ROTATE_0 =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<rect x="2" y="3.5" width="12" height="8.5" rx="1.5" fill="none" stroke="#64748b" stroke-width="1.3"/>' +
+    '<line x1="2" y1="6" x2="14" y2="6" stroke="#64748b" stroke-width="1"/>' +
+    '<path d="M 8 12 L 8 14 M 5.5 14 L 10.5 14" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/>' +
+    '</svg>';
+
+  FT_ICON_ROTATE_90 =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<rect x="3.5" y="2" width="8.5" height="12" rx="1.5" fill="none" stroke="#64748b" stroke-width="1.3"/>' +
+    '<line x1="3.5" y1="4.5" x2="12" y2="4.5" stroke="#64748b" stroke-width="1"/>' +
+    '<path d="M 12 8 L 14 8 M 14 5.5 L 14 10.5" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/>' +
+    '</svg>';
+
+  FT_ICON_ROTATE_180 =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<rect x="2" y="4" width="12" height="8.5" rx="1.5" fill="none" stroke="#64748b" stroke-width="1.3"/>' +
+    '<line x1="2" y1="10" x2="14" y2="10" stroke="#64748b" stroke-width="1"/>' +
+    '<path d="M 8 4 L 8 2 M 5.5 2 L 10.5 2" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/>' +
+    '</svg>';
+
+  FT_ICON_ROTATE_270 =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<rect x="4" y="2" width="8.5" height="12" rx="1.5" fill="none" stroke="#64748b" stroke-width="1.3"/>' +
+    '<line x1="4" y1="11.5" x2="12.5" y2="11.5" stroke="#64748b" stroke-width="1"/>' +
+    '<path d="M 4 8 L 2 8 M 2 5.5 L 2 10.5" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/>' +
+    '</svg>';
+
+  FT_ICON_THEME_LIGHT =
+    '<svg viewBox="0 0 76 50" width="76" height="50">' +
+    '<rect x="1" y="1" width="74" height="48" rx="6" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>' +
+    '<rect x="1" y="1" width="74" height="13" rx="6" fill="#e2e8f0"/>' +
+    '<rect x="1" y="8" width="74" height="6" fill="#e2e8f0"/>' +
+    '<circle cx="8" cy="7.5" r="2" fill="#ef4444"/>' +
+    '<circle cx="14" cy="7.5" r="2" fill="#eab308"/>' +
+    '<circle cx="20" cy="7.5" r="2" fill="#22c55e"/>' +
+    '<rect x="1" y="14" width="20" height="35" fill="#f1f5f9"/>' +
+    '<line x1="21" y1="14" x2="21" y2="49" stroke="#cbd5e1" stroke-width="1"/>' +
+    '<rect x="5" y="19" width="12" height="3" rx="1" fill="#94a3b8"/>' +
+    '<rect x="5" y="25" width="10" height="3" rx="1" fill="#94a3b8"/>' +
+    '<rect x="5" y="31" width="13" height="3" rx="1" fill="#94a3b8"/>' +
+    '<rect x="27" y="19" width="42" height="24" rx="3" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>' +
+    '</svg>';
+
+  FT_ICON_THEME_DARK =
+    '<svg viewBox="0 0 76 50" width="76" height="50">' +
+    '<rect x="1" y="1" width="74" height="48" rx="6" fill="#18181b" stroke="#3f3f46" stroke-width="1.5"/>' +
+    '<rect x="1" y="1" width="74" height="13" rx="6" fill="#27272a"/>' +
+    '<rect x="1" y="8" width="74" height="6" fill="#27272a"/>' +
+    '<circle cx="8" cy="7.5" r="2" fill="#ef4444"/>' +
+    '<circle cx="14" cy="7.5" r="2" fill="#eab308"/>' +
+    '<circle cx="20" cy="7.5" r="2" fill="#22c55e"/>' +
+    '<rect x="1" y="14" width="20" height="35" fill="#27272a"/>' +
+    '<line x1="21" y1="14" x2="21" y2="49" stroke="#3f3f46" stroke-width="1"/>' +
+    '<rect x="5" y="19" width="12" height="3" rx="1" fill="#71717a"/>' +
+    '<rect x="5" y="25" width="10" height="3" rx="1" fill="#71717a"/>' +
+    '<rect x="5" y="31" width="13" height="3" rx="1" fill="#71717a"/>' +
+    '<rect x="27" y="19" width="42" height="24" rx="3" fill="#24242c" stroke="#3f3f46" stroke-width="1"/>' +
+    '</svg>';
+
+  FT_ICON_BATTERY_BOLT =
+    '<svg viewBox="0 0 64 64" width="64" height="64">' +
+    '<rect x="10" y="20" width="40" height="24" rx="5" fill="none" stroke="#ffffff" stroke-width="3"/>' +
+    '<path d="M 50 28 L 50 36" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>' +
+    '<path d="M 31 16 L 23 33 L 31 33 L 28 48 L 40 29 L 32 29 Z" fill="#ffffff"/>' +
+    '</svg>';
+
+  FT_ICON_DISPLAY_SCALE =
+    '<svg viewBox="0 0 48 36" width="48" height="36">' +
+    '<rect x="3" y="3" width="42" height="26" rx="3" fill="none" stroke="#64748b" stroke-width="1.8"/>' +
+    '<line x1="3" y1="8" x2="45" y2="8" stroke="#64748b" stroke-width="1.2"/>' +
+    '<path d="M 24 29 L 24 33 M 18 33 L 30 33" stroke="#64748b" stroke-width="1.8" stroke-linecap="round"/>' +
+    '<rect x="8" y="13" width="8" height="8" rx="1.5" fill="#64748b"/>' +
+    '<rect x="19" y="13" width="21" height="3" rx="1" fill="#64748b"/>' +
+    '<rect x="19" y="18" width="16" height="3" rx="1" fill="#64748b"/>' +
     '</svg>';
 
   { Dialog Icons (48x48) }
@@ -672,6 +761,24 @@ begin
   RegisterWithWhite('security', FT_ICON_LOCK);
   RegisterWithWhite('padlock', FT_ICON_LOCK);
   RegisterWithWhite('about', FT_ICON_INFO);
+
+  { Display, Appearance & Power Glyphs }
+  RegisterWithWhite('brightness-low', FT_ICON_BRIGHTNESS_LOW);
+  RegisterWithWhite('sun-low', FT_ICON_BRIGHTNESS_LOW);
+  RegisterWithWhite('brightness-high', FT_ICON_BRIGHTNESS_HIGH);
+  RegisterWithWhite('sun-high', FT_ICON_BRIGHTNESS_HIGH);
+  RegisterWithWhite('brightness', FT_ICON_BRIGHTNESS_HIGH);
+  RegisterWithWhite('selector', FT_ICON_SELECTOR);
+  RegisterWithWhite('chevron-up-down', FT_ICON_SELECTOR);
+  RegisterWithWhite('rotate-0', FT_ICON_ROTATE_0);
+  RegisterWithWhite('rotate-standard', FT_ICON_ROTATE_0);
+  RegisterWithWhite('rotate-90', FT_ICON_ROTATE_90);
+  RegisterWithWhite('rotate-180', FT_ICON_ROTATE_180);
+  RegisterWithWhite('rotate-270', FT_ICON_ROTATE_270);
+  RegisterIcon('theme-light', FT_ICON_THEME_LIGHT);
+  RegisterIcon('theme-dark', FT_ICON_THEME_DARK);
+  RegisterIcon('battery-bolt', FT_ICON_BATTERY_BOLT);
+  RegisterWithWhite('display-scale', FT_ICON_DISPLAY_SCALE);
 
   { Dialog Severity Icons }
   RegisterIcon('dialog-info', FT_ICON_DIALOG_INFO);

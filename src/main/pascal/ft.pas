@@ -74,6 +74,7 @@ var
   gLastComboItem: AnsiString;
   gLastComboText: AnsiString;
   gLastComboPlaceholder: AnsiString;
+  gLastSegmentText: AnsiString;
   gLastProgressFormat: AnsiString;
   gLastStyleClass: AnsiString;
   gLastStyleId: AnsiString;
@@ -4028,6 +4029,131 @@ begin
   end;
 end;
 
+{ SegmentedControl Widgets }
+
+function ft_segmented_control_create(parent: Pointer; x, y, w, h: cint32): Pointer; cdecl; export;
+var
+  sc: TFtSegmentedControl;
+begin
+  AdjustChildCoordinates(parent, x, y);
+  sc := TFtSegmentedControl.Create(TFtWidget(parent));
+  sc.X := x;
+  sc.Y := y;
+  if w > 0 then sc.Width := w;
+  if h > 0 then sc.Height := h;
+  Result := Pointer(sc);
+end;
+
+function ft_segmented_control_add_segment(control: Pointer; text, icon: PChar): cint32; cdecl; export;
+var
+  sText, sIcon: string;
+begin
+  if Assigned(control) and (TObject(control) is TFtSegmentedControl) then
+  begin
+    if Assigned(text) then sText := StrPas(text) else sText := '';
+    if Assigned(icon) then sIcon := StrPas(icon) else sIcon := '';
+    Result := TFtSegmentedControl(control).AddSegment(sText, sIcon);
+  end
+  else
+    Result := -1;
+end;
+
+procedure ft_segmented_control_clear(control: Pointer); cdecl; export;
+begin
+  if Assigned(control) and (TObject(control) is TFtSegmentedControl) then
+    TFtSegmentedControl(control).ClearSegments();
+end;
+
+function ft_segmented_control_get_count(control: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(control) and (TObject(control) is TFtSegmentedControl) then
+    Result := TFtSegmentedControl(control).SegmentCount
+  else
+    Result := 0;
+end;
+
+procedure ft_segmented_control_set_selected_index(control: Pointer; index: cint32); cdecl; export;
+begin
+  if Assigned(control) and (TObject(control) is TFtSegmentedControl) then
+    TFtSegmentedControl(control).SelectedIndex := index;
+end;
+
+function ft_segmented_control_get_selected_index(control: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(control) and (TObject(control) is TFtSegmentedControl) then
+    Result := TFtSegmentedControl(control).SelectedIndex
+  else
+    Result := -1;
+end;
+
+function ft_segmented_control_get_selected_text(control: Pointer): PChar; cdecl; export;
+begin
+  if Assigned(control) and (TObject(control) is TFtSegmentedControl) then
+  begin
+    gLastSegmentText := TFtSegmentedControl(control).SelectedText;
+    Result := PChar(gLastSegmentText);
+  end
+  else
+    Result := PChar('');
+end;
+
+function ft_segmented_control_get_segment_text(control: Pointer; index: cint32): PChar; cdecl; export;
+begin
+  if Assigned(control) and (TObject(control) is TFtSegmentedControl) then
+  begin
+    gLastSegmentText := TFtSegmentedControl(control).GetSegmentText(index);
+    Result := PChar(gLastSegmentText);
+  end
+  else
+    Result := PChar('');
+end;
+
+procedure ft_segmented_control_set_segment_text(control: Pointer; index: cint32; text: PChar); cdecl; export;
+begin
+  if Assigned(control) and (TObject(control) is TFtSegmentedControl) and Assigned(text) then
+    TFtSegmentedControl(control).SetSegmentText(index, StrPas(text));
+end;
+
+procedure ft_segmented_control_set_items_text(control: Pointer; text: PChar); cdecl; export;
+begin
+  if Assigned(control) and (TObject(control) is TFtSegmentedControl) and Assigned(text) then
+    TFtSegmentedControl(control).ItemsText := StrPas(text);
+end;
+
+procedure ft_segmented_control_set_corner_radius(control: Pointer; radius: Double); cdecl; export;
+begin
+  if Assigned(control) and (TObject(control) is TFtSegmentedControl) then
+    TFtSegmentedControl(control).CornerRadius := radius;
+end;
+
+function ft_segmented_control_get_corner_radius(control: Pointer): Double; cdecl; export;
+begin
+  if Assigned(control) and (TObject(control) is TFtSegmentedControl) then
+    Result := TFtSegmentedControl(control).CornerRadius
+  else
+    Result := 0.0;
+end;
+
+procedure ft_segmented_control_attach_notebook(control, notebook: Pointer); cdecl; export;
+begin
+  if Assigned(control) and (TObject(control) is TFtSegmentedControl) then
+  begin
+    if Assigned(notebook) and (TObject(notebook) is TFtWidget) then
+      TFtSegmentedControl(control).AttachToNotebook(TFtWidget(notebook))
+    else
+      TFtSegmentedControl(control).AttachToNotebook(nil);
+  end;
+end;
+
+procedure ft_segmented_control_on_select(control: Pointer; callback: TFtSegmentSelectCallback; user_data: Pointer); cdecl; export;
+begin
+  if Assigned(control) and (TObject(control) is TFtSegmentedControl) then
+  begin
+    TFtSegmentedControl(control).OnSelectCb := callback;
+    TFtSegmentedControl(control).UserData := user_data;
+  end;
+end;
+
 { Slider Widgets }
 
 function ft_slider_create(parent: Pointer; x, y, w, h: cint32; orientation: cint32): Pointer; cdecl; export;
@@ -7556,6 +7682,20 @@ exports
   ft_combobox_get_corner_radius,
   ft_combobox_popup,
   ft_combobox_on_change,
+  ft_segmented_control_create,
+  ft_segmented_control_add_segment,
+  ft_segmented_control_clear,
+  ft_segmented_control_get_count,
+  ft_segmented_control_set_selected_index,
+  ft_segmented_control_get_selected_index,
+  ft_segmented_control_get_selected_text,
+  ft_segmented_control_get_segment_text,
+  ft_segmented_control_set_segment_text,
+  ft_segmented_control_set_items_text,
+  ft_segmented_control_set_corner_radius,
+  ft_segmented_control_get_corner_radius,
+  ft_segmented_control_attach_notebook,
+  ft_segmented_control_on_select,
   ft_slider_create,
   ft_slider_set_orientation,
   ft_slider_get_orientation,
