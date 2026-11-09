@@ -107,9 +107,11 @@ type
                               const Caption: string; Font: TFtFont; 
                               Hovered, Active: Boolean); virtual;
     procedure DrawPopupMenuPlate(Canvas: TFtCanvas; X, Y, W, H: Integer; CustomRadius: Double = -1.0); virtual;
+    procedure DrawMenuHeader(Canvas: TFtCanvas; X, Y, W, H: Integer; const Title: string; Font: TFtFont = nil); virtual;
     procedure DrawPopupMenuItem(Canvas: TFtCanvas; X, Y, W, H: Integer; 
                                 const Caption, Shortcut: string; Font: TFtFont; 
-                                Hovered, Enabled, Checked, HasSubMenu: Boolean); virtual;
+                                Hovered, Enabled, Checked, HasSubMenu: Boolean;
+                                const Icon: string = ''); virtual;
     procedure DrawMenuSeparator(Canvas: TFtCanvas; X, Y, W: Integer); virtual;
     function GetTooltipBackground(): TFtRgbColor; virtual;
     function GetTooltipBorder(): TFtRgbColor; virtual;
@@ -1201,9 +1203,27 @@ begin
   end;
 end;
 
+procedure TFtTheme.DrawMenuHeader(Canvas: TFtCanvas; X, Y, W, H: Integer; const Title: string; Font: TFtFont);
+var
+  txt: TFtRgbColor;
+  actualFont: TFtFont;
+  txtY: Double;
+begin
+  if Title = '' then Exit;
+  if FDarkMode then
+    txt := MakeRgb(0.55, 0.58, 0.65)
+  else
+    txt := MakeRgb(0.45, 0.48, 0.55);
+
+  if not Assigned(Font) then actualFont := FtGetSystemFont() else actualFont := Font;
+  txtY := Y + (H / 2.0) + (actualFont.Ascent - actualFont.Descent) / 2.0;
+  Canvas.DrawText(X + 8, txtY, Title, actualFont, txt.R, txt.G, txt.B);
+end;
+
 procedure TFtTheme.DrawPopupMenuItem(Canvas: TFtCanvas; X, Y, W, H: Integer; 
                                     const Caption, Shortcut: string; Font: TFtFont; 
-                                    Hovered, Enabled, Checked, HasSubMenu: Boolean);
+                                    Hovered, Enabled, Checked, HasSubMenu: Boolean;
+                                    const Icon: string);
 var
   bg, txt: TFtRgbColor;
   actualFont: TFtFont;
@@ -1227,7 +1247,9 @@ begin
   if not Assigned(Font) then actualFont := FtGetSystemFont() else actualFont := Font;
   txtY := Y + (H / 2.0) + (actualFont.Ascent - actualFont.Descent) / 2.0;
 
-  if Checked then
+  if Icon <> '' then
+    Canvas.DrawText(X + 6, txtY, Icon, actualFont, txt.R, txt.G, txt.B)
+  else if Checked then
     Canvas.DrawText(X + 6, txtY, #$E2#$9C#$93, actualFont, txt.R, txt.G, txt.B);
 
   if Caption <> '' then

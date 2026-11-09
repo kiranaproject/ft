@@ -3431,6 +3431,113 @@ begin
   end;
 end;
 
+procedure ft_menu_plate_draw(canvas: Pointer; x, y, w, h: Double; radius: Double; dark_mode: cint32); cdecl; export;
+var
+  theme: TFtTheme;
+  rad: Double;
+  savedDm: Boolean;
+begin
+  if canvas = nil then Exit;
+  theme := FtGetTheme();
+  savedDm := theme.DarkMode;
+  try
+    theme.DarkMode := (dark_mode <> 0);
+    if radius >= 0.0 then rad := radius else rad := 6.0;
+    theme.DrawPopupMenuPlate(TFtCanvas(canvas), Round(x), Round(y), Round(w), Round(h), rad);
+  finally
+    theme.DarkMode := savedDm;
+  end;
+end;
+
+procedure ft_menu_header_draw(canvas: Pointer; x, y, w, h: Double; title: PChar; dark_mode: cint32); cdecl; export;
+var
+  theme: TFtTheme;
+  titleStr: string;
+  savedDm: Boolean;
+begin
+  if canvas = nil then Exit;
+  if Assigned(title) then titleStr := StrPas(title) else titleStr := '';
+  theme := FtGetTheme();
+  savedDm := theme.DarkMode;
+  try
+    theme.DarkMode := (dark_mode <> 0);
+    theme.DrawMenuHeader(TFtCanvas(canvas), Round(x), Round(y), Round(w), Round(h), titleStr);
+  finally
+    theme.DarkMode := savedDm;
+  end;
+end;
+
+procedure ft_menu_item_draw(canvas: Pointer; x, y, w, h: Double;
+                            caption: PChar; shortcut: PChar; icon: PChar;
+                            hovered, enabled, checked, dark_mode: cint32); cdecl; export;
+var
+  theme: TFtTheme;
+  capStr, shortStr, iconStr: string;
+  savedDm: Boolean;
+begin
+  if canvas = nil then Exit;
+  if Assigned(caption) then capStr := StrPas(caption) else capStr := '';
+  if Assigned(shortcut) then shortStr := StrPas(shortcut) else shortStr := '';
+  if Assigned(icon) then iconStr := StrPas(icon) else iconStr := '';
+
+  theme := FtGetTheme();
+  savedDm := theme.DarkMode;
+  try
+    theme.DarkMode := (dark_mode <> 0);
+    theme.DrawPopupMenuItem(TFtCanvas(canvas), Round(x), Round(y), Round(w), Round(h),
+                            capStr, shortStr, nil,
+                            hovered <> 0, enabled <> 0, checked <> 0, False, iconStr);
+  finally
+    theme.DarkMode := savedDm;
+  end;
+end;
+
+procedure ft_menu_separator_draw(canvas: Pointer; x, y, w: Double; dark_mode: cint32); cdecl; export;
+var
+  theme: TFtTheme;
+  savedDm: Boolean;
+begin
+  if canvas = nil then Exit;
+  theme := FtGetTheme();
+  savedDm := theme.DarkMode;
+  try
+    theme.DarkMode := (dark_mode <> 0);
+    theme.DrawMenuSeparator(TFtCanvas(canvas), Round(x), Round(y), Round(w));
+  finally
+    theme.DarkMode := savedDm;
+  end;
+end;
+
+procedure ft_theme_get_menu_color(color_kind: cint32; dark_mode: cint32; out_r, out_g, out_b: PDouble); cdecl; export;
+var
+  theme: TFtTheme;
+  savedDm: Boolean;
+  col: TFtRgbColor;
+begin
+  if (out_r = nil) or (out_g = nil) or (out_b = nil) then Exit;
+  theme := FtGetTheme();
+  savedDm := theme.DarkMode;
+  try
+    theme.DarkMode := (dark_mode <> 0);
+    case color_kind of
+      0: col := theme.GetMenuBackground();
+      1: col := theme.GetMenuBorder();
+      2: col := theme.GetMenuHoverBackground();
+      3: col := theme.GetMenuHoverTextColor();
+      4: col := theme.GetTextColor();
+      5: col := theme.GetMenuSeparatorColor();
+      6: col := theme.GetMenuDisabledTextColor();
+    else
+      col := theme.GetTextColor();
+    end;
+    out_r^ := col.R;
+    out_g^ := col.G;
+    out_b^ := col.B;
+  finally
+    theme.DarkMode := savedDm;
+  end;
+end;
+
 { Menu Items C API }
 
 procedure ft_menu_item_set_caption(item: Pointer; caption: PChar); cdecl; export;
@@ -7742,6 +7849,11 @@ exports
   ft_popup_menu_close,
   ft_popup_menu_clear,
   ft_popup_menu_set_corner_radius,
+  ft_menu_plate_draw,
+  ft_menu_header_draw,
+  ft_menu_item_draw,
+  ft_menu_separator_draw,
+  ft_theme_get_menu_color,
   ft_menu_item_set_caption,
   ft_menu_item_get_caption,
   ft_menu_item_set_shortcut,

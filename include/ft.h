@@ -743,6 +743,13 @@ void ft_popup_menu_close(FtWidget popup_menu);
 void ft_popup_menu_clear(FtWidget popup_menu);
 void ft_popup_menu_set_corner_radius(FtWidget popup_menu, double radius);
 
+/* Canvas Popup Menu Rendering */
+void ft_menu_plate_draw(void* canvas, double x, double y, double w, double h, double radius, int32_t dark_mode);
+void ft_menu_header_draw(void* canvas, double x, double y, double w, double h, const char* title, int32_t dark_mode);
+void ft_menu_item_draw(void* canvas, double x, double y, double w, double h, const char* caption, const char* shortcut, const char* icon, int32_t hovered, int32_t enabled, int32_t checked, int32_t dark_mode);
+void ft_menu_separator_draw(void* canvas, double x, double y, double w, int32_t dark_mode);
+void ft_theme_get_menu_color(int32_t color_kind, int32_t dark_mode, double* out_r, double* out_g, double* out_b);
+
 /* Menus: Items */
 void ft_menu_item_set_caption(FtMenuItem item, const char* caption);
 const char* ft_menu_item_get_caption(FtMenuItem item);

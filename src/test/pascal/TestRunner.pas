@@ -92,6 +92,7 @@ type
     procedure TestIconViewLayoutAndItems();
     procedure TestIconViewSelectionAndMarquee();
     procedure TestSegmentedControl();
+    procedure TestPopupMenuCanvasRendering();
   end;
 
   TFtSvgTest = class(TTestCase)
@@ -3251,6 +3252,53 @@ begin
     end;
   finally
     sc.Free();
+  end;
+end;
+
+procedure TFtDesktopWidgetsTest.TestPopupMenuCanvasRendering();
+var
+  canvas: TFtCanvasAgg;
+  buf: array[0..199, 0..199] of TBgraPixel;
+  theme: TFtTheme;
+  bg, hovBg: TFtRgbColor;
+begin
+  FillChar(buf, SizeOf(buf), 0);
+  canvas := TFtCanvasAgg.Create(@buf[0, 0], 200, 200);
+  try
+    theme := FtGetTheme();
+
+    // Test direct menu canvas routines in Dark Mode
+    theme.DarkMode := True;
+    theme.DrawPopupMenuPlate(canvas, 10, 10, 180, 180, 6.0);
+    theme.DrawMenuHeader(canvas, 10, 14, 180, 20, 'Window Actions');
+    theme.DrawMenuSeparator(canvas, 10, 36, 180);
+    theme.DrawPopupMenuItem(canvas, 14, 40, 172, 24, 'Minimize', 'Alt+F9', nil, False, True, False, False, '—');
+    theme.DrawPopupMenuItem(canvas, 14, 64, 172, 24, 'Maximize', 'Alt+F10', nil, True, True, False, False, '⤢');
+    theme.DrawPopupMenuItem(canvas, 14, 88, 172, 24, 'Always on Top', '', nil, False, True, True, False, '✓');
+    theme.DrawMenuSeparator(canvas, 10, 114, 180);
+    theme.DrawPopupMenuItem(canvas, 14, 118, 172, 24, 'Close Window', 'Alt+F4', nil, False, True, False, False, '×');
+
+    // Test Light Mode
+    theme.DarkMode := False;
+    theme.DrawPopupMenuPlate(canvas, 10, 10, 180, 180, 6.0);
+    theme.DrawMenuHeader(canvas, 10, 14, 180, 20, 'Window Actions');
+    theme.DrawMenuSeparator(canvas, 10, 36, 180);
+    theme.DrawPopupMenuItem(canvas, 14, 40, 172, 24, 'Minimize', 'Alt+F9', nil, False, True, False, False, '—');
+    theme.DrawPopupMenuItem(canvas, 14, 64, 172, 24, 'Maximize', 'Alt+F10', nil, True, True, False, False, '⤢');
+
+    // Test Theme menu color queries
+    theme.DarkMode := True;
+    bg := theme.GetMenuBackground();
+    AssertTrue('Menu bg dark R in range', (bg.R >= 0.0) and (bg.R <= 1.0));
+    AssertTrue('Menu bg dark G in range', (bg.G >= 0.0) and (bg.G <= 1.0));
+    AssertTrue('Menu bg dark B in range', (bg.B >= 0.0) and (bg.B <= 1.0));
+
+    hovBg := theme.GetMenuHoverBackground();
+    AssertTrue('Menu hover bg R in range', (hovBg.R >= 0.0) and (hovBg.R <= 1.0));
+    AssertTrue('Menu hover bg G in range', (hovBg.G >= 0.0) and (hovBg.G <= 1.0));
+    AssertTrue('Menu hover bg B in range', (hovBg.B >= 0.0) and (hovBg.B <= 1.0));
+  finally
+    canvas.Free();
   end;
 end;
 
