@@ -1253,7 +1253,12 @@ begin
     Canvas.DrawText(X + 6, txtY, #$E2#$9C#$93, actualFont, txt.R, txt.G, txt.B);
 
   if Caption <> '' then
-    Canvas.DrawText(X + 24, txtY, Caption, actualFont, txt.R, txt.G, txt.B);
+  begin
+    if Shortcut <> '' then
+      Canvas.DrawTextLeft(X + 24, Y, W - Round(actualFont.GetTextWidth(Shortcut)) - 36, H, Caption, actualFont, txt.R, txt.G, txt.B)
+    else
+      Canvas.DrawTextLeft(X + 24, Y, W - 32, H, Caption, actualFont, txt.R, txt.G, txt.B);
+  end;
 
   if Shortcut <> '' then
   begin
