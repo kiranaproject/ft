@@ -3272,11 +3272,12 @@ begin
     theme.DrawPopupMenuPlate(canvas, 10, 10, 180, 180, 6.0);
     theme.DrawMenuHeader(canvas, 10, 14, 180, 20, 'Window Actions');
     theme.DrawMenuSeparator(canvas, 10, 36, 180);
-    theme.DrawPopupMenuItem(canvas, 14, 40, 172, 24, 'Minimize', 'Alt+F9', nil, False, True, False, False, '—');
-    theme.DrawPopupMenuItem(canvas, 14, 64, 172, 24, 'Maximize', 'Alt+F10', nil, True, True, False, False, '⤢');
+    theme.DrawPopupMenuItem(canvas, 14, 40, 172, 24, 'Minimize', 'Alt+F9', nil, False, True, False, False, 'wb:minimize');
+    theme.DrawPopupMenuItem(canvas, 14, 64, 172, 24, 'Maximize', 'Alt+F10', nil, True, True, False, False, 'wb:maximize');
     theme.DrawPopupMenuItem(canvas, 14, 88, 172, 24, 'Always on Top', '', nil, False, True, True, False, '✓');
-    theme.DrawMenuSeparator(canvas, 10, 114, 180);
-    theme.DrawPopupMenuItem(canvas, 14, 118, 172, 24, 'Close Window', 'Alt+F4', nil, False, True, False, False, '×');
+    theme.DrawPopupMenuItem(canvas, 14, 112, 172, 24, 'Roll Up (Shade)', '', nil, False, True, False, False, 'wb:shade');
+    theme.DrawMenuSeparator(canvas, 10, 138, 180);
+    theme.DrawPopupMenuItem(canvas, 14, 142, 172, 24, 'Close Window', 'Alt+F4', nil, False, True, False, False, 'wb:close');
 
     // Test Light Mode
     theme.DarkMode := False;

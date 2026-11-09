@@ -1227,7 +1227,8 @@ procedure TFtTheme.DrawPopupMenuItem(Canvas: TFtCanvas; X, Y, W, H: Integer;
 var
   bg, txt: TFtRgbColor;
   actualFont: TFtFont;
-  txtY: Double;
+  txtY, icX, icY, arm, leg: Double;
+  isVectorIcon: Boolean;
 begin
   if Hovered and Enabled then
   begin
@@ -1247,10 +1248,66 @@ begin
   if not Assigned(Font) then actualFont := FtGetSystemFont() else actualFont := Font;
   txtY := Y + (H / 2.0) + (actualFont.Ascent - actualFont.Descent) / 2.0;
 
-  if Icon <> '' then
-    Canvas.DrawText(X + 6, txtY, Icon, actualFont, txt.R, txt.G, txt.B)
-  else if Checked then
-    Canvas.DrawText(X + 6, txtY, #$E2#$9C#$93, actualFont, txt.R, txt.G, txt.B);
+  isVectorIcon := False;
+  icX := X + 13.0;
+  icY := Y + (H * 0.5);
+  arm := 4.2;
+
+  if (Icon = 'wb:close') or (Icon = 'close') or (Icon = '×') or (Icon = #$C3#$97) then
+  begin
+    isVectorIcon := True;
+    Canvas.DrawLine(icX - arm, icY - arm, icX + arm, icY + arm, 1.4, txt.R, txt.G, txt.B, 1.0);
+    Canvas.DrawLine(icX + arm, icY - arm, icX - arm, icY + arm, 1.4, txt.R, txt.G, txt.B, 1.0);
+  end
+  else if (Icon = 'wb:minimize') or (Icon = 'minimize') or (Icon = '—') or (Icon = #$E2#$80#$94) or (Icon = '-') then
+  begin
+    isVectorIcon := True;
+    Canvas.DrawLine(icX - arm, icY, icX + arm, icY, 1.4, txt.R, txt.G, txt.B, 1.0);
+  end
+  else if (Icon = 'wb:maximize') or (Icon = 'maximize') or (Icon = '⤢') or (Icon = #$E2#$A4#$A2) then
+  begin
+    isVectorIcon := True;
+    leg := arm * 0.75;
+    Canvas.DrawLine(icX + arm - leg, icY - arm, icX + arm, icY - arm, 1.3, txt.R, txt.G, txt.B, 1.0);
+    Canvas.DrawLine(icX + arm, icY - arm, icX + arm, icY - arm + leg, 1.3, txt.R, txt.G, txt.B, 1.0);
+    Canvas.DrawLine(icX - arm + leg, icY + arm, icX - arm, icY + arm, 1.3, txt.R, txt.G, txt.B, 1.0);
+    Canvas.DrawLine(icX - arm, icY + arm, icX - arm, icY + arm - leg, 1.3, txt.R, txt.G, txt.B, 1.0);
+  end
+  else if (Icon = 'wb:restore') or (Icon = 'restore') or (Icon = '⤡') or (Icon = #$E2#$A4#$A1) then
+  begin
+    isVectorIcon := True;
+    leg := arm * 0.65;
+    Canvas.DrawLine(icX + arm * 0.35, icY - arm * 0.35 - leg, icX + arm * 0.35, icY - arm * 0.35, 1.3, txt.R, txt.G, txt.B, 1.0);
+    Canvas.DrawLine(icX + arm * 0.35 + leg, icY - arm * 0.35, icX + arm * 0.35, icY - arm * 0.35, 1.3, txt.R, txt.G, txt.B, 1.0);
+    Canvas.DrawLine(icX - arm * 0.35, icY + arm * 0.35 + leg, icX - arm * 0.35, icY + arm * 0.35, 1.3, txt.R, txt.G, txt.B, 1.0);
+    Canvas.DrawLine(icX - arm * 0.35 - leg, icY + arm * 0.35, icX - arm * 0.35, icY + arm * 0.35, 1.3, txt.R, txt.G, txt.B, 1.0);
+  end
+  else if (Icon = 'wb:shade') or (Icon = 'shade') or (Icon = '^') or (Icon = '⌃') or (Icon = #$E2#$8C#$83) or (Icon = '▴') or (Icon = #$E2#$96#$B4) then
+  begin
+    isVectorIcon := True;
+    Canvas.DrawLine(icX - arm, icY + arm * 0.35, icX, icY - arm * 0.45, 1.3, txt.R, txt.G, txt.B, 1.0);
+    Canvas.DrawLine(icX, icY - arm * 0.45, icX + arm, icY + arm * 0.35, 1.3, txt.R, txt.G, txt.B, 1.0);
+  end
+  else if (Icon = 'wb:pin') or (Icon = 'pin') or (Icon = '•') or (Icon = #$E2#$80#$A2) then
+  begin
+    isVectorIcon := True;
+    Canvas.DrawCircle(icX, icY, 2.2, txt.R, txt.G, txt.B, 1.0);
+  end
+  else if (Icon = 'wb:menu') or (Icon = 'menu') or (Icon = '☰') or (Icon = #$E2#$98#$B0) then
+  begin
+    isVectorIcon := True;
+    Canvas.DrawLine(icX - arm, icY - 2.8, icX + arm, icY - 2.8, 1.2, txt.R, txt.G, txt.B, 1.0);
+    Canvas.DrawLine(icX - arm, icY, icX + arm, icY, 1.2, txt.R, txt.G, txt.B, 1.0);
+    Canvas.DrawLine(icX - arm, icY + 2.8, icX + arm, icY + 2.8, 1.2, txt.R, txt.G, txt.B, 1.0);
+  end;
+
+  if not isVectorIcon then
+  begin
+    if Icon <> '' then
+      Canvas.DrawText(X + 6, txtY, Icon, actualFont, txt.R, txt.G, txt.B)
+    else if Checked then
+      Canvas.DrawText(X + 6, txtY, #$E2#$9C#$93, actualFont, txt.R, txt.G, txt.B);
+  end;
 
   if Caption <> '' then
   begin
