@@ -328,6 +328,38 @@ const
     '<circle cx="8" cy="10.2" r="1" fill="#64748b"/>' +
     '</svg>';
 
+  FT_ICON_BLUETOOTH =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<line x1="8" y1="2" x2="8" y2="14" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/>' +
+    '<path d="M 5 5 L 11 9.5 L 8 12.5 L 8 3.5 L 11 6.5 L 5 11" stroke="#64748b" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
+    '</svg>';
+
+  FT_ICON_SOUND =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<path d="M 2.5 5.5 L 5.5 5.5 L 9 2.5 L 9 13.5 L 5.5 10.5 L 2.5 10.5 Z" fill="#64748b"/>' +
+    '<path d="M 11.5 5.5 C 12.5 6.5 12.5 9.5 11.5 10.5" stroke="#64748b" stroke-width="1.3" stroke-linecap="round" fill="none"/>' +
+    '<path d="M 13.5 3.5 C 15 5.5 15 10.5 13.5 12.5" stroke="#64748b" stroke-width="1.3" stroke-linecap="round" fill="none"/>' +
+    '</svg>';
+
+  FT_ICON_VOLUME_LOW =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<path d="M 2.5 5.5 L 5.5 5.5 L 9 2.5 L 9 13.5 L 5.5 10.5 L 2.5 10.5 Z" fill="#64748b"/>' +
+    '<path d="M 11.5 6 C 12.2 6.8 12.2 9.2 11.5 10" stroke="#64748b" stroke-width="1.3" stroke-linecap="round" fill="none"/>' +
+    '</svg>';
+
+  FT_ICON_VOLUME_MUTE =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<path d="M 2.5 5.5 L 5.5 5.5 L 9 2.5 L 9 13.5 L 5.5 10.5 L 2.5 10.5 Z" fill="#64748b"/>' +
+    '<line x1="11.5" y1="6" x2="14.5" y2="10" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/>' +
+    '<line x1="14.5" y1="6" x2="11.5" y2="10" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/>' +
+    '</svg>';
+
+  FT_ICON_POWER =
+    '<svg viewBox="0 0 16 16" width="16" height="16">' +
+    '<path d="M 5.2 4.2 C 3.5 5.6 2.8 8.1 3.5 10.3 C 4.2 12.5 6.3 14 8.6 14 C 11 14 13.1 12.5 13.8 10.3 C 14.5 8.1 13.8 5.6 12.1 4.2" stroke="#64748b" stroke-width="1.4" stroke-linecap="round" fill="none"/>' +
+    '<line x1="8.6" y1="2" x2="8.6" y2="7.5" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/>' +
+    '</svg>';
+
   FT_ICON_BRIGHTNESS_LOW =
     '<svg viewBox="0 0 16 16" width="16" height="16">' +
     '<circle cx="8" cy="8" r="3" fill="none" stroke="#64748b" stroke-width="1.3"/>' +
@@ -755,11 +787,19 @@ begin
   RegisterWithWhite('locale', FT_ICON_LANGUAGE);
   RegisterWithWhite('preferences-desktop-locale', FT_ICON_LANGUAGE);
   RegisterWithWhite('battery', FT_ICON_BATTERY);
-  RegisterWithWhite('power', FT_ICON_BATTERY);
+  RegisterWithWhite('power', FT_ICON_POWER);
   RegisterWithWhite('battery-full', FT_ICON_BATTERY);
   RegisterWithWhite('lock', FT_ICON_LOCK);
   RegisterWithWhite('security', FT_ICON_LOCK);
   RegisterWithWhite('padlock', FT_ICON_LOCK);
+  RegisterWithWhite('bluetooth', FT_ICON_BLUETOOTH);
+  RegisterWithWhite('sound', FT_ICON_SOUND);
+  RegisterWithWhite('audio', FT_ICON_SOUND);
+  RegisterWithWhite('volume', FT_ICON_SOUND);
+  RegisterWithWhite('volume-high', FT_ICON_SOUND);
+  RegisterWithWhite('volume-low', FT_ICON_VOLUME_LOW);
+  RegisterWithWhite('volume-mute', FT_ICON_VOLUME_MUTE);
+  RegisterWithWhite('mute', FT_ICON_VOLUME_MUTE);
   RegisterWithWhite('about', FT_ICON_INFO);
 
   { Display, Appearance & Power Glyphs }
