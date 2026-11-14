@@ -294,6 +294,10 @@ begin
       try
         tw := FIconWidth;
         th := FIconHeight;
+        if (tw <= 0) and (svgDoc.GetIntrinsicWidth() > 0) then
+          tw := Round(svgDoc.GetIntrinsicWidth());
+        if (th <= 0) and (svgDoc.GetIntrinsicHeight() > 0) then
+          th := Round(svgDoc.GetIntrinsicHeight());
         if tw <= 0 then tw := 16;
         if th <= 0 then th := 16;
         if FOwnsIcon and Assigned(FIcon) then
@@ -356,6 +360,10 @@ begin
       try
         tw := FIconWidth;
         th := FIconHeight;
+        if (tw <= 0) and (svgDoc.GetIntrinsicWidth() > 0) then
+          tw := Round(svgDoc.GetIntrinsicWidth());
+        if (th <= 0) and (svgDoc.GetIntrinsicHeight() > 0) then
+          th := Round(svgDoc.GetIntrinsicHeight());
         if tw <= 0 then tw := 16;
         if th <= 0 then th := 16;
         FIcon := TFloriaSVGRenderer.RenderToImage(svgDoc, tw, th, True);

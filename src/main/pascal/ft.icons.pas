@@ -406,35 +406,23 @@ const
     '</svg>';
 
   FT_ICON_THEME_LIGHT =
-    '<svg viewBox="0 0 76 50" width="76" height="50">' +
-    '<rect x="1" y="1" width="74" height="48" rx="6" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>' +
-    '<rect x="1" y="1" width="74" height="13" rx="6" fill="#e2e8f0"/>' +
-    '<rect x="1" y="8" width="74" height="6" fill="#e2e8f0"/>' +
-    '<circle cx="8" cy="7.5" r="2" fill="#ef4444"/>' +
-    '<circle cx="14" cy="7.5" r="2" fill="#eab308"/>' +
-    '<circle cx="20" cy="7.5" r="2" fill="#22c55e"/>' +
-    '<rect x="1" y="14" width="20" height="35" fill="#f1f5f9"/>' +
-    '<line x1="21" y1="14" x2="21" y2="49" stroke="#cbd5e1" stroke-width="1"/>' +
-    '<rect x="5" y="19" width="12" height="3" rx="1" fill="#94a3b8"/>' +
-    '<rect x="5" y="25" width="10" height="3" rx="1" fill="#94a3b8"/>' +
-    '<rect x="5" y="31" width="13" height="3" rx="1" fill="#94a3b8"/>' +
-    '<rect x="27" y="19" width="42" height="24" rx="3" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>' +
+    '<svg viewBox="0 0 104 76" width="104" height="76">' +
+    '<rect x="1.5" y="1.5" width="101" height="73" rx="8" fill="#f6f6f6" stroke="#dcdce0" stroke-width="1.5"/>' +
+    '<circle cx="22" cy="25" r="9" fill="#acacb4"/>' +
+    '<rect x="38" y="19" width="32" height="5" rx="2.5" fill="#acacb4"/>' +
+    '<rect x="38" y="27" width="46" height="5" rx="2.5" fill="#acacb4"/>' +
+    '<circle cx="22" cy="51" r="9" fill="#acacb4"/>' +
+    '<rect x="38" y="48" width="46" height="5" rx="2.5" fill="#acacb4"/>' +
     '</svg>';
 
   FT_ICON_THEME_DARK =
-    '<svg viewBox="0 0 76 50" width="76" height="50">' +
-    '<rect x="1" y="1" width="74" height="48" rx="6" fill="#18181b" stroke="#3f3f46" stroke-width="1.5"/>' +
-    '<rect x="1" y="1" width="74" height="13" rx="6" fill="#27272a"/>' +
-    '<rect x="1" y="8" width="74" height="6" fill="#27272a"/>' +
-    '<circle cx="8" cy="7.5" r="2" fill="#ef4444"/>' +
-    '<circle cx="14" cy="7.5" r="2" fill="#eab308"/>' +
-    '<circle cx="20" cy="7.5" r="2" fill="#22c55e"/>' +
-    '<rect x="1" y="14" width="20" height="35" fill="#27272a"/>' +
-    '<line x1="21" y1="14" x2="21" y2="49" stroke="#3f3f46" stroke-width="1"/>' +
-    '<rect x="5" y="19" width="12" height="3" rx="1" fill="#71717a"/>' +
-    '<rect x="5" y="25" width="10" height="3" rx="1" fill="#71717a"/>' +
-    '<rect x="5" y="31" width="13" height="3" rx="1" fill="#71717a"/>' +
-    '<rect x="27" y="19" width="42" height="24" rx="3" fill="#24242c" stroke="#3f3f46" stroke-width="1"/>' +
+    '<svg viewBox="0 0 104 76" width="104" height="76">' +
+    '<rect x="1.5" y="1.5" width="101" height="73" rx="8" fill="#2d2d30" stroke="#444448" stroke-width="1.5"/>' +
+    '<circle cx="22" cy="25" r="9" fill="#7a7a82"/>' +
+    '<rect x="38" y="19" width="32" height="5" rx="2.5" fill="#7a7a82"/>' +
+    '<rect x="38" y="27" width="46" height="5" rx="2.5" fill="#7a7a82"/>' +
+    '<circle cx="22" cy="51" r="9" fill="#7a7a82"/>' +
+    '<rect x="38" y="48" width="46" height="5" rx="2.5" fill="#7a7a82"/>' +
     '</svg>';
 
   FT_ICON_BATTERY_BOLT =
