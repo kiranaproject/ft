@@ -668,6 +668,12 @@ const
     '<path d="M 31 16 L 23 33 L 31 33 L 28 48 L 40 29 L 32 29 Z" fill="#ffffff"/>' +
     '</svg>';
 
+  FT_ICON_BATTERY_OUTLINE_WHITE =
+    '<svg viewBox="0 0 64 64" width="64" height="64">' +
+    '<rect x="10" y="20" width="40" height="24" rx="5" fill="none" stroke="#ffffff" stroke-width="3"/>' +
+    '<path d="M 50 28 L 50 36" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>' +
+    '</svg>';
+
   FT_ICON_DISPLAY_SCALE =
     '<svg viewBox="0 0 48 36" width="48" height="36">' +
     '<rect x="3" y="3" width="42" height="26" rx="3" fill="none" stroke="#64748b" stroke-width="1.8"/>' +
@@ -1042,6 +1048,7 @@ begin
   RegisterIcon('theme-light', FT_ICON_THEME_LIGHT);
   RegisterIcon('theme-dark', FT_ICON_THEME_DARK);
   RegisterIcon('battery-bolt', FT_ICON_BATTERY_BOLT);
+  RegisterIcon('battery-outline-white', FT_ICON_BATTERY_OUTLINE_WHITE);
   RegisterIcon('distro-logo', FT_ICON_DISTRO_LOGO_LIGHT, FT_ICON_DISTRO_LOGO_DARK);
   RegisterIcon('samarinda-logo', FT_ICON_DISTRO_LOGO_LIGHT, FT_ICON_DISTRO_LOGO_DARK);
   RegisterIcon('kirana-logo', FT_ICON_DISTRO_LOGO_LIGHT, FT_ICON_DISTRO_LOGO_DARK);
