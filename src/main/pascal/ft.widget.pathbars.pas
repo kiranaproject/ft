@@ -344,6 +344,7 @@ end;
 
 procedure TFtPathBar.SetPath(const AValue: string);
 begin
+  if FPath = AValue then Exit;
   FPath := AValue;
   if Assigned(FEntry) and not FSwitchingMode then
     FEntry.Text := FPath;

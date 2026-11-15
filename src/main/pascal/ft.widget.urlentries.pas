@@ -268,6 +268,7 @@ end;
 
 procedure TFtUrlEntry.SetUrl(const AValue: string);
 begin
+  if FUrl = AValue then Exit;
   FUrl := AValue;
   if Assigned(FSubEntry) and not FSwitchingEdit then
     FSubEntry.Text := FUrl;

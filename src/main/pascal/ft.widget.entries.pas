@@ -74,13 +74,14 @@ type
     function DeleteSelection(): Boolean;
     procedure DeleteSelectedOrChar();
     procedure InsertText(const AInsert: string);
+    procedure SetCursorPos(AValue: Integer);
     procedure CopyToClipboard();
     procedure CutToClipboard();
     procedure PasteFromClipboard();
 
     property Text: string read FText write SetText;
     property Placeholder: string read FPlaceholder write SetPlaceholder;
-    property CursorPos: Integer read FCursorPos;
+    property CursorPos: Integer read FCursorPos write SetCursorPos;
     property SelStart: Integer read FSelAnchor;
     property SelCursor: Integer read FSelCursor;
     property ReadOnly: Boolean read FReadOnly write FReadOnly;
@@ -220,6 +221,7 @@ end;
 
 procedure TFtEntry.SetText(const AValue: string);
 begin
+  if FText = AValue then Exit;
   FText := AValue;
   FCursorPos := CharCount();
   FSelAnchor := FCursorPos;
@@ -228,6 +230,23 @@ begin
   Invalidate();
   if Assigned(FOnChange) then
     FOnChange(Self, PChar(FText), FUserData);
+end;
+
+procedure TFtEntry.SetCursorPos(AValue: Integer);
+var
+  cnt: Integer;
+begin
+  cnt := CharCount();
+  if AValue < 0 then AValue := 0;
+  if AValue > cnt then AValue := cnt;
+  if FCursorPos <> AValue then
+  begin
+    FCursorPos := AValue;
+    FSelAnchor := FCursorPos;
+    FSelCursor := FCursorPos;
+    EnsureCursorVisible();
+    Invalidate();
+  end;
 end;
 
 procedure TFtEntry.SetPlaceholder(const AValue: string);

@@ -1654,6 +1654,20 @@ begin
     TFtEntry(entry_widget).ClearSelection();
 end;
 
+function ft_entry_get_cursor_pos(entry_widget: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(entry_widget) and (TObject(entry_widget) is TFtEntry) then
+    Result := TFtEntry(entry_widget).CursorPos
+  else
+    Result := 0;
+end;
+
+procedure ft_entry_set_cursor_pos(entry_widget: Pointer; pos: cint32); cdecl; export;
+begin
+  if Assigned(entry_widget) and (TObject(entry_widget) is TFtEntry) then
+    TFtEntry(entry_widget).CursorPos := pos;
+end;
+
 { PathBar Widgets (Nautilus-Style Breadcrumb Path Entry) }
 
 function ft_path_bar_create(parent: Pointer; x, y, w, h: cint32; initial_path: PChar): Pointer; cdecl; export;
@@ -7708,6 +7722,8 @@ exports
   ft_entry_get_corner_radius,
   ft_entry_select_all,
   ft_entry_clear_selection,
+  ft_entry_get_cursor_pos,
+  ft_entry_set_cursor_pos,
   ft_textarea_create,
   ft_textarea_set_text,
   ft_textarea_get_text,

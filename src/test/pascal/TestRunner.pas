@@ -86,6 +86,7 @@ type
     procedure TestButtonAlignment();
     procedure TestPathBar();
     procedure TestUrlEntry();
+    procedure TestEntryCursorPositionAndSetTextPreservation();
     procedure TestFrostedGlassBackdropBlurInvalidation();
     procedure TestContainerVsPanelDefaults();
     procedure TestWidgetVisibilityAndShowing();
@@ -2779,6 +2780,40 @@ begin
     AssertTrue('SubEntry visible after click', ue.SubEntry.Visible);
   finally
     ue.Free();
+  end;
+end;
+
+procedure TFtDesktopWidgetsTest.TestEntryCursorPositionAndSetTextPreservation();
+var
+  entry: TFtEntry;
+begin
+  entry := TFtEntry.Create(nil);
+  try
+    entry.Text := 'hello world';
+    AssertEquals('Initial cursor at end', 11, entry.CursorPos);
+
+    // Set cursor to position 5
+    entry.CursorPos := 5;
+    AssertEquals('Cursor positioned at 5', 5, entry.CursorPos);
+
+    // Re-assign identical text - cursor must not jump to the end
+    entry.Text := 'hello world';
+    AssertEquals('Cursor preserved at 5 after re-assigning identical text', 5, entry.CursorPos);
+
+    // Type a character at position 5
+    entry.InsertText('X');
+    AssertEquals('Text updated with inserted char', 'helloX world', entry.Text);
+    AssertEquals('Cursor advanced to 6 after insert', 6, entry.CursorPos);
+
+    // Re-assigning the updated text must still preserve cursor at 6
+    entry.Text := 'helloX world';
+    AssertEquals('Cursor preserved at 6 after re-assigning updated text', 6, entry.CursorPos);
+
+    // Changing text to different value resets cursor to end of new text
+    entry.Text := 'new text';
+    AssertEquals('Cursor moved to end of newly set text', 8, entry.CursorPos);
+  finally
+    entry.Free();
   end;
 end;
 

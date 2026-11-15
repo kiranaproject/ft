@@ -227,8 +227,12 @@ begin
 end;
 
 procedure TFtTextArea.SetText(const AValue: string);
+var
+  norm: string;
 begin
-  FLines.Text := NormalizeText(AValue);
+  norm := NormalizeText(AValue);
+  if (FLines.Text = norm) or (GetText() = AValue) then Exit;
+  FLines.Text := norm;
   if FLines.Count = 0 then
     FLines.Add('');
   FCursorLine := FLines.Count - 1;
