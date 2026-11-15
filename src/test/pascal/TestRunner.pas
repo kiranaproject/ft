@@ -270,6 +270,10 @@ begin
   AssertTrue('Has theme-dark icon', FtIconManager().HasIcon('theme-dark'));
   AssertTrue('Has battery-bolt icon', FtIconManager().HasIcon('battery-bolt'));
   AssertTrue('Has display-scale icon', FtIconManager().HasIcon('display-scale'));
+  AssertTrue('Has distro-logo icon', FtIconManager().HasIcon('distro-logo'));
+  AssertTrue('Has samarinda-logo icon', FtIconManager().HasIcon('samarinda-logo'));
+  AssertTrue('distro-logo light has #aa0000', Pos('#aa0000', FtGetIconSvg('distro-logo', False)) > 0);
+  AssertTrue('distro-logo dark has #ef4444', Pos('#ef4444', FtGetIconSvg('distro-logo', True)) > 0);
 
   AssertFalse('Does not have invalid icon', FtIconManager().HasIcon('non_existent_icon_xyz'));
 
