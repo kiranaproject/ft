@@ -330,8 +330,7 @@ const
 
   FT_ICON_BLUETOOTH =
     '<svg viewBox="0 0 16 16" width="16" height="16">' +
-    '<line x1="8" y1="2" x2="8" y2="14" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/>' +
-    '<path d="M 5 5 L 11 9.5 L 8 12.5 L 8 3.5 L 11 6.5 L 5 11" stroke="#64748b" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
+    '<path d="M 4.7 4.7 L 11.3 11.3 L 8 14.6 L 8 1.4 L 11.3 4.7 L 4.7 11.3" fill="none" stroke="#64748b" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>' +
     '</svg>';
 
   FT_ICON_SOUND =
