@@ -2358,10 +2358,7 @@ end;
 procedure ft_container_set_scroll_pos(container: Pointer; scroll_x, scroll_y: Double); cdecl; export;
 begin
   if Assigned(container) and (TObject(container) is TFtContainer) then
-  begin
-    TFtContainer(container).ScrollX := scroll_x;
-    TFtContainer(container).ScrollY := scroll_y;
-  end;
+    TFtContainer(container).SetScrollPos(scroll_x, scroll_y);
 end;
 
 function ft_container_get_scroll_x(container: Pointer): Double; cdecl; export;

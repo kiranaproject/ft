@@ -80,6 +80,7 @@ type
 
     procedure GetClientRect(out AX, AY, AW, AH: Double); virtual;
     procedure SetContentSize(AWidth, AHeight: Double);
+    procedure SetScrollPos(AX, AY: Double);
     procedure SetPadding(APaddingX, APaddingY: Double);
     procedure AddChildRelative(AWidget: TFtWidget; ARelX, ARelY: Integer);
     procedure UpdateScrollBars(); virtual;
@@ -346,13 +347,31 @@ begin
   end;
 end;
 
+procedure TFtContainer.SetScrollPos(AX, AY: Double);
+begin
+  SetScrollX(AX);
+  SetScrollY(AY);
+end;
+
 procedure TFtContainer.SetScrollX(AValue: Double);
 var
   clamped: Double;
   newInt, delta: Integer;
+  viewW, maxScroll: Double;
 begin
   clamped := AValue;
   if clamped < 0.0 then clamped := 0.0;
+  viewW := Math.Max(0.0, Width - (FPaddingX * 2.0));
+  if Assigned(FVScrollBar) and FVScrollBar.Visible then
+    viewW := Math.Max(0.0, viewW - FVScrollBar.Width - 2.0);
+  if (FContentWidth > 0.0) and (FContentWidth > viewW) then
+    maxScroll := FContentWidth - viewW
+  else if FContentWidth > 0.0 then
+    maxScroll := 0.0
+  else
+    maxScroll := 1000000.0;
+  if clamped > maxScroll then clamped := maxScroll;
+
   if Abs(FScrollX - clamped) > 1e-4 then
   begin
     FScrollX := clamped;
@@ -375,9 +394,21 @@ procedure TFtContainer.SetScrollY(AValue: Double);
 var
   clamped: Double;
   newInt, delta: Integer;
+  viewH, maxScroll: Double;
 begin
   clamped := AValue;
   if clamped < 0.0 then clamped := 0.0;
+  viewH := Math.Max(0.0, Height - (FPaddingY * 2.0));
+  if Assigned(FHScrollBar) and FHScrollBar.Visible then
+    viewH := Math.Max(0.0, viewH - FHScrollBar.Height - 2.0);
+  if (FContentHeight > 0.0) and (FContentHeight > viewH) then
+    maxScroll := FContentHeight - viewH
+  else if FContentHeight > 0.0 then
+    maxScroll := 0.0
+  else
+    maxScroll := 1000000.0;
+  if clamped > maxScroll then clamped := maxScroll;
+
   if Abs(FScrollY - clamped) > 1e-4 then
   begin
     FScrollY := clamped;
@@ -504,10 +535,7 @@ begin
   begin
     child := TFtWidget(Children[i]);
     if (child <> FVScrollBar) and (child <> FHScrollBar) then
-    begin
-      child.X := child.X - DeltaX;
-      child.Y := child.Y - DeltaY;
-    end;
+      child.SetBounds(child.X - DeltaX, child.Y - DeltaY, child.Width, child.Height);
   end;
 end;
 
@@ -523,7 +551,7 @@ procedure TFtContainer.RecalculateContentSize();
 var
   i: Integer;
   child: TFtWidget;
-  maxW, maxH: Double;
+  maxW, maxH, viewH: Double;
   relR, relB: Double;
 begin
   if not FAutoContentSize then Exit;
@@ -542,6 +570,9 @@ begin
   end;
   if (maxW > 0.0) or (maxH > 0.0) then
   begin
+    viewH := Math.Max(0.0, Height - (FPaddingY * 2.0));
+    if maxH > viewH then
+      maxH := maxH + 24.0;
     FContentWidth := maxW;
     FContentHeight := maxH;
   end;
@@ -1083,24 +1114,20 @@ end;
 procedure TFtContainer.MouseDown(AX, AY: Integer; AButton: Integer);
 begin
   // Mouse wheel
-  if AButton = 4 then
+  if (AButton in [4, 5]) and Assigned(FVScrollBar) and FVScrollBar.Visible then
   begin
-    SetScrollY(FScrollY - 30.0);
+    if AButton = 4 then
+      SetScrollY(FScrollY - 30.0)
+    else
+      SetScrollY(FScrollY + 30.0);
     Exit;
   end;
-  if AButton = 5 then
+  if (AButton in [6, 7]) and Assigned(FHScrollBar) and FHScrollBar.Visible then
   begin
-    SetScrollY(FScrollY + 30.0);
-    Exit;
-  end;
-  if AButton = 6 then
-  begin
-    SetScrollX(FScrollX - 30.0);
-    Exit;
-  end;
-  if AButton = 7 then
-  begin
-    SetScrollX(FScrollX + 30.0);
+    if AButton = 6 then
+      SetScrollX(FScrollX - 30.0)
+    else
+      SetScrollX(FScrollX + 30.0);
     Exit;
   end;
 
