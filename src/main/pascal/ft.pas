@@ -4532,7 +4532,13 @@ begin
   if (AFilePath = nil) or (AFilePath^ = #0) then
     Result := TFloriaImage.Create(0, 0)
   else
-    Result := TFloriaImage.CreateFromFile(string(AFilePath));
+  begin
+    try
+      Result := TFloriaImage.CreateFromFile(string(AFilePath));
+    except
+      Result := nil;
+    end;
+  end;
 end;
 
 function ft_bitmap_load_memory(AData: Pointer; ASize: cint32): Pointer; cdecl; export;
@@ -4540,7 +4546,13 @@ begin
   if (AData = nil) or (ASize <= 0) then
     Result := TFloriaImage.Create(0, 0)
   else
-    Result := TFloriaImage.CreateFromMemory(AData, ASize);
+  begin
+    try
+      Result := TFloriaImage.CreateFromMemory(AData, ASize);
+    except
+      Result := nil;
+    end;
+  end;
 end;
 
 function ft_bitmap_create_from_rgba(APixels: Pointer; AWidth, AHeight: cint32): Pointer; cdecl; export;
