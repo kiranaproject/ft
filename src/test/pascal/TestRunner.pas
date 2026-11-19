@@ -6,7 +6,7 @@ uses
   ctypes, Classes, SysUtils, Math, Types, fpcunit, testregistry, consoletestrunner,
   Floria.XCB,
   Floria.SVG.DOM, Floria.SVG.Parser,
-  Ft.Css, Floria.Image.Core, Floria.Image.BMP, Floria.Image.PNG, Floria.Image.JPEG, Floria.Image.Blur,
+  Ft.Css, Floria.Image.Core, Floria.Image.BMP, Floria.Image.PNG, Floria.Image.JPEG, Floria.Image.WebP, Floria.Image.Blur,
   Ft.Canvas, Floria.Canvas, Floria.Canvas.Agg, Floria.Canvas.GL, Floria.SVG.Rasterizer,
   Floria.Text.HarfBuzz, Floria.Unicode.BiDi,
   Ft.Widget, Ft.Widget.Containers, Ft.Widget.Images,
@@ -105,6 +105,7 @@ type
     procedure TestBitmapCreateFromSVG();
     procedure TestImageWidgetLoadSVG();
     procedure TestImageWidgetLoadPNG();
+    procedure TestImageWidgetLoadWebP();
     procedure TestSVGRasterizeLinearGradient();
     procedure TestSVGRasterizeRadialGradient();
   end;
@@ -1075,6 +1076,25 @@ begin
     AssertTrue('Bitmap assigned', Assigned(img.Bitmap));
     AssertEquals('Width 128', 128, img.Bitmap.Width);
     AssertEquals('Height 128', 128, img.Bitmap.Height);
+  finally
+    img.Free();
+  end;
+end;
+
+procedure TFtSvgTest.TestImageWidgetLoadWebP();
+var
+  img: TFtImage;
+  assetPath: string;
+begin
+  img := TFtImage.Create(nil, 0, 0, 100, 100);
+  try
+    assetPath := '/home/afumi/Documents/projects/kirana/configsama/scratch/cfsettings.webp';
+    if not FileExists(assetPath) then Exit;
+
+    img.LoadFromFile(assetPath);
+    AssertTrue('Bitmap assigned', Assigned(img.Bitmap));
+    AssertEquals('Width 1200', 1200, img.Bitmap.Width);
+    AssertEquals('Height 675', 675, img.Bitmap.Height);
   finally
     img.Free();
   end;

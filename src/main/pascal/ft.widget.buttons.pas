@@ -7,7 +7,7 @@ interface
 uses
   ctypes, SysUtils, Classes, Math,
   Floria.Canvas.Agg, Floria.Font,
-  Floria.Image.Core, Floria.Image.BMP, Floria.Image.PNG, Floria.Image.JPEG,
+  Floria.Image.Core, Floria.Image.BMP, Floria.Image.PNG, Floria.Image.JPEG, Floria.Image.WebP,
   Floria.SVG.DOM, Floria.SVG.Parser, Floria.SVG.Rasterizer,
   Ft.Canvas,
   Ft.Widget, Ft.Widget.Texts, Ft.Theme, Ft.Css, Ft.Animation;

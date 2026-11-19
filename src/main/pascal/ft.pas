@@ -28,6 +28,7 @@ uses
   Floria.Image.BMP,
   Floria.Image.PNG,
   Floria.Image.JPEG,
+  Floria.Image.WebP,
   Ft.Widget.Images,
   Floria.SVG.Rasterizer,
   Floria.SVG.DOM,

@@ -77,6 +77,11 @@ All native top-level popup surfaces (`TFtPopupMenu`, `TFtHintWindow`, `ftwtToolt
 - **Clean 1px Border Outline**: Draw a flat filled rectangle with a 1px border outline (`Canvas.DrawRect` + `Canvas.DrawRoundedRectOutline(X, Y, W, H, 0.0, 1.0, ...)`).
 - **Let the Compositor Work**: Allow the user's window manager and compositor to natively handle window-level corner radius, elevation drop shadows, and blur behind regions according to their system preferences.
 
+### The Invariant: Popup Windows Render on the Software Path (WM-29)
+Popup-menu windows created by `TFtPopupMenu.Create` are forced onto the software rendering path (`TFtEGLWindow.IsHardwareAccelerated := False`), even when the EGL backend is active. This is deliberate, not an oversight to be "optimized" back to EGL.
+
+A popup menu is a short-lived override-redirect window, created lazily and destroyed often. On the EGL path its teardown (`CleanupGLPipeline` + `eglDestroySurface` / `eglDestroyContext`) corrupts the Composite-redirected backing storage of the *other* EGL windows in the same process: measurably, destroying a task's context menu blanked the shellsama bottom panel under any compositor (wmsama and Marco alike), while `eglSwapBuffers` on the panel kept returning `EGL_TRUE`. Menus are small and drawn once per open, so software rendering costs nothing and eliminates the entire failure class. See `wmsama/docs/roadmap.md` WM-29 for the full investigation.
+
 ---
 
 ## 3. Window Abstraction Layer (`TFtWindow`)

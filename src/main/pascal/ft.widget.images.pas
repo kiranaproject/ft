@@ -15,6 +15,7 @@ uses
   Floria.Image.BMP,
   Floria.Image.PNG,
   Floria.Image.JPEG,
+  Floria.Image.WebP,
   Ft.Widget,
   Ft.Theme,
   Ft.Css;
