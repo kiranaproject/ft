@@ -23,6 +23,7 @@ type
     FSelCursor: Integer;     { Selection end char offset }
     FScrollOffset: Double;   { Horizontal scroll in pixels }
     FReadOnly: Boolean;
+    FIsPassword: Boolean;
     FIsDragging: Boolean;
     FLastClickTime: QWord;
     FClickCount: Integer;
@@ -39,6 +40,9 @@ type
 
     procedure SetText(const AValue: string);
     procedure SetPlaceholder(const AValue: string);
+    procedure SetIsPassword(AValue: Boolean);
+    function GetDisplayText(): string;
+    function GetDisplaySubStr(ACharStart, ACharLen: Integer): string;
     procedure EnsureCursorVisible();
     procedure CreateDefaultMenu();
     procedure UpdateDefaultMenu();
@@ -85,6 +89,7 @@ type
     property SelStart: Integer read FSelAnchor;
     property SelCursor: Integer read FSelCursor;
     property ReadOnly: Boolean read FReadOnly write FReadOnly;
+    property IsPassword: Boolean read FIsPassword write SetIsPassword;
     property OnChange: TFtEntryChangeCallback read FOnChange write FOnChange;
     property OnSubmit: TFtEntrySubmitCallback read FOnSubmit write FOnSubmit;
   end;
@@ -258,6 +263,39 @@ begin
   end;
 end;
 
+procedure TFtEntry.SetIsPassword(AValue: Boolean);
+begin
+  if FIsPassword <> AValue then
+  begin
+    FIsPassword := AValue;
+    EnsureCursorVisible();
+    Invalidate();
+  end;
+end;
+
+function TFtEntry.GetDisplayText(): string;
+var
+  i, cnt: Integer;
+begin
+  if not FIsPassword then
+    Exit(FText);
+  cnt := CharCount();
+  Result := '';
+  for i := 1 to cnt do
+    Result := Result + #$E2#$80#$A2;
+end;
+
+function TFtEntry.GetDisplaySubStr(ACharStart, ACharLen: Integer): string;
+var
+  i: Integer;
+begin
+  if not FIsPassword then
+    Exit(SubStrChars(ACharStart, ACharLen));
+  Result := '';
+  for i := 1 to ACharLen do
+    Result := Result + #$E2#$80#$A2;
+end;
+
 procedure TFtEntry.EnsureCursorVisible();
 var
   AFont: TFtFont;
@@ -265,7 +303,7 @@ var
 begin
   AFont := GetFont();
   if not Assigned(AFont) then AFont := FtGetSystemFont();
-  curX := AFont.GetTextWidth(SubStrChars(0, FCursorPos));
+  curX := AFont.GetTextWidth(GetDisplaySubStr(0, FCursorPos));
   GetClientRect(cx, cy, visW, ch);
   if visW <= 10.0 then Exit;
 
@@ -290,10 +328,10 @@ begin
   AFont := GetFont();
   if not Assigned(AFont) then AFont := FtGetSystemFont();
 
-  isRTL := TFloriaBiDi.HasRTL(FText);
+  isRTL := not FIsPassword and TFloriaBiDi.HasRTL(FText);
   if isRTL then
   begin
-    totalW := AFont.GetTextWidth(FText);
+    totalW := AFont.GetTextWidth(GetDisplayText());
     relX := (X + FPaddingX + totalW) - AX + FScrollOffset;
     if relX <= 0.0 then Exit(0);
     if relX >= totalW then Exit(cnt);
@@ -301,7 +339,7 @@ begin
     wPrev := 0.0;
     for i := 1 to cnt do
     begin
-      wNext := AFont.GetTextWidth(SubStrChars(0, i));
+      wNext := AFont.GetTextWidth(GetDisplaySubStr(0, i));
       midX := (wPrev + wNext) / 2.0;
       if relX < midX then
         Exit(i - 1);
@@ -316,7 +354,7 @@ begin
   wPrev := 0.0;
   for i := 1 to cnt do
   begin
-    wNext := AFont.GetTextWidth(SubStrChars(0, i));
+    wNext := AFont.GetTextWidth(GetDisplaySubStr(0, i));
     midX := (wPrev + wNext) / 2.0;
     if relX < midX then
       Exit(i - 1);
@@ -339,7 +377,7 @@ function TFtEntry.GetSelectedText(): string;
 var
   sMin, sMax: Integer;
 begin
-  if not HasSelection() then Exit('');
+  if FIsPassword or not HasSelection() then Exit('');
   sMin := Math.Min(FSelAnchor, FSelCursor);
   sMax := Math.Max(FSelAnchor, FSelCursor);
   Result := SubStrChars(sMin, sMax - sMin);
@@ -513,14 +551,14 @@ begin
   if FReadOnly then
   begin
     FItemCut.Enabled := False;
-    FItemCopy.Enabled := hasSel;
+    FItemCopy.Enabled := hasSel and not FIsPassword;
     FItemPaste.Enabled := False;
     FItemDelete.Enabled := False;
   end
   else
   begin
-    FItemCut.Enabled := hasSel;
-    FItemCopy.Enabled := hasSel;
+    FItemCut.Enabled := hasSel and not FIsPassword;
+    FItemCopy.Enabled := hasSel and not FIsPassword;
     FItemPaste.Enabled := (FtGetClipboardText() <> '');
     FItemDelete.Enabled := hasSel or (FCursorPos < CharCount());
   end;
@@ -865,8 +903,8 @@ begin
   placeCol := curTheme.GetInputPlaceholderColor();
 
   cnt := CharCount();
-  isRTL := TFloriaBiDi.HasRTL(FText);
-  totalW := AFont.GetTextWidth(FText);
+  isRTL := not FIsPassword and TFloriaBiDi.HasRTL(FText);
+  totalW := AFont.GetTextWidth(GetDisplayText());
 
   // Draw placeholder if text is empty
   if (cnt = 0) and (FPlaceholder <> '') then
@@ -880,32 +918,32 @@ begin
     selMin := Math.Min(FSelAnchor, FSelCursor);
     selMax := Math.Max(FSelAnchor, FSelCursor);
 
-    wBefore := AFont.GetTextWidth(SubStrChars(0, selMin));
-    wSel := AFont.GetTextWidth(SubStrChars(selMin, selMax - selMin));
+    wBefore := AFont.GetTextWidth(GetDisplaySubStr(0, selMin));
+    wSel := AFont.GetTextWidth(GetDisplaySubStr(selMin, selMax - selMin));
 
     // Draw selection background
     Canvas.DrawRoundedRect(textX + wBefore, textY - AFont.Ascent - 1.0, wSel, AFont.Ascent + AFont.Descent + 2.0, 1.5,
                            accentCol.R, accentCol.G, accentCol.B, 0.85);
 
     // Segment before selection
-    strBefore := SubStrChars(0, selMin);
+    strBefore := GetDisplaySubStr(0, selMin);
     if strBefore <> '' then
       Canvas.DrawText(textX, textY, strBefore, AFont, textCol.R, textCol.G, textCol.B);
 
     // Segment in selection (crisp high contrast white)
-    strSel := SubStrChars(selMin, selMax - selMin);
+    strSel := GetDisplaySubStr(selMin, selMax - selMin);
     if strSel <> '' then
       Canvas.DrawText(textX + wBefore, textY, strSel, AFont, 1.0, 1.0, 1.0);
 
     // Segment after selection
-    strAfter := SubStrChars(selMax, cnt - selMax);
+    strAfter := GetDisplaySubStr(selMax, cnt - selMax);
     if strAfter <> '' then
       Canvas.DrawText(textX + wBefore + wSel, textY, strAfter, AFont, textCol.R, textCol.G, textCol.B);
   end
   else if cnt > 0 then
   begin
     // Normal text
-    Canvas.DrawText(textX, textY, FText, AFont, textCol.R, textCol.G, textCol.B);
+    Canvas.DrawText(textX, textY, GetDisplayText(), AFont, textCol.R, textCol.G, textCol.B);
   end;
 
   // Draw caret if focused
@@ -914,9 +952,9 @@ begin
     caretH := AFont.Ascent + AFont.Descent + 2.0;
     caretY := Y + (Height - caretH) / 2.0;
     if isRTL then
-      caretX := textX + totalW - AFont.GetTextWidth(SubStrChars(0, FCursorPos))
+      caretX := textX + totalW - AFont.GetTextWidth(GetDisplaySubStr(0, FCursorPos))
     else
-      caretX := textX + AFont.GetTextWidth(SubStrChars(0, FCursorPos));
+      caretX := textX + AFont.GetTextWidth(GetDisplaySubStr(0, FCursorPos));
     Canvas.DrawRoundedRect(caretX, caretY, 1.8, caretH, 0.5, accentCol.R, accentCol.G, accentCol.B, 1.0);
   end;
 end;
