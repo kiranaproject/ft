@@ -7709,6 +7709,7 @@ exports
   ft_theme_set_dark_mode,
   ft_theme_get_dark_mode,
   ft_theme_has_dark_mode,
+  ft_theme_is_explicit_dark_mode,
   ft_theme_set_corner_radius,
   ft_theme_get_corner_radius,
   ft_theme_set_shadow,
