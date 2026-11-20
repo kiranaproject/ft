@@ -254,6 +254,7 @@ function WaitBudgetMs(const ANowMs: QWord; const AFrameStartMs: QWord;
 // to its rounded background. Empty when there is no radius, which callers read as
 // "no shape". Exposed for tests: the arithmetic is the part that can be wrong.
 function FtBuildRoundedInputRects(AW, AH: Integer; ARadius: Double): TFtXcbRectArray;
+procedure FtSyncThemeFromRoot(const AChangedAtom: xcb_atom_t = 0);
 
 implementation
 
@@ -304,6 +305,9 @@ var
   atomNetWmExtendedClientArea: xcb_atom_t = 0;
   atomNetWmStateExtendedClientArea: xcb_atom_t = 0;
   atomNetWmWindowControlsInset: xcb_atom_t = 0;
+  atomSamarindaTheme: xcb_atom_t = 0;
+  atomSamarindaThemeDark: xcb_atom_t = 0;
+  atomNetWmTheme: xcb_atom_t = 0;
 
   GHintWindow: TFtHintWindow = nil;
   GHintTargetWidget: TFtWidget = nil;
@@ -375,6 +379,92 @@ begin
   atomNetWmStateExtendedClientArea := InternAtom('_NET_WM_STATE_EXTENDED_CLIENT_AREA');
   atomNetWmWindowControlsInset := InternAtom('_NET_WM_WINDOW_CONTROLS_INSET');
   atomNetWmPid := InternAtom('_NET_WM_PID');
+  atomSamarindaTheme := InternAtom('_SAMARINDA_THEME');
+  atomSamarindaThemeDark := InternAtom('_SAMARINDA_THEME_DARK');
+  atomNetWmTheme := InternAtom('_NET_WM_THEME');
+end;
+
+procedure FtSyncThemeFromRoot(const AChangedAtom: xcb_atom_t = 0);
+var
+  targetAtom: xcb_atom_t;
+  cookie: xcb_get_property_cookie_t;
+  reply: Pxcb_get_property_reply_t;
+  len: Integer;
+  valPtr: Pointer;
+  valStr: string;
+  darkVal: Cardinal;
+  resolvedDark, found: Boolean;
+begin
+  if (GConnection = nil) or (GScreen = nil) or (GScreen^.root = 0) then Exit;
+  if FtThemeIsExplicitDarkMode() then Exit;
+
+  found := False;
+  resolvedDark := False;
+
+  // 1. Check string atom (_SAMARINDA_THEME or _NET_WM_THEME)
+  if (AChangedAtom = 0) or (AChangedAtom = atomSamarindaTheme) or (AChangedAtom = atomNetWmTheme) then
+  begin
+    targetAtom := AChangedAtom;
+    if targetAtom = 0 then targetAtom := atomSamarindaTheme;
+    if (targetAtom = 0) and (atomNetWmTheme <> 0) then targetAtom := atomNetWmTheme;
+    if targetAtom <> 0 then
+    begin
+      cookie := xcb_get_property(GConnection, 0, GScreen^.root, targetAtom, XCB_ATOM_STRING, 0, 32);
+      reply := xcb_get_property_reply(GConnection, cookie, nil);
+      if Assigned(reply) then
+      begin
+        try
+          len := xcb_get_property_value_length(reply);
+          if len > 0 then
+          begin
+            valPtr := xcb_get_property_value(reply);
+            SetString(valStr, PAnsiChar(valPtr), len);
+            valStr := LowerCase(Trim(valStr));
+            if Pos('dark', valStr) > 0 then
+            begin
+              resolvedDark := True;
+              found := True;
+            end
+            else if Pos('light', valStr) > 0 then
+            begin
+              resolvedDark := False;
+              found := True;
+            end;
+          end;
+        finally
+          c_free(reply);
+        end;
+      end;
+    end;
+  end;
+
+  // 2. Check cardinal atom (_SAMARINDA_THEME_DARK)
+  if not found and ((AChangedAtom = 0) or (AChangedAtom = atomSamarindaThemeDark)) then
+  begin
+    if atomSamarindaThemeDark <> 0 then
+    begin
+      cookie := xcb_get_property(GConnection, 0, GScreen^.root, atomSamarindaThemeDark, XCB_ATOM_CARDINAL, 0, 1);
+      reply := xcb_get_property_reply(GConnection, cookie, nil);
+      if Assigned(reply) then
+      begin
+        try
+          len := xcb_get_property_value_length(reply);
+          if len >= SizeOf(Cardinal) then
+          begin
+            valPtr := xcb_get_property_value(reply);
+            darkVal := PCardinal(valPtr)^;
+            resolvedDark := (darkVal <> 0);
+            found := True;
+          end;
+        finally
+          c_free(reply);
+        end;
+      end;
+    end;
+  end;
+
+  if found and (FtGetDarkMode() <> resolvedDark) then
+    FtSetDarkModeInternal(resolvedDark);
 end;
 
 function FindVisual(screen: Pxcb_screen_t; targetDepth: Integer): xcb_visualid_t;
@@ -407,6 +497,7 @@ var
   screenIdx: cint = 0;
   setup: Pxcb_setup_t;
   iter: xcb_screen_iterator_t;
+  rootMask: Cardinal;
 begin
   if Assigned(GConnection) then
   begin
@@ -429,6 +520,13 @@ begin
   GScreen := iter.data;
 
   InitAtoms();
+
+  if Assigned(GConnection) and Assigned(GScreen) and (GScreen^.root <> 0) then
+  begin
+    rootMask := XCB_EVENT_MASK_PROPERTY_CHANGE;
+    xcb_change_window_attributes(GConnection, GScreen^.root, XCB_CW_EVENT_MASK, @rootMask);
+    FtSyncThemeFromRoot();
+  end;
 
   GKeySymbols := xcb_key_symbols_alloc(GConnection);
   if xcb_cursor_context_new(GConnection, GScreen, @GCursorContext) >= 0 then
@@ -709,6 +807,7 @@ var
   nowMs: QWord;
   shouldResize: Boolean;
   animator: TFtAnimator;
+  propEv: Pxcb_property_notify_event_t;
 begin
   while Assigned(GConnection) do
   begin
@@ -741,6 +840,19 @@ begin
     end;
 
     win := FindWindowByHandle(winId);
+
+    if (evType = XCB_PROPERTY_NOTIFY) and Assigned(GScreen) and (winId = GScreen^.root) then
+    begin
+      propEv := Pxcb_property_notify_event_t(ev);
+      if (propEv^.atom = atomSamarindaTheme) or
+         (propEv^.atom = atomSamarindaThemeDark) or
+         (propEv^.atom = atomNetWmTheme) then
+      begin
+        FtSyncThemeFromRoot(propEv^.atom);
+      end;
+      c_free(ev);
+      Continue;
+    end;
 
     { Modal input blocking: when a modal window is active, discard
       mouse, keyboard, and motion events targeting other windows. }

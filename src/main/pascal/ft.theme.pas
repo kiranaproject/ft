@@ -135,6 +135,8 @@ type
   private
     FCurrentTheme: TFtTheme;
     FDarkMode: Boolean;
+    FExplicitDarkMode: Boolean;
+    FExplicitTheme: Boolean;
     FThemes: TStringList;
     FOnThemeChange: TFtThemeChangeNotify;
     procedure ScanThemeDirectories();
@@ -144,6 +146,7 @@ type
     constructor Create();
     destructor Destroy(); override;
 
+    procedure SetDarkModeInternal(AValue: Boolean);
     function SetTheme(const AName: string): Boolean;
     function GetThemeName(): string;
     function GetAvailableThemes(): string;
@@ -158,6 +161,8 @@ type
 
     property CurrentTheme: TFtTheme read FCurrentTheme;
     property DarkMode: Boolean read FDarkMode write SetDarkMode;
+    property ExplicitDarkMode: Boolean read FExplicitDarkMode write FExplicitDarkMode;
+    property ExplicitTheme: Boolean read FExplicitTheme write FExplicitTheme;
     property CornerRadius: Double read GetCornerRadius write SetCornerRadius;
     property EnableShadow: Boolean read GetEnableShadow write SetEnableShadow;
     property OnThemeChange: TFtThemeChangeNotify read FOnThemeChange write FOnThemeChange;
@@ -170,6 +175,8 @@ function FtGetThemeName(): string;
 function FtGetAvailableThemes(): string;
 function FtGetDarkMode(): Boolean;
 procedure FtSetDarkMode(AValue: Boolean);
+procedure FtSetDarkModeInternal(AValue: Boolean);
+function FtThemeIsExplicitDarkMode(): Boolean;
 function FtThemeHasDarkMode(const AName: string): Boolean;
 function FtThemeLoadFile(const AFilePath: string): Boolean;
 function FtThemeLoadDir(const ADirPath: string): Integer;
@@ -183,7 +190,7 @@ function FtFitTextWithEllipsis(const AText: string; AFont: TFtFont; AMaxWidth: D
 implementation
 
 uses
-  Ft.Css;
+  IniFiles, Ft.Css;
 
 const
   DEFAULT_THEME_CSS =
@@ -1347,18 +1354,75 @@ end;
 { TFtThemeManager }
 
 constructor TFtThemeManager.Create();
+var
+  envDm, envTheme, homeDir, iniPath: string;
+  resolvedDark: Boolean;
+  ini: TIniFile;
 begin
   inherited Create();
   FCurrentTheme := TFtTheme.Create('default');
   FDarkMode := False;
+  FExplicitDarkMode := False;
+  FExplicitTheme := False;
   FThemes := TStringList.Create();
   FOnThemeChange := nil;
 
   ScanThemeDirectories();
   SetTheme('default');
+  FExplicitTheme := False;
+
+  // Universal theme detection
+  resolvedDark := False;
+  envDm := LowerCase(Trim(GetEnvironmentVariable('FT_DARK_MODE')));
+  envTheme := LowerCase(Trim(GetEnvironmentVariable('FT_THEME')));
+  if envTheme = '' then
+    envTheme := LowerCase(Trim(GetEnvironmentVariable('SAMARINDA_THEME')));
+  if envTheme = '' then
+    envTheme := LowerCase(Trim(GetEnvironmentVariable('KIRANA_THEME')));
+
+  if (envDm = '1') or (envDm = 'true') or (envDm = 'yes') or (envDm = 'dark') then
+    resolvedDark := True
+  else if (envDm = '0') or (envDm = 'false') or (envDm = 'no') or (envDm = 'light') then
+    resolvedDark := False
+  else if (envTheme = 'dark') or (Pos('dark', envTheme) > 0) then
+    resolvedDark := True
+  else if (envTheme = 'light') or (Pos('light', envTheme) > 0) then
+    resolvedDark := False
+  else
+  begin
+    homeDir := GetEnvironmentVariable('HOME');
+    if homeDir <> '' then
+    begin
+      iniPath := homeDir + '/.config/samarinda/settings.ini';
+      if FileExists(iniPath) then
+      begin
+        try
+          ini := TIniFile.Create(iniPath);
+          try
+            if ini.ValueExists('Appearance', 'darkmode') then
+              resolvedDark := ini.ReadBool('Appearance', 'darkmode', False)
+            else if ini.ValueExists('Appearance', 'DarkMode') then
+              resolvedDark := ini.ReadBool('Appearance', 'DarkMode', False);
+          finally
+            ini.Free();
+          end;
+        except
+        end;
+      end;
+    end;
+  end;
+
+  SetDarkModeInternal(resolvedDark);
+  FExplicitDarkMode := False;
 end;
 
 procedure TFtThemeManager.SetDarkMode(AValue: Boolean);
+begin
+  FExplicitDarkMode := True;
+  SetDarkModeInternal(AValue);
+end;
+
+procedure TFtThemeManager.SetDarkModeInternal(AValue: Boolean);
 begin
   if FDarkMode <> AValue then
   begin
@@ -1398,6 +1462,7 @@ var
   lowerName, path: string;
 begin
   lowerName := LowerCase(Trim(AName));
+  FExplicitTheme := True;
   if lowerName = '' then lowerName := 'default';
 
   path := FindThemePath(lowerName);
@@ -1600,6 +1665,18 @@ begin
   FtThemeManager().DarkMode := AValue;
   if Assigned(FtThemeManager().OnThemeChange) then
     FtThemeManager().OnThemeChange();
+end;
+
+procedure FtSetDarkModeInternal(AValue: Boolean);
+begin
+  FtThemeManager().SetDarkModeInternal(AValue);
+  if Assigned(FtThemeManager().OnThemeChange) then
+    FtThemeManager().OnThemeChange();
+end;
+
+function FtThemeIsExplicitDarkMode(): Boolean;
+begin
+  Result := FtThemeManager().ExplicitDarkMode;
 end;
 
 function FtThemeHasDarkMode(const AName: string): Boolean;

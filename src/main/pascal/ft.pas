@@ -3274,6 +3274,14 @@ begin
     Result := 0;
 end;
 
+function ft_theme_is_explicit_dark_mode(): cint32; cdecl; export;
+begin
+  if FtThemeIsExplicitDarkMode() then
+    Result := 1
+  else
+    Result := 0;
+end;
+
 function ft_theme_has_dark_mode(theme_name: PChar): cint32; cdecl; export;
 begin
   if Assigned(theme_name) and FtThemeHasDarkMode(StrPas(theme_name)) then
