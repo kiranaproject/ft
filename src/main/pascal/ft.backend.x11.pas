@@ -850,6 +850,9 @@ begin
 
     FtBackendProcessEvents();
 
+    if not GRunning then
+      Break;
+
     // Stop if the X server went away.
     //
     // This loop polls with a zero timeout and, when a tick callback is installed,
@@ -885,10 +888,16 @@ begin
     begin
       GTimerNextDueMs := AdvanceTimerDeadline(GTimerNextDueMs, nowMs, GTimerIntervalMs);
       GTimerCallback(GTimerUserData);
+      if not GRunning then
+        Break;
     end;
 
     if Assigned(GTickCallback) then
+    begin
       GTickCallback(GTickUserData);
+      if not GRunning then
+        Break;
+    end;
 
     // Decide how long the loop may sleep: the smaller of the frame budget and the
     // time until the timer, or -1 (block until input) when neither is scheduled.
