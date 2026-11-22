@@ -101,6 +101,7 @@ type
     function GetMenuHoverBackground(): TFtRgbColor; virtual;
     function GetMenuHoverTextColor(): TFtRgbColor; virtual;
     function GetMenuDisabledTextColor(): TFtRgbColor; virtual;
+    function GetMenuTextColor(): TFtRgbColor; virtual;
     function GetMenuSeparatorColor(): TFtRgbColor; virtual;
     procedure DrawMenuBar(Canvas: TFtCanvas; X, Y, W, H: Integer); virtual;
     procedure DrawMenuBarItem(Canvas: TFtCanvas; X, Y, W, H: Integer; 
@@ -1091,6 +1092,21 @@ begin
     Result := MakeRgb(0.58, 0.64, 0.72); // slate-400 #94a3b8
 end;
 
+function TFtTheme.GetMenuTextColor(): TFtRgbColor;
+var
+  st: TFtWidgetStyle;
+  cls: string;
+begin
+  if FDarkMode then cls := 'dark' else cls := '';
+  st := FtGetStyleSheet().ResolveStyle('menu', '', cls, '', '');
+  if st.HasTextColor then
+    Result := MakeRgb(st.TextColor.R, st.TextColor.G, st.TextColor.B)
+  else if FDarkMode then
+    Result := MakeRgb(0.95, 0.96, 0.97)
+  else
+    Result := MakeRgb(0.12, 0.15, 0.18);
+end;
+
 function TFtTheme.GetMenuSeparatorColor(): TFtRgbColor;
 begin
   if FDarkMode then
@@ -1123,7 +1139,7 @@ begin
     Canvas.DrawRoundedRect(X + 2, Y + 2, W - 4, H - 4, 4.0, bg.R, bg.G, bg.B);
   end
   else
-    txt := GetTextColor();
+    txt := GetMenuTextColor();
 
   if Caption <> '' then
   begin
@@ -1249,7 +1265,7 @@ begin
   end
   else
   begin
-    txt := GetTextColor();
+    txt := GetMenuTextColor();
   end;
 
   if not Assigned(Font) then actualFont := FtGetSystemFont() else actualFont := Font;

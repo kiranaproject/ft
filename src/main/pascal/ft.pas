@@ -3558,11 +3558,11 @@ begin
       1: col := theme.GetMenuBorder();
       2: col := theme.GetMenuHoverBackground();
       3: col := theme.GetMenuHoverTextColor();
-      4: col := theme.GetTextColor();
+      4: col := theme.GetMenuTextColor();
       5: col := theme.GetMenuSeparatorColor();
       6: col := theme.GetMenuDisabledTextColor();
     else
-      col := theme.GetTextColor();
+      col := theme.GetMenuTextColor();
     end;
     out_r^ := col.R;
     out_g^ := col.G;
