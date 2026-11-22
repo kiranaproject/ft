@@ -197,6 +197,16 @@ function FtGetScreenHeight(): Integer;
 // silently injects characters into every text field.
 function KeySymToUtf8(sym: Cardinal): string;
 
+// Converts an X11 keysym to uppercase or lowercase.
+function KeySymToUpper(sym: Cardinal): Cardinal;
+function KeySymToLower(sym: Cardinal): Cardinal;
+
+// Resolves a pair of unshifted/shifted keysyms given modifier state (Shift, CapsLock).
+function TranslateKeySym(AK0, AK1: Cardinal; AState: Cardinal): Cardinal;
+
+// Looks up and resolves keysym for a given keycode and modifier state via GKeySymbols.
+function LookupKeySym(AKeycode: xcb_keycode_t; AState: Cardinal): Cardinal;
+
 // True when libxkbcommon was found and is being used for the conversion. Only
 // affects legacy script keysyms (see KeySymToUtf8); tests use it to decide
 // whether the full mapping is available.
@@ -2484,10 +2494,14 @@ end;
 type
   TXkbKeysymToUtf8 = function(AKeysym: Cardinal; ABuffer: PAnsiChar;
                               ASize: PtrUInt): Integer; cdecl;
+  TXkbKeysymToUpper = function(AKeysym: Cardinal): Cardinal; cdecl;
+  TXkbKeysymToLower = function(AKeysym: Cardinal): Cardinal; cdecl;
 
 var
   GXkbCommonHandle: TLibHandle = NilHandle;
   GXkbKeysymToUtf8: TXkbKeysymToUtf8 = nil;
+  GXkbKeysymToUpper: TXkbKeysymToUpper = nil;
+  GXkbKeysymToLower: TXkbKeysymToLower = nil;
   GXkbCommonProbed: Boolean = False;
 
 procedure EnsureXkbCommon();
@@ -2502,6 +2516,10 @@ begin
 
   GXkbKeysymToUtf8 := TXkbKeysymToUtf8(
     GetProcedureAddress(GXkbCommonHandle, 'xkb_keysym_to_utf8'));
+  GXkbKeysymToUpper := TXkbKeysymToUpper(
+    GetProcedureAddress(GXkbCommonHandle, 'xkb_keysym_to_upper'));
+  GXkbKeysymToLower := TXkbKeysymToLower(
+    GetProcedureAddress(GXkbCommonHandle, 'xkb_keysym_to_lower'));
 end;
 
 function FtKeysymHasXkbCommon(): Boolean;
@@ -2564,6 +2582,143 @@ begin
     Result := CodePointToUtf8(sym);
 end;
 
+function KeySymToUpper(sym: Cardinal): Cardinal;
+begin
+  EnsureXkbCommon();
+  if Assigned(GXkbKeysymToUpper) then
+    Exit(GXkbKeysymToUpper(sym));
+
+  // Fallback when libxkbcommon is unavailable:
+  // ASCII 'a'..'z'
+  if (sym >= $61) and (sym <= $7A) then
+    Exit(sym - $20);
+
+  // Latin-1 lowercase letters: 0xE0..0xF6, 0xF8..0xFE (0xDF is ß, 0xF7 is ÷)
+  if ((sym >= $E0) and (sym <= $F6)) or ((sym >= $F8) and (sym <= $FE)) then
+    Exit(sym - $20);
+
+  // Legacy Cyrillic: 0x06C0..0x06DF (lowercase) -> +0x20 to uppercase
+  if (sym >= $06C0) and (sym <= $06DF) then
+    Exit(sym + $20);
+
+  // Legacy Greek: 0x07E1..0x07FA (alpha..omega lowercase) -> -0x20
+  if (sym >= $07E1) and (sym <= $07FA) then
+    Exit(sym - $20);
+
+  // Unicode keysyms: 0x01000000 + codepoint
+  if (sym >= $01000061) and (sym <= $0100007A) then
+    Exit(sym - $20);
+
+  Result := sym;
+end;
+
+function KeySymToLower(sym: Cardinal): Cardinal;
+begin
+  EnsureXkbCommon();
+  if Assigned(GXkbKeysymToLower) then
+    Exit(GXkbKeysymToLower(sym));
+
+  // Fallback when libxkbcommon is unavailable:
+  // ASCII 'A'..'Z'
+  if (sym >= $41) and (sym <= $5A) then
+    Exit(sym + $20);
+
+  // Latin-1 uppercase letters: 0xC0..0xD6, 0xD8..0xDE (0xD7 is ×)
+  if ((sym >= $C0) and (sym <= $D6)) or ((sym >= $D8) and (sym <= $DE)) then
+    Exit(sym + $20);
+
+  // Legacy Cyrillic uppercase: 0x06E0..0x06FF -> -0x20
+  if (sym >= $06E0) and (sym <= $06FF) then
+    Exit(sym - $20);
+
+  // Legacy Greek uppercase: 0x07C1..0x07DA -> +0x20
+  if (sym >= $07C1) and (sym <= $07DA) then
+    Exit(sym + $20);
+
+  if (sym >= $01000041) and (sym <= $0100005A) then
+    Exit(sym + $20);
+
+  Result := sym;
+end;
+
+function TranslateKeySym(AK0, AK1: Cardinal; AState: Cardinal): Cardinal;
+var
+  hasShift, hasLock, hasCase: Boolean;
+  up0, lo0: Cardinal;
+begin
+  if (AK0 = 0) or (AK0 = XK_VoidSymbol) then
+    Exit(0);
+
+  hasShift := (AState and 1) <> 0;
+  hasLock := (AState and 2) <> 0;
+
+  up0 := KeySymToUpper(AK0);
+  lo0 := KeySymToLower(AK0);
+  hasCase := (up0 <> lo0);
+
+  if not hasCase and (AK1 <> 0) and (AK1 <> XK_VoidSymbol) then
+    hasCase := (KeySymToUpper(AK1) <> KeySymToLower(AK1));
+
+  if hasCase then
+  begin
+    // For alphabetic keys, Shift and CapsLock invert each other:
+    // None: lowercase
+    // Shift: uppercase
+    // CapsLock: uppercase
+    // Shift + CapsLock: lowercase
+    if hasShift xor hasLock then
+    begin
+      if (AK1 <> 0) and (AK1 <> XK_VoidSymbol) and (KeySymToUpper(AK1) = AK1) then
+        Result := AK1
+      else
+        Result := up0;
+    end
+    else
+    begin
+      Result := lo0;
+    end;
+  end
+  else
+  begin
+    // For non-alphabetic keys, CapsLock has no effect:
+    // None: unshifted (AK0)
+    // Shift: shifted (AK1)
+    // CapsLock: unshifted (AK0)
+    // Shift + CapsLock: shifted (AK1)
+    if hasShift then
+    begin
+      if (AK1 <> 0) and (AK1 <> XK_VoidSymbol) then
+        Result := AK1
+      else
+        Result := AK0;
+    end
+    else
+      Result := AK0;
+  end;
+end;
+
+function LookupKeySym(AKeycode: xcb_keycode_t; AState: Cardinal): Cardinal;
+var
+  baseCol: Integer;
+  k0, k1: Cardinal;
+begin
+  if not Assigned(GKeySymbols) then
+    Exit(0);
+
+  baseCol := 0;
+  if (AState and $80) <> 0 then
+  begin
+    k0 := xcb_key_symbols_get_keysym(GKeySymbols, AKeycode, 2);
+    if (k0 <> 0) and (k0 <> XK_VoidSymbol) then
+      baseCol := 2;
+  end;
+
+  k0 := xcb_key_symbols_get_keysym(GKeySymbols, AKeycode, baseCol);
+  k1 := xcb_key_symbols_get_keysym(GKeySymbols, AKeycode, baseCol + 1);
+
+  Result := TranslateKeySym(k0, k1, AState);
+end;
+
 procedure TFtX11Window.HandleGenericEvent(Event: Pxcb_generic_event_t);
 var
   evType: Byte;
@@ -2571,7 +2726,6 @@ var
   focusTarget: TFtWidget;
   ctxWidget: TFtWidget;
   keysym: Cardinal;
-  col: Integer;
   strUtf8: string;
   navPop: TFtPopupMenu;
   menuChild: TFtPopupMenu;
@@ -2874,9 +3028,7 @@ begin
       GHintHoverStartMs := 0;
       kp := Pxcb_key_press_event_t(Event);
       GCurrentKeyboardModifiers := kp^.state;
-      col := 0;
-      if (kp^.state and 1) <> 0 then col := 1;
-      keysym := xcb_key_press_lookup_keysym(GKeySymbols, kp, col);
+      keysym := LookupKeySym(kp^.detail, kp^.state);
       strUtf8 := KeySymToUtf8(keysym);
 
       if Assigned(GGrabbedPopup) and TFtPopupMenu(GGrabbedPopup).IsOpen then
@@ -2939,9 +3091,7 @@ begin
     begin
       kr := Pxcb_key_release_event_t(Event);
       GCurrentKeyboardModifiers := kr^.state;
-      col := 0;
-      if (kr^.state and 1) <> 0 then col := 1;
-      keysym := xcb_key_release_lookup_keysym(GKeySymbols, kr, col);
+      keysym := LookupKeySym(kr^.detail, kr^.state);
       if Assigned(FFocusedWidget) then
         FFocusedWidget.KeyUp(keysym, kr^.state);
       Self.KeyUp(keysym, kr^.state);
