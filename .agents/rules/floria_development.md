@@ -91,5 +91,22 @@ When developing or creating examples, widgets, and language bindings for Floria 
 - **Plural Widget Unit Convention**: All widget units in `src/main/pascal/ft.widget.*.pas` use plural nouns (`ft.widget.buttons`, `ft.widget.splitters`, `ft.widget.treeviews`, `ft.widget.tables`, etc.). Verify filenames with `find` or `ls` before invoking `view_file` to avoid `no such file or directory` errors.
 - **Modal Dialog Keyboard Cancellation**: Top-level dialog windows (`TFtFileDialog`, `ftwtDialog`) must intercept `XK_Escape` during key press event dispatch to trigger cancellation (`mrCancel` / close), ensuring standard desktop UX and reliable automated keyboard dismissal.
 
+## 13. Container Border Mechanics & Directional Fallback
+- **Full Perimeter Outline Warning**:
+  `TFtContainer` invokes `Canvas.DrawRoundedRectOutline(X, Y, Width, Height, rad, bw, ...)` whenever `st.HasBorderColor` is true. Because `ft.css.pas` falls back to `cpiBorderTopColor` and `cpiBorderTopWidth` when resolving border declarations, specifying `border-top: 1px solid ...` on a container styles the full 4-sided bounding box.
+- **Explicit Border Suppression**:
+  To prevent unwanted outlines on containers, declare `border: none;` in CSS. When a single-edge divider is required (e.g., above a bottom button bar or below a header), insert a dedicated 1px height divider container (`Container { height: 1; }`) rather than attaching a directional CSS border to the container.
+
+## 14. FTML Declarative Layout & Scroll Lifecycles
+- **Responsive Width via Symmetrical Margins**:
+  To ensure cards and panels track parent container width fluidly during window resizing, declare symmetrical margins (e.g. `anchors.leftMargin: 32; anchors.rightMargin: 32;` with `padding: 0;`) instead of fixed width constants.
+- **Sidebar Selection Pill Insets**:
+  Navigation items inside fixed-width sidebars must use symmetrical horizontal margins (e.g. `anchors.leftMargin: 12; anchors.rightMargin: 12; width: 216;` inside a 240px sidebar) to prevent pill highlights from being clipped by the container edge.
+- **Container Vertical Scroll Invariant**:
+  When configuring vertical scrolling on decks, pages, or sidebars, set `scrollBarMode: "vertical";` in FTML (`ftsbmVerticalOnly` in Pascal) with `padding: 0;` and `drawFrame: false;`.
+- **View Transition Scroll Reset**:
+  Multi-step forms, wizards, and stacked decks must reset `ScrollOffsetY := 0.0` when transitioning between pages to prevent newly displayed views from retaining prior scroll offsets.
+
+
 
 

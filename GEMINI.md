@@ -43,6 +43,23 @@
   - Mouse down activates the pressed visual state.
   - Pointer motion leaving the control area during hold must visually un-press the control and cancel action execution on release.
 
+## Container Styling & Border Invariants
+
+- **Container Border Outline Mechanics**:
+  - `TFtContainer` draws a uniform 4-sided rounded rectangle outline (`DrawRoundedRectOutline`) whenever `st.HasBorderColor` is active.
+  - Because CSS property resolution falls back to `cpiBorderTopColor` and `cpiBorderTopWidth`, declaring directional borders such as `border-top: 1px solid ...` on a container triggers a full 4-sided outline box around the entire container perimeter.
+  - To remove borders, explicitly declare `border: none;` in CSS. If a single-edge divider is required, use a discrete 1px height/width divider container rather than a directional CSS border on a content container.
+
+## FTML Layout & Navigation Invariants
+
+- **Responsive Width Tracking via Margins**:
+  - Content cards and panels nested in resizable containers must specify symmetrical horizontal margins (e.g. `anchors.leftMargin: 32; anchors.rightMargin: 32;` with `padding: 0;`) rather than hardcoded widths, ensuring fluid adaptation to window resizing.
+  - Interactive navigation pills inside fixed-width sidebars must use symmetrical horizontal margins (e.g. `anchors.leftMargin: 12; anchors.rightMargin: 12; width: 216;` inside a 240px sidebar) to avoid clipping rounded corners (`border-radius: 8px`).
+
+- **Vertical Scrollable Containers & State Reset**:
+  - Vertical scrolling on content decks and sidebars must be configured with `scrollBarMode: "vertical";` in FTML (`ftsbmVerticalOnly` in Pascal).
+  - Multi-step wizards and deck containers must reset scroll offset to zero (`ResetPageScroll()`) upon step or page switching to prevent newly activated pages from appearing pre-scrolled.
+
 ## Linux Windowing & Display Server Policy
 
 - **Strictly X11/XCB Only (No Wayland)**:
