@@ -509,6 +509,8 @@ var
   targetW, targetH: Integer;
   imgToDraw: TFloriaImage;
   NowMs, Elapsed: QWord;
+  canvasAgg: TFloriaCanvasAgg;
+  animTicked: Boolean;
 begin
   if not Visible then Exit;
 
@@ -575,6 +577,7 @@ begin
     targetH := Round(drawH);
     if (targetW > 0) and (targetH > 0) then
     begin
+      animTicked := False;
       if Assigned(FSVGDoc) and FSVGDoc.HasAnimation() and FIsPlaying then
       begin
         NowMs := GetTickCount64();
@@ -589,7 +592,7 @@ begin
         begin
           FSVGDoc.SetCurrentTime(Elapsed / 1000.0);
         end;
-        InvalidateSVGCache();
+        animTicked := True;
       end;
 
       if (FCachedSVG = nil) or (FCachedSVGWidth <> targetW) or (FCachedSVGHeight <> targetH) then
@@ -598,6 +601,17 @@ begin
         FCachedSVG := TFloriaSVGRenderer.RenderToImage(FSVGDoc, targetW, targetH);
         FCachedSVGWidth := targetW;
         FCachedSVGHeight := targetH;
+      end
+      else if animTicked then
+      begin
+        FCachedSVG.Clear(0, 0, 0, 0);
+        canvasAgg := TFloriaCanvasAgg.Create(FCachedSVG.PixelBuffer, FCachedSVG.Width, FCachedSVG.Height);
+        try
+          TFloriaSVGRenderer.Render(canvasAgg, FSVGDoc, 0.0, 0.0, targetW, targetH);
+        finally
+          canvasAgg.Free();
+        end;
+        FCachedSVG.InvalidateTexture();
       end;
 
       if Assigned(FCachedSVG) and (FCachedSVG.Width > 0) and (FCachedSVG.Height > 0) then
