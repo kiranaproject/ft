@@ -46,6 +46,7 @@ eval gcc $CFLAGS examples/c/creative_canvas.c $LDFLAGS -lm -o target/example_c_c
 eval gcc $CFLAGS examples/c/floating_nav_bar.c $LDFLAGS -lm -o target/example_c_floating_nav_bar
 eval gcc $CFLAGS examples/c/extended_client_area.c $LDFLAGS -o target/example_c_extended_client_area
 eval gcc $CFLAGS examples/c/eca_browser_mockup.c $LDFLAGS -o target/example_c_eca_browser_mockup
+eval gcc $CFLAGS examples/c/animated_images.c $LDFLAGS -o target/example_c_animated_images
 
 echo "[INFO] Successfully built all C examples in target/:"
 ls -lh target/example_c_*

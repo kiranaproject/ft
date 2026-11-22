@@ -5,8 +5,9 @@ program TestRunner;
 uses
   ctypes, Classes, SysUtils, Math, Types, fpcunit, testregistry, consoletestrunner,
   Floria.XCB,
-  Floria.SVG.DOM, Floria.SVG.Parser,
-  Ft.Css, Floria.Image.Core, Floria.Image.BMP, Floria.Image.PNG, Floria.Image.JPEG, Floria.Image.WebP, Floria.Image.Blur,
+  Floria.SVG.DOM,
+  Floria.SVG.Parser,
+  Ft.Css, Floria.Image.Core, Floria.Image.BMP, Floria.Image.PNG, Floria.Image.GIF, Floria.Image.JPEG, Floria.Image.WebP, Floria.Image.Blur,
   Ft.Canvas, Floria.Canvas, Floria.Canvas.Agg, Floria.Canvas.GL, Floria.SVG.Rasterizer,
   Floria.Text.HarfBuzz, Floria.Unicode.BiDi,
   Ft.Widget, Ft.Widget.Containers, Ft.Widget.Images,
@@ -106,6 +107,11 @@ type
     procedure TestImageWidgetLoadSVG();
     procedure TestImageWidgetLoadPNG();
     procedure TestImageWidgetLoadWebP();
+    procedure TestImageWidgetLoadAnimatedGIF();
+    procedure TestImageWidgetLoadAnimatedPNG();
+    procedure TestImageWidgetLoadAnimatedSVG();
+    procedure TestImageWidgetAnimationPlaybackControls();
+    procedure TestImageWidgetDrawAnimation();
     procedure TestSVGRasterizeLinearGradient();
     procedure TestSVGRasterizeRadialGradient();
   end;
@@ -199,6 +205,9 @@ type
     procedure TestUnicodeKeysymStillWorks();
     procedure TestLegacyCyrillicKeysyms();
     procedure TestLegacyGreekKeysyms();
+    procedure TestKeySymCaseConversion();
+    procedure TestTranslateKeySymWithCapsLock();
+    procedure TestEntryInputWithCapsLock();
   end;
 
   TFtTimerSchedulingTest = class(TTestCase)
@@ -1096,6 +1105,191 @@ begin
     AssertEquals('Width 1200', 1200, img.Bitmap.Width);
     AssertEquals('Height 675', 675, img.Bitmap.Height);
   finally
+    img.Free();
+  end;
+end;
+
+const
+  TEST_ANIM_GIF: array[0..422] of Byte = (
+    $47, $49, $46, $38, $39, $61, $20, $00, $20, $00, $81, $00, $00, $FF, $FF, $FF,
+    $FF, $00, $00, $00, $00, $00, $00, $00, $00, $21, $FF, $0B, $4E, $45, $54, $53,
+    $43, $41, $50, $45, $32, $2E, $30, $03, $01, $00, $00, $00, $21, $F9, $04, $00,
+    $0A, $00, $00, $00, $2C, $00, $00, $00, $00, $20, $00, $20, $00, $00, $08, $61,
+    $00, $03, $08, $1C, $48, $B0, $A0, $40, $00, $08, $13, $2A, $5C, $68, $B0, $21,
+    $C1, $85, $10, $15, $3A, $9C, $18, $B1, $E2, $44, $87, $15, $23, $5E, $6C, $98,
+    $11, $E2, $46, $83, $1D, $19, $7E, $7C, $18, $32, $E1, $48, $92, $25, $01, $9C,
+    $1C, $98, $12, $E1, $CA, $83, $2D, $5F, $06, $68, $A9, $F2, $25, $4D, $99, $37,
+    $6D, $C6, $D4, $99, $12, $E7, $CE, $95, $34, $83, $0A, $1D, $4A, $B4, $A8, $D1,
+    $A3, $48, $93, $2A, $5D, $CA, $B4, $A9, $D3, $A7, $50, $A3, $4A, $9D, $BA, $30,
+    $20, $00, $21, $F9, $04, $01, $0F, $00, $02, $00, $2C, $00, $00, $00, $00, $19,
+    $00, $19, $00, $81, $FF, $FF, $FF, $00, $FF, $00, $00, $00, $00, $00, $00, $00,
+    $08, $62, $00, $01, $08, $1C, $48, $B0, $A0, $40, $01, $08, $13, $22, $34, $C8,
+    $90, $A0, $42, $85, $0D, $23, $3E, $4C, $18, $B1, $E1, $C4, $85, $15, $0D, $5E,
+    $14, $90, $51, $E3, $C5, $8E, $05, $37, $82, $74, $F8, $91, $61, $80, $93, $28,
+    $53, $AA, $3C, $D9, $70, $A5, $CB, $94, $2D, $5F, $BE, $8C, $29, $73, $25, $CD,
+    $9A, $30, $4D, $E2, $54, $79, $73, $67, $80, $9E, $3B, $81, $E2, $DC, $E8, $33,
+    $25, $D1, $A2, $27, $8F, $22, $55, $5A, $94, $A9, $4F, $A7, $3B, $A1, $0E, $BD,
+    $88, $F4, $64, $40, $00, $21, $F9, $04, $01, $14, $00, $02, $00, $2C, $08, $00,
+    $08, $00, $18, $00, $18, $00, $81, $FF, $FF, $FF, $00, $00, $FF, $00, $00, $00,
+    $00, $00, $00, $08, $60, $00, $01, $08, $1C, $48, $B0, $A0, $40, $01, $08, $13,
+    $0A, $30, $C8, $90, $A0, $C2, $84, $0D, $23, $3E, $44, $18, $B1, $E1, $C4, $85,
+    $15, $0D, $5E, $CC, $A8, $71, $22, $C7, $82, $1B, $3F, $0E, $0C, $69, $30, $80,
+    $C9, $93, $28, $53, $06, $68, $A8, $B2, $E5, $49, $96, $2E, $5B, $C2, $8C, $99,
+    $72, $26, $CD, $97, $0C, $6F, $D6, $CC, $A9, $13, $67, $C9, $9E, $26, $6D, $EA,
+    $BC, $28, $00, $A8, $49, $A2, $46, $03, $20, $35, $BA, $14, $68, $D3, $9E, $4F,
+    $87, $5E, $4C, $1A, $10, $00, $3B
+  );
+
+  TEST_ANIM_PNG: array[0..359] of Byte = (
+    $89, $50, $4E, $47, $0D, $0A, $1A, $0A, $00, $00, $00, $0D, $49, $48, $44, $52,
+    $00, $00, $00, $20, $00, $00, $00, $20, $08, $06, $00, $00, $00, $73, $7A, $7A,
+    $F4, $00, $00, $00, $08, $61, $63, $54, $4C, $00, $00, $00, $03, $00, $00, $00,
+    $00, $CE, $ED, $BA, $C0, $00, $00, $00, $1A, $66, $63, $54, $4C, $00, $00, $00,
+    $00, $00, $00, $00, $20, $00, $00, $00, $20, $00, $00, $00, $00, $00, $00, $00,
+    $00, $00, $01, $00, $0A, $00, $00, $9A, $27, $23, $EA, $00, $00, $00, $35, $49,
+    $44, $41, $54, $78, $9C, $ED, $CE, $B1, $11, $00, $20, $0C, $03, $31, $87, $A9,
+    $D8, $BF, $62, $2B, $D8, $81, $14, $69, $A4, $DE, $E7, $AF, $9B, $9C, $34, $55,
+    $B2, $7F, $B7, $AB, $7B, $DE, $25, $40, $80, $00, $01, $02, $04, $08, $18, $0F,
+    $00, $00, $C6, $3D, $C8, $FB, $02, $22, $8F, $83, $A3, $C5, $00, $00, $00, $1A,
+    $66, $63, $54, $4C, $00, $00, $00, $01, $00, $00, $00, $19, $00, $00, $00, $19,
+    $00, $00, $00, $00, $00, $00, $00, $00, $00, $03, $00, $14, $00, $00, $3C, $7C,
+    $72, $59, $00, $00, $00, $30, $66, $64, $41, $54, $00, $00, $00, $02, $78, $9C,
+    $ED, $CD, $31, $11, $00, $00, $08, $C3, $C0, $80, $7F, $61, $B8, $02, $09, $0C,
+    $5D, $93, $B9, $D7, $07, $33, $FB, $AA, $77, $B1, $4C, $8A, $74, $7A, $20, $22,
+    $22, $22, $22, $22, $02, $1C, $2A, $4B, $01, $E9, $8E, $EE, $66, $76, $00, $00,
+    $00, $1A, $66, $63, $54, $4C, $00, $00, $00, $03, $00, $00, $00, $18, $00, $00,
+    $00, $18, $00, $00, $00, $08, $00, $00, $00, $08, $00, $01, $00, $05, $00, $00,
+    $51, $FB, $CF, $05, $00, $00, $00, $2C, $66, $64, $41, $54, $00, $00, $00, $04,
+    $78, $9C, $63, $60, $18, $05, $A3, $60, $14, $30, $12, $56, $F2, $FF, $04, $25,
+    $16, $30, $51, $A2, $79, $D4, $82, $51, $0B, $46, $2D, $18, $B5, $60, $D4, $02,
+    $7A, $59, $00, $00, $F2, $21, $01, $E7, $97, $54, $63, $55, $00, $00, $00, $00,
+    $49, $45, $4E, $44, $AE, $42, $60, $82
+  );
+
+procedure TFtSvgTest.TestImageWidgetLoadAnimatedGIF();
+var
+  img: TFtImage;
+begin
+  img := TFtImage.Create(nil, 0, 0, 100, 100);
+  try
+    img.LoadFromMemory(@TEST_ANIM_GIF[0], Length(TEST_ANIM_GIF));
+    AssertTrue('AnimatedImage assigned', Assigned(img.AnimatedImage));
+    AssertEquals('Frame count is 3', 3, img.FrameCount);
+    AssertTrue('IsPlaying is true by default', img.IsPlaying);
+    AssertNotNull('Bitmap returns composited frame', img.Bitmap);
+    AssertEquals('Bitmap Width 32', 32, img.Bitmap.Width);
+    AssertEquals('Bitmap Height 32', 32, img.Bitmap.Height);
+  finally
+    img.Free();
+  end;
+end;
+
+procedure TFtSvgTest.TestImageWidgetLoadAnimatedPNG();
+var
+  img: TFtImage;
+begin
+  img := TFtImage.Create(nil, 0, 0, 100, 100);
+  try
+    img.LoadFromMemory(@TEST_ANIM_PNG[0], Length(TEST_ANIM_PNG));
+    AssertTrue('AnimatedImage assigned for APNG', Assigned(img.AnimatedImage));
+    AssertEquals('APNG Frame count is 3', 3, img.FrameCount);
+    AssertTrue('APNG IsPlaying is true', img.IsPlaying);
+    AssertNotNull('APNG Bitmap returns composited frame', img.Bitmap);
+    AssertEquals('APNG Bitmap Width 32', 32, img.Bitmap.Width);
+    AssertEquals('APNG Bitmap Height 32', 32, img.Bitmap.Height);
+  finally
+    img.Free();
+  end;
+end;
+
+procedure TFtSvgTest.TestImageWidgetLoadAnimatedSVG();
+var
+  img: TFtImage;
+  SvgStr: string;
+begin
+  img := TFtImage.Create(nil, 0, 0, 100, 100);
+  try
+    SvgStr := '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">' +
+              '  <circle cx="50" cy="50" r="20" fill="blue">' +
+              '    <animate attributeName="r" from="20" to="40" dur="2s" repeatCount="indefinite"/>' +
+              '  </circle>' +
+              '</svg>';
+    img.AutoPlay := True;
+    img.LoadSVGFromString(SvgStr);
+
+    AssertNotNull('SVG document loaded', img.SVGDocument);
+    AssertTrue('SVG has animation', img.SVGDocument.HasAnimation());
+    AssertTrue('Autoplay starts animation', img.IsPlaying);
+
+    img.Pause();
+    AssertFalse('Paused', img.IsPlaying);
+
+    img.Play();
+    AssertTrue('Playing again', img.IsPlaying);
+
+    img.Stop();
+    AssertFalse('Stopped', img.IsPlaying);
+  finally
+    img.Free();
+  end;
+end;
+
+procedure TFtSvgTest.TestImageWidgetAnimationPlaybackControls();
+var
+  img: TFtImage;
+begin
+  img := TFtImage.Create(nil, 0, 0, 100, 100);
+  try
+    img.LoadFromMemory(@TEST_ANIM_GIF[0], Length(TEST_ANIM_GIF));
+    AssertTrue('Initially playing', img.IsPlaying);
+
+    img.Pause();
+    AssertFalse('Paused', img.IsPlaying);
+
+    img.Play();
+    AssertTrue('Resumed playing', img.IsPlaying);
+
+    img.Stop();
+    AssertFalse('Stopped', img.IsPlaying);
+    AssertEquals('Frame reset to 0', 0, img.CurrentFrame);
+
+    img.CurrentFrame := 2;
+    AssertEquals('Explicit frame set', 2, img.CurrentFrame);
+  finally
+    img.Free();
+  end;
+end;
+
+procedure TFtSvgTest.TestImageWidgetDrawAnimation();
+var
+  img: TFtImage;
+  surface: TFloriaImage;
+  canvas: TFtCanvasAgg;
+begin
+  img := TFtImage.Create(nil, 10, 10, 80, 80);
+  surface := TFloriaImage.Create(100, 100, fpfBGRA32);
+  try
+    surface.Clear(255, 255, 255, 255);
+    canvas := TFtCanvasAgg.Create(surface);
+    try
+      img.LoadFromMemory(@TEST_ANIM_GIF[0], Length(TEST_ANIM_GIF));
+
+      img.ScaleMode := ftismFit;
+      img.Draw(canvas);
+
+      img.ScaleMode := ftismStretch;
+      img.Draw(canvas);
+
+      img.ScaleMode := ftismCenter;
+      img.Draw(canvas);
+
+      img.ScaleMode := ftismNone;
+      img.Draw(canvas);
+    finally
+      canvas.Free();
+    end;
+  finally
+    surface.Free();
     img.Free();
   end;
 end;
@@ -4908,6 +5102,120 @@ begin
   // A Greek layout also carries ASCII punctuation on some keys (0x003B is ';'),
   // which must survive unchanged.
   AssertEquals('semicolon on Greek layout', ';', KeySymToUtf8($3B));
+end;
+
+procedure TFtKeySymToTextTest.TestKeySymCaseConversion();
+begin
+  // ASCII letters
+  AssertEquals('a -> A', Cardinal($41), KeySymToUpper($61));
+  AssertEquals('A -> A', Cardinal($41), KeySymToUpper($41));
+  AssertEquals('A -> a', Cardinal($61), KeySymToLower($41));
+  AssertEquals('a -> a', Cardinal($61), KeySymToLower($61));
+
+  // Non-letters must not change case
+  AssertEquals('1 -> 1 (upper)', Cardinal($31), KeySymToUpper($31));
+  AssertEquals('1 -> 1 (lower)', Cardinal($31), KeySymToLower($31));
+  AssertEquals('! -> ! (upper)', Cardinal($21), KeySymToUpper($21));
+  AssertEquals('! -> ! (lower)', Cardinal($21), KeySymToLower($21));
+
+  // Latin-1 accented letters
+  AssertEquals('eacute -> Eacute', Cardinal($C9), KeySymToUpper($E9));
+  AssertEquals('Eacute -> eacute', Cardinal($E9), KeySymToLower($C9));
+  AssertEquals('adieresis -> Adieresis', Cardinal($C4), KeySymToUpper($E4));
+  AssertEquals('Adieresis -> adieresis', Cardinal($E4), KeySymToLower($C4));
+
+  if FtKeysymHasXkbCommon() then
+  begin
+    // Legacy Cyrillic: Cyrillic_shorti ($06CA) -> Cyrillic_SHORTI ($06EA)
+    AssertEquals('Cyrillic_shorti upper', Cardinal($06EA), KeySymToUpper($06CA));
+    AssertEquals('Cyrillic_SHORTI lower', Cardinal($06CA), KeySymToLower($06EA));
+  end;
+end;
+
+procedure TFtKeySymToTextTest.TestTranslateKeySymWithCapsLock();
+const
+  ShiftMask = 1;
+  LockMask = 2;
+begin
+  // Letter 'a' ($61) / 'A' ($41):
+  // 1. No modifiers: lowercase 'a'
+  AssertEquals('letter none', Cardinal($61), TranslateKeySym($61, $41, 0));
+  // 2. Shift: uppercase 'A'
+  AssertEquals('letter shift', Cardinal($41), TranslateKeySym($61, $41, ShiftMask));
+  // 3. CapsLock: uppercase 'A'
+  AssertEquals('letter capslock', Cardinal($41), TranslateKeySym($61, $41, LockMask));
+  // 4. Shift + CapsLock: cancels out to lowercase 'a'
+  AssertEquals('letter shift+capslock', Cardinal($61), TranslateKeySym($61, $41, ShiftMask or LockMask));
+
+  // Key with only column 0 symbol (col 1 is 0 or void):
+  AssertEquals('single sym letter capslock', Cardinal($41), TranslateKeySym($61, 0, LockMask));
+  AssertEquals('single sym letter shift+capslock', Cardinal($61), TranslateKeySym($61, 0, ShiftMask or LockMask));
+
+  // Digit '1' ($31) / '!' ($21): CapsLock must not change numbers to symbols
+  // 1. No modifiers: '1'
+  AssertEquals('digit none', Cardinal($31), TranslateKeySym($31, $21, 0));
+  // 2. Shift: '!'
+  AssertEquals('digit shift', Cardinal($21), TranslateKeySym($31, $21, ShiftMask));
+  // 3. CapsLock: still '1'
+  AssertEquals('digit capslock', Cardinal($31), TranslateKeySym($31, $21, LockMask));
+  // 4. Shift + CapsLock: '!'
+  AssertEquals('digit shift+capslock', Cardinal($21), TranslateKeySym($31, $21, ShiftMask or LockMask));
+
+  // Punctuation '=' ($3D) / '+' ($2B):
+  AssertEquals('punct none', Cardinal($3D), TranslateKeySym($3D, $2B, 0));
+  AssertEquals('punct shift', Cardinal($2B), TranslateKeySym($3D, $2B, ShiftMask));
+  AssertEquals('punct capslock', Cardinal($3D), TranslateKeySym($3D, $2B, LockMask));
+  AssertEquals('punct shift+capslock', Cardinal($2B), TranslateKeySym($3D, $2B, ShiftMask or LockMask));
+
+  // Function / navigation keys: Return ($FF0D), Escape ($FF1B), etc.
+  AssertEquals('return none', Cardinal($FF0D), TranslateKeySym($FF0D, 0, 0));
+  AssertEquals('return capslock', Cardinal($FF0D), TranslateKeySym($FF0D, 0, LockMask));
+  AssertEquals('return shift', Cardinal($FF0D), TranslateKeySym($FF0D, 0, ShiftMask));
+  AssertEquals('escape capslock', Cardinal($FF1B), TranslateKeySym($FF1B, 0, LockMask));
+end;
+
+procedure TFtKeySymToTextTest.TestEntryInputWithCapsLock();
+const
+  LockMask = 2;
+  ShiftMask = 1;
+var
+  entry: TFtEntry;
+  sym: Cardinal;
+begin
+  entry := TFtEntry.Create(nil);
+  try
+    // Simulate typing 'h', 'e', 'l', 'l', 'o' with CapsLock active
+    sym := TranslateKeySym($68, $48, LockMask);
+    entry.KeyDown(sym, LockMask, KeySymToUtf8(sym));
+
+    sym := TranslateKeySym($65, $45, LockMask);
+    entry.KeyDown(sym, LockMask, KeySymToUtf8(sym));
+
+    sym := TranslateKeySym($6C, $4C, LockMask);
+    entry.KeyDown(sym, LockMask, KeySymToUtf8(sym));
+
+    sym := TranslateKeySym($6C, $4C, LockMask);
+    entry.KeyDown(sym, LockMask, KeySymToUtf8(sym));
+
+    sym := TranslateKeySym($6F, $4F, LockMask);
+    entry.KeyDown(sym, LockMask, KeySymToUtf8(sym));
+
+    AssertEquals('text typed with CapsLock active must be uppercase', 'HELLO', entry.Text);
+
+    // Simulate typing Shift+'1' with CapsLock active (digit '1')
+    sym := TranslateKeySym($31, $21, LockMask or ShiftMask);
+    entry.KeyDown(sym, LockMask or ShiftMask, KeySymToUtf8(sym));
+
+    AssertEquals('shift+1 with CapsLock active produces !', 'HELLO!', entry.Text);
+
+    // Simulate typing Shift+'a' with CapsLock active (should produce lowercase 'a')
+    sym := TranslateKeySym($61, $41, LockMask or ShiftMask);
+    entry.KeyDown(sym, LockMask or ShiftMask, KeySymToUtf8(sym));
+
+    AssertEquals('shift+letter with CapsLock active produces lowercase', 'HELLO!a', entry.Text);
+  finally
+    entry.Free();
+  end;
 end;
 
 { TFtTimerSchedulingTest }

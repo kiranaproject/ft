@@ -883,6 +883,18 @@ int32_t ft_image_get_scale_mode(FtWidget image);
 void ft_image_set_opacity(FtWidget image, double opacity);
 double ft_image_get_opacity(FtWidget image);
 
+/* Image Animation Controls */
+void ft_image_play(FtWidget image);
+void ft_image_pause(FtWidget image);
+void ft_image_stop(FtWidget image);
+int32_t ft_image_is_playing(FtWidget image);
+int32_t ft_image_get_frame_count(FtWidget image);
+int32_t ft_image_get_current_frame(FtWidget image);
+void ft_image_set_current_frame(FtWidget image, int32_t frame);
+void ft_image_set_autoplay(FtWidget image, int32_t autoplay);
+int32_t ft_image_get_autoplay(FtWidget image);
+int32_t ft_image_is_svg_animated(FtWidget image);
+
 /* SVG Bitmap Creation */
 FtBitmap ft_bitmap_create_from_svg(const char* svg_content, int32_t width, int32_t height);
 FtBitmap ft_bitmap_create_from_svg_file(const char* filepath, int32_t width, int32_t height);

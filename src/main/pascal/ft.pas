@@ -4758,6 +4758,78 @@ begin
   end;
 end;
 
+procedure ft_image_play(AWidget: Pointer); cdecl; export;
+begin
+  if Assigned(AWidget) and (TObject(AWidget) is TFtImage) then
+    TFtImage(AWidget).Play();
+end;
+
+procedure ft_image_pause(AWidget: Pointer); cdecl; export;
+begin
+  if Assigned(AWidget) and (TObject(AWidget) is TFtImage) then
+    TFtImage(AWidget).Pause();
+end;
+
+procedure ft_image_stop(AWidget: Pointer); cdecl; export;
+begin
+  if Assigned(AWidget) and (TObject(AWidget) is TFtImage) then
+    TFtImage(AWidget).Stop();
+end;
+
+function ft_image_is_playing(AWidget: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(AWidget) and (TObject(AWidget) is TFtImage) and TFtImage(AWidget).IsPlaying then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+function ft_image_get_frame_count(AWidget: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(AWidget) and (TObject(AWidget) is TFtImage) then
+    Result := TFtImage(AWidget).FrameCount
+  else
+    Result := 0;
+end;
+
+function ft_image_get_current_frame(AWidget: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(AWidget) and (TObject(AWidget) is TFtImage) then
+    Result := TFtImage(AWidget).CurrentFrame
+  else
+    Result := 0;
+end;
+
+procedure ft_image_set_current_frame(AWidget: Pointer; AFrame: cint32); cdecl; export;
+begin
+  if Assigned(AWidget) and (TObject(AWidget) is TFtImage) then
+    TFtImage(AWidget).CurrentFrame := AFrame;
+end;
+
+procedure ft_image_set_autoplay(AWidget: Pointer; AAutoPlay: cint32); cdecl; export;
+begin
+  if Assigned(AWidget) and (TObject(AWidget) is TFtImage) then
+    TFtImage(AWidget).AutoPlay := (AAutoPlay <> 0);
+end;
+
+function ft_image_get_autoplay(AWidget: Pointer): cint32; cdecl; export;
+begin
+  if Assigned(AWidget) and (TObject(AWidget) is TFtImage) and TFtImage(AWidget).AutoPlay then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+function ft_image_is_svg_animated(AWidget: Pointer): cint32; cdecl; export;
+begin
+  Result := 0;
+  if Assigned(AWidget) and (TObject(AWidget) is TFtImage) then
+  begin
+    if Assigned(TFtImage(AWidget).SVGDocument) and TFtImage(AWidget).SVGDocument.HasAnimation() then
+      Result := 1;
+  end;
+end;
+
 function ft_bitmap_create_from_svg(ASVGContent: PAnsiChar; AWidth, AHeight: cint32): Pointer; cdecl; export;
 begin
   if ASVGContent <> nil then
@@ -7963,6 +8035,16 @@ exports
   ft_image_get_scale_mode,
   ft_image_set_opacity,
   ft_image_get_opacity,
+  ft_image_play,
+  ft_image_pause,
+  ft_image_stop,
+  ft_image_is_playing,
+  ft_image_get_frame_count,
+  ft_image_get_current_frame,
+  ft_image_set_current_frame,
+  ft_image_set_autoplay,
+  ft_image_get_autoplay,
+  ft_image_is_svg_animated,
   ft_bitmap_create_from_svg,
   ft_bitmap_create_from_svg_file,
   ft_canvas_draw_image,
