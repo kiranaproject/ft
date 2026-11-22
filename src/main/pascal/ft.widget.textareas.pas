@@ -223,7 +223,9 @@ function TFtTextArea.GetText(): string;
 begin
   Result := FLines.Text;
   if (Length(Result) >= 2) and (Result[Length(Result) - 1] = #13) and (Result[Length(Result)] = #10) then
-    Delete(Result, Length(Result) - 1, 2);
+    Delete(Result, Length(Result) - 1, 2)
+  else if (Length(Result) >= 1) and (Result[Length(Result)] = #10) then
+    Delete(Result, Length(Result), 1);
 end;
 
 procedure TFtTextArea.SetText(const AValue: string);
